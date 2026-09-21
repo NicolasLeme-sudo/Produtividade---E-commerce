@@ -264,10 +264,8 @@ function processarKardexMovimentacoes(rows, indiceBaseAtivos) {
     var usuarioRaw = obterCampo(row, ["Usuário", "Usuario"]);
     var estoqueAntes = numero(obterCampo(row, ["Estoque Antes"]));
     var estoqueApos = numero(obterCampo(row, ["Estoque Após", "Estoque Apos"]));
-    // TODO: coluna de data do Kardex não foi confirmada literalmente pelo
-    // usuário — tentamos as grafias mais prováveis. Confirmar com um export
-    // real antes de considerar a série "Itens separados por dia" definitiva.
-    var dataISO = paraDataISO(obterCampo(row, ["Data Movimentação", "Data da Movimentação", "Data Mov", "Data"]));
+    // Confirmado no export real (Kardex 21.09): a coluna é só "Data".
+    var dataISO = paraDataISO(obterCampo(row, ["Data"]));
 
     var ehColmeia = tipoLocal.indexOf("COLMEIA") !== -1; // COLMÉIA sem acento após normalizarTexto
     var ehPesagem = complementar.indexOf("PESAGEM") !== -1;
@@ -339,8 +337,8 @@ function processarProdutividadeSeparacao(rows) {
   rows.forEach(function (row) {
     var usuario = obterCampo(row, ["Usuário", "Usuario"]) || "(sem usuário)";
     var pecas = numero(obterCampo(row, ["Peças", "Pecas"]));
-    // TODO: coluna de data não confirmada literalmente — tentativa mais provável.
-    var dataISO = paraDataISO(obterCampo(row, ["Data", "Data Separação"]));
+    // Confirmado no export real (Produtividade de Separação Sintética 21.09): coluna "Data".
+    var dataISO = paraDataISO(obterCampo(row, ["Data"]));
     porUsuario.set(usuario, (porUsuario.get(usuario) || 0) + pecas);
     if (dataISO) porDia.set(dataISO, (porDia.get(dataISO) || 0) + pecas);
   });
@@ -382,15 +380,16 @@ function processarGerenciadorOR(rows) {
   var porDiaConferencia = new Map();
 
   rows.forEach(function (row) {
-    // TODO: nome exato da coluna de tipo de recebimento não confirmado —
-    // tentamos "Tipo do Recebimento"/"Tipo de Recebimento"; qualquer valor
-    // contendo "REVERSA" classifica como reversa, senão normal.
-    var tipoRaw = normalizarTexto(obterCampo(row, ["Tipo do Recebimento", "Tipo de Recebimento", "Tipo"]));
+    // Confirmado no export real (Gerenciador de OR 21.09): coluna "Tipo do
+    // Recebimento", valores "COMPRA/TRANSFERÊNCIA - POR VOLUMES" (normal) e
+    // "REVERSA - DEVOLUÇÃO DE CLIENTE FINAL" (reversa).
+    var tipoRaw = normalizarTexto(obterCampo(row, ["Tipo do Recebimento"]));
     var ehReversa = tipoRaw.indexOf("REVERSA") !== -1;
     var bucket = ehReversa ? reversa : normal;
     bucket.orsPeriodo++;
 
-    var dataConferenciaRaw = obterCampo(row, ["Data da Conferência", "Data Conferência", "Data de Conferência"]);
+    // Confirmado: "Data da Conferência" preenchida bate 1:1 com "Conferida" = S.
+    var dataConferenciaRaw = obterCampo(row, ["Data da Conferência"]);
     var dataConferenciaISO = paraDataISO(dataConferenciaRaw);
     var conferida = !!dataConferenciaRaw && String(dataConferenciaRaw).trim() !== "";
     if (conferida) {
@@ -437,9 +436,8 @@ function processarInventario(bipagensRows, diferencaRows) {
 
   var divergenciaGanhos = 0, divergenciaPerdas = 0;
   (diferencaRows || []).forEach(function (row) {
-    // TODO: nome exato da coluna de diferença não confirmado — tentamos as
-    // grafias mais prováveis do relatório "Diferença por Local".
-    var diff = numero(obterCampo(row, ["Diferença", "Diferenca", "Diferença de Estoque", "Qtde. Diferença"]));
+    // Confirmado no export real (Diferença por Local 21.09): coluna "Diferença".
+    var diff = numero(obterCampo(row, ["Diferença"]));
     if (diff > 0) divergenciaGanhos += diff; else divergenciaPerdas += Math.abs(diff);
   });
 
@@ -515,13 +513,17 @@ function processarCancelamentosWMS(rows) {
     var dataCancRaw = obterCampo(row, ["Data de Cancelamento", "Data Cancelamento"]);
     if (!dataCancRaw || !String(dataCancRaw).trim()) return;
     total++;
-    var motivo = obterCampo(row, ["Motivo"]) || "(sem motivo)";
+    // Confirmado no export real (Controle de NF Cancelamento 21.09): coluna
+    // "Motivo de Cancelamento" (não "Motivo"). Os valores vêm com grafia
+    // inconsistente (ex.: "Cancelado ERP" / "CANCELADO PELO ERP" / minúsculo),
+    // então agrupamos pela forma normalizada (sem acento, maiúscula).
+    var motivoRaw = obterCampo(row, ["Motivo de Cancelamento"]) || "(sem motivo)";
+    var motivo = normalizarTexto(motivoRaw);
     var usuario = obterCampo(row, ["Usuário Cancelamento", "Usuario Cancelamento"]) || "(sem usuário)";
     porMotivo.set(motivo, (porMotivo.get(motivo) || 0) + 1);
     porUsuario.set(usuario, (porUsuario.get(usuario) || 0) + 1);
-    // TODO: coluna de classificação SINGLE/MULTI não confirmada literalmente
-    // neste relatório — tentamos as grafias usadas no report-ecommerce.
-    var classificacao = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificação", "Tipo Pedido"]));
+    // Confirmado no export real: coluna "Classificação Tipo Pedido", valores SINGLE/MULTI.
+    var classificacao = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido"]));
     if (classificacao.indexOf("MULTI") !== -1) multi++; else if (classificacao.indexOf("SINGLE") !== -1) single++;
   });
   return { total: total, porMotivo: porMotivo, porUsuario: porUsuario, single: single, multi: multi };
@@ -539,15 +541,17 @@ function processarIntegracaoReversa(nfReversaRows) {
     var status = normalizarTexto(obterCampo(row, ["Status"]));
     if (status === "IMPORTADA") { importadas++; emTela++; }
     else if (status === "EM CARGA/OR" || status === "EM CARGA / OR") { emCarga++; emTela++; }
-    // TODO: coluna de data de processamento não confirmada — usada só para
-    // aproximar "processadas hoje"; ajustar quando o export real chegar.
-    var dataProcRaw = obterCampo(row, ["Data Processamento", "Processado em"]);
+    // Confirmado no export real (Controle de NF Reversa 21.09): "Data de
+    // Processamento" só vem preenchida quando Status = PROCESSADA (bateu
+    // 1:1 nas contagens), então é o campo certo pra "processadas hoje".
+    var dataProcRaw = obterCampo(row, ["Data de Processamento"]);
     var dataProcISO = paraDataISO(dataProcRaw);
     if (dataProcISO === hojeISO) processadasHoje++;
 
-    // TODO: coluna de data de integração/importação não confirmada — usamos
-    // a mais provável para a série "NFs integradas por dia".
-    var dataIntegracaoISO = paraDataISO(obterCampo(row, ["Importado em", "Data de Integração", "Data Importação"]));
+    // "Data de Cadastro" é preenchida em 100% das linhas (é quando a NF
+    // entra no WMS) — é essa a data usada na série "NFs integradas por dia".
+    // Não existe campo separado de "Data de Integração" neste relatório.
+    var dataIntegracaoISO = paraDataISO(obterCampo(row, ["Data de Cadastro"]));
     if (dataIntegracaoISO) porDia.set(dataIntegracaoISO, (porDia.get(dataIntegracaoISO) || 0) + 1);
   });
   return { emTela: emTela, importadas: importadas, emCarga: emCarga, processadasHoje: processadasHoje, porDia: porDia };
