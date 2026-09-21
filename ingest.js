@@ -814,6 +814,20 @@ async function processarBaseAtivos(file) {
     };
   }).filter(function (r) { return r.nome; });
 
+  // A planilha não tem coluna de usuário do WMS — usuario_wms é um "chute"
+  // a partir do nome (candidatosDoNome), e mais de um colaborador pode cair
+  // no mesmo chute (ex.: dois "JOAO SILVA..."). Sem isso, o Postgres recusa
+  // o upsert inteiro ("ON CONFLICT DO UPDATE cannot affect row a second
+  // time"). Em vez de travar ou descartar alguém, dá um sufixo pra cada
+  // repetição — o admin pode corrigir manualmente o usuario_wms depois.
+  var vistos = new Map();
+  registros.forEach(function (r) {
+    var chave = r.usuario_wms;
+    var n = (vistos.get(chave) || 0) + 1;
+    vistos.set(chave, n);
+    if (n > 1) r.usuario_wms = chave + "_" + n;
+  });
+
   // upsert em lotes de 200 para não estourar payload em bases grandes
   for (var i = 0; i < registros.length; i += 200) {
     var lote = registros.slice(i, i + 200);
