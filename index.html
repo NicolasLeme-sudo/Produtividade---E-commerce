@@ -220,6 +220,15 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
 .fonte{font-size:.68rem; color:var(--text-muted); font-style:italic; margin-top:10px;}
 .upload-box{border:1px dashed var(--border); background:var(--bg-input); border-radius:8px; padding:16px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:space-between;}
+
+.switch{display:flex; align-items:center; gap:10px; cursor:pointer; flex:0 0 auto;}
+.switch input{position:absolute; opacity:0; width:0; height:0;}
+.switch-track{width:42px; height:24px; border-radius:999px; background:var(--border); position:relative; transition:background .15s; flex:0 0 auto;}
+.switch-thumb{position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:transform .15s;}
+.switch input:checked + .switch-track{background:var(--olive);}
+.switch input:checked + .switch-track .switch-thumb{transform:translateX(18px);}
+.switch input:focus-visible + .switch-track{outline:2px solid var(--amber); outline-offset:2px;}
+.switch-label{font-size:12.5px; font-weight:600; color:var(--text); min-width:64px;}
 .upload-box p{margin:0; font-size:.78rem; color:var(--text-muted); max-width:56ch; line-height:1.5;}
 .upload-box input[type=file]{font-size:.74rem; color:var(--text-label); max-width:100%;}
 .upload-status{font-size:.74rem; color:var(--text-muted); width:100%;}
@@ -575,6 +584,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // ---------- estado ----------
   var snapshots = { outbound:null, inbound:null, estoque:null, reversa:null };
+  var cicloInventarioAtivo = null; // null = ainda não carregado
   var currentGroup = 'outbound';
 
   // ---------- tema ----------
@@ -811,7 +821,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   function renderInventario(d){
     var el = document.getElementById('bloco-inventario');
-    if (!d) { el.innerHTML = estadoVazio('Sem ciclo de Inventário ainda', SEM_DADOS_TXT); return; }
+    var avisoCiclo = (cicloInventarioAtivo === false)
+      ? '<div class="panel" style="border-color:var(--amber)"><p class="fonte" style="margin:0; font-style:normal; color:var(--amber)">⏸ Não estamos em ciclo de contagens no momento — os dados abaixo são do último ciclo. Isso pode ser ligado de novo em Admin &gt; Abastecimento de base.</p></div>'
+      : '';
+    if (!d) { el.innerHTML = avisoCiclo + estadoVazio('Sem ciclo de Inventário ainda', SEM_DADOS_TXT); return; }
     var k = d.kpis || {};
     var kpisHtml = '<div class="kpis">'+
       kpiHtml('--accent','Bipagens', fmt(k.bipagens), 'soma das colunas 1ª a 10ª Contagem','flat')+
@@ -826,7 +839,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var painelHeat = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens bipados por bloco e piso</p><h4>Matriz Bloco × Piso</h4></div></div>'+
       heatmapHtml(d.heatmap) +
       '<div class="legend-line"><span>Mapeamento: A/B/C = Calçados (pisos 1 a 4), E/F/G = Vestuário (só piso 1), sem Bloco D.</span></div></div>';
-    document.getElementById('bloco-inventario').innerHTML = kpisHtml + painelSerie + painelHeat;
+    document.getElementById('bloco-inventario').innerHTML = avisoCiclo + kpisHtml + painelSerie + painelHeat;
   }
 
   function renderCorte(d){
@@ -910,6 +923,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var { data, error } = await supabaseClient.from('dashboard_snapshots').select('pagina, dados, atualizado_em');
     if (error) { console.error('Erro ao ler dashboard_snapshots', error); return; }
     (data||[]).forEach(function(row){ snapshots[row.pagina] = row.dados; });
+    var { data: cfg } = await supabaseClient.from('config_geral').select('ciclo_inventario_ativo').eq('chave','geral').single();
+    cicloInventarioAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
     renderPagina(currentGroup);
   }
   window.recarregarSnapshots = carregarSnapshots;

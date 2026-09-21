@@ -193,15 +193,26 @@ function normalizarSetor(raw) {
 // não só o principal — assim casa mesmo se o WMS usou o 2º ou 3º token.
 async function carregarIndiceBaseAtivos() {
   var { data, error } = await supabaseClient.from("base_ativos").select("*");
-  if (error) { console.error("Erro ao carregar base_ativos", error); return { indice: new Map(), lista: [] }; }
+  if (error) { console.error("Erro ao carregar base_ativos", error); return { indice: new Map(), indicePorPrimeiroNome: new Map(), lista: [] }; }
   var lista = data || [];
   var indice = new Map();
+  // Índice auxiliar só pelo primeiro nome (ex.: "DARA" -> [registro,...]) —
+  // usado quando o texto de origem só traz um nome sem sobrenome (ex.: campo
+  // Veiculo da Vinculação Reversa). Se mais de um colaborador compartilha o
+  // primeiro nome, fica ambíguo de propósito (nunca adivinha errado).
+  var indicePorPrimeiroNome = new Map();
   lista.forEach(function (registro) {
     candidatosDoNome(registro.nome).forEach(function (cand) { indice.set(cand, registro); });
     // também indexa o próprio usuario_wms gravado, caso tenha sido ajustado manualmente
     if (registro.usuario_wms) indice.set(normalizarUsuarioWMS(registro.usuario_wms), registro);
+    var tokens = normalizarTexto(registro.nome).split(/\s+/).filter(function (t) { return t && CONECTIVOS_NOME.indexOf(t) === -1; });
+    if (tokens[0]) {
+      var lista2 = indicePorPrimeiroNome.get(tokens[0]) || [];
+      lista2.push(registro);
+      indicePorPrimeiroNome.set(tokens[0], lista2);
+    }
   });
-  return { indice: indice, lista: lista };
+  return { indice: indice, indicePorPrimeiroNome: indicePorPrimeiroNome, lista: lista };
 }
 
 // Resolve um "Usuário" cru do WMS para o colaborador da Base de Ativos.
@@ -562,14 +573,29 @@ function processarIntegracaoReversa(nfReversaRows) {
 // O WMS não grava quem vinculou (Cadastrado pelo Usuário = sempre "SILT"),
 // então o nome é extraído do campo Veiculo por texto livre, removendo
 // palavras de categoria e cruzando com a Base de Ativos. Sem nome
-// identificável entra como "não identificado", nunca descartado.
+// identificável entra como "não identificado", nunca descartado. Só entram
+// linhas com a palavra "REVERSA" no Veiculo — "QUALIDADE" sozinho é outro
+// time (bipagem de material validado pela Qualidade), fora do escopo aqui.
 
-// TODO: lista de palavras de categoria validada só parcialmente contra os
-// exemplos citados (QUALIDADE, REVERSA, AVARIA, CONFECÇÃO) — pode precisar
-// de ajuste fino quando o export real completo for abastecido.
-var PALAVRAS_CATEGORIA_VEICULO = ["QUALIDADE", "REVERSA", "AVARIA", "CONFECCAO", "DEVOLUCAO", "TROCA", "DEFEITO", "GARANTIA", "VEICULO", "CAMINHAO", "TRANSPORTADORA"];
+// Confirmado no export real (Gerenciador de OR - Reversa): o campo Veiculo
+// mistura a categoria da ocorrência com o primeiro nome do colaborador, em
+// separadores variados ("REVERSA - DARA", "REVERSA-EVELYN", "QUALIDADE_ROSANEA",
+// "REVERSA, CONFECCÇÃO - RENATO"...). Palavras de categoria observadas nos
+// dados reais: REVERSA, QUALIDADE, AVARIA, CONFECÇÃO (e a grafia errada
+// "CONFECCÇÃO"), OUTLET, INVENTARIO/INVERSÃO, SOLICITAÇÃO, NFD/NFS.
+var PALAVRAS_CATEGORIA_VEICULO = [
+  "QUALIDADE", "REVERSA", "AVARIA", "CONFECCAO", "CONFECCCAO", "OUTLET",
+  "INVENTARIO", "INVERSAO", "SOLICITACAO", "NFD", "NFS",
+  "DEVOLUCAO", "TROCA", "DEFEITO", "GARANTIA", "VEICULO", "CAMINHAO", "TRANSPORTADORA"
+];
 
-function extrairNomeDoVeiculo(textoVeiculo, indiceBaseAtivos) {
+// Só nome(s) restante(s) depois de tirar as palavras de categoria — tenta par
+// (primeiro+sobrenome, quando o Veiculo trouxer dois nomes) e, se sobrar um
+// único token (o caso mais comum aqui: só o primeiro nome), tenta casar pelo
+// índice de primeiro nome. Só resolve se o primeiro nome for único na Base de
+// Ativos — se mais de um colaborador tiver o mesmo primeiro nome, fica
+// ambíguo de propósito (nunca adivinha errado).
+function extrairNomeDoVeiculo(textoVeiculo, indiceBaseAtivos, indicePorPrimeiroNome) {
   var tokens = normalizarTexto(textoVeiculo).split(/[^A-Z]+/).filter(function (t) {
     return t && PALAVRAS_CATEGORIA_VEICULO.indexOf(t) === -1 && CONECTIVOS_NOME.indexOf(t) === -1;
   });
@@ -581,18 +607,30 @@ function extrairNomeDoVeiculo(textoVeiculo, indiceBaseAtivos) {
       if (indiceBaseAtivos.has(chave2)) return indiceBaseAtivos.get(chave2);
     }
   }
+  if (tokens.length && indicePorPrimeiroNome) {
+    for (var k = 0; k < tokens.length; k++) {
+      var candidatos = indicePorPrimeiroNome.get(tokens[k]);
+      if (candidatos && candidatos.length === 1) return candidatos[0];
+    }
+  }
   return null;
 }
 
-function processarVinculacaoReversa(orReversaRows, indiceBaseAtivos) {
+// O foco deste indicador é sempre a produtividade do time de Reversa — por
+// isso só entram linhas cujo Veiculo contém a palavra "REVERSA". Linhas só
+// com "QUALIDADE" (ou outra categoria sem "REVERSA") são de um time à parte,
+// que bipa material validado pela Qualidade, e não entram nem no total nem
+// no "não identificado" desta tela.
+function processarVinculacaoReversa(orReversaRows, indiceBaseAtivos, indicePorPrimeiroNome) {
   var totalOR = 0, naoIdentificado = 0;
   var ranking = new Map();
   orReversaRows.forEach(function (row) {
     var notaFiscal = obterCampo(row, ["Nota Fiscal"]);
     if (!notaFiscal || !String(notaFiscal).trim()) return; // só ORs vinculadas
-    totalOR++;
     var veiculo = obterCampo(row, ["Veiculo", "Veículo"]) || "";
-    var colaborador = extrairNomeDoVeiculo(veiculo, indiceBaseAtivos);
+    if (normalizarTexto(veiculo).indexOf("REVERSA") === -1) return; // fora do time de Reversa
+    totalOR++;
+    var colaborador = extrairNomeDoVeiculo(veiculo, indiceBaseAtivos, indicePorPrimeiroNome);
     if (colaborador) {
       ranking.set(colaborador.nome, (ranking.get(colaborador.nome) || 0) + 1);
     } else {
@@ -638,10 +676,36 @@ function renderAdmin() {
   renderAtivos();
 }
 
-function renderAbastecimento() {
+// Interruptor "estamos em ciclo de contagens?" — fica guardado no Supabase
+// (tabela config_geral, linha única), não no navegador: vira regra pra todo
+// mundo até alguém trocar de novo aqui, sem precisar marcar toda vez.
+function cartaoCicloInventario(ativo) {
+  return '<div class="panel">' +
+    '<div class="panel-head"><div><p class="kicker">Config geral</p><h4>Ciclo de contagens de Inventário</h4></div></div>' +
+    '<div class="upload-box" style="align-items:center">' +
+    '<p>Liga quando o time está em ciclo de contagens; desliga quando não está (ex.: fora de temporada). Fica valendo até alguém trocar aqui — não precisa marcar de novo a cada acesso.</p>' +
+    '<label class="switch"><input type="checkbox" id="toggle-ciclo-inventario" ' + (ativo ? "checked" : "") + ' onchange="window.ProdutividadeIngest.alternarCicloInventario(this.checked)">' +
+    '<span class="switch-track"><span class="switch-thumb"></span></span>' +
+    '<span class="switch-label">' + (ativo ? "Em ciclo" : "Sem ciclo") + '</span></label>' +
+    '</div></div>';
+}
+
+async function alternarCicloInventario(ativo) {
+  var { error } = await supabaseClient.from("config_geral")
+    .upsert({ chave: "geral", ciclo_inventario_ativo: ativo, atualizado_em: new Date().toISOString() });
+  var label = document.querySelector("#toggle-ciclo-inventario ~ .switch-label");
+  if (error) { if (label) label.textContent = "Erro ao salvar"; console.error("Erro ao salvar config_geral", error); return; }
+  if (label) label.textContent = ativo ? "Em ciclo" : "Sem ciclo";
+  if (window.recarregarSnapshots) window.recarregarSnapshots();
+}
+
+async function renderAbastecimento() {
   var el = document.getElementById("bloco-abastecimento");
   if (!el) return;
+  var { data: cfg } = await supabaseClient.from("config_geral").select("ciclo_inventario_ativo").eq("chave", "geral").single();
+  var cicloAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
   el.innerHTML =
+    cartaoCicloInventario(cicloAtivo) +
     caixaUpload("up-kardex-mov", "Kardex de Movimentações", "Alimenta <strong>Separação Colmeia</strong>, <strong>Pula</strong> e <strong>Pendente de fechamento</strong>.") +
     caixaUpload("up-prod-separacao", "Produtividade de Separação", "Alimenta <strong>Separação Checkout</strong>.") +
     caixaUpload("up-conf-checkout", "Conferência Checkout/Etiqueta", "Alimenta <strong>Conferência Checkout</strong>.") +
@@ -760,7 +824,7 @@ async function processar(id) {
       return;
     }
 
-    var { indice } = await carregarIndiceBaseAtivos();
+    var { indice, indicePorPrimeiroNome } = await carregarIndiceBaseAtivos();
 
     if (id === "up-kardex-mov") {
       var rows = await parseArquivoGenerico(input.files[0]);
@@ -951,7 +1015,7 @@ async function processar(id) {
 
     else if (id === "up-or-reversa") {
       var rows12 = await parseArquivoGenerico(input.files[0]);
-      var r12 = processarVinculacaoReversa(rows12, indice);
+      var r12 = processarVinculacaoReversa(rows12, indice, indicePorPrimeiroNome);
       var atualR2 = await lerSnapshot("reversa");
       atualR2.vinculacao = { totalOR: r12.totalOR, naoIdentificado: r12.naoIdentificado, ranking: mapParaRanking(r12.ranking) };
       await salvarSnapshot("reversa", atualR2);
@@ -972,6 +1036,7 @@ window.ProdutividadeIngest = {
   renderAdmin: renderAdmin,
   processar: processar,
   lancarPallet: lancarPallet,
+  alternarCicloInventario: alternarCicloInventario,
 };
 
 })();
