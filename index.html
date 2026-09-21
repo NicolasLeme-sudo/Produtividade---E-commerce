@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="escuro">
+<!--
+  Produtividade E-commerce — Vulcabras
+  =====================================
+  ESTRUTURA (3 camadas, nunca misturar):
+    1. ingest.js   — roda no navegador, só Admin acessa a tela que chama,
+                     lê arquivos (TSV/XLSX) e aplica as regras de negócio,
+                     grava o resultado já calculado no Supabase.
+    2. Supabase    — só guarda o snapshot já calculado (dashboard_snapshots,
+                     base_ativos). Nenhuma lógica de negócio mora no banco.
+    3. index.html (este arquivo) — só LÊ o snapshot do Supabase e desenha a
+                     tela. Nunca recalcula regra de negócio, só formata.
+
+  Padrão de tema, login e navegação copiado do Report E-commerce (mesma
+  arquitetura, mesmo Supabase Auth). Estrutura de telas copiada do mockup
+  aprovado por Nicolas Leme (plano-produtividade.html).
+-->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Produtividade E-commerce</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+
+<!-- Supabase: cliente de banco de dados -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- XLSX: leitura de Excel/TSV no navegador (usado só na tela de Abastecimento, via ingest.js) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+/* ============================================================
+   1) VARIÁVEIS DE TEMA — mesmos tokens do Report E-commerce e do
+   mockup aprovado. Trocar de tema é só trocar --nome; nenhum outro
+   CSS abaixo usa cor fixa.
+   ============================================================ */
+[data-tema="escuro"] {
+  --bg:#0F1623; --bg-card:#192032; --bg-sidebar:#111827; --bg-input:#1E2A3D;
+  --border:#253048; --text:#E8EBF2; --text-muted:#7C8BA8; --text-label:#9BAAC4;
+  --accent:#297ADF; --accent-soft:#16283F; --accent-light:#7FB2EC;
+  --olive:#45C645; --olive-soft:#1B3320; --amber:#F6BD00; --amber-soft:#332B10;
+  --red:#C8102E; --red-soft:#331015; --gelo:#93A5B8; --laranja:#E8830D;
+  --shadow:0 2px 12px rgba(0,0,0,.4);
+}
+[data-tema="claro"] {
+  --bg:#F3F4F7; --bg-card:#FFFFFF; --bg-sidebar:#132043; --bg-input:#F8F9FB;
+  --border:#E1E4EA; --text:#1C2333; --text-muted:#6B7280; --text-label:#4B5563;
+  --accent:#1A6FC4; --accent-soft:#EFF6FF; --accent-light:#5B9BD5;
+  --olive:#2E9E2E; --olive-soft:#E4F3E4; --amber:#C9960A; --amber-soft:#FBF0D9;
+  --red:#C0392B; --red-soft:#FBE4E1; --gelo:#8FA3B8; --laranja:#C26A00;
+  --shadow:0 2px 8px rgba(0,0,0,.08);
+}
+*, *::before, *::after { box-sizing:border-box; }
+html, body { height:100%; margin:0; }
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-variant-numeric:tabular-nums;
+  transition:background .2s, color .2s;
+}
+
+/* ---------- LOGIN ---------- */
+.login-overlay{position:fixed; inset:0; z-index:1000; background:var(--bg); display:flex; align-items:center; justify-content:center;}
+.login-overlay.oculto{display:none;}
+.login-box{background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:36px 32px; width:320px; text-align:center; box-shadow:var(--shadow);}
+.login-logo{width:52px; height:52px; object-fit:contain; margin-bottom:14px;}
+.login-box h1{font-size:18px; margin:0 0 2px; color:var(--text);}
+.login-sub{font-size:12px; color:var(--text-muted); margin:0 0 22px;}
+.login-box input{width:100%; padding:10px 12px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-input); color:var(--text); font-size:13px;}
+.login-box button{width:100%; padding:10px 12px; border-radius:8px; border:none; background:var(--accent); color:#fff; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit;}
+.login-erro{color:var(--red); font-size:12px; margin-top:10px; min-height:14px;}
+
+/* ---------- LAYOUT ---------- */
+.layout{display:flex; min-height:100vh;}
+.layout.oculto{display:none;}
+.sidebar{width:220px; flex:0 0 220px; background:var(--bg-sidebar); display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,.06); overflow-y:auto;}
+.sidebar-brand{padding:18px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:12px;}
+.sidebar-brand .mark{width:36px; height:36px; border-radius:8px; flex-shrink:0; background:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden;}
+.sidebar-brand .mark img{width:100%; height:100%; object-fit:contain;}
+.sidebar-brand .nome{font-size:13px; font-weight:700; color:#fff; line-height:1.3;}
+.sidebar-brand .sub{font-size:10.5px; color:#7C9AB8; margin-top:2px;}
+.nav-group{display:flex; flex-direction:column; gap:2px; padding:10px 10px 4px;}
+.nav-label{color:rgba(255,255,255,.4); font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; padding:8px 8px 4px;}
+.nav-item{display:flex; align-items:center; gap:8px; color:rgba(255,255,255,.75); font-size:.83rem; padding:7px 8px; border-radius:6px; cursor:pointer;}
+.nav-item:hover{background:rgba(255,255,255,.07); color:#fff;}
+.nav-item.active{background:rgba(41,122,223,.25); color:#fff; font-weight:600;}
+.nav-item:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
+.nav-dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.6; flex:0 0 auto;}
+.nav-group.oculto{display:none;}
+.badge-admin{margin-left:auto; font-size:8.5px; font-weight:700; background:rgba(178,58,46,.2); color:var(--red); padding:2px 6px; border-radius:10px;}
+.sidebar-footer{margin-top:auto; padding:12px 16px; border-top:1px solid rgba(255,255,255,.07); display:flex; flex-direction:column; gap:6px;}
+.sidebar-footer .perfil{font-size:11px; color:#9BAAC4;}
+.sidebar-footer button{background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#fff; border-radius:7px; padding:6px 10px; font-size:11.5px; cursor:pointer; font-family:inherit;}
+
+.main{flex:1; min-width:0; display:flex; flex-direction:column;}
+.topbar{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:14px 22px; border-bottom:1px solid var(--border); background:var(--bg-card); box-shadow:var(--shadow);}
+.topbar h2{margin:0; font-size:1.05rem;}
+.topbar .sub{font-size:.75rem; color:var(--text-muted); margin-top:2px;}
+.btn{background:var(--accent); color:#fff; border:none; padding:8px 14px; border-radius:7px; font-size:.8rem; font-weight:600; cursor:pointer; font-family:inherit;}
+.btn.ghost{background:var(--bg-input); color:var(--text); border:1px solid var(--border);}
+.btn-tema{padding:6px 12px; border-radius:20px; cursor:pointer; background:var(--bg-input); border:1px solid var(--border); color:var(--text); font-size:12px; font-weight:600;}
+.btns{display:flex; gap:8px; align-items:center;}
+
+.content{padding:22px; display:flex; flex-direction:column; gap:34px; overflow:auto; flex:1; position:relative; overflow-anchor:none;}
+.page{display:flex; flex-direction:column; gap:34px;}
+.subsection{display:flex; flex-direction:column; gap:14px; padding:14px; border-radius:12px; scroll-margin:18px;}
+.sub-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+.sub-head h3{margin:0; font-size:.95rem;}
+.sub-head .kicker{margin:0;}
+.kicker{font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin:0 0 6px;}
+.subsection.flash{animation:flashPulse 800ms ease-in-out 3;}
+@keyframes flashPulse{0%,100%{box-shadow:0 0 0 0 transparent; background:transparent;} 50%{box-shadow:0 0 0 3px var(--amber), 0 0 16px 2px var(--amber-soft); background:var(--amber-soft);}}
+
+.filterbar{position:sticky; top:0; z-index:5; display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px;}
+.filtro-flutuante-estoque{position:sticky; top:0; z-index:5; display:grid;}
+.filtro-flutuante-estoque .filterbar{position:static; grid-area:1/1; transition:opacity .15s ease;}
+.filtro-flutuante-estoque .filterbar.filtro-oculto{opacity:0; visibility:hidden; pointer-events:none;}
+.filter-group{display:flex; flex-direction:column; gap:6px;}
+.filter-group > label{font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); font-weight:600;}
+.chips{display:flex; gap:6px; flex-wrap:wrap;}
+.chip{font-size:.72rem; border:1px solid var(--border); background:var(--bg-input); color:var(--text-label); padding:5px 11px; border-radius:999px; cursor:pointer; font-family:inherit;}
+.chip.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent); font-weight:700;}
+.date-campo{display:flex; align-items:center; gap:7px; font-size:.72rem; color:var(--text-muted); flex-wrap:wrap;}
+.date-campo[hidden]{display:none;}
+.date-box{border:1px solid var(--border); background:var(--bg-input); border-radius:7px; padding:6px 11px; font-size:.78rem; color:var(--text); font-variant-numeric:tabular-nums;}
+.filter-note{font-size:.7rem; color:var(--text-muted); margin-left:auto; max-width:220px; line-height:1.4;}
+
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:14px;}
+.kpi{background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; position:relative; overflow:hidden;}
+.kpi .bar{position:absolute; left:0; top:0; bottom:0; width:4px;}
+.kpi .kicker{margin-bottom:6px; line-height:1.3;}
+.kpi .val{font-size:1.45rem; font-weight:700; font-variant-numeric:tabular-nums;}
+.kpi .delta{font-size:.72rem; margin-top:4px; font-weight:600; line-height:1.35;}
+.delta.up{color:var(--olive);} .delta.warn{color:var(--amber);} .delta.flat{color:var(--gelo);}
+
+.panel{background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 18px;}
+.panel-head{display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:14px;}
+.panel-head h4{margin:0; font-size:.88rem;}
+.panel-head .kicker{margin:0;}
+.duo{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px;}
+.pill{font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap;}
+.pill.auto{background:var(--olive-soft); color:var(--olive);}
+.pill.manual{background:var(--red-soft); color:var(--red);}
+.pill.parcial{background:var(--amber-soft); color:var(--amber);}
+.pill.info{background:var(--accent-soft); color:var(--accent);}
+
+.seg-toggle{display:flex; gap:4px; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; padding:3px;}
+.seg-toggle button{border:none; background:transparent; color:var(--text-muted); font-size:.72rem; font-weight:600; padding:5px 11px; border-radius:6px; cursor:pointer; font-family:inherit;}
+.seg-toggle button.on{background:var(--accent); color:#fff;}
+
+.barras-dia{display:flex; align-items:flex-end; gap:12px; height:212px; padding-top:6px;}
+.col-dia{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px; min-width:0;}
+.valor-dia{font-size:.7rem; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums;}
+.pilha{width:100%; max-width:44px; display:flex; flex-direction:column-reverse; border-radius:4px 4px 0 0; overflow:hidden;}
+.pilha i{display:block;}
+.rot-dia{font-size:.66rem; color:var(--text-muted); text-align:center; line-height:1.3;}
+.rot-dia b{display:block; color:var(--text-label); font-weight:600; text-transform:uppercase;}
+.rot-dia.hoje b{color:var(--amber);}
+
+.bar-scroll{max-height:180px; overflow-y:auto; padding-right:6px; scrollbar-width:thin; scrollbar-color:var(--border) transparent;}
+.bar-scroll::-webkit-scrollbar{width:8px;}
+.bar-scroll::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+.bar-list{display:flex; flex-direction:column; gap:10px;}
+.bar-row{display:grid; grid-template-columns:140px 1fr 92px; align-items:center; gap:10px; font-size:.78rem; min-height:18px;}
+.bar-row .nome{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.bar-track{background:var(--bg-input); border-radius:5px; height:12px; overflow:hidden; display:flex;}
+.bar-track i{display:block; height:100%;}
+.bar-row .num{text-align:right; font-variant-numeric:tabular-nums; font-weight:700;}
+.scroll-hint{font-size:.68rem; color:var(--text-muted); margin-top:9px;}
+
+.sr-card{background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 18px; display:flex; gap:16px; align-items:center; flex-wrap:wrap;}
+.sr-nums{display:flex; flex-direction:column; gap:9px; flex:1; min-width:160px;}
+.sr-line{display:flex; justify-content:space-between; gap:10px; font-size:.78rem; align-items:baseline;}
+.sr-line span{color:var(--text-label);}
+.sr-line b{font-variant-numeric:tabular-nums; font-size:.95rem;}
+.sr-line.gap{border-top:1px solid var(--border); padding-top:8px;}
+
+.donut-wrap{display:flex; align-items:center; gap:22px; flex-wrap:wrap;}
+.donut-legend{display:flex; flex-direction:column; gap:9px; font-size:.78rem; min-width:180px; flex:1;}
+.donut-legend .row{display:flex; align-items:center; gap:8px;}
+.donut-legend .dot{width:10px; height:10px; border-radius:50%; flex:0 0 auto;}
+.donut-legend b{margin-left:auto; font-variant-numeric:tabular-nums;}
+
+.legend-line{display:flex; gap:16px; flex-wrap:wrap; font-size:.72rem; color:var(--text-muted); margin-top:12px; line-height:1.5;}
+.legend-line span{display:flex; align-items:center; gap:6px;}
+.legend-line i{width:14px; height:3px; border-radius:2px; display:inline-block; flex:0 0 auto;}
+.legend-line i.sq{height:10px; width:10px; border-radius:2px;}
+.chart-svg{width:100%; height:auto; display:block; overflow:visible;}
+.chart-scroll-x{overflow-x:auto; overflow-y:hidden; padding-bottom:6px; scrollbar-width:thin; scrollbar-color:var(--accent) transparent;}
+.chart-scroll-x::-webkit-scrollbar{height:10px;}
+.chart-scroll-x::-webkit-scrollbar-thumb{background:var(--accent); border-radius:5px;}
+
+table.op{width:100%; border-collapse:collapse; font-size:.78rem;}
+table.op th{text-align:left; color:var(--text-label); font-weight:600; text-transform:uppercase; font-size:.65rem; letter-spacing:.04em; padding:7px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
+table.op td{padding:8px 10px; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums;}
+table.op td.num, table.op th.num{text-align:right;}
+table.op tr.total td{border-top:2px solid var(--accent); background:var(--bg-input); font-weight:700;}
+
+table.heat{width:100%; border-collapse:collapse; font-size:.8rem;}
+table.heat th{text-align:center; color:var(--text-label); font-weight:600; text-transform:uppercase; font-size:.64rem; letter-spacing:.04em; padding:8px 6px; border-bottom:1px solid var(--border);}
+table.heat th.lbl, table.heat td.lbl{text-align:left;}
+table.heat td{text-align:center; padding:9px 6px; font-variant-numeric:tabular-nums; font-weight:600; border-bottom:1px solid var(--border); color:var(--text);}
+table.heat td.lbl{font-weight:400; color:var(--text-label);}
+table.heat tr.grp-row td{background:var(--bg-input); color:var(--text-muted); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; text-align:left; padding:6px 10px;}
+table.heat tr:last-child td{border-bottom:none; background:var(--bg-input); font-weight:700;}
+table.heat td.hna{color:var(--text-muted); font-weight:400; background:transparent;}
+table.heat td.h0c{background:color-mix(in srgb, var(--accent) 8%, transparent);}
+table.heat td.h1c{background:color-mix(in srgb, var(--accent) 24%, transparent);}
+table.heat td.h2c{background:color-mix(in srgb, var(--accent) 42%, transparent); color:#fff;}
+table.heat td.h3c{background:color-mix(in srgb, var(--accent) 62%, transparent); color:#fff;}
+table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent); color:#fff;}
+
+.btn-icon{display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; flex:0 0 auto; border-radius:7px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-muted); cursor:pointer;}
+.btn-icon:hover{color:var(--accent); border-color:var(--accent);}
+.btn-icon svg{width:14px; height:14px; display:block;}
+.sub-head-tools{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.filter-scope{font-size:.68rem; color:var(--text-muted); font-style:italic;}
+
+.fonte{font-size:.68rem; color:var(--text-muted); font-style:italic; margin-top:10px;}
+.upload-box{border:1px dashed var(--border); background:var(--bg-input); border-radius:8px; padding:16px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:space-between;}
+.upload-box p{margin:0; font-size:.78rem; color:var(--text-muted); max-width:56ch; line-height:1.5;}
+.upload-box input[type=file]{font-size:.74rem; color:var(--text-label); max-width:100%;}
+.upload-status{font-size:.74rem; color:var(--text-muted); width:100%;}
+.upload-status.ok{color:var(--olive);}
+.upload-status.erro{color:var(--red);}
+
+.empty-state{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:34px 18px; text-align:center; color:var(--text-muted); border:1px dashed var(--border); border-radius:8px; background:var(--bg-input);}
+.empty-state b{color:var(--text-label); font-size:.9rem;}
+.empty-state p{margin:0; font-size:.78rem; max-width:44ch;}
+
+#tip{position:fixed; z-index:50; background:var(--bg-sidebar); color:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px; font-size:.75rem; line-height:1.5; pointer-events:none; box-shadow:0 6px 18px rgba(0,0,0,.28); max-width:240px;}
+#tip[hidden]{display:none;}
+#tip b{font-size:.82rem;} #tip .tip-val{font-variant-numeric:tabular-nums; font-weight:700;}
+#tip .tip-sub{color:rgba(255,255,255,.65); font-size:.7rem;}
+
+@media (max-width:720px){
+  .layout{flex-direction:column;}
+  .sidebar{width:100%; flex:none;}
+  .bar-row{grid-template-columns:104px 1fr 76px;}
+  .filter-note{margin-left:0;}
+}
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <img src="/favicon.png" alt="Logo" class="login-logo">
+    <h1>Produtividade E-commerce</h1>
+    <p class="login-sub">Vulcabras · Armazém</p>
+    <form id="loginForm">
+      <input type="text" id="loginEmail" placeholder="Usuário" required autocomplete="username">
+      <input type="password" id="loginSenha" placeholder="Senha" required autocomplete="current-password">
+      <button type="submit">Entrar</button>
+      <div class="login-erro" id="loginErro"></div>
+    </form>
+  </div>
+</div>
+
+<div class="layout oculto" id="layoutApp">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="mark"><img src="/favicon.png" alt="Logo"></div>
+      <div>
+        <div class="nome">Produtividade</div>
+        <div class="sub">E-commerce · Vulcabras</div>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Outbound</div>
+      <div class="nav-item active" tabindex="0" data-page="outbound" data-target="separacao"><span class="nav-dot"></span>Separação</div>
+      <div class="nav-item" tabindex="0" data-page="outbound" data-target="conferencia"><span class="nav-dot"></span>Conferência</div>
+      <div class="nav-item" tabindex="0" data-page="outbound" data-target="expedicao"><span class="nav-dot"></span>Expedição</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Inbound</div>
+      <div class="nav-item" tabindex="0" data-page="inbound" data-target="recebimento"><span class="nav-dot"></span>Recebimento</div>
+      <div class="nav-item" tabindex="0" data-page="inbound" data-target="armazenagem"><span class="nav-dot"></span>Armazenagem</div>
+      <div class="nav-item" tabindex="0" data-page="inbound" data-target="pallets"><span class="nav-dot"></span>Mov. de Pallets</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Gestão de Estoque</div>
+      <div class="nav-item" tabindex="0" data-page="estoque" data-target="inventario"><span class="nav-dot"></span>Inventário</div>
+      <div class="nav-item" tabindex="0" data-page="estoque" data-target="corte"><span class="nav-dot"></span>Corte · Pula</div>
+      <div class="nav-item" tabindex="0" data-page="estoque" data-target="cancelamentos"><span class="nav-dot"></span>Cancelamentos WMS</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Reversa</div>
+      <div class="nav-item" tabindex="0" data-page="reversa" data-target="integracao"><span class="nav-dot"></span>Integração</div>
+      <div class="nav-item" tabindex="0" data-page="reversa" data-target="vinculacao"><span class="nav-dot"></span>Vinculação</div>
+    </div>
+    <div class="nav-group" id="grupoAdmin">
+      <div class="nav-label">Admin <span style="color:var(--amber)">·</span> restrito</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="abastecimento"><span class="nav-dot"></span>Abastecimento de base<span class="badge-admin">Admin</span></div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="ativos"><span class="nav-dot"></span>Base de ativos<span class="badge-admin">Admin</span></div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="perfil" id="sidebarPerfil"></div>
+      <button onclick="sair()">Sair</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h2 id="page-title">Outbound</h2>
+        <div class="sub" id="page-sub">Separação · Conferência · Expedição</div>
+      </div>
+      <div class="btns">
+        <button class="btn-tema" id="btnTema" onclick="alternarTema()">☀ Claro</button>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+
+      <!-- ============ OUTBOUND ============ -->
+      <div class="page" data-page-content="outbound">
+
+        <div class="filterbar">
+          <div class="filter-group data-filtro" data-filtro-grupo="outbound">
+            <label>Data</label>
+            <div class="chips">
+              <button class="chip on" data-modo-data="dia">Dia</button>
+              <button class="chip" data-modo-data="periodo">Período</button>
+              <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
+            </div>
+          </div>
+          <p class="filter-note">O filtro afeta as séries por dia (gráficos). Os KPIs mostram sempre o dia mais recente abastecido.</p>
+        </div>
+
+        <div class="subsection" id="separacao">
+          <div class="sub-head">
+            <div><p class="kicker">Outbound · Separação</p><h3>Status atual e produtividade por separador</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill auto">Automático</span>
+              <button class="btn-icon" title="Exportar produtividade de Separação" onclick="exportarOperacao('separacao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div id="bloco-separacao"></div>
+        </div>
+
+        <div class="subsection" id="conferencia">
+          <div class="sub-head">
+            <div><p class="kicker">Outbound · Conferência</p><h3>Ranking de conferência por colaborador</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill auto">Automático</span>
+              <button class="btn-icon" title="Exportar produtividade de Conferência" onclick="exportarOperacao('conferencia')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div id="bloco-conferencia"></div>
+        </div>
+
+        <div class="subsection" id="expedicao">
+          <div class="sub-head">
+            <div><p class="kicker">Outbound · Expedição</p><h3>Volumes expedidos × forecast</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill parcial">Ainda não automatizado</span>
+              <button class="btn-icon" title="Exportar produtividade de Expedição" onclick="exportarOperacao('expedicao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div class="empty-state">
+            <b>Sem fonte automática ainda</b>
+            <p>Depende do relatório "Acompanhamento Exp", que não entrou no lote de validação. Assim que o arquivo for abastecido em Admin &gt; Abastecimento de base, este painel passa a mostrar dados reais.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============ INBOUND ============ -->
+      <div class="page" data-page-content="inbound" hidden>
+
+        <div class="filterbar">
+          <div class="filter-group data-filtro" data-filtro-grupo="inbound">
+            <label>Data</label>
+            <div class="chips">
+              <button class="chip on" data-modo-data="dia">Dia</button>
+              <button class="chip" data-modo-data="periodo">Período</button>
+              <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
+            </div>
+          </div>
+          <p class="filter-note">Data considerada: <strong>Data da Conferência</strong> da OR (não a de cadastro).</p>
+        </div>
+
+        <div class="subsection" id="recebimento">
+          <div class="sub-head">
+            <div><p class="kicker">Inbound · Recebimento</p><h3>ORs conferidas × itens armazenados</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill auto">Automático</span>
+              <button class="btn-icon" title="Exportar produtividade de Recebimento" onclick="exportarOperacao('recebimento')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div id="bloco-recebimento"></div>
+        </div>
+
+        <div class="subsection" id="armazenagem">
+          <div class="sub-head">
+            <div><p class="kicker">Inbound · Armazenagem</p><h3>Itens armazenados por colaborador</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill auto">Automático</span>
+              <button class="btn-icon" title="Exportar produtividade de Armazenagem" onclick="exportarOperacao('armazenagem')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div id="bloco-armazenagem"></div>
+        </div>
+
+        <div class="subsection" id="pallets">
+          <div class="sub-head">
+            <div><p class="kicker">Inbound · Movimentação de Pallets</p><h3>Movimentação por turno e por piso</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill manual">Manual</span>
+              <button class="btn-icon" title="Exportar Movimentação de Pallets" onclick="exportarOperacao('pallets')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div id="bloco-pallets"></div>
+        </div>
+
+      </div>
+
+      <!-- ============ GESTÃO DE ESTOQUE ============ -->
+      <div class="page" data-page-content="estoque" hidden>
+
+        <div class="filtro-flutuante-estoque">
+          <div class="filterbar" id="filtroInventario">
+            <div class="filter-group data-filtro" data-filtro-grupo="inventario">
+              <label>Data</label>
+              <div class="chips">
+                <button class="chip on" data-modo-data="dia">Dia</button>
+                <button class="chip" data-modo-data="periodo">Período</button>
+                <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
+                <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
+              </div>
+            </div>
+            <p class="filter-note">Filtro do <strong>Inventário</strong> — some ao rolar para Corte/Cancelamentos, onde o filtro deles assume o topo.</p>
+          </div>
+          <div class="filterbar filtro-oculto" id="filtroCorte">
+            <div class="filter-group data-filtro" data-filtro-grupo="corte">
+              <label>Data</label>
+              <div class="chips">
+                <button class="chip on" data-modo-data="dia">Dia</button>
+                <button class="chip" data-modo-data="periodo">Período</button>
+                <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
+                <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
+              </div>
+            </div>
+            <p class="filter-note">Filtro compartilhado por <strong>Corte · Pula</strong> e <strong>Cancelamentos WMS</strong> — assume o topo no lugar do filtro de Inventário.</p>
+          </div>
+        </div>
+
+        <div class="subsection" id="inventario">
+          <div class="sub-head">
+            <div><p class="kicker">Gestão de Estoque · Inventário</p><h3>Ciclo — bipagens e curva</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill auto">Automático</span>
+              <button class="btn-icon" title="Exportar produtividade de Inventário" onclick="exportarOperacao('inventario')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div id="bloco-inventario"></div>
+        </div>
+
+        <div id="marcoCorte" style="height:0"></div>
+
+        <div class="subsection" id="corte">
+          <div class="sub-head">
+            <div><p class="kicker">Gestão de Estoque · Corte e Pula</p><h3>Falso corte e produtividade de Pula</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill auto">Automático</span>
+              <button class="btn-icon" title="Exportar produtividade de Corte · Pula" onclick="exportarOperacao('corte')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div id="bloco-corte"></div>
+        </div>
+
+        <div class="subsection" id="cancelamentos">
+          <div class="sub-head">
+            <div><p class="kicker">Gestão de Estoque · Cancelamentos WMS</p><h3>Pedidos cancelados por motivo e usuário</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill auto">Automático</span>
+              <button class="btn-icon" title="Exportar Cancelamentos WMS" onclick="exportarOperacao('cancelamentos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <p class="filter-scope">Usa o mesmo filtro de data de Corte · Pula, acima — coluna <strong>Data de Cancelamento</strong> da NF.</p>
+          <div id="bloco-cancelamentos"></div>
+        </div>
+      </div>
+
+      <!-- ============ REVERSA ============ -->
+      <div class="page" data-page-content="reversa" hidden>
+
+        <div class="filterbar">
+          <div class="filter-group data-filtro" data-filtro-grupo="reversa">
+            <label>Data</label>
+            <div class="chips">
+              <button class="chip" data-modo-data="dia">Dia</button>
+              <button class="chip" data-modo-data="periodo">Período</button>
+              <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection" id="integracao">
+          <div class="sub-head">
+            <div><p class="kicker">Reversa · Integração de Pedidos</p><h3>NFs de devolução na base</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill auto">Automático</span>
+              <button class="btn-icon" title="Exportar produtividade de Integração" onclick="exportarOperacao('integracao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div id="bloco-integracao"></div>
+        </div>
+
+        <div class="subsection" id="vinculacao">
+          <div class="sub-head">
+            <div><p class="kicker">Reversa · Vinculação</p><h3>ORs vinculadas por colaborador</h3></div>
+            <div class="sub-head-tools">
+              <span class="pill parcial">Parcial</span>
+              <button class="btn-icon" title="Exportar produtividade de Vinculação" onclick="exportarOperacao('vinculacao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
+            </div>
+          </div>
+          <div id="bloco-vinculacao"></div>
+        </div>
+      </div>
+
+      <!-- ============ ADMIN ============ -->
+      <div class="page" data-page-content="admin" hidden>
+
+        <div class="subsection" id="abastecimento">
+          <div class="sub-head">
+            <div><p class="kicker">Admin · Abastecimento de base</p><h3>Relatórios que alimentam cada tela</h3></div>
+            <span class="pill manual">Restrito ao Admin</span>
+          </div>
+          <div id="bloco-abastecimento"></div>
+        </div>
+
+        <div class="subsection" id="ativos">
+          <div class="sub-head">
+            <div><p class="kicker">Admin · Base de ativos</p><h3>Colaboradores cadastrados</h3></div>
+            <span class="pill manual">Restrito ao Admin</span>
+          </div>
+          <div id="bloco-ativos"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="tip" hidden></div>
+
+<!-- ingest.js: só é EXECUTADO de fato (renderiza uploads, lê arquivos, grava
+     no Supabase) quando perfilAtual === 'admin' e a tela de Abastecimento é
+     aberta. Nas demais telas ele só fica carregado, sem rodar nada. -->
+<script src="ingest.js"></script>
+
+<script>
+/* ============================================================
+   RENDERIZAÇÃO — este bloco só LÊ dashboard_snapshots/base_ativos
+   do Supabase e desenha a tela. Nenhuma regra de negócio mora aqui:
+   os números já chegam calculados pelo ingest.js.
+   ============================================================ */
+(function(){
+  'use strict';
+
+  function fmt(n){ n = Number(n); if (!isFinite(n)) return '—'; return n.toLocaleString('pt-BR'); }
+  function fmtPct(n, casas){ if (n === null || n === undefined || !isFinite(n)) return '—'; return Number(n).toLocaleString('pt-BR',{minimumFractionDigits:casas||2, maximumFractionDigits:casas||2}) + '%'; }
+  function fmtDataBR(iso){ if (!iso) return '—'; var p = iso.split('-'); return p.length===3 ? (p[2]+'/'+p[1]+'/'+p[0]) : iso; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  // ---------- estado ----------
+  var snapshots = { outbound:null, inbound:null, estoque:null, reversa:null };
+  var currentGroup = 'outbound';
+
+  // ---------- tema ----------
+  function alternarTema(){
+    var atual = document.documentElement.getAttribute('data-tema');
+    var novo = atual === 'escuro' ? 'claro' : 'escuro';
+    document.documentElement.setAttribute('data-tema', novo);
+    document.getElementById('btnTema').textContent = novo === 'escuro' ? '☀ Claro' : '🌙 Escuro';
+    try { localStorage.setItem('produtividade_tema', novo); } catch(e){}
+  }
+  window.alternarTema = alternarTema;
+  (function(){
+    var salvo = null;
+    try { salvo = localStorage.getItem('produtividade_tema'); } catch(e){}
+    if (salvo === 'claro' || salvo === 'escuro') {
+      document.documentElement.setAttribute('data-tema', salvo);
+      document.getElementById('btnTema').textContent = salvo === 'escuro' ? '☀ Claro' : '🌙 Escuro';
+    }
+  })();
+
+  // ---------- estado vazio genérico ----------
+  function estadoVazio(titulo, texto){
+    return '<div class="empty-state"><b>'+esc(titulo)+'</b><p>'+esc(texto)+'</p></div>';
+  }
+  var SEM_DADOS_TXT = 'Sem dados ainda — abasteça em Admin > Abastecimento de base.';
+
+  // ---------- componentes reutilizáveis ----------
+  function kpiHtml(cor, titulo, valor, delta, deltaClasse){
+    return '<div class="kpi"><div class="bar" style="background:var('+cor+')"></div>'+
+      '<p class="kicker">'+esc(titulo)+'</p><div class="val">'+esc(valor)+'</div>'+
+      (delta ? '<div class="delta '+(deltaClasse||'flat')+'">'+esc(delta)+'</div>' : '') + '</div>';
+  }
+
+  function barListHtml(itens, opts){
+    opts = opts || {};
+    if (!itens || !itens.length) return estadoVazio('Sem ranking ainda', SEM_DADOS_TXT);
+    var max = Math.max.apply(null, itens.map(function(i){ return i.valor||0; })) || 1;
+    var cor = opts.cor || '--accent';
+    var html = itens.map(function(i){
+      var pct = Math.max(2, Math.round((i.valor||0)/max*100));
+      return '<div class="bar-row"><div class="nome" title="'+esc(i.nome)+'">'+esc(i.nome)+'</div>'+
+        '<div class="bar-track"><i style="width:'+pct+'%; background:var('+cor+')"></i></div>'+
+        '<div class="num">'+fmt(i.valor)+(opts.sufixo||'')+'</div></div>';
+    }).join('');
+    return '<div class="bar-scroll"><div class="bar-list">'+html+'</div></div>' +
+      (itens.length > 5 ? '<div class="scroll-hint">↕ '+itens.length+' colaboradores — role para ver todos</div>' : '');
+  }
+
+  function tabelaOpHtml(colunas, linhas, totalizar){
+    if (!linhas || !linhas.length) return estadoVazio('Sem dados ainda', SEM_DADOS_TXT);
+    var thead = '<tr>'+colunas.map(function(c,i){ return '<th'+(i>0?' class="num"':'')+'>'+esc(c)+'</th>'; }).join('')+'</tr>';
+    var body = linhas.map(function(l){
+      return '<tr>'+l.map(function(v,i){ return '<td'+(i>0?' class="num"':'')+'>'+(i>0?fmt(v):esc(v))+'</td>'; }).join('')+'</tr>';
+    }).join('');
+    return '<table class="op">'+thead+body+'</table>';
+  }
+
+  function barrasDiaHtml(dias, seriesCfg, altura){
+    if (!dias || !dias.length) return estadoVazio('Sem série diária ainda', SEM_DADOS_TXT);
+    altura = altura || 190;
+    var max = 1;
+    dias.forEach(function(d){ var soma = seriesCfg.reduce(function(s,c){ return s + (d[c.campo]||0); }, 0); if (soma>max) max = soma; });
+    var hojeIso = new Date().toISOString().slice(0,10);
+    var cols = dias.map(function(d){
+      var soma = seriesCfg.reduce(function(s,c){ return s + (d[c.campo]||0); }, 0);
+      var pilhas = seriesCfg.map(function(c){
+        var v = d[c.campo]||0;
+        var h = Math.round((v/max)*(altura-24));
+        return v>0 ? '<i style="height:'+h+'px; background:var('+c.cor+')" title="'+esc(c.rotulo)+': '+fmt(v)+'"></i>' : '';
+      }).join('');
+      var ehHoje = d.data === hojeIso;
+      return '<div class="col-dia"><div class="valor-dia">'+fmt(soma)+'</div>'+
+        '<div class="pilha" style="height:'+(altura-24)+'px">'+pilhas+'</div>'+
+        '<div class="rot-dia'+(ehHoje?' hoje':'')+'"><b>'+(ehHoje?'HOJE':fmtDataBR(d.data).slice(0,5))+'</b></div></div>';
+    }).join('');
+    return '<div class="barras-dia" style="height:'+altura+'px">'+cols+'</div>' +
+      '<div class="legend-line">'+seriesCfg.map(function(c){ return '<span><i class="sq" style="background:var('+c.cor+')"></i>'+esc(c.rotulo)+'</span>'; }).join('')+'</div>';
+  }
+
+  // Gráfico simples de barras + linha (usado em Inventário): eixo X = dias do ciclo
+  function chartBarrasLinhaHtml(pontos, opts){
+    if (!pontos || !pontos.length) return estadoVazio('Sem série do ciclo ainda', SEM_DADOS_TXT);
+    var W = Math.max(420, pontos.length*70), H = 220, padL = 34, padB = 26, padT = 10;
+    var maxBarra = Math.max.apply(null, pontos.map(function(p){ return Math.max(p.meta||0, p.itens||0); })) || 1;
+    var maxCurva = Math.max.apply(null, pontos.map(function(p){ return p.curva||0; })) || 1;
+    var passo = (W - padL - 20) / pontos.length;
+    var baseY = H - padB;
+    function yBarra(v){ return baseY - (v/maxBarra)*(H-padT-padB); }
+    function yCurva(v){ return baseY - (v/maxCurva)*(H-padT-padB); }
+    var barrasSvg = pontos.map(function(p, i){
+      var x = padL + i*passo;
+      var largura = Math.min(24, passo*0.28);
+      var metaY = yBarra(p.meta||0), itensY = yBarra(p.itens||0);
+      return '<rect x="'+(x)+'" y="'+metaY+'" width="'+largura+'" height="'+(baseY-metaY)+'" fill="var(--accent)"></rect>'+
+             '<rect x="'+(x+largura+3)+'" y="'+itensY+'" width="'+largura+'" height="'+(baseY-itensY)+'" fill="var(--amber)"></rect>'+
+             '<text x="'+(x+largura)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="var(--text-muted)">'+esc(p.rotulo)+'</text>';
+    }).join('');
+    var linha = pontos.map(function(p, i){ return (padL + i*passo + passo*0.3) + ',' + yCurva(p.curva||0); }).join(' ');
+    return '<div class="chart-scroll-x"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'">'+
+      barrasSvg + '<polyline points="'+linha+'" fill="none" stroke="var(--olive)" stroke-width="2.5"></polyline>' +
+      pontos.map(function(p,i){ return '<circle cx="'+(padL+i*passo+passo*0.3)+'" cy="'+yCurva(p.curva||0)+'" r="3.5" fill="var(--olive)"></circle>'; }).join('') +
+      '</svg></div>';
+  }
+
+  function chartLinhaSimplesHtml(pontos, cor){
+    if (!pontos || !pontos.length) return estadoVazio('Sem série diária ainda', SEM_DADOS_TXT);
+    var W = Math.max(420, pontos.length*54), H = 160, padL = 10, padB = 22, padT = 12;
+    var max = Math.max.apply(null, pontos.map(function(p){ return p.valor||0; })) || 1;
+    var passo = (W - padL*2) / Math.max(1, pontos.length-1);
+    var baseY = H - padB;
+    function y(v){ return baseY - (v/max)*(H-padT-padB); }
+    var linha = pontos.map(function(p,i){ return (padL+i*passo)+','+y(p.valor||0); }).join(' ');
+    var pontosSvg = pontos.map(function(p,i){ return '<circle cx="'+(padL+i*passo)+'" cy="'+y(p.valor||0)+'" r="3" fill="var('+cor+')"></circle>'+
+      '<text x="'+(padL+i*passo)+'" y="'+(H-6)+'" text-anchor="middle" font-size="9" fill="var(--text-muted)">'+esc(p.rotulo)+'</text>'; }).join('');
+    return '<div class="chart-scroll-x"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'">'+
+      '<polyline points="'+linha+'" fill="none" stroke="var('+cor+')" stroke-width="2.5"></polyline>'+pontosSvg+'</svg></div>';
+  }
+
+  function heatmapHtml(heatmap){
+    if (!heatmap || !heatmap.length) return estadoVazio('Sem matriz Bloco × Piso ainda', SEM_DADOS_TXT);
+    function classe(v, max){ if (v===null||v===undefined) return 'hna'; var r = max? v/max : 0; if (r>0.8) return 'h4c'; if (r>0.6) return 'h3c'; if (r>0.35) return 'h2c'; if (r>0.1) return 'h1c'; return 'h0c'; }
+    var todos = [];
+    heatmap.forEach(function(l){ ['p1','p2','p3','p4'].forEach(function(p){ if (l.pisos[p]!=null) todos.push(l.pisos[p]); }); });
+    var max = Math.max.apply(null, todos.concat([1]));
+    var porSegmento = {};
+    heatmap.forEach(function(l){ (porSegmento[l.segmento]=porSegmento[l.segmento]||[]).push(l); });
+    var linhas = '';
+    Object.keys(porSegmento).forEach(function(seg){
+      linhas += '<tr class="grp-row"><td colspan="6">'+esc(seg)+'</td></tr>';
+      porSegmento[seg].forEach(function(l){
+        linhas += '<tr><td class="lbl">Bloco '+esc(l.bloco)+'</td>'+
+          ['p1','p2','p3','p4'].map(function(p){
+            var v = l.pisos[p];
+            return v==null ? '<td class="hna">—</td>' : '<td class="'+classe(v,max)+'">'+fmt(v)+'</td>';
+          }).join('') +
+          '<td class="h0c">'+fmt(l.total)+'</td></tr>';
+      });
+    });
+    var totais = { p1:0,p2:0,p3:0,p4:0,total:0 };
+    heatmap.forEach(function(l){ ['p1','p2','p3','p4'].forEach(function(p){ totais[p]+= l.pisos[p]||0; }); totais.total += l.total||0; });
+    linhas += '<tr><td class="lbl">Total</td>'+['p1','p2','p3','p4'].map(function(p){ return '<td class="h0c">'+fmt(totais[p])+'</td>'; }).join('')+'<td class="h0c">'+fmt(totais.total)+'</td></tr>';
+    return '<div class="overflow"><table class="heat"><tr><th class="lbl">Bloco</th><th>Piso 1</th><th>Piso 2</th><th>Piso 3</th><th>Piso 4</th><th>Total</th></tr>'+linhas+'</table></div>';
+  }
+
+  // ---------- filtro de data (client-side, sobre as séries já vindas do snapshot) ----------
+  var filtrosData = {}; // { grupo: {modo, dia, de, ate} }
+  function inicializarFiltrosData(){
+    document.querySelectorAll('[data-filtro-grupo]').forEach(function(grupo){
+      var nomeGrupo = grupo.getAttribute('data-filtro-grupo');
+      filtrosData[nomeGrupo] = filtrosData[nomeGrupo] || { modo:'dia' };
+      grupo.querySelectorAll('[data-modo-data]').forEach(function(chip){
+        chip.addEventListener('click', function(){
+          grupo.querySelectorAll('[data-modo-data]').forEach(function(c){ c.classList.remove('on'); });
+          chip.classList.add('on');
+          filtrosData[nomeGrupo].modo = chip.getAttribute('data-modo-data');
+          renderPagina(currentGroup);
+        });
+      });
+    });
+  }
+  function filtrarSerieporGrupo(serie, nomeGrupo, campoData){
+    if (!serie || !serie.length) return serie;
+    var f = filtrosData[nomeGrupo] || { modo:'dia' };
+    var ordenada = serie.slice().sort(function(a,b){ return String(a[campoData]).localeCompare(String(b[campoData])); });
+    if (f.modo === 'd7') return ordenada.slice(-7);
+    if (f.modo === 'd10') return ordenada.slice(-10);
+    if (f.modo === 'dia') return ordenada.slice(-1);
+    return ordenada; // 'periodo': v1 mostra a série completa disponível no snapshot
+  }
+
+  // ---------- renderização por subseção ----------
+  function renderSeparacao(d){
+    if (!d) { document.getElementById('bloco-separacao').innerHTML = estadoVazio('Sem dados de Separação ainda', SEM_DADOS_TXT); return; }
+    var k = d.kpis || {};
+    var kpisHtml = '<div class="kpis">'+
+      kpiHtml('--accent','Itens em separação (SINGLE)', fmt(k.single), 'Gerenciador de Ondas em tela','flat')+
+      kpiHtml('--olive','Itens em separação (MULTI)', fmt(k.multi), '','flat')+
+      kpiHtml('--amber','Separadores em operação', fmt(k.separadores), 'usuários distintos com movimentação hoje','up')+
+      kpiHtml('--laranja','Pendente de fechamento (Colmeia)', fmt(k.pendente), 'colocados − pesados','warn')+
+      '</div>';
+    var serieFiltrada = filtrarSerieporGrupo(d.seriesDia, 'outbound', 'data');
+    var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por dia</p><h4>Colmeia × Checkout</h4></div></div>'+
+      barrasDiaHtml(serieFiltrada, [ {campo:'checkout', cor:'--accent', rotulo:'Checkout (SINGLE)'}, {campo:'colmeia', cor:'--olive', rotulo:'Colmeia (MULTI)'} ]) +
+      '<p class="fonte">Fonte: Kardex de Movimentações (Colmeia) + Produtividade de Separação (Checkout).</p></div>';
+    var ranking = (d.ranking && d.ranking.geral) || [];
+    var painelRanking = '<div class="panel"><div class="panel-head"><div><p class="kicker">Ranking de separadores</p><h4>Produtividade por separador</h4></div></div>'+
+      barListHtml(ranking) + '</div>';
+    document.getElementById('bloco-separacao').innerHTML = kpisHtml + painelSerie + painelRanking;
+  }
+
+  function renderConferencia(d){
+    var el = document.getElementById('bloco-conferencia');
+    if (!d) { el.innerHTML = estadoVazio('Sem dados de Conferência ainda', SEM_DADOS_TXT); return; }
+    el.innerHTML = '<div class="duo">'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Peças conferidas</p><h4>Checkout &amp; Etiqueta</h4></div><span class="pill info">'+fmt(d.totalCheckout)+'</span></div>'+
+      barListHtml(d.confCheckout) + '<p class="fonte">Fonte: Produtividade Conferência Checkout/Etiqueta</p></div>'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Unidades montadas</p><h4>Colmeia</h4></div><span class="pill info">'+fmt(d.totalColmeiaUnit)+' · '+fmt(d.totalColmeiaVol)+' vol.</span></div>'+
+      barListHtml((d.confColmeia||[]).map(function(x){ return {nome:x.nome, valor:x.unitaria}; })) +
+      '<p class="fonte">Fonte: Conferência Colmeia (Qtde Unitária Montada)</p></div></div>';
+  }
+
+  function renderRecebimento(d){
+    var el = document.getElementById('bloco-recebimento');
+    if (!d) { el.innerHTML = estadoVazio('Sem dados de Recebimento ainda', SEM_DADOS_TXT); return; }
+    function srCard(titulo, obj, cor){
+      var pct = obj.orsPeriodo ? (obj.orsConferidas/obj.orsPeriodo*100) : 0;
+      return '<div class="sr-card"><div class="sr-nums"><p class="kicker" style="margin:0">'+esc(titulo)+'</p>'+
+        '<div class="sr-line"><span>ORs no período</span><b>'+fmt(obj.orsPeriodo)+'</b></div>'+
+        '<div class="sr-line"><span>ORs conferidas</span><b style="color:var('+cor+')">'+fmt(obj.orsConferidas)+'</b></div>'+
+        '<div class="sr-line gap"><span>Itens armazenados</span><b>'+fmt(obj.itensArmazenados)+'</b></div></div>'+
+        '<div style="font-size:1.3rem;font-weight:700;color:var('+cor+')">'+fmtPct(pct,2)+'</div></div>';
+    }
+    var duo = '<div class="duo">'+srCard('Recebimento normal', d.normal||{}, '--olive') + srCard('Reversa', d.reversa||{}, '--laranja') + '</div>';
+    var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Ranking por conferente</p><h4>ORs conferidas</h4></div></div>'+
+      barListHtml(d.ranking) + '<p class="fonte">Fonte: Gerenciador de OR (geral), campo "Usuário da Conferência".</p></div>';
+    el.innerHTML = duo + painel;
+  }
+
+  function renderArmazenagem(d){
+    var el = document.getElementById('bloco-armazenagem');
+    if (!d) { el.innerHTML = estadoVazio('Sem dados de Armazenagem ainda', SEM_DADOS_TXT); return; }
+    el.innerHTML = '<div class="duo">'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços H / I / J</p><h4>Estoque normal</h4></div><span class="pill info">'+fmt(d.totalNormal)+'</span></div>'+ barListHtml(d.normal, {cor:'--accent'}) + '</div>'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços iniciados em S</p><h4>Reversa</h4></div><span class="pill info">'+fmt(d.totalReversa)+'</span></div>'+ barListHtml(d.reversa, {cor:'--laranja'}) + '</div>'+
+      '</div><p class="fonte">Fonte: Kardex de Endereço · regra Estoque Antes − Estoque Após.</p>';
+  }
+
+  function renderPallets(d){
+    var el = document.getElementById('bloco-pallets');
+    if (!d || !d.registros || !d.registros.length) { el.innerHTML = estadoVazio('Sem lançamento manual ainda', 'Lance a movimentação de pallets em Admin > Abastecimento de base.'); return; }
+    var linhas = d.registros.map(function(r){ return [fmtDataBR(r.data)+' · '+r.turno+' · '+r.piso, r.efetivos, r.terceirizados]; });
+    el.innerHTML = '<div class="panel">'+tabelaOpHtml(['Turno / Piso / Data','Efetivos','Terceirizados'], linhas)+'</div>';
+  }
+
+  function renderInventario(d){
+    var el = document.getElementById('bloco-inventario');
+    if (!d) { el.innerHTML = estadoVazio('Sem ciclo de Inventário ainda', SEM_DADOS_TXT); return; }
+    var k = d.kpis || {};
+    var kpisHtml = '<div class="kpis">'+
+      kpiHtml('--accent','Bipagens', fmt(k.bipagens), 'soma das colunas 1ª a 10ª Contagem','flat')+
+      kpiHtml('--olive','Itens contados', fmt(k.itensContados), '','flat')+
+      kpiHtml('--olive','Curva Real', (k.curvaReal!=null? k.curvaReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'), (k.curvaEstipulada!=null? 'vs. estipulada '+k.curvaEstipulada.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : ''),'up')+
+      kpiHtml('--laranja','Divergências', fmt((k.divergenciaGanhos||0)+(k.divergenciaPerdas||0)), '+'+fmt(k.divergenciaGanhos)+' ganhos · −'+fmt(k.divergenciaPerdas)+' perdas','warn')+
+      '</div>';
+    var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Meta Dia × Itens Contados · linha = Curva Real</p><h4>Realizado × Meta × Curva</h4></div></div>'+
+      chartBarrasLinhaHtml(d.serieDias) +
+      '<div class="legend-line"><span><i class="sq" style="background:var(--accent)"></i>Meta Dia</span><span><i class="sq" style="background:var(--amber)"></i>Itens Contados</span><span><i style="background:var(--olive)"></i>Curva Real</span></div>'+
+      '<p class="fonte">Produtividade de inventário é por ciclo, não por colaborador: todo mundo faz a 1ª contagem e um único usuário faz as seguintes.</p></div>';
+    var painelHeat = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens bipados por bloco e piso</p><h4>Matriz Bloco × Piso</h4></div></div>'+
+      heatmapHtml(d.heatmap) +
+      '<div class="legend-line"><span>Mapeamento: A/B/C = Calçados (pisos 1 a 4), E/F/G = Vestuário (só piso 1), sem Bloco D.</span></div></div>';
+    document.getElementById('bloco-inventario').innerHTML = kpisHtml + painelSerie + painelHeat;
+  }
+
+  function renderCorte(d){
+    var el = document.getElementById('bloco-corte');
+    if (!d) { el.innerHTML = estadoVazio('Sem dados de Corte · Pula ainda', SEM_DADOS_TXT); return; }
+    var k = d.kpis || {};
+    var kpisHtml = '<div class="kpis">'+
+      kpiHtml('--amber','Cortes em tela', fmt(k.cortesEmTela), 'aguardando resolução do time','warn')+
+      kpiHtml('--accent','Cortes atendidos', fmt(k.cortesAtendidos), 'total tratado — todos os status somados','flat')+
+      kpiHtml('--olive','Pulas atendidos', fmt(k.pulasAtendidos), 'total tratado — todos os status somados','flat')+
+      kpiHtml('--laranja','Cortes aceitos', fmt(k.cortesAceitos), 'STATUS = ACEITO · Corte Resolvido','warn')+
+      kpiHtml('--red','Cortes no endereço (resolvidos)', fmt(k.cortesNoEndereco), 'STATUS = RECUSADO · produto encontrado','warn')+
+      '</div>';
+    var lista = (d.agressores||[]).map(function(a){ return { nome:a.nome, valor:a.localizado, pct:a.total? (a.localizado/a.total*100):0 }; });
+    var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Separadores que sinalizaram corte/pula e o time localizou no endereço</p><h4>Maiores agressores</h4></div></div>'+
+      barListHtml(lista.map(function(l){ return {nome:l.nome, valor:l.valor}; }), {cor:'--laranja'}) +
+      '<p class="fonte">Fonte: Base Geral Corte/Pula — abas "Pulas - Colmeia" e "Corte Físico - Checkout Express", campo STATUS = NO ENDEREÇO.</p></div>';
+    el.innerHTML = kpisHtml + painel;
+  }
+
+  function renderCancelamentos(d){
+    var el = document.getElementById('bloco-cancelamentos');
+    if (!d) { el.innerHTML = estadoVazio('Sem cancelamentos no período', SEM_DADOS_TXT); return; }
+    var motivos = (d.porMotivo||[]).map(function(m){ return { nome:m.motivo, valor:m.total }; });
+    var usuarios = (d.porUsuario||[]).map(function(u){ return [u.usuario, u.qtd]; });
+    el.innerHTML = '<div class="duo">'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">'+fmt(d.totalPeriodo)+' cancelamentos no período</p><h4>Motivo</h4></div></div>'+ barListHtml(motivos) + '</div>'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Quem cancelou</p><h4>Usuário</h4></div></div>'+
+      tabelaOpHtml(['Usuário','Cancelamentos'], usuarios) +
+      '<div class="legend-line"><span>SINGLE: <strong>'+fmt(d.single)+'</strong> · MULTI: <strong>'+fmt(d.multi)+'</strong></span></div>'+
+      '<p class="fonte">Fonte: Controle de Nota Fiscal, coluna Data de Cancelamento.</p></div></div>';
+  }
+
+  function renderIntegracao(d){
+    var el = document.getElementById('bloco-integracao');
+    if (!d) { el.innerHTML = estadoVazio('Sem dados de Integração Reversa ainda', SEM_DADOS_TXT); return; }
+    var k = d.kpis || {};
+    var kpisHtml = '<div class="kpis">'+
+      kpiHtml('--amber','Em tela — a tratar', fmt(k.emTela), 'IMPORTADA + EM CARGA/OR','warn')+
+      kpiHtml('--laranja','Importadas (sem OR)', fmt(k.importadas), 'aguardando vinculação','warn')+
+      kpiHtml('--accent','Em carga / OR', fmt(k.emCarga), 'já vinculadas, em processamento','flat')+
+      kpiHtml('--olive','Processadas hoje', fmt(k.processadasHoje), 'saíram da tela no dia','up')+
+      '</div>';
+    var serie = filtrarSerieporGrupo(d.serieDia, 'reversa', 'data');
+    var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Evolução diária</p><h4>NFs integradas por dia</h4></div></div>'+
+      chartLinhaSimplesHtml((serie||[]).map(function(p){ return {rotulo:fmtDataBR(p.data).slice(0,5), valor:p.total}; }), '--olive') +
+      '<p class="fonte">Junção: OR → Controle de NF Reversa (campo Ordem de Recebimento) → Itens de NF de Entrada (idNotaFiscal). Os KPIs mostram só o que está em tela.</p></div>';
+    document.getElementById('bloco-integracao').innerHTML = kpisHtml + painel;
+  }
+
+  function renderVinculacao(d){
+    var el = document.getElementById('bloco-vinculacao');
+    if (!d) { el.innerHTML = estadoVazio('Sem dados de Vinculação ainda', SEM_DADOS_TXT); return; }
+    var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Nome extraído do campo "Veiculo"</p><h4>Ranking de vinculação</h4></div><span class="pill info">'+fmt(d.totalOR)+' ORs</span></div>'+
+      barListHtml(d.ranking) +
+      '<div class="legend-line"><span><strong>'+fmt(d.naoIdentificado)+' ORs</strong> sem nome identificável no campo Veiculo — aparecem como "não identificado", nunca descartadas.</span></div>'+
+      '<p class="fonte">O WMS não grava quem vinculou: "Cadastrado pelo Usuário" é sempre SILT (integração).</p></div>';
+    el.innerHTML = painel;
+  }
+
+  // ---------- orquestração por página ----------
+  function renderPagina(grupo){
+    if (grupo === 'outbound') {
+      var d = snapshots.outbound || {};
+      renderSeparacao(d.separacao); renderConferencia(d.conferencia);
+    } else if (grupo === 'inbound') {
+      var di = snapshots.inbound || {};
+      renderRecebimento(di.recebimento); renderArmazenagem(di.armazenagem); renderPallets(di.pallets);
+    } else if (grupo === 'estoque') {
+      var de = snapshots.estoque || {};
+      renderInventario(de.inventario); renderCorte(de.corte); renderCancelamentos(de.cancelamentos);
+    } else if (grupo === 'reversa') {
+      var dr = snapshots.reversa || {};
+      renderIntegracao(dr.integracao); renderVinculacao(dr.vinculacao);
+    } else if (grupo === 'admin') {
+      if (window.ProdutividadeIngest && perfilAtual === 'admin') window.ProdutividadeIngest.renderAdmin();
+    }
+  }
+
+  async function carregarSnapshots(){
+    var { data, error } = await supabaseClient.from('dashboard_snapshots').select('pagina, dados, atualizado_em');
+    if (error) { console.error('Erro ao ler dashboard_snapshots', error); return; }
+    (data||[]).forEach(function(row){ snapshots[row.pagina] = row.dados; });
+    renderPagina(currentGroup);
+  }
+  window.recarregarSnapshots = carregarSnapshots;
+
+  // ---------- exportar .xlsx por operação (client-side, a partir do snapshot já carregado) ----------
+  window.exportarOperacao = function(nomeOperacao){
+    var mapa = {
+      separacao: [snapshots.outbound, 'separacao'], conferencia: [snapshots.outbound, 'conferencia'],
+      expedicao: [snapshots.outbound, 'expedicao'], recebimento: [snapshots.inbound, 'recebimento'],
+      armazenagem: [snapshots.inbound, 'armazenagem'], pallets: [snapshots.inbound, 'pallets'],
+      inventario: [snapshots.estoque, 'inventario'], corte: [snapshots.estoque, 'corte'],
+      cancelamentos: [snapshots.estoque, 'cancelamentos'], integracao: [snapshots.reversa, 'integracao'],
+      vinculacao: [snapshots.reversa, 'vinculacao']
+    };
+    var par = mapa[nomeOperacao];
+    var dados = par && par[0] ? par[0][par[1]] : null;
+    if (!dados || typeof XLSX === 'undefined') { alert('Sem dados para exportar ainda.'); return; }
+    var ws = XLSX.utils.json_to_sheet([dados]);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, nomeOperacao.slice(0,31));
+    XLSX.writeFile(wb, 'produtividade_'+nomeOperacao+'.xlsx');
+  };
+
+  // ---------- navegação ----------
+  var navItems = document.querySelectorAll('.nav-item');
+  var pages = document.querySelectorAll('[data-page-content]');
+  function flash(elemento){
+    elemento.classList.remove('flash'); void elemento.offsetWidth; elemento.classList.add('flash');
+  }
+  function irPara(item){
+    var grupo = item.getAttribute('data-page');
+    var alvo = item.getAttribute('data-target');
+    navItems.forEach(function(n){ n.classList.toggle('active', n === item); });
+    if (grupo !== currentGroup) {
+      currentGroup = grupo;
+      pages.forEach(function(p){ p.hidden = (p.getAttribute('data-page-content') !== grupo); });
+      var titulos = { outbound:['Outbound','Separação · Conferência · Expedição'], inbound:['Inbound','Recebimento · Armazenagem · Mov. de Pallets'],
+        estoque:['Gestão de Estoque','Inventário · Corte · Pula · Cancelamentos WMS'], reversa:['Reversa','Integração · Vinculação'],
+        admin:['Admin','Abastecimento de base · Base de ativos'] };
+      document.getElementById('page-title').textContent = titulos[grupo][0];
+      document.getElementById('page-sub').textContent = titulos[grupo][1];
+      renderPagina(grupo);
+    }
+    var elAlvo = document.getElementById(alvo);
+    if (elAlvo) { elAlvo.scrollIntoView({behavior:'smooth', block:'start'}); flash(elAlvo); }
+  }
+  navItems.forEach(function(item){
+    item.addEventListener('click', function(){ irPara(item); });
+    item.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.key===' ') { e.preventDefault(); irPara(item); } });
+  });
+
+  // ---------- filtro flutuante de estoque (copiado do mockup aprovado) ----------
+  var contentEl = document.getElementById('content');
+  var filtroWrap = document.querySelector('.filtro-flutuante-estoque');
+  var filtroInv = document.getElementById('filtroInventario');
+  var filtroCorte = document.getElementById('filtroCorte');
+  var marcoCorte = document.getElementById('marcoCorte');
+  var estoqueFiltroAtivo = 'inv';
+  var estoqueTick = false;
+  function calcularEstoqueFiltro(){
+    estoqueTick = false;
+    if (!filtroWrap || !marcoCorte || currentGroup !== 'estoque') return;
+    var HIST = 6;
+    var limite = marcoCorte.getBoundingClientRect().top - contentEl.getBoundingClientRect().top + contentEl.scrollTop - filtroWrap.offsetHeight;
+    var alvo = estoqueFiltroAtivo;
+    if (estoqueFiltroAtivo === 'inv' && contentEl.scrollTop >= limite + HIST) alvo = 'corte';
+    else if (estoqueFiltroAtivo === 'corte' && contentEl.scrollTop <= limite - HIST) alvo = 'inv';
+    if (alvo !== estoqueFiltroAtivo) {
+      estoqueFiltroAtivo = alvo;
+      filtroInv.classList.toggle('filtro-oculto', alvo !== 'inv');
+      filtroCorte.classList.toggle('filtro-oculto', alvo !== 'corte');
+    }
+  }
+  function atualizarFiltrosEstoque(){
+    if (estoqueTick) return;
+    estoqueTick = true;
+    requestAnimationFrame(calcularEstoqueFiltro);
+  }
+  if (contentEl) contentEl.addEventListener('scroll', atualizarFiltrosEstoque, { passive:true });
+  window.addEventListener('resize', atualizarFiltrosEstoque);
+
+  inicializarFiltrosData();
+
+  /* ============================================================
+     AUTENTICAÇÃO — Supabase Auth, mesmo padrão do Report E-commerce.
+     Perfil vem de perfis_acesso (admin | gestao), protegido por RLS:
+     quem não tem permissão não recebe o dado nem pela API direta.
+     Não existe perfil "operador" neste site.
+     ============================================================ */
+  window.perfilAtual = null;
+
+  async function iniciarApp(){
+    var { data:{ session } } = await supabaseClient.auth.getSession();
+    if (!session) { mostrarTelaLogin(); return; }
+    await aplicarSessao(session);
+  }
+
+  async function aplicarSessao(session){
+    var { data:perfilRow, error } = await supabaseClient.from('perfis_acesso').select('role').eq('user_id', session.user.id).single();
+    if (error || !perfilRow) {
+      document.getElementById('loginErro').textContent = 'Usuário sem perfil de acesso configurado. Fale com o admin.';
+      await supabaseClient.auth.signOut();
+      mostrarTelaLogin();
+      return;
+    }
+    window.perfilAtual = perfilRow.role;
+    aplicarVisibilidadeMenu();
+    document.getElementById('loginOverlay').classList.add('oculto');
+    document.getElementById('layoutApp').classList.remove('oculto');
+    document.getElementById('sidebarPerfil').textContent = perfilAtual === 'admin' ? '👑 Admin' : '📊 Gestão';
+    await carregarSnapshots();
+  }
+
+  function aplicarVisibilidadeMenu(){
+    var grupoAdmin = document.getElementById('grupoAdmin');
+    grupoAdmin.classList.toggle('oculto', perfilAtual !== 'admin');
+  }
+
+  function mostrarTelaLogin(){
+    document.getElementById('loginOverlay').classList.remove('oculto');
+    document.getElementById('layoutApp').classList.add('oculto');
+  }
+
+  var DOMINIO_LOGIN = '@vulcabras.com';
+  document.getElementById('loginForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var usuario = document.getElementById('loginEmail').value.trim().toLowerCase();
+    var senha = document.getElementById('loginSenha').value;
+    var erroEl = document.getElementById('loginErro');
+    erroEl.textContent = '';
+    var email = usuario.indexOf('@') !== -1 ? usuario : usuario + DOMINIO_LOGIN;
+    var { data, error } = await supabaseClient.auth.signInWithPassword({ email:email, password:senha });
+    if (error) { erroEl.textContent = 'Usuário ou senha inválidos.'; return; }
+    await aplicarSessao(data.session);
+  });
+
+  window.sair = function(){ supabaseClient.auth.signOut().then(function(){ location.reload(); }); };
+
+  iniciarApp();
+})();
+</script>
+</body>
+</html>
