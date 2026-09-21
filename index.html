@@ -256,7 +256,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
-    <img src="/favicon.png" alt="Logo" class="login-logo">
+    <img src="/logo-mark.png" alt="Logo" class="login-logo">
     <h1>Produtividade E-commerce</h1>
     <p class="login-sub">Vulcabras · Armazém</p>
     <form id="loginForm">
@@ -272,7 +272,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="mark"><img src="/favicon.png" alt="Logo"></div>
+      <div class="mark"><img src="/logo-mark.png" alt="Logo"></div>
       <div>
         <div class="nome">Produtividade</div>
         <div class="sub">E-commerce · Vulcabras</div>
@@ -970,17 +970,19 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     }
     var elAlvo = document.getElementById(alvo);
     if (elAlvo) {
-      requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){
         // O filtro de data é sticky (fica fixo no topo ao rolar) — sem esse
         // desconto ele fica por cima da primeira parte do card de destino.
+        // A folga é maior que a altura do filtro porque o brilho amber do
+        // "flash" (box-shadow com blur de 16px) se estende além da borda.
         var paginaAtiva = document.querySelector('[data-page-content="'+grupo+'"]:not([hidden])');
         var stickyEl = paginaAtiva && paginaAtiva.querySelector('.filtro-flutuante-estoque, .filterbar');
-        var folga = 16;
+        var folga = 32;
         var offset = (stickyEl ? stickyEl.offsetHeight : 0) + folga;
         var topoAlvo = elAlvo.getBoundingClientRect().top - contentEl.getBoundingClientRect().top + contentEl.scrollTop - offset;
         contentEl.scrollTo({ top: Math.max(0, topoAlvo), behavior: 'smooth' });
         flash(elAlvo);
-      });
+      }); });
     }
   }
   navItems.forEach(function(item){
