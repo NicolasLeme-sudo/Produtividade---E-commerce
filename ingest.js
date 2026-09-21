@@ -699,6 +699,12 @@ async function alternarCicloInventario(ativo) {
   if (window.recarregarSnapshots) window.recarregarSnapshots();
 }
 
+// Agrupa uploads por setor (igual à navegação lateral), com espaçamento e
+// título entre os grupos — em vez de todos os cards jogados em sequência.
+function grupoAbastecimento(titulo, itensHtml) {
+  return '<div class="grupo-abastecimento"><div class="grupo-titulo">' + titulo + '</div><div class="grupo-itens">' + itensHtml.join("") + '</div></div>';
+}
+
 async function renderAbastecimento() {
   var el = document.getElementById("bloco-abastecimento");
   if (!el) return;
@@ -706,21 +712,29 @@ async function renderAbastecimento() {
   var cicloAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
   el.innerHTML =
     cartaoCicloInventario(cicloAtivo) +
-    caixaUpload("up-kardex-mov", "Kardex de Movimentações", "Alimenta <strong>Separação Colmeia</strong>, <strong>Pula</strong> e <strong>Pendente de fechamento</strong>.") +
-    caixaUpload("up-prod-separacao", "Produtividade de Separação", "Alimenta <strong>Separação Checkout</strong>.") +
-    caixaUpload("up-conf-checkout", "Conferência Checkout/Etiqueta", "Alimenta <strong>Conferência Checkout</strong>.") +
-    caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>.") +
-    caixaUpload("up-kardex-end", "Kardex de Endereço", "Alimenta <strong>Armazenagem</strong> (Inbound).") +
-    caixaUpload("up-gerenciador-or", "Gerenciador de OR (geral)", "Alimenta <strong>Recebimento</strong> (Inbound).") +
-    caixaUpload("up-bipagens", "Bipagens", "Junto com Diferença por Local, alimenta <strong>Inventário</strong> — curva real e heatmap.") +
-    caixaUpload("up-diferenca-local", "Diferença por Local", "Divergências (ganhos/perdas) do ciclo de <strong>Inventário</strong>.") +
-    caixaUpload("up-corte-pula-manual", "Base Geral Corte/Pula (planilha manual)", "Abas \"Pulas - Colmeia\" e \"Corte Físico - Checkout Express\" — alimenta os totais tratados e o ranking de agressores.") +
-    caixaUpload("up-corte-tela", "Corte em Tela", "Alimenta o KPI <strong>Cortes em tela</strong>.") +
-    caixaUpload("up-corte-resolvido", "Corte Resolvido", "Alimenta <strong>Cortes aceitos</strong> e <strong>Cortes no endereço</strong>.") +
-    caixaUpload("up-controle-nf", "Controle de Nota Fiscal", "Alimenta <strong>Cancelamentos WMS</strong>.") +
-    caixaUpload("up-nf-reversa", "Controle de NF Reversa", "Alimenta <strong>Integração Reversa</strong>.") +
-    caixaUpload("up-or-reversa", "Gerenciador de OR - Reversa", "Alimenta <strong>Vinculação Reversa</strong>.") +
-    renderFormPallets();
+    grupoAbastecimento("Outbound", [
+      caixaUpload("up-kardex-mov", "Kardex de Movimentações", "Alimenta <strong>Separação Colmeia</strong>, <strong>Pula</strong> e <strong>Pendente de fechamento</strong>."),
+      caixaUpload("up-prod-separacao", "Produtividade de Separação", "Alimenta <strong>Separação Checkout</strong>."),
+      caixaUpload("up-conf-checkout", "Conferência Checkout/Etiqueta", "Alimenta <strong>Conferência Checkout</strong>."),
+      caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
+    ]) +
+    grupoAbastecimento("Inbound", [
+      caixaUpload("up-kardex-end", "Kardex de Endereço", "Alimenta <strong>Armazenagem</strong> (Inbound)."),
+      caixaUpload("up-gerenciador-or", "Gerenciador de OR (geral)", "Alimenta <strong>Recebimento</strong> (Inbound)."),
+    ]) +
+    grupoAbastecimento("Gestão de Estoque", [
+      caixaUpload("up-bipagens", "Bipagens", "Junto com Diferença por Local, alimenta <strong>Inventário</strong> — curva real e heatmap."),
+      caixaUpload("up-diferenca-local", "Diferença por Local", "Divergências (ganhos/perdas) do ciclo de <strong>Inventário</strong>."),
+      caixaUpload("up-corte-pula-manual", "Base Geral Corte/Pula (planilha manual)", "Abas \"Pulas - Colmeia\" e \"Corte Físico - Checkout Express\" — alimenta os totais tratados e o ranking de agressores."),
+      caixaUpload("up-corte-tela", "Corte em Tela", "Alimenta o KPI <strong>Cortes em tela</strong>."),
+      caixaUpload("up-corte-resolvido", "Corte Resolvido", "Alimenta <strong>Cortes aceitos</strong> e <strong>Cortes no endereço</strong>."),
+      caixaUpload("up-controle-nf", "Controle de Nota Fiscal", "Alimenta <strong>Cancelamentos WMS</strong>."),
+    ]) +
+    grupoAbastecimento("Reversa", [
+      caixaUpload("up-nf-reversa", "Controle de NF Reversa", "Alimenta <strong>Integração Reversa</strong>."),
+      caixaUpload("up-or-reversa", "Gerenciador de OR - Reversa", "Alimenta <strong>Vinculação Reversa</strong>."),
+    ]) +
+    grupoAbastecimento("Manual", [renderFormPallets()]);
 }
 
 function renderFormPallets() {

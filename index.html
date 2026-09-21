@@ -231,6 +231,17 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .switch-label{font-size:12.5px; font-weight:600; color:var(--text); min-width:64px;}
 .upload-box p{margin:0; font-size:.78rem; color:var(--text-muted); max-width:56ch; line-height:1.5;}
 .upload-box input[type=file]{font-size:.74rem; color:var(--text-label); max-width:100%;}
+.upload-box input[type=file]::file-selector-button{
+  margin-right:10px; padding:7px 14px; border-radius:7px; border:1px solid var(--border);
+  background:var(--bg-card); color:var(--text); font-weight:600; font-size:.72rem;
+  cursor:pointer; font-family:inherit; transition:background .15s, border-color .15s, color .15s;
+}
+.upload-box input[type=file]::file-selector-button:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+
+.grupo-abastecimento{margin-top:30px;}
+.grupo-abastecimento:first-of-type{margin-top:0;}
+.grupo-titulo{font-size:.7rem; text-transform:uppercase; letter-spacing:.1em; font-weight:700; color:var(--text-muted); padding-bottom:8px; margin-bottom:14px; border-bottom:1px solid var(--border);}
+.grupo-itens{display:flex; flex-direction:column; gap:14px;}
 .upload-status{font-size:.74rem; color:var(--text-muted); width:100%;}
 .upload-status.ok{color:var(--olive);}
 .upload-status.erro{color:var(--red);}
