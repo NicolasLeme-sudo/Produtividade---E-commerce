@@ -72,7 +72,8 @@ body{
 /* ---------- LAYOUT ---------- */
 .layout{display:flex; height:100vh;}
 .layout.oculto{display:none;}
-.sidebar{width:220px; flex:0 0 220px; background:var(--bg-sidebar); display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,.06); overflow-y:auto;}
+.sidebar{width:220px; flex:0 0 220px; background:var(--bg-sidebar); display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,.06); overflow-y:auto; scrollbar-width:none; -ms-overflow-style:none;}
+.sidebar::-webkit-scrollbar{display:none;}
 .sidebar-brand{padding:18px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:12px;}
 .sidebar-brand .mark{width:36px; height:36px; border-radius:8px; flex-shrink:0; background:var(--bg-sidebar); display:flex; align-items:center; justify-content:center; overflow:hidden;}
 .sidebar-brand .mark img{width:100%; height:100%; object-fit:contain;}
