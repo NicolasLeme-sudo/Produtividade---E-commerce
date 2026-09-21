@@ -882,9 +882,9 @@ async function processar(id) {
       atualE.inventario.kpis = Object.assign({}, atualE.inventario.kpis, {
         bipagens: rInv.bipagens, itensContados: rInv.itensContados, curvaReal: rInv.curvaReal,
         divergenciaGanhos: rInv.divergenciaGanhos, divergenciaPerdas: rInv.divergenciaPerdas,
-        // TODO: curvaEstipulada é uma meta definida fora do WMS (não veio fonte
-        // de arquivo para ela) — fica null até existir um campo de meta manual.
-        curvaEstipulada: (atualE.inventario.kpis && atualE.inventario.kpis.curvaEstipulada) || null,
+        // Meta definida fora do WMS (não vem de nenhum arquivo). Padrão: 2,50.
+        // Se um valor manual já tiver sido definido pro ciclo, mantém ele.
+        curvaEstipulada: (atualE.inventario.kpis && atualE.inventario.kpis.curvaEstipulada) || 2.5,
       });
       atualE.inventario.heatmap = rInv.heatmap;
       await salvarSnapshot("estoque", atualE);
