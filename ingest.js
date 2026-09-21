@@ -230,12 +230,13 @@ function resolverColaborador(usuarioRaw, indiceBaseAtivos) {
 // =========================================================================
 async function salvarSnapshot(pagina, dadosNovos) {
   var { data: sessao } = await supabaseClient.auth.getSession();
-  var email = sessao && sessao.session ? sessao.session.user.email : null;
+  // atualizado_por é uuid (references auth.users.id) — precisa do id da sessão, não do e-mail.
+  var userId = sessao && sessao.session ? sessao.session.user.id : null;
   var { error } = await supabaseClient.from("dashboard_snapshots").upsert({
     pagina: pagina,
     dados: dadosNovos,
     atualizado_em: new Date().toISOString(),
-    atualizado_por: email,
+    atualizado_por: userId,
   }, { onConflict: "pagina" });
   if (error) throw new Error("Falha ao gravar snapshot de " + pagina + ": " + error.message);
 }
