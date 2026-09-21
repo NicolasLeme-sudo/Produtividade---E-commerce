@@ -712,15 +712,18 @@ async function renderAbastecimento() {
   var cicloAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
   el.innerHTML =
     cartaoCicloInventario(cicloAtivo) +
+    // Esses 3 relatórios são exportados do WMS sem filtro — cada um sozinho já
+    // cobre mais de um setor, então abastece uma vez só em vez de tirar o
+    // mesmo relatório de novo com filtros diferentes pra cada tela.
+    grupoAbastecimento("Compartilhados entre setores", [
+      caixaUpload("up-kardex-geral", "Kardex (sem filtro)", "Alimenta <strong>Separação Colmeia · Pula · Pendente de fechamento</strong> (Outbound) e <strong>Armazenagem</strong> (Inbound) — mesmo relatório, o sistema separa pelo Tipo do Local e pelo prefixo do Local."),
+      caixaUpload("up-gerenciador-or-geral", "Gerenciador de OR (sem filtro)", "Alimenta <strong>Recebimento</strong> (Inbound) e <strong>Vinculação</strong> (Reversa) — mesmo relatório, o sistema separa pelo Tipo do Recebimento."),
+      caixaUpload("up-controle-nf-geral", "Controle de Nota Fiscal (sem filtro)", "Alimenta <strong>Cancelamentos WMS</strong> (Gestão de Estoque) e <strong>Integração</strong> (Reversa) — mesmo relatório, o sistema separa pela Operação/Status."),
+    ]) +
     grupoAbastecimento("Outbound", [
-      caixaUpload("up-kardex-mov", "Kardex de Movimentações", "Alimenta <strong>Separação Colmeia</strong>, <strong>Pula</strong> e <strong>Pendente de fechamento</strong>."),
       caixaUpload("up-prod-separacao", "Produtividade de Separação", "Alimenta <strong>Separação Checkout</strong>."),
       caixaUpload("up-conf-checkout", "Conferência Checkout/Etiqueta", "Alimenta <strong>Conferência Checkout</strong>."),
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
-    ]) +
-    grupoAbastecimento("Inbound", [
-      caixaUpload("up-kardex-end", "Kardex de Endereço", "Alimenta <strong>Armazenagem</strong> (Inbound)."),
-      caixaUpload("up-gerenciador-or", "Gerenciador de OR (geral)", "Alimenta <strong>Recebimento</strong> (Inbound)."),
     ]) +
     grupoAbastecimento("Gestão de Estoque", [
       caixaUpload("up-bipagens", "Bipagens", "Junto com Diferença por Local, alimenta <strong>Inventário</strong> — curva real e heatmap."),
@@ -728,11 +731,6 @@ async function renderAbastecimento() {
       caixaUpload("up-corte-pula-manual", "Base Geral Corte/Pula (planilha manual)", "Abas \"Pulas - Colmeia\" e \"Corte Físico - Checkout Express\" — alimenta os totais tratados e o ranking de agressores."),
       caixaUpload("up-corte-tela", "Corte em Tela", "Alimenta o KPI <strong>Cortes em tela</strong>."),
       caixaUpload("up-corte-resolvido", "Corte Resolvido", "Alimenta <strong>Cortes aceitos</strong> e <strong>Cortes no endereço</strong>."),
-      caixaUpload("up-controle-nf", "Controle de Nota Fiscal", "Alimenta <strong>Cancelamentos WMS</strong>."),
-    ]) +
-    grupoAbastecimento("Reversa", [
-      caixaUpload("up-nf-reversa", "Controle de NF Reversa", "Alimenta <strong>Integração Reversa</strong>."),
-      caixaUpload("up-or-reversa", "Gerenciador de OR - Reversa", "Alimenta <strong>Vinculação Reversa</strong>."),
     ]) +
     grupoAbastecimento("Manual", [renderFormPallets()]);
 }
@@ -854,8 +852,13 @@ async function processar(id) {
 
     var { indice, indicePorPrimeiroNome } = await carregarIndiceBaseAtivos();
 
-    if (id === "up-kardex-mov") {
+    if (id === "up-kardex-geral") {
+      // Um único Kardex (sem filtro) alimenta Separação/Pula/Pendente (Outbound
+      // e Estoque, via Tipo do Local) e Armazenagem (Inbound, via prefixo do
+      // Local) — é o mesmo relatório exportado, só muda o filtro na tela do
+      // WMS. Não precisa mais tirar dois exports separados.
       var rows = await parseArquivoGenerico(input.files[0]);
+
       var r = processarKardexMovimentacoes(rows, indice);
       var atual = await lerSnapshot("outbound");
       atual.separacao = atual.separacao || {};
@@ -881,7 +884,19 @@ async function processar(id) {
       atualEstoque.pula = { totalPeriodo: somaMapa(r.pulaPorUsuario), ranking: mapParaRanking(r.pulaPorUsuario) };
       await salvarSnapshot("estoque", atualEstoque);
 
-      definirStatus(id, "✓ Kardex de Movimentações processado.", "ok");
+      // Mesmas linhas, agora filtradas por prefixo de Local (H/I/J/S) -> Armazenagem
+      var r5 = processarKardexEndereco(rows, indice);
+      var atual5 = await lerSnapshot("inbound");
+      atual5.armazenagem = {
+        normal: mapParaRanking(r5.porUsuarioNormal), reversa: mapParaRanking(r5.porUsuarioReversa),
+        totalNormal: r5.totalNormal, totalReversa: r5.totalReversa,
+      };
+      atual5.recebimento = atual5.recebimento || {};
+      atual5.recebimento.normal = Object.assign({}, atual5.recebimento.normal, { itensArmazenados: r5.totalNormal });
+      atual5.recebimento.reversa = Object.assign({}, atual5.recebimento.reversa, { itensArmazenados: r5.totalReversa });
+      await salvarSnapshot("inbound", atual5);
+
+      definirStatus(id, "✓ Kardex processado: Separação/Pula/Pendente (Outbound) + Armazenagem (Inbound).", "ok");
     }
 
     else if (id === "up-prod-separacao") {
@@ -932,24 +947,13 @@ async function processar(id) {
       definirStatus(id, "✓ Conferência Colmeia processada.", "ok");
     }
 
-    else if (id === "up-kardex-end") {
-      var rows5 = await parseArquivoGenerico(input.files[0]);
-      var r5 = processarKardexEndereco(rows5, indice);
-      var atual5 = await lerSnapshot("inbound");
-      atual5.armazenagem = {
-        normal: mapParaRanking(r5.porUsuarioNormal), reversa: mapParaRanking(r5.porUsuarioReversa),
-        totalNormal: r5.totalNormal, totalReversa: r5.totalReversa,
-      };
-      // realimenta "itens armazenados" do card de Recebimento, que reaproveita este total
-      atual5.recebimento = atual5.recebimento || {};
-      atual5.recebimento.normal = Object.assign({}, atual5.recebimento.normal, { itensArmazenados: r5.totalNormal });
-      atual5.recebimento.reversa = Object.assign({}, atual5.recebimento.reversa, { itensArmazenados: r5.totalReversa });
-      await salvarSnapshot("inbound", atual5);
-      definirStatus(id, "✓ Kardex de Endereço processado.", "ok");
-    }
-
-    else if (id === "up-gerenciador-or") {
+    else if (id === "up-gerenciador-or-geral") {
+      // Um único Gerenciador de OR (sem filtro) já traz tanto as ORs normais
+      // quanto as de reversa (campo "Tipo do Recebimento") e já tem a coluna
+      // Veiculo preenchida nas duas — alimenta Recebimento (Inbound) e
+      // Vinculação (Reversa) ao mesmo tempo, sem precisar exportar duas vezes.
       var rows6 = await parseArquivoGenerico(input.files[0]);
+
       var r6 = processarGerenciadorOR(rows6);
       var atual6 = await lerSnapshot("inbound");
       atual6.recebimento = atual6.recebimento || {};
@@ -957,7 +961,13 @@ async function processar(id) {
       atual6.recebimento.reversa = Object.assign({}, atual6.recebimento.reversa, r6.reversa);
       atual6.recebimento.ranking = mapParaRanking(r6.rankingPorUsuario);
       await salvarSnapshot("inbound", atual6);
-      definirStatus(id, "✓ Gerenciador de OR processado.", "ok");
+
+      var r12 = processarVinculacaoReversa(rows6, indice, indicePorPrimeiroNome);
+      var atualR2 = await lerSnapshot("reversa");
+      atualR2.vinculacao = { totalOR: r12.totalOR, naoIdentificado: r12.naoIdentificado, ranking: mapParaRanking(r12.ranking) };
+      await salvarSnapshot("reversa", atualR2);
+
+      definirStatus(id, "✓ Gerenciador de OR processado: Recebimento (Inbound) + Vinculação (Reversa).", "ok");
     }
 
     else if (id === "up-bipagens" || id === "up-diferenca-local") {
@@ -1016,8 +1026,14 @@ async function processar(id) {
       definirStatus(id, "✓ Corte Resolvido processado.", "ok");
     }
 
-    else if (id === "up-controle-nf") {
+    else if (id === "up-controle-nf-geral") {
+      // Um único Controle de Nota Fiscal (sem filtro) tem tanto as NFs de
+      // cancelamento (Status/Data de Cancelamento) quanto as de reversa
+      // (Operação = REVERSA) — mesmas colunas nos dois exports filtrados
+      // que você mandou. Alimenta Cancelamentos (Gestão de Estoque) e
+      // Integração (Reversa) de uma vez só.
       var rows10 = await parseArquivoGenerico(input.files[0]);
+
       var r10 = processarCancelamentosWMS(rows10);
       var atualEs = await lerSnapshot("estoque");
       atualEs.cancelamentos = {
@@ -1026,28 +1042,16 @@ async function processar(id) {
         porUsuario: Array.from(r10.porUsuario.entries()).map(function (e) { return { usuario: e[0], qtd: e[1] }; }).sort(function (a, b) { return b.qtd - a.qtd; }),
       };
       await salvarSnapshot("estoque", atualEs);
-      definirStatus(id, "✓ Controle de Nota Fiscal (cancelamentos) processado.", "ok");
-    }
 
-    else if (id === "up-nf-reversa") {
-      var rows11 = await parseArquivoGenerico(input.files[0]);
-      var r11 = processarIntegracaoReversa(rows11);
+      var r11 = processarIntegracaoReversa(rows10);
       var atualR = await lerSnapshot("reversa");
       atualR.integracao = {
         kpis: { emTela: r11.emTela, importadas: r11.importadas, emCarga: r11.emCarga, processadasHoje: r11.processadasHoje },
         serieDia: mapParaSerieDia(r11.porDia, "total"),
       };
       await salvarSnapshot("reversa", atualR);
-      definirStatus(id, "✓ Controle de NF Reversa processado.", "ok");
-    }
 
-    else if (id === "up-or-reversa") {
-      var rows12 = await parseArquivoGenerico(input.files[0]);
-      var r12 = processarVinculacaoReversa(rows12, indice, indicePorPrimeiroNome);
-      var atualR2 = await lerSnapshot("reversa");
-      atualR2.vinculacao = { totalOR: r12.totalOR, naoIdentificado: r12.naoIdentificado, ranking: mapParaRanking(r12.ranking) };
-      await salvarSnapshot("reversa", atualR2);
-      definirStatus(id, "✓ Gerenciador de OR - Reversa processado.", "ok");
+      definirStatus(id, "✓ Controle de Nota Fiscal processado: Cancelamentos (Estoque) + Integração (Reversa).", "ok");
     }
 
     if (window.recarregarSnapshots) window.recarregarSnapshots();
