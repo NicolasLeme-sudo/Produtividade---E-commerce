@@ -501,7 +501,20 @@ function processarBaseGeralCortePula(pulasRows, corteFisicoRows) {
   return { pulasAtendidos: pulasAtendidos, cortesAtendidos: cortesAtendidos, porColaborador: porColaborador };
 }
 
-function processarCorteEmTela(rows) { return rows.length; }
+// ---- 10) Corte em Tela -> KPI "Cortes em tela" + conjunto de pedidos com corte aberto ----
+// Quando um corte atinge mais de um pedido, a mesma linha lista todos os
+// "Pedido de Venda" juntos, separados por vírgula (ex.: "8266323,8266455")
+// — cada um conta como um pedido distinto sinalizado com corte ainda aberto.
+function processarCorteEmTela(rows) {
+  var pedidos = new Set();
+  rows.forEach(function (row) {
+    String(obterCampo(row, ["Pedido de Venda"]) || "").split(",").forEach(function (p) {
+      p = p.trim();
+      if (p) pedidos.add(p);
+    });
+  });
+  return { total: rows.length, pedidos: Array.from(pedidos) };
+}
 
 function processarCorteResolvido(rows) {
   var aceitos = 0, noEndereco = 0;
@@ -648,8 +661,9 @@ function processarVinculacaoReversa(orReversaRows, indiceBaseAtivos, indicePorPr
 var STATUS_AGUARDANDO_ONDA = ["IMPORTADO", "AG. FORMACAO DE ROMANEIO/ONDA", "QUARENTENA"].map(normalizarTexto);
 var STATUS_EM_SEPARACAO = ["AG. SEPARACAO", "SEPARACAO INICIADA", "AG. RESOLUCAO QUEBRA - SEPARACAO"].map(normalizarTexto);
 
-function processarAcompanhamentoOp(rows) {
-  var emSeparacao = { single: 0, multi: 0 };
+function processarAcompanhamentoOp(rows, pedidosComCorte) {
+  var setCorte = new Set(pedidosComCorte || []);
+  var emSeparacao = { single: 0, multi: 0, comCorte: 0 };
   var aguardandoOnda = { single: 0, multi: 0, superExpresso: 0 };
   rows.forEach(function (row) {
     var cancelado = normalizarTexto(obterCampo(row, ["Cancelado Pelo ERP"]));
@@ -664,6 +678,11 @@ function processarAcompanhamentoOp(rows) {
       var qtde = numero(obterCampo(row, ["Qtde. Total de Produto"]));
       if (ehSingle) emSeparacao.single += qtde;
       else if (ehMulti) emSeparacao.multi += qtde;
+      // Cruza com o Corte em Tela (mesmo campo Pedido de Venda) pra saber
+      // quantos pedidos em separação já estão com corte sinalizado e ainda
+      // não resolvido. Só conta se o Corte em Tela já tiver sido abastecido.
+      var pedido = String(obterCampo(row, ["Pedido de Venda"]) || "").trim();
+      if (pedido && setCorte.has(pedido)) emSeparacao.comCorte++;
     } else if (STATUS_AGUARDANDO_ONDA.indexOf(status) !== -1) {
       if (ehSingle) aguardandoOnda.single++;
       else if (ehMulti) aguardandoOnda.multi++;
@@ -1019,12 +1038,17 @@ async function processar(id) {
 
     else if (id === "up-acompanhamento-op") {
       var rowsAcOp = await parseArquivoGenerico(input.files[0]);
-      var rAcOp = processarAcompanhamentoOp(rowsAcOp);
+      // Corte em Tela pode não ter sido abastecido ainda — nesse caso o
+      // cruzamento simplesmente dá 0, sem travar o resto do processamento.
+      var atualEstoqueAcOp = await lerSnapshot("estoque");
+      var pedidosComCorte = (atualEstoqueAcOp.corte && atualEstoqueAcOp.corte.pedidosComCorte) || [];
+      var rAcOp = processarAcompanhamentoOp(rowsAcOp, pedidosComCorte);
       var atualAcOp = await lerSnapshot("outbound");
       atualAcOp.separacao = atualAcOp.separacao || {};
       atualAcOp.separacao.kpis = Object.assign({}, atualAcOp.separacao.kpis, {
         single: rAcOp.emSeparacao.single,
         multi: rAcOp.emSeparacao.multi,
+        comCorte: rAcOp.emSeparacao.comCorte,
       });
       atualAcOp.separacao.aguardandoOnda = rAcOp.aguardandoOnda;
       await salvarSnapshot("outbound", atualAcOp);
@@ -1095,7 +1119,10 @@ async function processar(id) {
       var qtdTela = processarCorteEmTela(rows8);
       var atual8 = await lerSnapshot("estoque");
       atual8.corte = atual8.corte || {};
-      atual8.corte.kpis = Object.assign({}, atual8.corte.kpis, { cortesEmTela: qtdTela });
+      atual8.corte.kpis = Object.assign({}, atual8.corte.kpis, { cortesEmTela: qtdTela.total });
+      // Guardado pro cruzamento com o Acompanhamento_Op (pedidos em
+      // separação que também estão sinalizados com corte ainda aberto).
+      atual8.corte.pedidosComCorte = qtdTela.pedidos;
       await salvarSnapshot("estoque", atual8);
       definirStatus(id, "✓ Corte em Tela processado.", "ok");
     }

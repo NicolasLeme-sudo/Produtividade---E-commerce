@@ -645,10 +645,15 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   var SEM_DADOS_TXT = 'Sem dados ainda — abasteça em Admin > Abastecimento de base.';
 
   // ---------- componentes reutilizáveis ----------
-  function kpiHtml(cor, titulo, valor, delta, deltaClasse){
+  function kpiHtml(cor, titulo, valor, delta, deltaClasse, extraHtml){
     return '<div class="kpi"><div class="bar" style="background:var('+cor+')"></div>'+
       '<p class="kicker">'+esc(titulo)+'</p><div class="val">'+esc(valor)+'</div>'+
-      (delta ? '<div class="delta '+(deltaClasse||'flat')+'">'+esc(delta)+'</div>' : '') + '</div>';
+      (delta ? '<div class="delta '+(deltaClasse||'flat')+'">'+esc(delta)+'</div>' : '') +
+      (extraHtml || '') + '</div>';
+  }
+  function alertaCorteHtml(qtd){
+    if (!qtd) return '';
+    return '<div class="delta" style="color:var(--red); margin-top:6px;">⚠ '+fmt(qtd)+' pedido'+(qtd===1?'':'s')+' (SINGLE+MULTI) com corte sinalizado</div>';
   }
 
   function barListHtml(itens, opts){
@@ -813,7 +818,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     if (!d) { document.getElementById('bloco-separacao').innerHTML = estadoVazio('Sem dados de Separação ainda', SEM_DADOS_TXT); return; }
     var k = d.kpis || {};
     var kpisHtml = '<div class="kpis">'+
-      kpiHtml('--accent','Itens em separação (SINGLE)', fmt(k.single), 'Acompanhamento_Op — em separação','flat')+
+      kpiHtml('--accent','Itens em separação (SINGLE)', fmt(k.single), 'Acompanhamento_Op — em separação','flat', alertaCorteHtml(k.comCorte))+
       kpiHtml('--olive','Itens em separação (MULTI)', fmt(k.multi), '','flat')+
       kpiHtml('--amber','Separadores em operação', fmt(k.separadores), 'usuários distintos com movimentação hoje','up')+
       kpiHtml('--laranja','Pendente de fechamento (Colmeia)', fmt(k.pendente), 'colocados − pesados','warn')+
