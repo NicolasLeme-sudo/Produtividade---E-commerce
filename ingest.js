@@ -476,8 +476,13 @@ function processarInventario(bipagensRows, diferencaRows) {
 // cortesAtendidos/pulasAtendidos = total tratado (todos os status somados);
 // "maiores agressores" = % Σ QTDE STATUS=NO ENDEREÇO ÷ Σ QTDE total do colaborador.
 // Fontes reais do WMS "Corte em Tela" e "Corte Resolvido" (STATUS ACEITO/RECUSADO):
-// cortesEmTela = linhas do relatório em tela; cortesAceitos = ACEITO;
-// cortesNoEndereco (resolvidos) = RECUSADO (produto encontrado no endereço original).
+// cortesEmTela = linhas do relatório em tela.
+// ACEITO = aceitamos o corte porque NÃO tínhamos o produto — é furo de
+// estoque, não uma resolução (mantido no campo cortesAceitos por
+// compatibilidade com snapshots antigos, mas o rótulo na tela deixa isso claro).
+// RECUSADO = recusamos o corte porque achamos o produto pra separar — só
+// isso; o relatório não informa se foi no endereço, fora dele ou já
+// atendido (mantido no campo cortesNoEndereco por compatibilidade).
 function processarBaseGeralCortePula(pulasRows, corteFisicoRows) {
   function somarQtde(rows) { var s = 0; rows.forEach(function (r) { s += numero(obterCampo(r, ["QTDE", "Qtde", "Quantidade"])); }); return s; }
   var pulasAtendidos = somarQtde(pulasRows);
@@ -663,7 +668,7 @@ var STATUS_EM_SEPARACAO = ["AG. SEPARACAO", "SEPARACAO INICIADA", "AG. RESOLUCAO
 
 function processarAcompanhamentoOp(rows, pedidosComCorte) {
   var setCorte = new Set(pedidosComCorte || []);
-  var emSeparacao = { single: 0, multi: 0, comCorte: 0 };
+  var emSeparacao = { single: 0, multi: 0, comCorte: 0, pedidos: [] };
   var aguardandoOnda = { single: 0, multi: 0, superExpresso: 0 };
   rows.forEach(function (row) {
     var cancelado = normalizarTexto(obterCampo(row, ["Cancelado Pelo ERP"]));
@@ -682,6 +687,7 @@ function processarAcompanhamentoOp(rows, pedidosComCorte) {
       // quantos pedidos em separação já estão com corte sinalizado e ainda
       // não resolvido. Só conta se o Corte em Tela já tiver sido abastecido.
       var pedido = String(obterCampo(row, ["Pedido de Venda"]) || "").trim();
+      if (pedido) emSeparacao.pedidos.push(pedido);
       if (pedido && setCorte.has(pedido)) emSeparacao.comCorte++;
     } else if (STATUS_AGUARDANDO_ONDA.indexOf(status) !== -1) {
       if (ehSingle) aguardandoOnda.single++;
@@ -714,11 +720,13 @@ function mapParaSerieDia(mapa, campoValor) {
 // =========================================================================
 // 6) INTERFACE DE ABASTECIMENTO — só chamada quando perfilAtual === 'admin'
 // =========================================================================
-function caixaUpload(id, titulo, descricao, aceitaMultiplos) {
-  return '<div class="panel" id="' + id + '-card"><div class="panel-head"><div><p class="kicker">Upload</p><h4>' + titulo + ' <span class="badge-feito" id="' + id + '-badge" hidden>✓ Feito</span></h4></div></div>' +
-    '<div class="upload-box"><p>' + descricao + '</p>' +
-    '<input type="file" id="' + id + '" ' + (aceitaMultiplos ? "multiple" : "") + ' accept=".tsv,.txt,.xlsx,.xlsb,.xls">' +
-    '<button class="btn" onclick="window.ProdutividadeIngest.processar(\'' + id + '\')">Enviar</button>' +
+function caixaUpload(id, titulo, descricao, aceitaMultiplos, desabilitado) {
+  var dis = desabilitado ? " disabled" : "";
+  var avisoDesabilitado = desabilitado ? ' <em>(fora do ciclo de contagens — ative o interruptor acima para abastecer)</em>' : "";
+  return '<div class="panel' + (desabilitado ? " panel-disabled" : "") + '" id="' + id + '-card"><div class="panel-head"><div><p class="kicker">Upload</p><h4>' + titulo + ' <span class="badge-feito" id="' + id + '-badge" hidden>✓ Feito</span></h4></div></div>' +
+    '<div class="upload-box"><p>' + descricao + avisoDesabilitado + '</p>' +
+    '<input type="file" id="' + id + '" ' + (aceitaMultiplos ? "multiple" : "") + dis + ' accept=".tsv,.txt,.xlsx,.xlsb,.xls">' +
+    '<button class="btn"' + dis + ' onclick="window.ProdutividadeIngest.processar(\'' + id + '\')">Enviar</button>' +
     '<div class="upload-status" id="' + id + '-status"></div></div></div>';
 }
 
@@ -813,8 +821,8 @@ async function renderAbastecimento() {
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
     ]) +
     grupoAbastecimento("Gestão de Estoque", [
-      caixaUpload("up-bipagens", "Bipagens", "Junto com Diferença por Local, alimenta <strong>Inventário</strong> — curva real e heatmap."),
-      caixaUpload("up-diferenca-local", "Diferença por Local", "Divergências (ganhos/perdas) do ciclo de <strong>Inventário</strong>."),
+      caixaUpload("up-bipagens", "Bipagens", "Junto com Diferença por Local, alimenta <strong>Inventário</strong> — curva real e heatmap.", false, !cicloAtivo),
+      caixaUpload("up-diferenca-local", "Diferença por Local", "Divergências (ganhos/perdas) do ciclo de <strong>Inventário</strong>.", false, !cicloAtivo),
       caixaUpload("up-corte-pula-manual", "Base Geral Corte/Pula (planilha manual)", "Abas \"Pulas - Colmeia\" e \"Corte Físico - Checkout Express\" — alimenta os totais tratados e o ranking de agressores."),
       caixaUpload("up-corte-tela", "Corte em Tela", "Alimenta o KPI <strong>Cortes em tela</strong>."),
       caixaUpload("up-corte-resolvido", "Corte Resolvido", "Alimenta <strong>Cortes aceitos</strong> e <strong>Cortes no endereço</strong>."),
@@ -849,7 +857,7 @@ async function lancarPallet() {
     atual.pallets.registros.push(registro);
     await salvarSnapshot("inbound", atual);
     definirStatus("pallet", "✓ Lançamento salvo.", "ok");
-    if (window.recarregarSnapshots) window.recarregarSnapshots();
+    if (window.recarregarSnapshots) window.recarregarSnapshots(true);
   } catch (e) {
     definirStatus("pallet", "Erro: " + e.message, "erro");
   }
@@ -1051,6 +1059,9 @@ async function processar(id) {
         comCorte: rAcOp.emSeparacao.comCorte,
       });
       atualAcOp.separacao.aguardandoOnda = rAcOp.aguardandoOnda;
+      // Guardado pro cruzamento inverso: se o Corte em Tela for abastecido
+      // DEPOIS deste Acompanhamento_Op, ele recalcula comCorte usando esta lista.
+      atualAcOp.separacao.pedidosEmSeparacao = rAcOp.emSeparacao.pedidos;
       await salvarSnapshot("outbound", atualAcOp);
       definirStatus(id, "✓ Acompanhamento_Op processado (Itens em separação + Aguardando geração de onda).", "ok");
     }
@@ -1124,6 +1135,18 @@ async function processar(id) {
       // separação que também estão sinalizados com corte ainda aberto).
       atual8.corte.pedidosComCorte = qtdTela.pedidos;
       await salvarSnapshot("estoque", atual8);
+
+      // Recalcula o cruzamento com o Acompanhamento_Op mesmo se ele já tiver
+      // sido abastecido ANTES deste Corte em Tela (senão o alerta fica parado
+      // no valor antigo até o próximo reabastecimento do Acompanhamento_Op).
+      var atualOutCorte = await lerSnapshot("outbound");
+      if (atualOutCorte.separacao && atualOutCorte.separacao.pedidosEmSeparacao) {
+        var setCorteTela = new Set(qtdTela.pedidos);
+        var comCorteAtualizado = atualOutCorte.separacao.pedidosEmSeparacao.filter(function (p) { return setCorteTela.has(p); }).length;
+        atualOutCorte.separacao.kpis = Object.assign({}, atualOutCorte.separacao.kpis, { comCorte: comCorteAtualizado });
+        await salvarSnapshot("outbound", atualOutCorte);
+      }
+
       definirStatus(id, "✓ Corte em Tela processado.", "ok");
     }
 
@@ -1165,7 +1188,7 @@ async function processar(id) {
       definirStatus(id, "✓ Controle de Nota Fiscal processado: Cancelamentos (Estoque) + Integração (Reversa).", "ok");
     }
 
-    if (window.recarregarSnapshots) window.recarregarSnapshots();
+    if (window.recarregarSnapshots) window.recarregarSnapshots(true);
   } catch (e) {
     console.error(e);
     definirStatus(id, "Erro: " + e.message, "erro");

@@ -143,6 +143,7 @@ body{
 .onda-rot{font-size:.62rem; letter-spacing:.06em; color:var(--text-muted); text-transform:uppercase; margin-top:2px;}
 
 .panel{background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 18px;}
+.panel-disabled{opacity:.45; pointer-events:none;}
 .panel-head{display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:14px;}
 .panel-head h4{margin:0; font-size:.88rem;}
 .panel-head .kicker{margin:0;}
@@ -359,9 +360,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="filter-group data-filtro" data-filtro-grupo="outbound">
             <label>Data</label>
             <div class="chips">
-              <button class="chip on" data-modo-data="dia">Dia</button>
+              <button class="chip" data-modo-data="dia">Dia</button>
               <button class="chip" data-modo-data="periodo">Período</button>
-              <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
               <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
             </div>
           </div>
@@ -413,9 +414,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="filter-group data-filtro" data-filtro-grupo="inbound">
             <label>Data</label>
             <div class="chips">
-              <button class="chip on" data-modo-data="dia">Dia</button>
+              <button class="chip" data-modo-data="dia">Dia</button>
               <button class="chip" data-modo-data="periodo">Período</button>
-              <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
               <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
             </div>
           </div>
@@ -465,9 +466,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
             <div class="filter-group data-filtro" data-filtro-grupo="inventario">
               <label>Data</label>
               <div class="chips">
-                <button class="chip on" data-modo-data="dia">Dia</button>
+                <button class="chip" data-modo-data="dia">Dia</button>
                 <button class="chip" data-modo-data="periodo">Período</button>
-                <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
+                <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
                 <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
               </div>
             </div>
@@ -477,9 +478,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
             <div class="filter-group data-filtro" data-filtro-grupo="corte">
               <label>Data</label>
               <div class="chips">
-                <button class="chip on" data-modo-data="dia">Dia</button>
+                <button class="chip" data-modo-data="dia">Dia</button>
                 <button class="chip" data-modo-data="periodo">Período</button>
-                <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
+                <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
                 <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
               </div>
             </div>
@@ -779,7 +780,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   function inicializarFiltrosData(){
     document.querySelectorAll('[data-filtro-grupo]').forEach(function(grupo){
       var nomeGrupo = grupo.getAttribute('data-filtro-grupo');
-      filtrosData[nomeGrupo] = filtrosData[nomeGrupo] || { modo:'dia' };
+      filtrosData[nomeGrupo] = filtrosData[nomeGrupo] || { modo:'d7' };
       grupo.querySelectorAll('[data-modo-data]').forEach(function(chip){
         chip.addEventListener('click', function(){
           grupo.querySelectorAll('[data-modo-data]').forEach(function(c){ c.classList.remove('on'); });
@@ -792,7 +793,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   }
   function filtrarSerieporGrupo(serie, nomeGrupo, campoData){
     if (!serie || !serie.length) return serie;
-    var f = filtrosData[nomeGrupo] || { modo:'dia' };
+    var f = filtrosData[nomeGrupo] || { modo:'d7' };
     var ordenada = serie.slice().sort(function(a,b){ return String(a[campoData]).localeCompare(String(b[campoData])); });
     if (f.modo === 'd7') return ordenada.slice(-7);
     if (f.modo === 'd10') return ordenada.slice(-10);
@@ -891,8 +892,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       kpiHtml('--olive','Curva Real', (k.curvaReal!=null? k.curvaReal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'), (k.curvaEstipulada!=null? 'vs. estipulada '+k.curvaEstipulada.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : ''),'up')+
       kpiHtml('--laranja','Divergências', fmt((k.divergenciaGanhos||0)+(k.divergenciaPerdas||0)), '+'+fmt(k.divergenciaGanhos)+' ganhos · −'+fmt(k.divergenciaPerdas)+' perdas','warn')+
       '</div>';
+    var serieInvFiltrada = filtrarSerieporGrupo(d.serieDias, 'inventario', 'data');
     var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Meta Dia × Itens Contados · linha = Curva Real</p><h4>Realizado × Meta × Curva</h4></div></div>'+
-      chartBarrasLinhaHtml(d.serieDias) +
+      chartBarrasLinhaHtml(serieInvFiltrada) +
       '<div class="legend-line"><span><i class="sq" style="background:var(--accent)"></i>Meta Dia</span><span><i class="sq" style="background:var(--amber)"></i>Itens Contados</span><span><i style="background:var(--olive)"></i>Curva Real</span></div>'+
       '<p class="fonte">Produtividade de inventário é por ciclo, não por colaborador: todo mundo faz a 1ª contagem e um único usuário faz as seguintes.</p></div>';
     var painelHeat = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens bipados por bloco e piso</p><h4>Matriz Bloco × Piso</h4></div></div>'+
@@ -909,8 +911,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       kpiHtml('--amber','Cortes em tela', fmt(k.cortesEmTela), 'aguardando resolução do time','warn')+
       kpiHtml('--accent','Cortes atendidos', fmt(k.cortesAtendidos), 'total tratado — todos os status somados','flat')+
       kpiHtml('--olive','Pulas atendidos', fmt(k.pulasAtendidos), 'total tratado — todos os status somados','flat')+
-      kpiHtml('--laranja','Cortes aceitos', fmt(k.cortesAceitos), 'STATUS = ACEITO · Corte Resolvido','warn')+
-      kpiHtml('--red','Cortes no endereço (resolvidos)', fmt(k.cortesNoEndereco), 'STATUS = RECUSADO · produto encontrado','warn')+
+      kpiHtml('--red','Cortes aceitos (furo de estoque)', fmt(k.cortesAceitos), 'STATUS = ACEITO — produto não encontrado','warn')+
+      kpiHtml('--olive','Cortes recusados (produto encontrado)', fmt(k.cortesNoEndereco), 'STATUS = RECUSADO — achamos o produto pra separar','up')+
       '</div>';
     var lista = (d.agressores||[]).map(function(a){ return { nome:a.nome, valor:a.localizado, pct:a.total? (a.localizado/a.total*100):0 }; });
     var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Separadores que sinalizaram corte/pula e o time localizou no endereço</p><h4>Maiores agressores</h4></div></div>'+
@@ -960,7 +962,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   }
 
   // ---------- orquestração por página ----------
-  function renderPagina(grupo){
+  function renderPagina(grupo, evitarRerenderAdmin){
     if (grupo === 'outbound') {
       var d = snapshots.outbound || {};
       renderSeparacao(d.separacao); renderConferencia(d.conferencia);
@@ -974,17 +976,21 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       var dr = snapshots.reversa || {};
       renderIntegracao(dr.integracao); renderVinculacao(dr.vinculacao);
     } else if (grupo === 'admin') {
-      if (window.ProdutividadeIngest && perfilAtual === 'admin') window.ProdutividadeIngest.renderAdmin();
+      // Redesenhar os cards de Abastecimento apaga qualquer arquivo já
+      // selecionado nos inputs — só faz sentido depois de ligar/desligar o
+      // ciclo de inventário, nunca depois de um upload individual (que já
+      // atualiza seu próprio status/badge sem precisar redesenhar tudo).
+      if (!evitarRerenderAdmin && window.ProdutividadeIngest && perfilAtual === 'admin') window.ProdutividadeIngest.renderAdmin();
     }
   }
 
-  async function carregarSnapshots(){
+  async function carregarSnapshots(evitarRerenderAdmin){
     var { data, error } = await supabaseClient.from('dashboard_snapshots').select('pagina, dados, atualizado_em');
     if (error) { console.error('Erro ao ler dashboard_snapshots', error); return; }
     (data||[]).forEach(function(row){ snapshots[row.pagina] = row.dados; });
     var { data: cfg } = await supabaseClient.from('config_geral').select('ciclo_inventario_ativo').eq('chave','geral').single();
     cicloInventarioAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
-    renderPagina(currentGroup);
+    renderPagina(currentGroup, evitarRerenderAdmin);
   }
   window.recarregarSnapshots = carregarSnapshots;
 
