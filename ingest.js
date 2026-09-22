@@ -641,6 +641,42 @@ function processarVinculacaoReversa(orReversaRows, indiceBaseAtivos, indicePorPr
   return { totalOR: totalOR, naoIdentificado: naoIdentificado, ranking: ranking };
 }
 
+// ---- 14) Acompanhamento_Op -> Itens em separação + Aguardando geração de onda ----
+// Mesmo relatório e mesmos status do Report E-commerce (ver calcularStatus()
+// do ingest.js de lá) — mais confiável que o Gerenciador de Ondas em tela
+// porque cobre o pedido do início ("01 - Gerar") ao fim.
+var STATUS_AGUARDANDO_ONDA = ["IMPORTADO", "AG. FORMACAO DE ROMANEIO/ONDA", "QUARENTENA"].map(normalizarTexto);
+var STATUS_EM_SEPARACAO = ["AG. SEPARACAO", "SEPARACAO INICIADA", "AG. RESOLUCAO QUEBRA - SEPARACAO"].map(normalizarTexto);
+
+function processarAcompanhamentoOp(rows) {
+  var emSeparacao = { single: 0, multi: 0 };
+  var aguardandoOnda = { single: 0, multi: 0, superExpresso: 0 };
+  rows.forEach(function (row) {
+    var cancelado = normalizarTexto(obterCampo(row, ["Cancelado Pelo ERP"]));
+    if (cancelado === "SIM" || cancelado === "S" || cancelado === "TRUE" || cancelado === "1") return;
+
+    var status = normalizarTexto(obterCampo(row, ["Status da Nota Fiscal"]));
+    var classificacao = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido"]));
+    var ehSingle = classificacao.indexOf("SINGLE") !== -1;
+    var ehMulti = classificacao.indexOf("MULTI") !== -1;
+
+    if (STATUS_EM_SEPARACAO.indexOf(status) !== -1) {
+      var qtde = numero(obterCampo(row, ["Qtde. Total de Produto"]));
+      if (ehSingle) emSeparacao.single += qtde;
+      else if (ehMulti) emSeparacao.multi += qtde;
+    } else if (STATUS_AGUARDANDO_ONDA.indexOf(status) !== -1) {
+      if (ehSingle) aguardandoOnda.single++;
+      else if (ehMulti) aguardandoOnda.multi++;
+      // TODO: coluna de "Super Expresso" não confirmada contra um export
+      // real do Acompanhamento_Op — tentamos as grafias mais prováveis.
+      // Conferir/ajustar quando chegar um arquivo de verdade.
+      var superExpresso = normalizarTexto(obterCampo(row, ["Prioridade", "Super Expresso", "Modalidade de Entrega", "Tipo de Entrega"]));
+      if (superExpresso.indexOf("SUPER EXPRESSO") !== -1) aguardandoOnda.superExpresso++;
+    }
+  });
+  return { emSeparacao: emSeparacao, aguardandoOnda: aguardandoOnda };
+}
+
 // =========================================================================
 // 5) MONTAGEM DOS PAYLOADS (Map -> array ordenado, formato que index.html espera)
 // =========================================================================
@@ -724,6 +760,7 @@ async function renderAbastecimento() {
       caixaUpload("up-controle-nf-geral", "Controle de Nota Fiscal (sem filtro)", "Alimenta <strong>Cancelamentos WMS</strong> (Gestão de Estoque) e <strong>Integração</strong> (Reversa) — mesmo relatório, o sistema separa pela Operação/Status."),
     ]) +
     grupoAbastecimento("Outbound", [
+      caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
       caixaUpload("up-prod-separacao", "Produtividade de Separação", "Alimenta <strong>Separação Checkout</strong>."),
       caixaUpload("up-conf-checkout", "Conferência Checkout/Etiqueta", "Alimenta <strong>Conferência Checkout</strong>."),
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
@@ -865,8 +902,9 @@ async function processar(id) {
       var r = processarKardexMovimentacoes(rows, indice);
       var atual = await lerSnapshot("outbound");
       atual.separacao = atual.separacao || {};
+      // "single"/"multi" do KPI de topo vêm do Acompanhamento_Op (mais
+      // preciso — ver up-acompanhamento-op), não daqui.
       atual.separacao.kpis = Object.assign({}, atual.separacao.kpis, {
-        multi: somaMapa(r.separacaoColmeiaPorUsuario),
         separadores: r.separadoresColmeiaDistintos,
         pendente: r.pendenteFechamento,
       });
@@ -914,7 +952,7 @@ async function processar(id) {
       atual2.separacao.ranking = atual2.separacao.ranking || {};
       atual2.separacao.ranking.checkout = mapParaRanking(r2.porUsuario);
       atual2.separacao.ranking.geral = mapParaRanking(mapaGeral);
-      atual2.separacao.kpis = Object.assign({}, atual2.separacao.kpis, { single: somaMapa(r2.porUsuario) });
+      // "single" do KPI de topo vem do Acompanhamento_Op (up-acompanhamento-op), não daqui.
       var serieAnterior2 = (atual2.separacao.seriesDia || []).reduce(function (m, d) { m.set(d.data, d); return m; }, new Map());
       r2.porDia.forEach(function (valor, data) {
         var dia = serieAnterior2.get(data) || { data: data };
@@ -948,6 +986,20 @@ async function processar(id) {
       atual4.conferencia.totalColmeiaVol = lista4.reduce(function (s, x) { return s + x.volumes; }, 0);
       await salvarSnapshot("outbound", atual4);
       definirStatus(id, "✓ Conferência Colmeia processada.", "ok");
+    }
+
+    else if (id === "up-acompanhamento-op") {
+      var rowsAcOp = await parseArquivoGenerico(input.files[0]);
+      var rAcOp = processarAcompanhamentoOp(rowsAcOp);
+      var atualAcOp = await lerSnapshot("outbound");
+      atualAcOp.separacao = atualAcOp.separacao || {};
+      atualAcOp.separacao.kpis = Object.assign({}, atualAcOp.separacao.kpis, {
+        single: rAcOp.emSeparacao.single,
+        multi: rAcOp.emSeparacao.multi,
+      });
+      atualAcOp.separacao.aguardandoOnda = rAcOp.aguardandoOnda;
+      await salvarSnapshot("outbound", atualAcOp);
+      definirStatus(id, "✓ Acompanhamento_Op processado (Itens em separação + Aguardando geração de onda).", "ok");
     }
 
     else if (id === "up-gerenciador-or-geral") {
