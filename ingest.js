@@ -703,11 +703,39 @@ function caixaUpload(id, titulo, descricao, aceitaMultiplos) {
     '<div class="upload-status" id="' + id + '-status"></div></div></div>';
 }
 
+// Guarda no navegador (localStorage) a última vez que cada card foi
+// abastecido com sucesso, com data e hora — assim a confirmação continua
+// visível mesmo depois de sair da tela/recarregar a página, até o próximo
+// envio daquele mesmo relatório. É só um registro de conveniência local
+// (não precisa ir pro banco, é por pessoa/navegador).
 function definirStatus(id, texto, classe) {
   var el = document.getElementById(id + "-status");
-  if (el) { el.textContent = texto; el.className = "upload-status" + (classe ? " " + classe : ""); }
   var badge = document.getElementById(id + "-badge");
+  if (classe === "ok") {
+    var agora = new Date();
+    var quando = agora.toLocaleDateString("pt-BR") + " às " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    var textoFinal = texto + " · " + quando;
+    try { localStorage.setItem("abastecimento_" + id, textoFinal); } catch (e) {}
+    if (el) { el.textContent = textoFinal; el.className = "upload-status ok"; }
+  } else {
+    if (el) { el.textContent = texto; el.className = "upload-status" + (classe ? " " + classe : ""); }
+  }
   if (badge) badge.hidden = (classe !== "ok");
+}
+
+// Chamado depois de renderizar a tela de Abastecimento: relê o localStorage
+// e repõe a última confirmação de cada card, já que o innerHTML foi recriado
+// do zero (sem isso, a mensagem "some" ao sair e voltar pra tela).
+function restaurarStatusAbastecimento() {
+  document.querySelectorAll('[id$="-status"]').forEach(function (el) {
+    var id = el.id.replace(/-status$/, "");
+    var salvo;
+    try { salvo = localStorage.getItem("abastecimento_" + id); } catch (e) { salvo = null; }
+    if (!salvo) return;
+    el.textContent = salvo; el.className = "upload-status ok";
+    var badge = document.getElementById(id + "-badge");
+    if (badge) badge.hidden = false;
+  });
 }
 
 function renderAdmin() {
@@ -773,6 +801,7 @@ async function renderAbastecimento() {
       caixaUpload("up-corte-resolvido", "Corte Resolvido", "Alimenta <strong>Cortes aceitos</strong> e <strong>Cortes no endereço</strong>."),
     ]) +
     grupoAbastecimento("Manual", [renderFormPallets()]);
+  restaurarStatusAbastecimento();
 }
 
 function renderFormPallets() {
