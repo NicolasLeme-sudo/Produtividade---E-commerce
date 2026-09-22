@@ -660,7 +660,7 @@ function mapParaSerieDia(mapa, campoValor) {
 // 6) INTERFACE DE ABASTECIMENTO — só chamada quando perfilAtual === 'admin'
 // =========================================================================
 function caixaUpload(id, titulo, descricao, aceitaMultiplos) {
-  return '<div class="panel"><div class="panel-head"><div><p class="kicker">Upload</p><h4>' + titulo + '</h4></div></div>' +
+  return '<div class="panel" id="' + id + '-card"><div class="panel-head"><div><p class="kicker">Upload</p><h4>' + titulo + ' <span class="badge-feito" id="' + id + '-badge" hidden>✓ Feito</span></h4></div></div>' +
     '<div class="upload-box"><p>' + descricao + '</p>' +
     '<input type="file" id="' + id + '" ' + (aceitaMultiplos ? "multiple" : "") + ' accept=".tsv,.txt,.xlsx,.xlsb,.xls">' +
     '<button class="btn" onclick="window.ProdutividadeIngest.processar(\'' + id + '\')">Enviar</button>' +
@@ -670,6 +670,8 @@ function caixaUpload(id, titulo, descricao, aceitaMultiplos) {
 function definirStatus(id, texto, classe) {
   var el = document.getElementById(id + "-status");
   if (el) { el.textContent = texto; el.className = "upload-status" + (classe ? " " + classe : ""); }
+  var badge = document.getElementById(id + "-badge");
+  if (badge) badge.hidden = (classe !== "ok");
 }
 
 function renderAdmin() {
@@ -978,7 +980,7 @@ async function processar(id) {
       window.__prodBufferInventario[id] = rowsInv;
       var temBip = window.__prodBufferInventario["up-bipagens"];
       var temDif = window.__prodBufferInventario["up-diferenca-local"];
-      if (!temBip) { definirStatus(id, "Arquivo lido — falta subir Bipagens também.", "ok"); return; }
+      if (!temBip) { definirStatus(id, "Arquivo lido — falta subir Bipagens também.", "pendente"); return; }
       var rInv = processarInventario(temBip, temDif || []);
       var atualE = await lerSnapshot("estoque");
       atualE.inventario = atualE.inventario || {};
