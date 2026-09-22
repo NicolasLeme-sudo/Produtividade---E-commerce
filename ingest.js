@@ -667,10 +667,10 @@ function processarAcompanhamentoOp(rows) {
     } else if (STATUS_AGUARDANDO_ONDA.indexOf(status) !== -1) {
       if (ehSingle) aguardandoOnda.single++;
       else if (ehMulti) aguardandoOnda.multi++;
-      // TODO: coluna de "Super Expresso" não confirmada contra um export
-      // real do Acompanhamento_Op — tentamos as grafias mais prováveis.
-      // Conferir/ajustar quando chegar um arquivo de verdade.
-      var superExpresso = normalizarTexto(obterCampo(row, ["Prioridade", "Super Expresso", "Modalidade de Entrega", "Tipo de Entrega"]));
+      // Confirmado no export real: "SUPER EXPRESSO" aparece na coluna
+      // "Serviço da Transportadora" (a coluna "Prioridade" existe mas vem
+      // sempre vazia neste relatório).
+      var superExpresso = normalizarTexto(obterCampo(row, ["Serviço da Transportadora"]));
       if (superExpresso.indexOf("SUPER EXPRESSO") !== -1) aguardandoOnda.superExpresso++;
     }
   });
