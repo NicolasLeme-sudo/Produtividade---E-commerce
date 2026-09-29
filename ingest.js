@@ -704,6 +704,10 @@ function processarIntegracaoReversa(nfReversaRows) {
   var porDia = new Map();
   var hojeISO = paraDataISOLocal(new Date());
   nfReversaRows.forEach(function (row) {
+    // O Controle de NF agora vem sem filtro e traz também as NFs de venda
+    // (Tipo SAIDA), que usam os mesmos status IMPORTADA / EM CARGA/OR.
+    // Confirmado no export real de reversa: Operação = "REVERSA" (Tipo ENTRADA).
+    if (normalizarTexto(obterCampo(row, ["Operação", "Operacao"])).indexOf("REVERSA") === -1) return;
     var status = normalizarTexto(obterCampo(row, ["Status"]));
     if (status === "IMPORTADA") { importadas++; emTela++; }
     else if (status === "EM CARGA/OR" || status === "EM CARGA / OR") { emCarga++; emTela++; }

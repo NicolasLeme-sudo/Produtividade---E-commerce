@@ -744,18 +744,38 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '</svg></div>';
   }
 
-  function chartLinhaSimplesHtml(pontos, cor){
+  // Linha simples no padrão do mockup (Integração): altura fixa, linha suave
+  // com área, valor em chip em cada ponto. A largura acompanha o painel para
+  // o texto não "inchar" quando há poucos dias.
+  function chartLinhaSimplesHtml(pontos, cor, idContainer){
     if (!pontos || !pontos.length) return estadoVazio('Sem série diária ainda', SEM_DADOS_TXT);
-    var W = Math.max(420, pontos.length*54), H = 160, padL = 10, padB = 22, padT = 12;
-    var max = Math.max.apply(null, pontos.map(function(p){ return p.valor||0; })) || 1;
-    var passo = (W - padL*2) / Math.max(1, pontos.length-1);
-    var baseY = H - padB;
-    function y(v){ return baseY - (v/max)*(H-padT-padB); }
-    var linha = pontos.map(function(p,i){ return (padL+i*passo)+','+y(p.valor||0); }).join(' ');
-    var pontosSvg = pontos.map(function(p,i){ return '<circle cx="'+(padL+i*passo)+'" cy="'+y(p.valor||0)+'" r="3" fill="var('+cor+')"></circle>'+
-      '<text x="'+(padL+i*passo)+'" y="'+(H-6)+'" text-anchor="middle" font-size="9" fill="var(--text-muted)">'+esc(p.rotulo)+'</text>'; }).join('');
-    return '<div class="chart-scroll-x"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'">'+
-      '<polyline points="'+linha+'" fill="none" stroke="var('+cor+')" stroke-width="2.5"></polyline>'+pontosSvg+'</svg></div>';
+    var box = idContainer && document.getElementById(idContainer);
+    var larguraDisp = box && box.clientWidth ? box.clientWidth - 40 : 640;
+    var n = pontos.length;
+    var W = Math.max(n*80, Math.min(larguraDisp, 1100)), H = 210, esq = 52, dir = 30, topo = 36, base = 164;
+    var maxV = Math.max.apply(null, pontos.map(function(p){ return p.valor||0; })) || 1;
+    var passoY = Math.pow(10, Math.floor(Math.log10(maxV/2)));
+    var vMax = Math.ceil(maxV/passoY)*passoY;
+    var passo = n > 1 ? (W-esq-dir)/(n-1) : 0;
+    var x = function(i){ return n > 1 ? esq + i*passo : (W)/2; };
+    var y = function(v){ return base - (v/vMax)*(base-topo); };
+    var pts = pontos.map(function(p,i){ return [x(i), y(p.valor||0)]; });
+    var c = 'var('+cor+')';
+    var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="display:block; overflow:visible" role="img" aria-label="Série diária">';
+    s += '<line x1="'+esq+'" y1="'+base+'" x2="'+(W-dir)+'" y2="'+base+'" stroke="var(--border)"/>';
+    s += '<line x1="'+esq+'" y1="'+topo+'" x2="'+(W-dir)+'" y2="'+topo+'" stroke="var(--border)" stroke-dasharray="3 6"/>';
+    s += '<text x="'+(esq-8)+'" y="'+(base+4)+'" font-size="9.5" fill="var(--text-muted)" text-anchor="end">0</text>';
+    s += '<text x="'+(esq-8)+'" y="'+(topo+4)+'" font-size="9.5" fill="var(--text-muted)" text-anchor="end">'+fmt(vMax)+'</text>';
+    if (n > 1) {
+      s += '<path d="'+suave(pts)+' L'+x(n-1).toFixed(1)+','+base+' L'+esq+','+base+' Z" fill="color-mix(in srgb, '+c+' 14%, transparent)"/>';
+      s += '<path d="'+suave(pts)+'" fill="none" stroke="'+c+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    pontos.forEach(function(p,i){
+      s += '<circle cx="'+x(i)+'" cy="'+y(p.valor||0)+'" r="3" fill="'+c+'"/>';
+      s += chipLabel(x(i), y(p.valor||0)-10, fmt(p.valor||0), c);
+      s += '<text x="'+x(i)+'" y="'+(base+20)+'" font-size="9.5" fill="var(--text-muted)" text-anchor="middle">'+esc(p.rotulo)+'</text>';
+    });
+    return '<div class="chart-scroll-x">'+s+'</svg></div>';
   }
 
   function heatmapHtml(heatmap){
@@ -1051,7 +1071,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '</div>';
     var serie = filtrarSerieporGrupo(d.serieDia, 'reversa', 'data');
     var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Evolução diária</p><h4>NFs integradas por dia</h4></div></div>'+
-      chartLinhaSimplesHtml((serie||[]).map(function(p){ return {rotulo:fmtDataBR(p.data).slice(0,5), valor:p.total}; }), '--olive') +
+      chartLinhaSimplesHtml((serie||[]).map(function(p){ return {rotulo:fmtDataBR(p.data).slice(0,5), valor:p.total}; }), '--olive', 'bloco-integracao') +
       '<p class="fonte">Junção: OR → Controle de NF Reversa (campo Ordem de Recebimento) → Itens de NF de Entrada (idNotaFiscal). Os KPIs mostram só o que está em tela.</p></div>';
     document.getElementById('bloco-integracao').innerHTML = kpisHtml + painel;
   }
