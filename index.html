@@ -393,15 +393,23 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
         <div class="subsection" id="expedicao">
           <div class="sub-head">
-            <div><p class="kicker">Outbound · Expedição</p><h3>Volumes expedidos × forecast</h3></div>
+            <div><p class="kicker">Outbound · Expedição</p><h3>Volumes expedidos × forecast — hoje ±7 dias</h3></div>
             <div class="sub-head-tools">
-              <span class="pill parcial">Ainda não automatizado</span>
+              <span class="pill auto" id="exp-pill">Automático</span>
               <button class="btn-icon" title="Exportar produtividade de Expedição" onclick="exportarOperacao('expedicao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
-          <div class="empty-state">
-            <b>Sem fonte automática ainda</b>
-            <p>Depende do relatório "Acompanhamento Exp", que não entrou no lote de validação. Assim que o arquivo for abastecido em Admin &gt; Abastecimento de base, este painel passa a mostrar dados reais.</p>
+          <div class="panel">
+            <div class="panel-head">
+              <div><p class="kicker">Janela própria · hoje ±7 dias</p><h4>Expedido × Forecast (itens)</h4></div>
+              <span class="pill info">Arraste para ver dias futuros</span>
+            </div>
+            <div class="chart-scroll-x" id="expScroll"><div id="expChart"></div></div>
+            <div class="legend-line">
+              <span><i style="background:var(--olive)"></i>Expedido (realizado)</span>
+              <span><i style="background:var(--accent)"></i>Forecast / meta</span>
+            </div>
+            <p class="fonte">Fonte: Report E-commerce (Acompanhamento_Exp + Forecast mensal). O dia de hoje só mostra o expedido depois que a expedição é fechada lá. Não responde ao filtro de data.</p>
           </div>
         </div>
 
@@ -1043,11 +1051,132 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     el.innerHTML = painel;
   }
 
+  // ---------- Expedição × Forecast (lido do Report E-commerce) ----------
+  // Os dois sites usam bancos diferentes: a função produtividade_expedicao do
+  // banco do Report E-commerce devolve só data, itens expedidos e forecast.
+  var REPORT_ECOMM_URL = 'https://tawliuofpmfohylqdnix.supabase.co';
+  var REPORT_ECOMM_KEY = 'sb_publishable__a5cJ6yFJIMgf505C4v7vQ_igDbuv5k';
+  var reportEcommClient = window.supabase.createClient(REPORT_ECOMM_URL, REPORT_ECOMM_KEY, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'report-ecomm-leitura' } });
+  var expCache = null;
+  var DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  function chipLabel(x, y, texto, cor){
+    var fs = 10, larg = texto.length * fs * 0.62 + 8, alt = fs + 6;
+    return '<rect x="' + (x - larg/2).toFixed(1) + '" y="' + (y - fs - 1).toFixed(1) + '" width="' + larg.toFixed(1) +
+           '" height="' + alt.toFixed(1) + '" rx="4" fill="color-mix(in srgb, ' + cor + ' 32%, var(--bg-card) 68%)"/>' +
+           '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-size="' + fs + '" font-weight="700" fill="' + cor + '">' + texto + '</text>';
+  }
+  function suave(pts){
+    if (pts.length < 2) return pts.length ? 'M'+pts[0][0]+','+pts[0][1] : '';
+    var d = 'M' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1);
+    for (var i = 0; i < pts.length - 1; i++){
+      var p0 = pts[i-1]||pts[i], p1 = pts[i], p2 = pts[i+1], p3 = pts[i+2]||p2;
+      d += 'C' + (p1[0]+(p2[0]-p0[0])/6).toFixed(1) + ',' + (p1[1]+(p2[1]-p0[1])/6).toFixed(1) + ' ' +
+                 (p2[0]-(p3[0]-p1[0])/6).toFixed(1) + ',' + (p2[1]-(p3[1]-p1[1])/6).toFixed(1) + ' ' +
+                 p2[0].toFixed(1) + ',' + p2[1].toFixed(1);
+    }
+    return d;
+  }
+  function isoLocal(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+
+  async function carregarExpedicao(){
+    var box = document.getElementById('expChart');
+    if (!box) return;
+    if (expCache) { desenharExpedicao(expCache); return; }
+    var hoje = new Date(); hoje.setHours(0,0,0,0);
+    var de = new Date(hoje), ate = new Date(hoje);
+    de.setDate(de.getDate()-7); ate.setDate(ate.getDate()+7);
+    var { data, error } = await reportEcommClient.rpc('produtividade_expedicao', { de: isoLocal(de), ate: isoLocal(ate) });
+    if (error) {
+      console.error('Erro ao ler expedição do Report E-commerce', error);
+      var pill = document.getElementById('exp-pill'); if (pill) { pill.className = 'pill parcial'; pill.textContent = 'Sem conexão'; }
+      box.innerHTML = estadoVazio('Não foi possível ler a expedição', 'Falha ao consultar o Report E-commerce: '+esc(error.message||''));
+      return;
+    }
+    var hojeISO = isoLocal(hoje);
+    expCache = (data||[]).map(function(r){
+      var iso = String(r.data).slice(0,10), p = iso.split('-');
+      var dt = new Date(+p[0], +p[1]-1, +p[2]);
+      var futuro = iso > hojeISO, ehHoje = iso === hojeISO;
+      var exp = Number(r.itens_expedidos)||0, meta = Number(r.itens_forecast)||0;
+      return {
+        iso: iso, d: p[2]+'/'+p[1], dow: DOW[dt.getDay()], hoje: ehHoje,
+        // Futuro não tem realizado; hoje só aparece depois do fechamento no Report.
+        exp: (futuro || (ehHoje && !exp)) ? null : exp,
+        meta: meta ? meta : null
+      };
+    });
+    snapshots.outbound = snapshots.outbound || {};
+    snapshots.outbound.expedicao = expCache.map(function(x){ return { data:x.iso, expedido:x.exp, forecast:x.meta }; });
+    desenharExpedicao(expCache);
+  }
+
+  function desenharExpedicao(EXP){
+    var box = document.getElementById('expChart');
+    if (!EXP.length) { box.innerHTML = estadoVazio('Sem dados de expedição na janela', 'O Report E-commerce ainda não tem expedição/forecast para estes dias.'); return; }
+    var IDX_HOJE = Math.max(0, EXP.findIndex(function(p){ return p.hoje; }));
+    var PAD_L=62, PASSO=96, PAD_R=46, ALTO=46, BAIXO=196;
+    function xPos(i){ return PAD_L + i*PASSO; }
+    var maxV = Math.max.apply(null, EXP.map(function(p){ return Math.max(p.exp||0, p.meta||0); })) || 1;
+    var passoY = Math.pow(10, Math.floor(Math.log10(maxV/4)));
+    var tick = Math.ceil(maxV/4/passoY)*passoY, yMax = tick*4;
+    var W = PAD_L + (EXP.length-1)*PASSO + PAD_R, H=254;
+    var y = function(v){ return BAIXO - (v/yMax)*(BAIXO-ALTO); };
+    function runs(campo){
+      var out=[], at=[];
+      EXP.forEach(function(p,i){
+        if (p[campo]==null){ if(at.length) out.push(at); at=[]; }
+        else at.push([xPos(i), y(p[campo])]);
+      });
+      if(at.length) out.push(at);
+      return out;
+    }
+    var s = '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Volumes expedidos contra forecast">';
+    var xFut = xPos(IDX_HOJE) + PASSO/2;
+    if (IDX_HOJE < EXP.length-1) {
+      s += '<rect x="'+xFut+'" y="'+(ALTO-24)+'" width="'+(W-xFut-6)+'" height="'+(BAIXO-ALTO+48)+'" fill="var(--bg-input)" opacity="0.5"/>';
+      s += '<text x="'+(xFut+12)+'" y="'+(ALTO-10)+'" font-size="10" font-weight="700" fill="var(--text-muted)">PREVISTO — somente forecast</text>';
+    }
+    [0,1,2,3,4].forEach(function(k){
+      var v = tick*k;
+      s += '<line x1="'+(PAD_L-14)+'" y1="'+y(v)+'" x2="'+(W-12)+'" y2="'+y(v)+'" stroke="var(--border)"'+(v?' stroke-dasharray="3 6"':'')+'/>';
+      s += '<text x="'+(PAD_L-20)+'" y="'+(y(v)+4)+'" font-size="9.5" fill="var(--text-muted)" text-anchor="end">'+fmt(v)+'</text>';
+    });
+    var xh = xPos(IDX_HOJE);
+    s += '<line x1="'+xh+'" y1="'+(ALTO-24)+'" x2="'+xh+'" y2="'+(BAIXO+24)+'" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4"/>';
+    s += '<rect x="'+(xh-24)+'" y="'+(ALTO-42)+'" width="48" height="17" rx="4" fill="var(--amber)"/>';
+    s += '<text x="'+xh+'" y="'+(ALTO-30)+'" font-size="10" font-weight="700" fill="#1C2333" text-anchor="middle">HOJE</text>';
+    runs('meta').forEach(function(r){ s += '<path d="'+suave(r)+'" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'; });
+    runs('exp').forEach(function(r){ s += '<path d="'+suave(r)+'" fill="none" stroke="var(--olive)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'; });
+    var GAP=26;
+    EXP.forEach(function(p,i){
+      var px = xPos(i), yM = p.meta!=null?y(p.meta):null, yE = p.exp!=null?y(p.exp):null;
+      if (yM!=null) s += '<circle cx="'+px+'" cy="'+yM+'" r="3" fill="var(--accent)"/>';
+      if (yE!=null) s += '<circle cx="'+px+'" cy="'+yE+'" r="3" fill="var(--olive)"/>';
+      if (yM!=null && yE!=null){
+        var oA=10, oB=20, dist=Math.abs(yM-yE);
+        if (dist<GAP){ var ex=(GAP-dist)/2+4; oA+=ex; oB+=ex; }
+        var alto = yM<=yE;
+        s += chipLabel(px, alto?yM-oA:yM+oB, fmt(p.meta), 'var(--accent)');
+        s += chipLabel(px, alto?yE+oB:yE-oA, fmt(p.exp), 'var(--olive)');
+      } else if (yM!=null){
+        s += chipLabel(px, yM-10, fmt(p.meta), 'var(--accent)');
+      } else if (yE!=null){
+        s += chipLabel(px, yE-10, fmt(p.exp), 'var(--olive)');
+      }
+      s += '<text x="'+px+'" y="'+(BAIXO+22)+'" font-size="9.5" fill="'+(p.hoje?'var(--amber)':'var(--text-muted)')+'" text-anchor="middle" font-weight="'+(p.hoje?'700':'400')+'">'+p.d+'</text>';
+      s += '<text x="'+px+'" y="'+(BAIXO+34)+'" font-size="8.5" fill="var(--text-muted)" text-anchor="middle">'+p.dow+'</text>';
+    });
+    box.innerHTML = s + '</svg>';
+    var sc = document.getElementById('expScroll');
+    requestAnimationFrame(function(){ if (sc.clientWidth) sc.scrollLeft = xh - sc.clientWidth/2; });
+  }
+
   // ---------- orquestração por página ----------
   function renderPagina(grupo, evitarRerenderAdmin){
     if (grupo === 'outbound') {
       var d = snapshots.outbound || {};
-      renderSeparacao(d.separacao); renderConferencia(d.conferencia);
+      renderSeparacao(d.separacao); renderConferencia(d.conferencia); carregarExpedicao();
     } else if (grupo === 'inbound') {
       var di = snapshots.inbound || {};
       renderRecebimento(di.recebimento, di.armazenagem); renderArmazenagem(di.armazenagem); renderPallets(di.pallets);
