@@ -786,15 +786,32 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // ---------- filtro de data (client-side, sobre as séries já vindas do snapshot) ----------
   var filtrosData = {}; // { grupo: {modo, dia, de, ate} }
+  function isoDeData(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
   function inicializarFiltrosData(){
     document.querySelectorAll('[data-filtro-grupo]').forEach(function(grupo){
       var nomeGrupo = grupo.getAttribute('data-filtro-grupo');
-      filtrosData[nomeGrupo] = filtrosData[nomeGrupo] || { modo:'d7' };
+      var hoje = new Date(), inicio = new Date(); inicio.setDate(hoje.getDate()-6);
+      filtrosData[nomeGrupo] = filtrosData[nomeGrupo] || { modo:'d7', de: isoDeData(inicio), ate: isoDeData(hoje) };
+      var f = filtrosData[nomeGrupo];
+      // Campos De/Até: só aparecem com o chip "Período" selecionado.
+      var campo = document.createElement('div');
+      campo.className = 'date-campo';
+      campo.hidden = f.modo !== 'periodo';
+      campo.innerHTML = '<span>De</span><input type="date" class="date-box" data-periodo="de" value="'+f.de+'">'+
+                        '<span>Até</span><input type="date" class="date-box" data-periodo="ate" value="'+f.ate+'">';
+      grupo.appendChild(campo);
+      campo.querySelectorAll('input').forEach(function(inp){
+        inp.addEventListener('change', function(){
+          f[inp.getAttribute('data-periodo')] = inp.value;
+          renderPagina(currentGroup);
+        });
+      });
       grupo.querySelectorAll('[data-modo-data]').forEach(function(chip){
         chip.addEventListener('click', function(){
           grupo.querySelectorAll('[data-modo-data]').forEach(function(c){ c.classList.remove('on'); });
           chip.classList.add('on');
-          filtrosData[nomeGrupo].modo = chip.getAttribute('data-modo-data');
+          f.modo = chip.getAttribute('data-modo-data');
+          campo.hidden = f.modo !== 'periodo';
           renderPagina(currentGroup);
         });
       });
@@ -807,7 +824,12 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     if (f.modo === 'd7') return ordenada.slice(-7);
     if (f.modo === 'd10') return ordenada.slice(-10);
     if (f.modo === 'dia') return ordenada.slice(-1);
-    return ordenada; // 'periodo': v1 mostra a série completa disponível no snapshot
+    if (f.modo === 'periodo') {
+      var de = f.de || '0000-00-00', ate = f.ate || '9999-99-99';
+      if (de > ate) { var t = de; de = ate; ate = t; }
+      return ordenada.filter(function(p){ var d = String(p[campoData]).slice(0,10); return d >= de && d <= ate; });
+    }
+    return ordenada;
   }
 
   // Soma os rankings por dia ({data, itens:{nome:valor}}) só dos dias do filtro.
