@@ -327,12 +327,12 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
     var dataISO = paraDataISO(obterCampo(row, ["Data"]));
     var local = String(obterCampo(row, ["Local"]) || "").trim();
     if (!local) return;
-    // O Kardex agora vem sem filtro: além do remanejamento (a armazenagem que
-    // o Kardex de Endereço filtrado trazia), ele tem "ALOCAÇÃO DO LOTE" e
-    // avarias no mesmo endereço, que entravam com sinal invertido e anulavam
-    // a produtividade. Só conta a linha de remanejamento, como no export filtrado.
+    // Armazenagem = saída do pulmão/stage de origem: Complementar "ESTOQUE
+    // SUBTRAÍDO…" + Tipo do Local PULMÃO. Fica de fora a "ALOCAÇÃO DO LOTE"
+    // (entrada no destino, sinal invertido) e o "ADICIONAR SUBTRAÍDO" do picking.
     var complementar = normalizarTexto(obterCampo(row, ["Complementar"]));
-    if (complementar.indexOf("REMANEJAMENTO") === -1 || complementar.indexOf("SUBTRAIDO") === -1) return;
+    var tipoLocal = normalizarTexto(obterCampo(row, ["Tipo do Local"]));
+    if (complementar.indexOf("ESTOQUE SUBTRAIDO") !== 0 || tipoLocal.indexOf("PULMAO") === -1) return;
     var prefixo = local.charAt(0).toUpperCase();
     var usuarioRaw = obterCampo(row, ["Usuário", "Usuario"]);
     var estoqueAntes = numero(obterCampo(row, ["Estoque Antes"]));
