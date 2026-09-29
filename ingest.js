@@ -471,6 +471,55 @@ function processarInventario(bipagensRows, diferencaRows) {
   };
 }
 
+// ---- Inventário acumulado por arquivo (a data vem do nome: "2909 PISO 3B RUA 01 A 05" = 29/09) ----
+function dataDoNomeArquivo(nome) {
+  var m = /^\s*(\d{2})(\d{2})/.exec(nome);
+  if (!m) return null;
+  var dd = Number(m[1]), mm = Number(m[2]);
+  if (dd < 1 || dd > 31 || mm < 1 || mm > 12) return null;
+  var hoje = new Date(), ano = hoje.getFullYear();
+  // Contagem de dezembro subida em janeiro pertence ao ano anterior.
+  if (new Date(ano, mm - 1, dd).getTime() > hoje.getTime() + 86400000) ano--;
+  return paraDataISOLocal(new Date(ano, mm - 1, dd));
+}
+
+// Meta Dia = Headcount × Produtividade/pessoa do setor (mesma regra do Dashboard de Inventário).
+function metaDiaDeConfig(cfg) {
+  cfg = cfg || {};
+  var prod = cfg.setor === "Vestuário" ? (Number(cfg.prodVestuario) || 1500) : (Number(cfg.prodCalcados) || 4500);
+  return Math.round((Number(cfg.headcount) || 0) * prod);
+}
+
+// Refaz KPIs, heatmap e série diária somando todos os arquivos já enviados no ciclo.
+function recalcularInventario(inv) {
+  var arquivos = inv.arquivos || {};
+  var bip = 0, itens = 0;
+  var heat = new Map();
+  var porDia = new Map();
+  Object.keys(arquivos).forEach(function (nome) {
+    var a = arquivos[nome];
+    bip += a.bipagens; itens += a.itensContados;
+    var d = porDia.get(a.data) || { data: a.data, bipagens: 0, itens: 0 };
+    d.bipagens += a.bipagens; d.itens += a.itensContados;
+    porDia.set(a.data, d);
+    (a.heatmap || []).forEach(function (l) {
+      var reg = heat.get(l.bloco) || { bloco: l.bloco, segmento: l.segmento, pisos: { p1: null, p2: null, p3: null, p4: null }, total: 0 };
+      ["p1", "p2", "p3", "p4"].forEach(function (pk) {
+        if (l.pisos[pk] != null) reg.pisos[pk] = (reg.pisos[pk] || 0) + l.pisos[pk];
+      });
+      reg.total += l.total;
+      heat.set(l.bloco, reg);
+    });
+  });
+  var metaPorDia = inv.metaPorDia || {};
+  inv.serieDias = Array.from(porDia.values()).sort(function (a, b) { return a.data.localeCompare(b.data); }).map(function (d) {
+    return { data: d.data, bipagens: d.bipagens, itens: d.itens, meta: metaPorDia[d.data] || 0, curva: d.itens ? d.bipagens / d.itens : 0 };
+  });
+  inv.heatmap = Array.from(heat.values()).sort(function (a, b) { return a.bloco.localeCompare(b.bloco); });
+  inv.kpis = Object.assign({}, inv.kpis, { bipagens: bip, itensContados: itens, curvaReal: itens ? bip / itens : null });
+  return inv;
+}
+
 // ---- 10) Corte e Pula ----
 // Fonte manual "Base Geral Corte/Pula" (abas Pulas-Colmeia / Corte Físico):
 // cortesAtendidos/pulasAtendidos = total tratado (todos os status somados);
@@ -811,6 +860,51 @@ async function alternarCicloInventario(ativo) {
   if (window.recarregarSnapshots) window.recarregarSnapshots();
 }
 
+// Meta Dia do Inventário = Headcount × Produtividade/pessoa do setor (regra do
+// Dashboard de Inventário). Setor e HC ficam guardados como padrão até alguém
+// trocar aqui; cada dia enviado carimba a meta vigente naquele momento.
+function cartaoMetaInventario(cfg) {
+  cfg = cfg || {};
+  var setor = cfg.setor === "Vestuário" ? "Vestuário" : "Calçados";
+  var meta = metaDiaDeConfig({ setor: setor, headcount: cfg.headcount, prodCalcados: cfg.prodCalcados, prodVestuario: cfg.prodVestuario });
+  return '<div class="panel"><div class="panel-head"><div><p class="kicker">Config geral</p><h4>Meta Dia do Inventário</h4></div></div>' +
+    '<div class="upload-box" style="align-items:flex-end">' +
+    '<div class="date-campo"><span>Setor em contagem</span><select class="date-box" id="meta-setor"><option' + (setor === "Calçados" ? " selected" : "") + '>Calçados</option><option' + (setor === "Vestuário" ? " selected" : "") + '>Vestuário</option></select>' +
+    '<span>Headcount</span><input type="number" class="date-box" id="meta-hc" style="width:80px" min="0" value="' + (cfg.headcount != null ? cfg.headcount : "") + '">' +
+    '<span>Prod./pessoa Calçados</span><input type="number" class="date-box" id="meta-prod-calc" style="width:90px" min="0" value="' + (cfg.prodCalcados || 4500) + '">' +
+    '<span>Prod./pessoa Vestuário</span><input type="number" class="date-box" id="meta-prod-vest" style="width:90px" min="0" value="' + (cfg.prodVestuario || 1500) + '"></div>' +
+    '<button class="btn" onclick="window.ProdutividadeIngest.salvarMetaInventario()">Salvar</button>' +
+    '<div class="upload-status" id="meta-inv-status">Meta Dia atual: ' + (meta ? meta.toLocaleString("pt-BR") + " itens/dia" : "— (informe o headcount)") + '. Vale para os próximos dias enviados; dias já enviados sem meta também são preenchidos.</div>' +
+    '</div></div>';
+}
+
+async function salvarMetaInventario() {
+  var st = document.getElementById("meta-inv-status");
+  try {
+    var cfg = {
+      setor: document.getElementById("meta-setor").value,
+      headcount: numero(document.getElementById("meta-hc").value),
+      prodCalcados: numero(document.getElementById("meta-prod-calc").value) || 4500,
+      prodVestuario: numero(document.getElementById("meta-prod-vest").value) || 1500,
+    };
+    var atual = await lerSnapshot("estoque");
+    atual.inventario = atual.inventario || {};
+    atual.inventario.metaConfig = cfg;
+    var meta = metaDiaDeConfig(cfg);
+    atual.inventario.metaPorDia = atual.inventario.metaPorDia || {};
+    Object.keys(atual.inventario.arquivos || {}).forEach(function (n) {
+      var d = atual.inventario.arquivos[n].data;
+      if (!atual.inventario.metaPorDia[d] && meta) atual.inventario.metaPorDia[d] = meta;
+    });
+    recalcularInventario(atual.inventario);
+    await salvarSnapshot("estoque", atual);
+    if (st) { st.textContent = "✓ Salvo — Meta Dia " + meta.toLocaleString("pt-BR") + " itens/dia (" + cfg.setor + ", " + cfg.headcount + " pessoas)."; st.className = "upload-status ok"; }
+    if (window.recarregarSnapshots) window.recarregarSnapshots(true);
+  } catch (e) {
+    if (st) { st.textContent = "Erro: " + e.message; st.className = "upload-status erro"; }
+  }
+}
+
 // Agrupa uploads por setor (igual à navegação lateral), com espaçamento e
 // título entre os grupos — em vez de todos os cards jogados em sequência.
 function grupoAbastecimento(titulo, itensHtml) {
@@ -822,6 +916,8 @@ async function renderAbastecimento() {
   if (!el) return;
   var { data: cfg } = await supabaseClient.from("config_geral").select("ciclo_inventario_ativo").eq("chave", "geral").single();
   var cicloAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
+  var snapEstoque = await lerSnapshot("estoque");
+  var metaCfg = snapEstoque.inventario && snapEstoque.inventario.metaConfig;
   el.innerHTML =
     cartaoCicloInventario(cicloAtivo) +
     // Esses 3 relatórios são exportados do WMS sem filtro — cada um sozinho já
@@ -839,7 +935,8 @@ async function renderAbastecimento() {
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
     ]) +
     grupoAbastecimento("Gestão de Estoque", [
-      caixaUpload("up-bipagens", "Bipagens", "Junto com Diferença por Local, alimenta <strong>Inventário</strong> — curva real e heatmap.", false, !cicloAtivo),
+      cartaoMetaInventario(metaCfg),
+      caixaUpload("up-bipagens", "Bipagens (acumula o ciclo)", "Alimenta <strong>Inventário</strong> — curva real, heatmap e série diária. Selecione vários arquivos de uma vez; a data vem do início do nome (ex.: 2909 PISO 3B RUA 01 A 05).", true, !cicloAtivo),
       caixaUpload("up-diferenca-local", "Diferença por Local", "Divergências (ganhos/perdas) do ciclo de <strong>Inventário</strong>.", false, !cicloAtivo),
       caixaUpload("up-corte-pula-manual", "Base Geral Corte/Pula (planilha manual)", "Abas \"Pulas - Colmeia\" e \"Corte Físico - Checkout Express\" — alimenta os totais tratados e o ranking de agressores."),
       caixaUpload("up-corte-tela", "Corte em Tela", "Alimenta o KPI <strong>Cortes em tela</strong>."),
@@ -1107,27 +1204,42 @@ async function processar(id) {
       definirStatus(id, "✓ Gerenciador de OR processado: Recebimento (Inbound) + Vinculação (Reversa).", "ok");
     }
 
-    else if (id === "up-bipagens" || id === "up-diferenca-local") {
-      // Precisa dos dois arquivos juntos — guarda o que já foi lido em memória.
-      window.__prodBufferInventario = window.__prodBufferInventario || {};
-      var rowsInv = await parseArquivoGenerico(input.files[0]);
-      window.__prodBufferInventario[id] = rowsInv;
-      var temBip = window.__prodBufferInventario["up-bipagens"];
-      var temDif = window.__prodBufferInventario["up-diferenca-local"];
-      if (!temBip) { definirStatus(id, "Arquivo lido — falta subir Bipagens também.", "pendente"); return; }
-      var rInv = processarInventario(temBip, temDif || []);
-      var atualE = await lerSnapshot("estoque");
-      atualE.inventario = atualE.inventario || {};
-      atualE.inventario.kpis = Object.assign({}, atualE.inventario.kpis, {
-        bipagens: rInv.bipagens, itensContados: rInv.itensContados, curvaReal: rInv.curvaReal,
-        divergenciaGanhos: rInv.divergenciaGanhos, divergenciaPerdas: rInv.divergenciaPerdas,
-        // Meta definida fora do WMS (não vem de nenhum arquivo). Padrão: 2,50.
-        // Se um valor manual já tiver sido definido pro ciclo, mantém ele.
-        curvaEstipulada: (atualE.inventario.kpis && atualE.inventario.kpis.curvaEstipulada) || 2.5,
+    else if (id === "up-bipagens") {
+      // Vários arquivos por vez (um por piso/rua). Cada um fica guardado pelo
+      // nome — reenviar o mesmo arquivo substitui, não soma de novo.
+      var arquivosBip = Array.from(input.files);
+      var semData = arquivosBip.filter(function (f) { return !dataDoNomeArquivo(f.name); }).map(function (f) { return f.name; });
+      if (semData.length) throw new Error("Nome sem data no início (esperado DDMM, ex.: 2909 PISO 3B...): " + semData.join(", "));
+      var atualB = await lerSnapshot("estoque");
+      atualB.inventario = atualB.inventario || {};
+      atualB.inventario.arquivos = atualB.inventario.arquivos || {};
+      atualB.inventario.metaPorDia = atualB.inventario.metaPorDia || {};
+      var metaAtual = metaDiaDeConfig(atualB.inventario.metaConfig);
+      for (var ib = 0; ib < arquivosBip.length; ib++) {
+        var fb = arquivosBip[ib];
+        var rowsB = await parseArquivoGenerico(fb);
+        var rB = processarInventario(rowsB, []);
+        var dataB = dataDoNomeArquivo(fb.name);
+        atualB.inventario.arquivos[fb.name] = { data: dataB, bipagens: rB.bipagens, itensContados: rB.itensContados, heatmap: rB.heatmap };
+        if (!atualB.inventario.metaPorDia[dataB] && metaAtual) atualB.inventario.metaPorDia[dataB] = metaAtual;
+      }
+      recalcularInventario(atualB.inventario);
+      // Meta definida fora do WMS. Padrão: 2,50; mantém valor manual já definido.
+      atualB.inventario.kpis.curvaEstipulada = atualB.inventario.kpis.curvaEstipulada || 2.5;
+      await salvarSnapshot("estoque", atualB);
+      definirStatus(id, "✓ " + arquivosBip.length + " arquivo(s) de Bipagens somado(s) ao ciclo" + (metaAtual ? "." : " — configure HC e setor para a Meta Dia aparecer."), "ok");
+    }
+
+    else if (id === "up-diferenca-local") {
+      var rowsD = await parseArquivoGenerico(input.files[0]);
+      var rD = processarInventario([], rowsD);
+      var atualD = await lerSnapshot("estoque");
+      atualD.inventario = atualD.inventario || {};
+      atualD.inventario.kpis = Object.assign({}, atualD.inventario.kpis, {
+        divergenciaGanhos: rD.divergenciaGanhos, divergenciaPerdas: rD.divergenciaPerdas,
       });
-      atualE.inventario.heatmap = rInv.heatmap;
-      await salvarSnapshot("estoque", atualE);
-      definirStatus(id, "✓ Inventário atualizado (Bipagens + Diferença por Local).", "ok");
+      await salvarSnapshot("estoque", atualD);
+      definirStatus(id, "✓ Diferença por Local processada (divergências do ciclo).", "ok");
     }
 
     else if (id === "up-corte-pula-manual") {
@@ -1222,6 +1334,7 @@ window.ProdutividadeIngest = {
   processar: processar,
   lancarPallet: lancarPallet,
   alternarCicloInventario: alternarCicloInventario,
+  salvarMetaInventario: salvarMetaInventario,
 };
 
 })();

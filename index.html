@@ -893,6 +893,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       kpiHtml('--laranja','Divergências', fmt((k.divergenciaGanhos||0)+(k.divergenciaPerdas||0)), '+'+fmt(k.divergenciaGanhos)+' ganhos · −'+fmt(k.divergenciaPerdas)+' perdas','warn')+
       '</div>';
     var serieInvFiltrada = filtrarSerieporGrupo(d.serieDias, 'inventario', 'data');
+    if (serieInvFiltrada) serieInvFiltrada = serieInvFiltrada.map(function(p){ return Object.assign({}, p, { rotulo: p.rotulo || fmtDataBR(p.data).slice(0,5) }); });
     var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Meta Dia × Itens Contados · linha = Curva Real</p><h4>Realizado × Meta × Curva</h4></div></div>'+
       chartBarrasLinhaHtml(serieInvFiltrada) +
       '<div class="legend-line"><span><i class="sq" style="background:var(--accent)"></i>Meta Dia</span><span><i class="sq" style="background:var(--amber)"></i>Itens Contados</span><span><i style="background:var(--olive)"></i>Curva Real</span></div>'+
