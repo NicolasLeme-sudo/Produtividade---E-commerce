@@ -512,13 +512,17 @@ function processarBaseGeralCortePula(pulasRows, corteFisicoRows) {
 // — cada um conta como um pedido distinto sinalizado com corte ainda aberto.
 function processarCorteEmTela(rows) {
   var pedidos = new Set();
+  var porDia = new Map();
   rows.forEach(function (row) {
+    // Confirmado no export real (Relatório de Corte Físico): coluna "Data Corte".
+    var dataISO = paraDataISO(obterCampo(row, ["Data Corte"]));
+    if (dataISO) porDia.set(dataISO, (porDia.get(dataISO) || 0) + 1);
     String(obterCampo(row, ["Pedido de Venda"]) || "").split(",").forEach(function (p) {
       p = p.trim();
       if (p) pedidos.add(p);
     });
   });
-  return { total: rows.length, pedidos: Array.from(pedidos) };
+  return { total: rows.length, pedidos: Array.from(pedidos), serie: mapParaSerieDia(porDia, "total") };
 }
 
 function processarCorteResolvido(rows) {
@@ -539,10 +543,18 @@ function processarCancelamentosWMS(rows) {
   var porMotivo = new Map();
   var porUsuario = new Map();
   var single = 0, multi = 0, total = 0;
+  var porDiaMap = new Map(); // data ISO -> { total, single, multi, motivos, usuarios }
   rows.forEach(function (row) {
     var dataCancRaw = obterCampo(row, ["Data de Cancelamento", "Data Cancelamento"]);
     if (!dataCancRaw || !String(dataCancRaw).trim()) return;
     total++;
+    var dataISO = paraDataISO(dataCancRaw);
+    var dia = null;
+    if (dataISO) {
+      dia = porDiaMap.get(dataISO) || { data: dataISO, total: 0, single: 0, multi: 0, motivos: {}, usuarios: {} };
+      porDiaMap.set(dataISO, dia);
+      dia.total++;
+    }
     // Confirmado no export real (Controle de NF Cancelamento 21.09): coluna
     // "Motivo de Cancelamento" (não "Motivo"). Os valores vêm com grafia
     // inconsistente (ex.: "Cancelado ERP" / "CANCELADO PELO ERP" / minúsculo),
@@ -555,8 +567,14 @@ function processarCancelamentosWMS(rows) {
     // Confirmado no export real: coluna "Classificação Tipo Pedido", valores SINGLE/MULTI.
     var classificacao = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido"]));
     if (classificacao.indexOf("MULTI") !== -1) multi++; else if (classificacao.indexOf("SINGLE") !== -1) single++;
+    if (dia) {
+      dia.motivos[motivo] = (dia.motivos[motivo] || 0) + 1;
+      dia.usuarios[usuario] = (dia.usuarios[usuario] || 0) + 1;
+      if (classificacao.indexOf("MULTI") !== -1) dia.multi++; else if (classificacao.indexOf("SINGLE") !== -1) dia.single++;
+    }
   });
-  return { total: total, porMotivo: porMotivo, porUsuario: porUsuario, single: single, multi: multi };
+  var porDia = Array.from(porDiaMap.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });
+  return { total: total, porMotivo: porMotivo, porUsuario: porUsuario, single: single, multi: multi, porDia: porDia };
 }
 
 // ---- 12) Integração Reversa ----
@@ -1134,6 +1152,7 @@ async function processar(id) {
       // Guardado pro cruzamento com o Acompanhamento_Op (pedidos em
       // separação que também estão sinalizados com corte ainda aberto).
       atual8.corte.pedidosComCorte = qtdTela.pedidos;
+      atual8.corte.serieTela = qtdTela.serie;
       await salvarSnapshot("estoque", atual8);
 
       // Recalcula o cruzamento com o Acompanhamento_Op mesmo se ele já tiver
@@ -1171,7 +1190,7 @@ async function processar(id) {
       var r10 = processarCancelamentosWMS(rows10);
       var atualEs = await lerSnapshot("estoque");
       atualEs.cancelamentos = {
-        totalPeriodo: r10.total, single: r10.single, multi: r10.multi,
+        totalPeriodo: r10.total, single: r10.single, multi: r10.multi, porDia: r10.porDia,
         porMotivo: mapParaRanking(r10.porMotivo).map(function (i) { return { motivo: i.nome, total: i.valor }; }),
         porUsuario: Array.from(r10.porUsuario.entries()).map(function (e) { return { usuario: e[0], qtd: e[1] }; }).sort(function (a, b) { return b.qtd - a.qtd; }),
       };

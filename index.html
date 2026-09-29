@@ -907,8 +907,12 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var el = document.getElementById('bloco-corte');
     if (!d) { el.innerHTML = estadoVazio('Sem dados de Corte · Pula ainda', SEM_DADOS_TXT); return; }
     var k = d.kpis || {};
+    var serieTela = filtrarSerieporGrupo(d.serieTela, 'corte', 'data');
+    var cortesEmTelaFiltrado = (serieTela && serieTela.length)
+      ? serieTela.reduce(function(s,p){ return s + (p.total||0); }, 0)
+      : k.cortesEmTela;
     var kpisHtml = '<div class="kpis">'+
-      kpiHtml('--amber','Cortes em tela', fmt(k.cortesEmTela), 'aguardando resolução do time','warn')+
+      kpiHtml('--amber','Cortes em tela', fmt(cortesEmTelaFiltrado), 'aguardando resolução do time · pela Data Corte','warn')+
       kpiHtml('--accent','Cortes atendidos', fmt(k.cortesAtendidos), 'total tratado — todos os status somados','flat')+
       kpiHtml('--olive','Pulas atendidos', fmt(k.pulasAtendidos), 'total tratado — todos os status somados','flat')+
       kpiHtml('--red','Cortes aceitos (furo de estoque)', fmt(k.cortesAceitos), 'STATUS = ACEITO — produto não encontrado','warn')+
@@ -926,11 +930,24 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     if (!d) { el.innerHTML = estadoVazio('Sem cancelamentos no período', SEM_DADOS_TXT); return; }
     var motivos = (d.porMotivo||[]).map(function(m){ return { nome:m.motivo, valor:m.total }; });
     var usuarios = (d.porUsuario||[]).map(function(u){ return [u.usuario, u.qtd]; });
+    var totalPeriodo = d.totalPeriodo, single = d.single, multi = d.multi;
+    if (d.porDia && d.porDia.length) {
+      var dias = filtrarSerieporGrupo(d.porDia, 'corte', 'data');
+      var mMot = {}, mUsu = {};
+      totalPeriodo = 0; single = 0; multi = 0;
+      dias.forEach(function(x){
+        totalPeriodo += x.total; single += x.single; multi += x.multi;
+        Object.keys(x.motivos||{}).forEach(function(m){ mMot[m] = (mMot[m]||0) + x.motivos[m]; });
+        Object.keys(x.usuarios||{}).forEach(function(u){ mUsu[u] = (mUsu[u]||0) + x.usuarios[u]; });
+      });
+      motivos = Object.keys(mMot).map(function(m){ return { nome:m, valor:mMot[m] }; }).sort(function(a,b){ return b.valor-a.valor; });
+      usuarios = Object.keys(mUsu).map(function(u){ return [u, mUsu[u]]; }).sort(function(a,b){ return b[1]-a[1]; });
+    }
     el.innerHTML = '<div class="duo">'+
-      '<div class="panel"><div class="panel-head"><div><p class="kicker">'+fmt(d.totalPeriodo)+' cancelamentos no período</p><h4>Motivo</h4></div></div>'+ barListHtml(motivos) + '</div>'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">'+fmt(totalPeriodo)+' cancelamentos no período</p><h4>Motivo</h4></div></div>'+ barListHtml(motivos) + '</div>'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Quem cancelou</p><h4>Usuário</h4></div></div>'+
       tabelaOpHtml(['Usuário','Cancelamentos'], usuarios) +
-      '<div class="legend-line"><span>SINGLE: <strong>'+fmt(d.single)+'</strong> · MULTI: <strong>'+fmt(d.multi)+'</strong></span></div>'+
+      '<div class="legend-line"><span>SINGLE: <strong>'+fmt(single)+'</strong> · MULTI: <strong>'+fmt(multi)+'</strong></span></div>'+
       '<p class="fonte">Fonte: Controle de Nota Fiscal, coluna Data de Cancelamento.</p></div></div>';
   }
 
