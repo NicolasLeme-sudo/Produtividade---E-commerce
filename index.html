@@ -429,7 +429,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
               <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
             </div>
           </div>
-          <p class="filter-note">Data considerada: <strong>Data da Conferência</strong> da OR (não a de cadastro).</p>
+          <p class="filter-note">ORs criadas: <strong>Data de Cadastro</strong> · ORs conferidas e ranking: <strong>Data da Conferência</strong> · Armazenagem: data do Kardex.</p>
         </div>
 
         <div class="subsection" id="recebimento">
@@ -900,12 +900,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     if (arm && arm.reversaDia && arm.reversaDia.length) reversaObj.itensArmazenados = somaValores(rankingFiltrado(arm.reversaDia, 'inbound'));
     var rankingRec = rankingFiltrado(d.rankingDia, 'inbound') || d.ranking;
     function srCard(titulo, obj, cor){
-      var pct = obj.orsPeriodo ? (obj.orsConferidas/obj.orsPeriodo*100) : 0;
       return '<div class="sr-card"><div class="sr-nums"><p class="kicker" style="margin:0">'+esc(titulo)+'</p>'+
-        '<div class="sr-line"><span>ORs no período</span><b>'+fmt(obj.orsPeriodo)+'</b></div>'+
+        '<div class="sr-line"><span>ORs criadas no período</span><b>'+fmt(obj.orsPeriodo)+'</b></div>'+
         '<div class="sr-line"><span>ORs conferidas</span><b style="color:var('+cor+')">'+fmt(obj.orsConferidas)+'</b></div>'+
-        '<div class="sr-line gap"><span>Itens armazenados</span><b>'+fmt(obj.itensArmazenados)+'</b></div></div>'+
-        '<div style="font-size:1.3rem;font-weight:700;color:var('+cor+')">'+fmtPct(pct,2)+'</div></div>';
+        '<div class="sr-line gap"><span>Itens armazenados</span><b>'+fmt(obj.itensArmazenados)+'</b></div></div></div>';
     }
     var duo = '<div class="duo">'+srCard('Recebimento normal', normalObj, '--olive') + srCard('Reversa', reversaObj, '--laranja') + '</div>';
     var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Ranking por conferente</p><h4>ORs conferidas</h4></div></div>'+
