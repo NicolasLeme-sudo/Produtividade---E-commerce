@@ -267,6 +267,7 @@ function processarKardexMovimentacoes(rows, indiceBaseAtivos) {
   var porUsuarioColmeia = new Map(); // separação colmeia (setor != Gestão de Estoque)
   var porUsuarioPula = new Map();    // pula (setor == Gestão de Estoque)
   var porDiaColmeia = new Map();     // data -> total colmeia (checkout entra depois)
+  var colmeiaDia = new Map(), pulaDia = new Map();
   var somaAdicionado = 0, somaPesagemRetirado = 0;
   var separadoresDistintos = new Set();
 
@@ -293,6 +294,7 @@ function processarKardexMovimentacoes(rows, indiceBaseAtivos) {
       var ehGestaoEstoque = normalizarTexto(normalizarSetor(colaborador.setor)) === "GESTAO DE ESTOQUE";
       var mapa = ehGestaoEstoque ? porUsuarioPula : porUsuarioColmeia;
       mapa.set(colaborador.nome, (mapa.get(colaborador.nome) || 0) + delta);
+      somarNoDia(ehGestaoEstoque ? pulaDia : colmeiaDia, dataISO, colaborador.nome, delta);
       if (!ehGestaoEstoque) separadoresDistintos.add(colaborador.nome);
       if (dataISO) porDiaColmeia.set(dataISO, (porDiaColmeia.get(dataISO) || 0) + delta);
     } else if (ehRetiradoPesagem) {
@@ -307,6 +309,7 @@ function processarKardexMovimentacoes(rows, indiceBaseAtivos) {
     somaAdicionadoColmeia: somaAdicionado,
     somaPesagemRetirado: somaPesagemRetirado,
     porDiaColmeia: porDiaColmeia,
+    colmeiaDia: colmeiaDia, pulaDia: pulaDia,
     separadoresColmeiaDistintos: separadoresDistintos.size,
   };
 }
@@ -318,8 +321,10 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
   var porUsuarioNormal = new Map();
   var porUsuarioReversa = new Map();
   var totalNormal = 0, totalReversa = 0;
+  var normalDia = new Map(), reversaDia = new Map();
 
   rows.forEach(function (row) {
+    var dataISO = paraDataISO(obterCampo(row, ["Data"]));
     var local = String(obterCampo(row, ["Local"]) || "").trim();
     if (!local) return;
     var prefixo = local.charAt(0).toUpperCase();
@@ -333,19 +338,22 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
     if ("HIJ".indexOf(prefixo) !== -1) {
       porUsuarioNormal.set(colaborador.nome, (porUsuarioNormal.get(colaborador.nome) || 0) + delta);
       totalNormal += delta;
+      somarNoDia(normalDia, dataISO, colaborador.nome, delta);
     } else if (prefixo === "S") {
       porUsuarioReversa.set(colaborador.nome, (porUsuarioReversa.get(colaborador.nome) || 0) + delta);
       totalReversa += delta;
+      somarNoDia(reversaDia, dataISO, colaborador.nome, delta);
     }
   });
 
-  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa };
+  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia };
 }
 
 // ---- 2) Produtividade de Separação -> Separação Checkout ----
 function processarProdutividadeSeparacao(rows) {
   var porUsuario = new Map();
   var porDia = new Map();
+  var porUsuarioDia = new Map();
   rows.forEach(function (row) {
     var usuario = obterCampo(row, ["Usuário", "Usuario"]) || "(sem usuário)";
     var pecas = numero(obterCampo(row, ["Peças", "Pecas"]));
@@ -353,24 +361,28 @@ function processarProdutividadeSeparacao(rows) {
     var dataISO = paraDataISO(obterCampo(row, ["Data"]));
     porUsuario.set(usuario, (porUsuario.get(usuario) || 0) + pecas);
     if (dataISO) porDia.set(dataISO, (porDia.get(dataISO) || 0) + pecas);
+    somarNoDia(porUsuarioDia, dataISO, usuario, pecas);
   });
-  return { porUsuario: porUsuario, porDia: porDia };
+  return { porUsuario: porUsuario, porDia: porDia, porUsuarioDia: porUsuarioDia };
 }
 
 // ---- 4) Conferência Checkout/Etiqueta ----
 function processarConferenciaCheckout(rows) {
   var porConferente = new Map();
+  var dia = new Map();
   rows.forEach(function (row) {
     var conferente = obterCampo(row, ["Conferente"]) || "(sem conferente)";
     var pecas = numero(obterCampo(row, ["Peças", "Pecas"]));
     porConferente.set(conferente, (porConferente.get(conferente) || 0) + pecas);
+    somarNoDia(dia, paraDataISO(obterCampo(row, ["Data"])), conferente, pecas);
   });
-  return porConferente;
+  return { total: porConferente, dia: dia };
 }
 
 // ---- 5) Conferência Colmeia ----
 function processarConferenciaColmeia(rows) {
   var porOperador = new Map(); // nome -> { unitaria, volumes }
+  var unitDia = new Map(), volDia = new Map();
   rows.forEach(function (row) {
     var operador = obterCampo(row, ["Operador"]) || "(sem operador)";
     var unit = numero(obterCampo(row, ["Qtde Unitária Montada", "Qtde. Unitária Montada"]));
@@ -378,8 +390,11 @@ function processarConferenciaColmeia(rows) {
     var atual = porOperador.get(operador) || { unitaria: 0, volumes: 0 };
     atual.unitaria += unit; atual.volumes += vol;
     porOperador.set(operador, atual);
+    var dataISO = paraDataISO(obterCampo(row, ["Data"]));
+    somarNoDia(unitDia, dataISO, operador, unit);
+    somarNoDia(volDia, dataISO, operador, vol);
   });
-  return porOperador;
+  return { total: porOperador, unitDia: unitDia, volDia: volDia };
 }
 
 // ---- 8) Gerenciador de OR (geral) -> Recebimento ----
@@ -390,6 +405,12 @@ function processarGerenciadorOR(rows) {
   var reversa = { orsPeriodo: 0, orsConferidas: 0 };
   var rankingPorUsuario = new Map(); // usuario -> qtd ORs conferidas
   var porDiaConferencia = new Map();
+  var rankingDia = new Map();
+  var resumoDia = new Map(); // data -> contagens por tipo (cadastro e conferência)
+  function regDia(d) {
+    var r = resumoDia.get(d) || { data: d, normalPeriodo: 0, reversaPeriodo: 0, normalConferidas: 0, reversaConferidas: 0 };
+    resumoDia.set(d, r); return r;
+  }
 
   rows.forEach(function (row) {
     // Confirmado no export real (Gerenciador de OR 21.09): coluna "Tipo do
@@ -399,6 +420,8 @@ function processarGerenciadorOR(rows) {
     var ehReversa = tipoRaw.indexOf("REVERSA") !== -1;
     var bucket = ehReversa ? reversa : normal;
     bucket.orsPeriodo++;
+    var dataCadISO = paraDataISO(obterCampo(row, ["Data de Cadastro"]));
+    if (dataCadISO) regDia(dataCadISO)[ehReversa ? "reversaPeriodo" : "normalPeriodo"]++;
 
     // Confirmado: "Data da Conferência" preenchida bate 1:1 com "Conferida" = S.
     var dataConferenciaRaw = obterCampo(row, ["Data da Conferência"]);
@@ -409,10 +432,12 @@ function processarGerenciadorOR(rows) {
       var usuario = obterCampo(row, ["Usuário da Conferência", "Usuario da Conferencia"]) || "(sem usuário)";
       rankingPorUsuario.set(usuario, (rankingPorUsuario.get(usuario) || 0) + 1);
       if (dataConferenciaISO) porDiaConferencia.set(dataConferenciaISO, (porDiaConferencia.get(dataConferenciaISO) || 0) + 1);
+      somarNoDia(rankingDia, dataConferenciaISO, usuario, 1);
+      if (dataConferenciaISO) regDia(dataConferenciaISO)[ehReversa ? "reversaConferidas" : "normalConferidas"]++;
     }
   });
 
-  return { normal: normal, reversa: reversa, rankingPorUsuario: rankingPorUsuario, porDiaConferencia: porDiaConferencia };
+  return { normal: normal, reversa: reversa, rankingPorUsuario: rankingPorUsuario, porDiaConferencia: porDiaConferencia, rankingDia: rankingDia, resumoDia: Array.from(resumoDia.values()).sort(function (a, b) { return a.data.localeCompare(b.data); }) };
 }
 
 // ---- 9) Bipagens + Diferença por Local -> Inventário ----
@@ -538,21 +563,54 @@ function processarBaseGeralCortePula(pulasRows, corteFisicoRows) {
   var cortesAtendidos = somarQtde(corteFisicoRows);
 
   var porColaborador = new Map(); // nome -> { localizado, total }
+  var agressoresDia = new Map();  // data -> Map(nome -> { localizado, total })
+  var atendidosDia = new Map();   // data -> { cortes, pulas }
+  function dataDaLinha(row) {
+    return paraDataISO(obterCampo(row, ["DATA CORTE", "DATA DE OPERAÇÃO", "DATA DE OPERACAO"]));
+  }
+  function contarAtendidosDia(rows, campo) {
+    rows.forEach(function (row) {
+      var d = dataDaLinha(row);
+      if (!d) return;
+      var reg = atendidosDia.get(d) || { data: d, cortes: 0, pulas: 0 };
+      reg[campo] += numero(obterCampo(row, ["QTDE", "Qtde", "Quantidade"]));
+      atendidosDia.set(d, reg);
+    });
+  }
+  contarAtendidosDia(pulasRows, "pulas");
+  contarAtendidosDia(corteFisicoRows, "cortes");
   function acumularAgressores(rows) {
     rows.forEach(function (row) {
-      var usuario = obterCampo(row, ["USUÁRIO", "Usuário", "Usuario"]) || "(sem usuário)";
+      // A aba Corte Físico vem com o cabeçalho "Nome do Usuário" (às vezes com acento corrompido).
+      var usuario = obterCampo(row, ["USUÁRIO", "Usuário", "Usuario", "Nome do Usuário", "Nome do UsuÃ¡rio"]) || "(sem usuário)";
       var status = normalizarTexto(obterCampo(row, ["STATUS", "Status"]));
       var qtde = numero(obterCampo(row, ["QTDE", "Qtde", "Quantidade"]));
       var atual = porColaborador.get(usuario) || { localizado: 0, total: 0 };
       atual.total += qtde;
       if (status === "NO ENDERECO") atual.localizado += qtde; // "NO ENDEREÇO" sem acento após normalizarTexto
       porColaborador.set(usuario, atual);
+      var dRow = dataDaLinha(row);
+      if (dRow) {
+        var mDia = agressoresDia.get(dRow) || new Map();
+        var aDia = mDia.get(usuario) || { localizado: 0, total: 0 };
+        aDia.total += qtde;
+        if (status === "NO ENDERECO") aDia.localizado += qtde;
+        mDia.set(usuario, aDia); agressoresDia.set(dRow, mDia);
+      }
     });
   }
   acumularAgressores(pulasRows);
   acumularAgressores(corteFisicoRows);
 
-  return { pulasAtendidos: pulasAtendidos, cortesAtendidos: cortesAtendidos, porColaborador: porColaborador };
+  var agressoresDiaArr = [];
+  agressoresDia.forEach(function (m, data) {
+    var itens = {};
+    m.forEach(function (v, k) { itens[k] = v; });
+    agressoresDiaArr.push({ data: data, itens: itens });
+  });
+  agressoresDiaArr.sort(function (a, b) { return a.data.localeCompare(b.data); });
+  var atendidosArr = Array.from(atendidosDia.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });
+  return { pulasAtendidos: pulasAtendidos, cortesAtendidos: cortesAtendidos, porColaborador: porColaborador, agressoresDia: agressoresDiaArr, atendidosDia: atendidosArr };
 }
 
 // ---- 10) Corte em Tela -> KPI "Cortes em tela" + conjunto de pedidos com corte aberto ----
@@ -563,10 +621,10 @@ function processarCorteEmTela(rows) {
   var pedidos = new Set();
   var porDia = new Map();
   rows.forEach(function (row) {
-    // Confirmado no export real (Relatório de Corte Físico): coluna "Data Corte".
-    var dataISO = paraDataISO(obterCampo(row, ["Data Corte"]));
+    // "Data Corte" no Relatório de Corte Físico; "Data" no export Corte Físico Em tela.
+    var dataISO = paraDataISO(obterCampo(row, ["Data Corte", "Data"]));
     if (dataISO) porDia.set(dataISO, (porDia.get(dataISO) || 0) + 1);
-    String(obterCampo(row, ["Pedido de Venda"]) || "").split(",").forEach(function (p) {
+    String(obterCampo(row, ["Pedido de Venda", "Pedido"]) || "").split(",").forEach(function (p) {
       p = p.trim();
       if (p) pedidos.add(p);
     });
@@ -576,12 +634,17 @@ function processarCorteEmTela(rows) {
 
 function processarCorteResolvido(rows) {
   var aceitos = 0, noEndereco = 0;
+  var porDia = new Map();
   rows.forEach(function (row) {
     var status = normalizarTexto(obterCampo(row, ["STATUS", "Status"]));
-    if (status === "ACEITO") aceitos++;
-    else if (status === "RECUSADO") noEndereco++;
+    // Confirmado no export real (Corte Físico Resolvido 21.09): "Data Resolução".
+    var dataISO = paraDataISO(obterCampo(row, ["Data Resolução", "Data Resolucao", "Data Resolução Corte"]));
+    var reg = dataISO ? (porDia.get(dataISO) || { data: dataISO, aceitos: 0, recusados: 0 }) : null;
+    if (reg) porDia.set(dataISO, reg);
+    if (status === "ACEITO") { aceitos++; if (reg) reg.aceitos++; }
+    else if (status === "RECUSADO") { noEndereco++; if (reg) reg.recusados++; }
   });
-  return { aceitos: aceitos, noEndereco: noEndereco };
+  return { aceitos: aceitos, noEndereco: noEndereco, porDia: Array.from(porDia.values()).sort(function (a, b) { return a.data.localeCompare(b.data); }) };
 }
 
 // ---- 11) Cancelamentos WMS ----
@@ -710,20 +773,28 @@ function extrairNomeDoVeiculo(textoVeiculo, indiceBaseAtivos, indicePorPrimeiroN
 function processarVinculacaoReversa(orReversaRows, indiceBaseAtivos, indicePorPrimeiroNome) {
   var totalOR = 0, naoIdentificado = 0;
   var ranking = new Map();
+  var rankingDia = new Map();
+  var resumoDia = new Map(); // data -> { total, naoIdentificado }
   orReversaRows.forEach(function (row) {
     var notaFiscal = obterCampo(row, ["Nota Fiscal"]);
     if (!notaFiscal || !String(notaFiscal).trim()) return; // só ORs vinculadas
     var veiculo = obterCampo(row, ["Veiculo", "Veículo"]) || "";
     if (normalizarTexto(veiculo).indexOf("REVERSA") === -1) return; // fora do time de Reversa
     totalOR++;
+    // Data em que a OR foi cadastrada/vinculada (Gerenciador de OR, "Data de Cadastro").
+    var dataISO = paraDataISO(obterCampo(row, ["Data de Cadastro"]));
+    var resumo = dataISO ? (resumoDia.get(dataISO) || { data: dataISO, total: 0, naoIdentificado: 0 }) : null;
+    if (resumo) { resumo.total++; resumoDia.set(dataISO, resumo); }
     var colaborador = extrairNomeDoVeiculo(veiculo, indiceBaseAtivos, indicePorPrimeiroNome);
     if (colaborador) {
       ranking.set(colaborador.nome, (ranking.get(colaborador.nome) || 0) + 1);
+      somarNoDia(rankingDia, dataISO, colaborador.nome, 1);
     } else {
       naoIdentificado++;
+      if (resumo) resumo.naoIdentificado++;
     }
   });
-  return { totalOR: totalOR, naoIdentificado: naoIdentificado, ranking: ranking };
+  return { totalOR: totalOR, naoIdentificado: naoIdentificado, ranking: ranking, rankingDia: rankingDia, resumoDia: Array.from(resumoDia.values()).sort(function (a, b) { return a.data.localeCompare(b.data); }) };
 }
 
 // ---- 14) Acompanhamento_Op -> Itens em separação + Aguardando geração de onda ----
@@ -776,6 +847,30 @@ function mapParaRanking(mapa, limite) {
   var arr = Array.from(mapa.entries()).map(function (e) { return { nome: e[0], valor: e[1] }; });
   arr.sort(function (a, b) { return b.valor - a.valor; });
   return limite ? arr.slice(0, limite) : arr;
+}
+// Rankings por dia: Map(data -> Map(nome -> valor)) vira [{data, itens:{nome:valor}}].
+// A tela soma só os dias do filtro escolhido. Um novo upload substitui os dias
+// que traz e preserva os demais (assim o histórico acumula entre envios).
+function somarNoDia(mapaDia, data, nome, valor) {
+  if (!data) return;
+  var m = mapaDia.get(data) || new Map();
+  m.set(nome, (m.get(nome) || 0) + valor);
+  mapaDia.set(data, m);
+}
+function diaMapParaArray(mapaDia) {
+  var arr = [];
+  mapaDia.forEach(function (m, data) {
+    var itens = {};
+    m.forEach(function (v, k) { itens[k] = v; });
+    arr.push({ data: data, itens: itens });
+  });
+  arr.sort(function (a, b) { return a.data.localeCompare(b.data); });
+  return arr;
+}
+function mesclarDias(anterior, novoArray) {
+  var mapa = new Map((anterior || []).map(function (d) { return [d.data, d]; }));
+  (novoArray || []).forEach(function (d) { mapa.set(d.data, d); });
+  return Array.from(mapa.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });
 }
 function somaMapa(mapa) { var s = 0; mapa.forEach(function (v) { s += v; }); return s; }
 function mapParaSerieDia(mapa, campoValor) {
@@ -1088,20 +1183,24 @@ async function processar(id) {
         dia.colmeia = valor; serieAnterior.set(data, dia);
       });
       atual.separacao.seriesDia = Array.from(serieAnterior.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });
+      atual.separacao.colmeiaDia = mesclarDias(atual.separacao.colmeiaDia, diaMapParaArray(r.colmeiaDia));
       await salvarSnapshot("outbound", atual);
 
       // Pula fica na página de Estoque (setor Gestão de Estoque)
       var atualEstoque = await lerSnapshot("estoque");
       atualEstoque.corte = atualEstoque.corte || {};
-      atualEstoque.pula = { totalPeriodo: somaMapa(r.pulaPorUsuario), ranking: mapParaRanking(r.pulaPorUsuario) };
+      atualEstoque.pula = { totalPeriodo: somaMapa(r.pulaPorUsuario), ranking: mapParaRanking(r.pulaPorUsuario), rankingDia: mesclarDias(atualEstoque.pula && atualEstoque.pula.rankingDia, diaMapParaArray(r.pulaDia)) };
       await salvarSnapshot("estoque", atualEstoque);
 
       // Mesmas linhas, agora filtradas por prefixo de Local (H/I/J/S) -> Armazenagem
       var r5 = processarKardexEndereco(rows, indice);
       var atual5 = await lerSnapshot("inbound");
+      var armAnterior = atual5.armazenagem || {};
       atual5.armazenagem = {
         normal: mapParaRanking(r5.porUsuarioNormal), reversa: mapParaRanking(r5.porUsuarioReversa),
         totalNormal: r5.totalNormal, totalReversa: r5.totalReversa,
+        normalDia: mesclarDias(armAnterior.normalDia, diaMapParaArray(r5.normalDia)),
+        reversaDia: mesclarDias(armAnterior.reversaDia, diaMapParaArray(r5.reversaDia)),
       };
       atual5.recebimento = atual5.recebimento || {};
       atual5.recebimento.normal = Object.assign({}, atual5.recebimento.normal, { itensArmazenados: r5.totalNormal });
@@ -1122,6 +1221,7 @@ async function processar(id) {
       r2.porUsuario.forEach(function (v, k) { mapaGeral.set(k, (mapaGeral.get(k) || 0) + v); });
       atual2.separacao.ranking = atual2.separacao.ranking || {};
       atual2.separacao.ranking.checkout = mapParaRanking(r2.porUsuario);
+      atual2.separacao.checkoutDia = mesclarDias(atual2.separacao.checkoutDia, diaMapParaArray(r2.porUsuarioDia));
       atual2.separacao.ranking.geral = mapParaRanking(mapaGeral);
       // "single" do KPI de topo vem do Acompanhamento_Op (up-acompanhamento-op), não daqui.
       var serieAnterior2 = (atual2.separacao.seriesDia || []).reduce(function (m, d) { m.set(d.data, d); return m; }, new Map());
@@ -1136,9 +1236,11 @@ async function processar(id) {
 
     else if (id === "up-conf-checkout") {
       var rows3 = await parseArquivoGenerico(input.files[0]);
-      var mapa3 = processarConferenciaCheckout(rows3);
+      var r3 = processarConferenciaCheckout(rows3);
+      var mapa3 = r3.total;
       var atual3 = await lerSnapshot("outbound");
       atual3.conferencia = atual3.conferencia || {};
+      atual3.conferencia.confCheckoutDia = mesclarDias(atual3.conferencia.confCheckoutDia, diaMapParaArray(r3.dia));
       atual3.conferencia.confCheckout = mapParaRanking(mapa3);
       atual3.conferencia.totalCheckout = somaMapa(mapa3);
       await salvarSnapshot("outbound", atual3);
@@ -1147,9 +1249,12 @@ async function processar(id) {
 
     else if (id === "up-conf-colmeia") {
       var rows4 = await parseArquivoGenerico(input.files[0]);
-      var mapa4 = processarConferenciaColmeia(rows4);
+      var r4 = processarConferenciaColmeia(rows4);
+      var mapa4 = r4.total;
       var atual4 = await lerSnapshot("outbound");
       atual4.conferencia = atual4.conferencia || {};
+      atual4.conferencia.confColmeiaUnitDia = mesclarDias(atual4.conferencia.confColmeiaUnitDia, diaMapParaArray(r4.unitDia));
+      atual4.conferencia.confColmeiaVolDia = mesclarDias(atual4.conferencia.confColmeiaVolDia, diaMapParaArray(r4.volDia));
       var lista4 = Array.from(mapa4.entries()).map(function (e) { return { nome: e[0], unitaria: e[1].unitaria, volumes: e[1].volumes }; });
       lista4.sort(function (a, b) { return b.unitaria - a.unitaria; });
       atual4.conferencia.confColmeia = lista4;
@@ -1194,11 +1299,18 @@ async function processar(id) {
       atual6.recebimento.normal = Object.assign({}, atual6.recebimento.normal, r6.normal);
       atual6.recebimento.reversa = Object.assign({}, atual6.recebimento.reversa, r6.reversa);
       atual6.recebimento.ranking = mapParaRanking(r6.rankingPorUsuario);
+      atual6.recebimento.resumoDia = mesclarDias(atual6.recebimento.resumoDia, r6.resumoDia);
+      atual6.recebimento.rankingDia = mesclarDias(atual6.recebimento.rankingDia, diaMapParaArray(r6.rankingDia));
       await salvarSnapshot("inbound", atual6);
 
       var r12 = processarVinculacaoReversa(rows6, indice, indicePorPrimeiroNome);
       var atualR2 = await lerSnapshot("reversa");
-      atualR2.vinculacao = { totalOR: r12.totalOR, naoIdentificado: r12.naoIdentificado, ranking: mapParaRanking(r12.ranking) };
+      var vincAnt = atualR2.vinculacao || {};
+      atualR2.vinculacao = {
+        totalOR: r12.totalOR, naoIdentificado: r12.naoIdentificado, ranking: mapParaRanking(r12.ranking),
+        rankingDia: mesclarDias(vincAnt.rankingDia, diaMapParaArray(r12.rankingDia)),
+        resumoDia: mesclarDias(vincAnt.resumoDia, r12.resumoDia),
+      };
       await salvarSnapshot("reversa", atualR2);
 
       definirStatus(id, "✓ Gerenciador de OR processado: Recebimento (Inbound) + Vinculação (Reversa).", "ok");
@@ -1250,6 +1362,8 @@ async function processar(id) {
       var atual7 = await lerSnapshot("estoque");
       atual7.corte = atual7.corte || {};
       atual7.corte.kpis = Object.assign({}, atual7.corte.kpis, { cortesAtendidos: r7.cortesAtendidos, pulasAtendidos: r7.pulasAtendidos });
+      atual7.corte.agressoresDia = mesclarDias(atual7.corte.agressoresDia, r7.agressoresDia);
+      atual7.corte.atendidosDia = mesclarDias(atual7.corte.atendidosDia, r7.atendidosDia);
       atual7.corte.agressores = Array.from(r7.porColaborador.entries()).map(function (e) { return { nome: e[0], localizado: e[1].localizado, total: e[1].total }; }).sort(function (a, b) { return b.localizado - a.localizado; });
       await salvarSnapshot("estoque", atual7);
       definirStatus(id, "✓ Base Geral Corte/Pula processada.", "ok");
@@ -1287,6 +1401,7 @@ async function processar(id) {
       var atual9 = await lerSnapshot("estoque");
       atual9.corte = atual9.corte || {};
       atual9.corte.kpis = Object.assign({}, atual9.corte.kpis, { cortesAceitos: r9.aceitos, cortesNoEndereco: r9.noEndereco });
+      atual9.corte.resolvidoDia = mesclarDias(atual9.corte.resolvidoDia, r9.porDia);
       await salvarSnapshot("estoque", atual9);
       definirStatus(id, "✓ Corte Resolvido processado.", "ok");
     }

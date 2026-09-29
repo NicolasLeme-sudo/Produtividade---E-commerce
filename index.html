@@ -801,6 +801,24 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     return ordenada; // 'periodo': v1 mostra a série completa disponível no snapshot
   }
 
+  // Soma os rankings por dia ({data, itens:{nome:valor}}) só dos dias do filtro.
+  // Retorna null quando o snapshot ainda não tem quebra por dia (upload antigo),
+  // para a tela cair no ranking total salvo antes.
+  function rankingFiltrado(dias, grupo, valorDe){
+    if (!dias || !dias.length) return null;
+    var soma = {};
+    filtrarSerieporGrupo(dias, grupo, 'data').forEach(function(d){
+      Object.keys(d.itens||{}).forEach(function(nome){
+        var v = valorDe ? valorDe(d.itens[nome]) : d.itens[nome];
+        soma[nome] = (soma[nome]||0) + (v||0);
+      });
+    });
+    return Object.keys(soma).map(function(n){ return { nome:n, valor:soma[n] }; })
+      .filter(function(i){ return i.valor; })
+      .sort(function(a,b){ return b.valor - a.valor; });
+  }
+  function somaValores(lista){ return (lista||[]).reduce(function(s,i){ return s + (i.valor||0); }, 0); }
+
   // ---------- renderização por subseção ----------
   function kpiOndaHtml(dados){
     var o = dados || {};
@@ -830,6 +848,11 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       barrasDiaHtml(serieFiltrada, [ {campo:'checkout', cor:'--accent', rotulo:'Checkout (SINGLE)'}, {campo:'colmeia', cor:'--olive', rotulo:'Colmeia (MULTI)'} ]) +
       '<p class="fonte">Fonte: Kardex de Movimentações (Colmeia) + Produtividade de Separação (Checkout).</p></div>';
     var ranking = (d.ranking && d.ranking.geral) || [];
+    if ((d.colmeiaDia && d.colmeiaDia.length) || (d.checkoutDia && d.checkoutDia.length)) {
+      var somaSep = {};
+      (rankingFiltrado(d.colmeiaDia, 'outbound') || []).concat(rankingFiltrado(d.checkoutDia, 'outbound') || []).forEach(function(i){ somaSep[i.nome] = (somaSep[i.nome]||0) + i.valor; });
+      ranking = Object.keys(somaSep).map(function(n){ return { nome:n, valor:somaSep[n] }; }).sort(function(a,b){ return b.valor - a.valor; });
+    }
     var painelRanking = '<div class="panel"><div class="panel-head"><div><p class="kicker">Ranking de separadores</p><h4>Produtividade por separador</h4></div></div>'+
       barListHtml(ranking) + '</div>';
     document.getElementById('bloco-separacao').innerHTML = kpisHtml + painelSerie + painelRanking;
@@ -838,17 +861,35 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   function renderConferencia(d){
     var el = document.getElementById('bloco-conferencia');
     if (!d) { el.innerHTML = estadoVazio('Sem dados de Conferência ainda', SEM_DADOS_TXT); return; }
+    var confCheckout = rankingFiltrado(d.confCheckoutDia, 'outbound') || d.confCheckout || [];
+    var totalCheckout = d.confCheckoutDia && d.confCheckoutDia.length ? somaValores(confCheckout) : d.totalCheckout;
+    var colmeiaUnit = rankingFiltrado(d.confColmeiaUnitDia, 'outbound') || (d.confColmeia||[]).map(function(x){ return {nome:x.nome, valor:x.unitaria}; });
+    var colmeiaVol = rankingFiltrado(d.confColmeiaVolDia, 'outbound');
+    var totalUnit = d.confColmeiaUnitDia && d.confColmeiaUnitDia.length ? somaValores(colmeiaUnit) : d.totalColmeiaUnit;
+    var totalVol = colmeiaVol ? somaValores(colmeiaVol) : d.totalColmeiaVol;
     el.innerHTML = '<div class="duo">'+
-      '<div class="panel"><div class="panel-head"><div><p class="kicker">Peças conferidas</p><h4>Checkout &amp; Etiqueta</h4></div><span class="pill info">'+fmt(d.totalCheckout)+'</span></div>'+
-      barListHtml(d.confCheckout) + '<p class="fonte">Fonte: Produtividade Conferência Checkout/Etiqueta</p></div>'+
-      '<div class="panel"><div class="panel-head"><div><p class="kicker">Unidades montadas</p><h4>Colmeia</h4></div><span class="pill info">'+fmt(d.totalColmeiaUnit)+' · '+fmt(d.totalColmeiaVol)+' vol.</span></div>'+
-      barListHtml((d.confColmeia||[]).map(function(x){ return {nome:x.nome, valor:x.unitaria}; })) +
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Peças conferidas</p><h4>Checkout &amp; Etiqueta</h4></div><span class="pill info">'+fmt(totalCheckout)+'</span></div>'+
+      barListHtml(confCheckout) + '<p class="fonte">Fonte: Produtividade Conferência Checkout/Etiqueta</p></div>'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Unidades montadas</p><h4>Colmeia</h4></div><span class="pill info">'+fmt(totalUnit)+' · '+fmt(totalVol)+' vol.</span></div>'+
+      barListHtml(colmeiaUnit) +
       '<p class="fonte">Fonte: Conferência Colmeia (Qtde Unitária Montada)</p></div></div>';
   }
 
-  function renderRecebimento(d){
+  function renderRecebimento(d, arm){
     var el = document.getElementById('bloco-recebimento');
     if (!d) { el.innerHTML = estadoVazio('Sem dados de Recebimento ainda', SEM_DADOS_TXT); return; }
+    var normalObj = Object.assign({}, d.normal), reversaObj = Object.assign({}, d.reversa);
+    if (d.resumoDia && d.resumoDia.length) {
+      var dr = filtrarSerieporGrupo(d.resumoDia, 'inbound', 'data');
+      normalObj.orsPeriodo = 0; normalObj.orsConferidas = 0; reversaObj.orsPeriodo = 0; reversaObj.orsConferidas = 0;
+      dr.forEach(function(x){
+        normalObj.orsPeriodo += x.normalPeriodo; normalObj.orsConferidas += x.normalConferidas;
+        reversaObj.orsPeriodo += x.reversaPeriodo; reversaObj.orsConferidas += x.reversaConferidas;
+      });
+    }
+    if (arm && arm.normalDia && arm.normalDia.length) normalObj.itensArmazenados = somaValores(rankingFiltrado(arm.normalDia, 'inbound'));
+    if (arm && arm.reversaDia && arm.reversaDia.length) reversaObj.itensArmazenados = somaValores(rankingFiltrado(arm.reversaDia, 'inbound'));
+    var rankingRec = rankingFiltrado(d.rankingDia, 'inbound') || d.ranking;
     function srCard(titulo, obj, cor){
       var pct = obj.orsPeriodo ? (obj.orsConferidas/obj.orsPeriodo*100) : 0;
       return '<div class="sr-card"><div class="sr-nums"><p class="kicker" style="margin:0">'+esc(titulo)+'</p>'+
@@ -857,18 +898,22 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         '<div class="sr-line gap"><span>Itens armazenados</span><b>'+fmt(obj.itensArmazenados)+'</b></div></div>'+
         '<div style="font-size:1.3rem;font-weight:700;color:var('+cor+')">'+fmtPct(pct,2)+'</div></div>';
     }
-    var duo = '<div class="duo">'+srCard('Recebimento normal', d.normal||{}, '--olive') + srCard('Reversa', d.reversa||{}, '--laranja') + '</div>';
+    var duo = '<div class="duo">'+srCard('Recebimento normal', normalObj, '--olive') + srCard('Reversa', reversaObj, '--laranja') + '</div>';
     var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Ranking por conferente</p><h4>ORs conferidas</h4></div></div>'+
-      barListHtml(d.ranking) + '<p class="fonte">Fonte: Gerenciador de OR (geral), campo "Usuário da Conferência".</p></div>';
+      barListHtml(rankingRec) + '<p class="fonte">Fonte: Gerenciador de OR (geral), campo "Usuário da Conferência".</p></div>';
     el.innerHTML = duo + painel;
   }
 
   function renderArmazenagem(d){
     var el = document.getElementById('bloco-armazenagem');
     if (!d) { el.innerHTML = estadoVazio('Sem dados de Armazenagem ainda', SEM_DADOS_TXT); return; }
+    var armNormal = rankingFiltrado(d.normalDia, 'inbound') || d.normal;
+    var armReversa = rankingFiltrado(d.reversaDia, 'inbound') || d.reversa;
+    var totNormal = d.normalDia && d.normalDia.length ? somaValores(armNormal) : d.totalNormal;
+    var totReversa = d.reversaDia && d.reversaDia.length ? somaValores(armReversa) : d.totalReversa;
     el.innerHTML = '<div class="duo">'+
-      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços H / I / J</p><h4>Estoque normal</h4></div><span class="pill info">'+fmt(d.totalNormal)+'</span></div>'+ barListHtml(d.normal, {cor:'--accent'}) + '</div>'+
-      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços iniciados em S</p><h4>Reversa</h4></div><span class="pill info">'+fmt(d.totalReversa)+'</span></div>'+ barListHtml(d.reversa, {cor:'--laranja'}) + '</div>'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços H / I / J</p><h4>Estoque normal</h4></div><span class="pill info">'+fmt(totNormal)+'</span></div>'+ barListHtml(armNormal, {cor:'--accent'}) + '</div>'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços iniciados em S</p><h4>Reversa</h4></div><span class="pill info">'+fmt(totReversa)+'</span></div>'+ barListHtml(armReversa, {cor:'--laranja'}) + '</div>'+
       '</div><p class="fonte">Fonte: Kardex de Endereço · regra Estoque Antes − Estoque Após.</p>';
   }
 
@@ -912,14 +957,27 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var cortesEmTelaFiltrado = (serieTela && serieTela.length)
       ? serieTela.reduce(function(s,p){ return s + (p.total||0); }, 0)
       : k.cortesEmTela;
+    var cortesAtendidos = k.cortesAtendidos, pulasAtendidos = k.pulasAtendidos;
+    if (d.atendidosDia && d.atendidosDia.length) {
+      cortesAtendidos = 0; pulasAtendidos = 0;
+      filtrarSerieporGrupo(d.atendidosDia, 'corte', 'data').forEach(function(x){ cortesAtendidos += x.cortes; pulasAtendidos += x.pulas; });
+    }
+    var cortesAceitos = k.cortesAceitos, cortesRecusados = k.cortesNoEndereco;
+    if (d.resolvidoDia && d.resolvidoDia.length) {
+      cortesAceitos = 0; cortesRecusados = 0;
+      filtrarSerieporGrupo(d.resolvidoDia, 'corte', 'data').forEach(function(x){ cortesAceitos += x.aceitos; cortesRecusados += x.recusados; });
+    }
     var kpisHtml = '<div class="kpis">'+
       kpiHtml('--amber','Cortes em tela', fmt(cortesEmTelaFiltrado), 'aguardando resolução do time · pela Data Corte','warn')+
-      kpiHtml('--accent','Cortes atendidos', fmt(k.cortesAtendidos), 'total tratado — todos os status somados','flat')+
-      kpiHtml('--olive','Pulas atendidos', fmt(k.pulasAtendidos), 'total tratado — todos os status somados','flat')+
-      kpiHtml('--red','Cortes aceitos (furo de estoque)', fmt(k.cortesAceitos), 'STATUS = ACEITO — produto não encontrado','warn')+
-      kpiHtml('--olive','Cortes recusados (produto encontrado)', fmt(k.cortesNoEndereco), 'STATUS = RECUSADO — achamos o produto pra separar','up')+
+      kpiHtml('--accent','Cortes atendidos', fmt(cortesAtendidos), 'total tratado — todos os status somados','flat')+
+      kpiHtml('--olive','Pulas atendidos', fmt(pulasAtendidos), 'total tratado — todos os status somados','flat')+
+      kpiHtml('--red','Cortes aceitos (furo de estoque)', fmt(cortesAceitos), 'STATUS = ACEITO — produto não encontrado','warn')+
+      kpiHtml('--olive','Cortes recusados (produto encontrado)', fmt(cortesRecusados), 'STATUS = RECUSADO — achamos o produto pra separar','up')+
       '</div>';
     var lista = (d.agressores||[]).map(function(a){ return { nome:a.nome, valor:a.localizado, pct:a.total? (a.localizado/a.total*100):0 }; });
+    if (d.agressoresDia && d.agressoresDia.length) {
+      lista = (rankingFiltrado(d.agressoresDia, 'corte', function(a){ return a.localizado; }) || []);
+    }
     var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Separadores que sinalizaram corte/pula e o time localizou no endereço</p><h4>Maiores agressores</h4></div></div>'+
       barListHtml(lista.map(function(l){ return {nome:l.nome, valor:l.valor}; }), {cor:'--laranja'}) +
       '<p class="fonte">Fonte: Base Geral Corte/Pula — abas "Pulas - Colmeia" e "Corte Físico - Checkout Express", campo STATUS = NO ENDEREÇO.</p></div>';
@@ -972,9 +1030,15 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   function renderVinculacao(d){
     var el = document.getElementById('bloco-vinculacao');
     if (!d) { el.innerHTML = estadoVazio('Sem dados de Vinculação ainda', SEM_DADOS_TXT); return; }
-    var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Nome extraído do campo "Veiculo"</p><h4>Ranking de vinculação</h4></div><span class="pill info">'+fmt(d.totalOR)+' ORs</span></div>'+
-      barListHtml(d.ranking) +
-      '<div class="legend-line"><span><strong>'+fmt(d.naoIdentificado)+' ORs</strong> sem nome identificável no campo Veiculo — aparecem como "não identificado", nunca descartadas.</span></div>'+
+    var rankingVinc = rankingFiltrado(d.rankingDia, 'reversa') || d.ranking;
+    var totalOR = d.totalOR, naoIdent = d.naoIdentificado;
+    if (d.resumoDia && d.resumoDia.length) {
+      totalOR = 0; naoIdent = 0;
+      filtrarSerieporGrupo(d.resumoDia, 'reversa', 'data').forEach(function(x){ totalOR += x.total; naoIdent += x.naoIdentificado; });
+    }
+    var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Nome extraído do campo "Veiculo"</p><h4>Ranking de vinculação</h4></div><span class="pill info">'+fmt(totalOR)+' ORs</span></div>'+
+      barListHtml(rankingVinc) +
+      '<div class="legend-line"><span><strong>'+fmt(naoIdent)+' ORs</strong> sem nome identificável no campo Veiculo — aparecem como "não identificado", nunca descartadas.</span></div>'+
       '<p class="fonte">O WMS não grava quem vinculou: "Cadastrado pelo Usuário" é sempre SILT (integração).</p></div>';
     el.innerHTML = painel;
   }
@@ -986,7 +1050,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       renderSeparacao(d.separacao); renderConferencia(d.conferencia);
     } else if (grupo === 'inbound') {
       var di = snapshots.inbound || {};
-      renderRecebimento(di.recebimento); renderArmazenagem(di.armazenagem); renderPallets(di.pallets);
+      renderRecebimento(di.recebimento, di.armazenagem); renderArmazenagem(di.armazenagem); renderPallets(di.pallets);
     } else if (grupo === 'estoque') {
       var de = snapshots.estoque || {};
       renderInventario(de.inventario); renderCorte(de.corte); renderCancelamentos(de.cancelamentos);
