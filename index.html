@@ -142,6 +142,10 @@ body{
 .onda-lado + .onda-lado{border-left:1px solid var(--border); margin-left:6px; padding-left:12px;}
 .onda-val{font-size:1.3rem; font-weight:700; font-variant-numeric:tabular-nums;}
 .onda-rot{font-size:.62rem; letter-spacing:.06em; color:var(--text-muted); text-transform:uppercase; margin-top:2px;}
+.kpi-2x{grid-column:span 2;}
+.kpi-2x .delta{text-align:left;}
+.kpi-2x .delta.centro{text-align:center;}
+.corte-linha{color:var(--gelo);} .corte-linha.tem{color:var(--red);}
 
 .panel{background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 18px;}
 .panel-disabled{opacity:.45; pointer-events:none;}
@@ -276,6 +280,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   .sidebar{width:100%; flex:none;}
   .bar-row{grid-template-columns:104px 1fr 76px;}
   .filter-note{margin-left:0;}
+  .kpi-2x{grid-column:auto;}
 }
 </style>
 </head>
@@ -367,7 +372,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
               <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
             </div>
           </div>
-          <p class="filter-note">O filtro afeta as séries por dia (gráficos). Os KPIs mostram sempre o dia mais recente abastecido.</p>
+          <p class="filter-note">O filtro afeta o Acumulado e as séries por dia (gráficos). Os demais KPIs mostram sempre o dia mais recente abastecido.</p>
         </div>
 
         <div class="subsection" id="separacao">
@@ -661,11 +666,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       (delta ? '<div class="delta '+(deltaClasse||'flat')+'">'+esc(delta)+'</div>' : '') +
       (extraHtml || '') + '</div>';
   }
-  function alertaCorteHtml(qtd){
-    if (!qtd) return '';
-    return '<div class="delta" style="color:var(--red); margin-top:6px;">⚠ '+fmt(qtd)+' pedido'+(qtd===1?'':'s')+' (SINGLE+MULTI) com corte sinalizado</div>';
-  }
-
   function barListHtml(itens, opts){
     opts = opts || {};
     if (!itens || !itens.length) return estadoVazio('Sem ranking ainda', SEM_DADOS_TXT);
@@ -871,30 +871,47 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   function somaValores(lista){ return (lista||[]).reduce(function(s,i){ return s + (i.valor||0); }, 0); }
 
   // ---------- renderização por subseção ----------
-  function kpiOndaHtml(dados){
-    var o = dados || {};
-    var single = o.single||0, multi = o.multi||0, superExpresso = o.superExpresso||0;
-    return '<div class="kpi kpi-onda"><div class="bar" style="background:var(--laranja)"></div>'+
-      '<p class="kicker">Aguardando geração de onda</p>'+
+  // card largo (2x) dividido em SINGLE | MULTI (mesmo divisor do antigo card de onda)
+  function kpiSplitHtml(cor, titulo, single, multi, rodapeHtml){
+    return '<div class="kpi kpi-2x"><div class="bar" style="background:var('+cor+')"></div>'+
+      '<p class="kicker">'+esc(titulo)+'</p>'+
       '<div class="onda-split">'+
         '<div class="onda-lado"><div class="onda-val">'+fmt(single)+'</div><div class="onda-rot">SINGLE</div></div>'+
         '<div class="onda-lado"><div class="onda-val">'+fmt(multi)+'</div><div class="onda-rot">MULTI</div></div>'+
-      '</div>'+
-      '<div class="delta warn">'+fmt(superExpresso)+' pedido'+(superExpresso===1?'':'s')+' Super Expresso</div>'+
-    '</div>';
+      '</div>'+(rodapeHtml||'')+'</div>';
+  }
+  // acumulado do período do filtro: soma da MESMA série do gráfico "Itens separados por dia"
+  // (Checkout = SINGLE, Colmeia = MULTI), então os dois sempre batem
+  function rotuloPeriodoAcumulado(nomeGrupo, dias){
+    var modo = (filtrosData[nomeGrupo] || {modo:'d7'}).modo, nDias = dias.length;
+    var ini = fmtDataBR(String(dias[0].data).slice(0,10)), fim = fmtDataBR(String(dias[nDias-1].data).slice(0,10));
+    var plural = function(n){ return n + (n===1 ? ' dia' : ' dias'); };
+    if (modo === 'dia') return 'Dia ' + fim;
+    if (modo === 'periodo') return ini === fim ? 'Período: ' + ini : 'Período: ' + ini + ' a ' + fim;
+    var alvo = modo === 'd10' ? 10 : 7;
+    return (nDias < alvo ? plural(nDias) + ' disponíveis' : 'Últimos ' + alvo + ' dias') + ' · ' + ini + ' a ' + fim;
+  }
+  function kpiAcumuladoHtml(serie, nomeGrupo){
+    var dias = serie || [], single = 0, multi = 0;
+    dias.forEach(function(d){ single += d.checkout||0; multi += d.colmeia||0; });
+    return kpiSplitHtml('--accent', 'Acumulado de separação', single, multi,
+      '<div class="delta flat centro">'+esc(dias.length ? rotuloPeriodoAcumulado(nomeGrupo, dias) : 'Sem dados no período')+'</div>');
+  }
+  function kpiEmSeparacaoHtml(k){
+    var c = k.comCorte || 0;
+    return kpiSplitHtml('--olive', 'Itens em separação', k.single, k.multi,
+      '<div class="delta corte-linha'+(c ? ' tem' : '')+'">'+fmt(c)+' Corte'+(c===1?'':'s')+' sinalizado'+(c===1?'':'s')+'</div>');
   }
 
   function renderSeparacao(d){
     if (!d) { document.getElementById('bloco-separacao').innerHTML = estadoVazio('Sem dados de Separação ainda', SEM_DADOS_TXT); return; }
     var k = d.kpis || {};
-    var kpisHtml = '<div class="kpis">'+
-      kpiHtml('--accent','Itens em separação (SINGLE)', fmt(k.single), 'Acompanhamento_Op — em separação','flat', alertaCorteHtml(k.comCorte))+
-      kpiHtml('--olive','Itens em separação (MULTI)', fmt(k.multi), '','flat')+
-      kpiHtml('--amber','Separadores em operação', fmt(k.separadores), 'usuários distintos com movimentação hoje','up')+
-      kpiHtml('--laranja','Pendente de fechamento (Colmeia)', fmt(k.pendente), 'colocados − pesados','warn')+
-      kpiOndaHtml(d.aguardandoOnda)+
-      '</div>';
     var serieFiltrada = filtrarSerieporGrupo(d.seriesDia, 'outbound', 'data');
+    var kpisHtml = '<div class="kpis">'+
+      kpiAcumuladoHtml(serieFiltrada, 'outbound')+
+      kpiEmSeparacaoHtml(k)+
+      kpiHtml('--amber','Separadores em operação', fmt(k.separadores), 'usuários distintos com movimentação hoje','up')+
+      '</div>';
     var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por dia</p><h4>Colmeia × Checkout</h4></div></div>'+
       barrasDiaHtml(serieFiltrada, [ {campo:'checkout', cor:'--accent', rotulo:'Checkout (SINGLE)'}, {campo:'colmeia', cor:'--olive', rotulo:'Colmeia (MULTI)'} ]) +
       '<p class="fonte">Fonte: Kardex de Movimentações (Colmeia) + Produtividade de Separação (Checkout).</p></div>';
