@@ -900,7 +900,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   function kpiEmSeparacaoHtml(k){
     var c = k.comCorte || 0;
     return kpiSplitHtml('--olive', 'Itens em separação', k.single, k.multi,
-      '<div class="delta corte-linha'+(c ? ' tem' : '')+'">'+fmt(c)+' Corte'+(c===1?'':'s')+' sinalizado'+(c===1?'':'s')+'</div>');
+      '<div class="delta centro corte-linha'+(c ? ' tem' : '')+'">'+fmt(c)+' Corte'+(c===1?'':'s')+' sinalizado'+(c===1?'':'s')+'</div>');
   }
 
   function renderSeparacao(d){
