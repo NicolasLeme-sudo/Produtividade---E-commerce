@@ -897,6 +897,32 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     return kpiSplitHtml('--accent', 'Acumulado de separação', single, multi,
       '<div class="delta flat centro">'+esc(dias.length ? rotuloPeriodoAcumulado(nomeGrupo, dias) : 'Sem dados no período')+'</div>');
   }
+  // Separadores em operação = usuários distintos que separaram no dia mais recente com
+  // registro na base (Colmeia + Checkout, cada pessoa contada uma vez). Vem das quebras
+  // por dia/usuário já salvas (colmeiaDia / checkoutDia), então acompanha o "hoje" sem
+  // depender de reenviar o Kardex. Sem essas quebras (upload antigo), cai no valor salvo.
+  function separadoresDoDia(d){
+    var fontes = [d.colmeiaDia || [], d.checkoutDia || []];
+    var recente = '';
+    fontes.forEach(function(arr){ arr.forEach(function(x){ var dt = String(x.data).slice(0,10); if (dt > recente) recente = dt; }); });
+    if (!recente) return null;
+    var nomes = {};
+    fontes.forEach(function(arr){
+      arr.forEach(function(x){
+        if (String(x.data).slice(0,10) !== recente) return;
+        Object.keys(x.itens || {}).forEach(function(nome){
+          var chave = nome.normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase();
+          if (chave && chave !== '(SEM USUARIO)') nomes[chave] = true;
+        });
+      });
+    });
+    return { n: Object.keys(nomes).length, data: recente };
+  }
+  function kpiSeparadoresHtml(d, k){
+    var s = separadoresDoDia(d);
+    if (!s) return kpiHtml('--amber','Separadores em operação', fmt(k.separadores), 'usuários distintos no Kardex abastecido','up');
+    return kpiHtml('--amber','Separadores em operação', fmt(s.n), 'separaram em '+fmtDataBR(s.data),'up');
+  }
   function kpiEmSeparacaoHtml(k){
     var c = k.comCorte || 0;
     return kpiSplitHtml('--olive', 'Itens em separação', k.single, k.multi,
@@ -910,7 +936,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var kpisHtml = '<div class="kpis">'+
       kpiAcumuladoHtml(serieFiltrada, 'outbound')+
       kpiEmSeparacaoHtml(k)+
-      kpiHtml('--amber','Separadores em operação', fmt(k.separadores), 'usuários distintos com movimentação hoje','up')+
+      kpiSeparadoresHtml(d, k)+
       '</div>';
     var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por dia</p><h4>Colmeia × Checkout</h4></div></div>'+
       barrasDiaHtml(serieFiltrada, [ {campo:'checkout', cor:'--accent', rotulo:'Checkout (SINGLE)'}, {campo:'colmeia', cor:'--olive', rotulo:'Colmeia (MULTI)'} ]) +
