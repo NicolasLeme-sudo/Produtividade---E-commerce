@@ -154,6 +154,7 @@ body{
 .onda-split{display:flex; align-items:stretch; margin:2px 0 4px;}
 .onda-lado{flex:1; text-align:center; padding:0 6px;}
 .onda-lado + .onda-lado{border-left:1px solid var(--border); margin-left:6px; padding-left:12px;}
+.onda-total .onda-val{color:var(--accent-light);}
 .onda-val{font-size:1.3rem; font-weight:700; font-variant-numeric:tabular-nums;}
 .onda-rot{font-size:.62rem; letter-spacing:.06em; color:var(--text-muted); text-transform:uppercase; margin-top:2px;}
 .kpi-2x{grid-column:span 2;}
@@ -1002,6 +1003,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '<div class="onda-split">'+
         '<div class="onda-lado"><div class="onda-val">'+fmt(single)+'</div><div class="onda-rot">SINGLE</div></div>'+
         '<div class="onda-lado"><div class="onda-val">'+fmt(multi)+'</div><div class="onda-rot">MULTI</div></div>'+
+        '<div class="onda-lado onda-total"><div class="onda-val">'+fmt((Number(single)||0)+(Number(multi)||0))+'</div><div class="onda-rot">TOTAL</div></div>'+
       '</div>'+(rodapeHtml||'')+'</div>';
   }
   // acumulado do período do filtro: soma da MESMA série do gráfico "Itens separados por dia"
