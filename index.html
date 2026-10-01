@@ -1562,7 +1562,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       elE.innerHTML = '';
       return;
     }
-    function vf(v){ return crit.pct ? Math.round(v)+'%' : fmt(v); }
+    function vf(v){ return crit.pct ? Math.round(v)+'%' : fmt(Math.round(v)); } // média sem casas decimais
     var ordenados = c.times.filter(function(t){ return t.lista.length; }).sort(function(a,b){ return b.score-a.score; });
     var sem = c.times.filter(function(t){ return !t.lista.length; });
     var max = ordenados.length ? ordenados[0].score : 0;
