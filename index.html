@@ -145,6 +145,8 @@ body{
 .filterbar.fb-recolhida{flex-wrap:nowrap; align-items:center; gap:12px; padding-top:9px; padding-bottom:9px;}
 .filterbar.fb-recolhida > :not(.fb-resumo):not(.fb-seta){display:none !important;}
 .filterbar.fb-recolhida .fb-resumo{display:flex;}
+.filterbar.fb-recolhida{cursor:pointer;}
+.filterbar.fb-recolhida:hover{border-color:var(--text-muted);}
 .filterbar.fb-recolhida .fb-seta{top:50%; margin-top:-11px;}
 .filter-group{display:flex; flex-direction:column; gap:6px;}
 .filter-group > label{font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); font-weight:600;}
@@ -2080,6 +2082,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         resumo.innerHTML = '<span class="fb-rot">Filtros</span><span class="fb-txt"></span>';
         var seta = document.createElement('button'); seta.type = 'button'; seta.className = 'fb-seta'; seta.innerHTML = SETA_SVG;
         b.appendChild(resumo); b.appendChild(seta);
+        // Recolhida, qualquer área da barra expande os filtros.
+        b.addEventListener('click', function(e){ if (b.classList.contains('fb-recolhida') && !seta.contains(e.target)) seta.click(); });
         seta.addEventListener('click', function(){
           var recolher = !barras[0].classList.contains('fb-recolhida');
           aplicar(nome, barras, recolher);
