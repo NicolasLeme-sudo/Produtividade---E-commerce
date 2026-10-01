@@ -1107,18 +1107,18 @@ async function salvarMetaInventario() {
 // =========================================================================
 var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
 var COMP_ATIVS = [
-  ["sep_checkout", "Separação · Checkout"], ["sep_colmeia", "Separação · Colmeia"],
+  ["sep", "Separação"],
   ["conf_checkout", "Conferência · Checkout"], ["conf_colmeia", "Conferência · Colmeia"],
 ];
 var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"] };
-var compAdm = { turno: "1º Turno", atv: "sep_checkout", time: 1, editando: null, linhas: [], indice: null };
+var compAdm = { turno: "1º Turno", atv: "sep", time: 1, editando: null, linhas: [], indice: null };
 
 function htmlSeguro(t) {
   return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
 }
 function atividadeDeTexto(t) {
   var n = normalizarTexto(t), col = n.indexOf("COLMEIA") !== -1;
-  if (n.indexOf("SEPARACAO") !== -1) return col ? "sep_colmeia" : "sep_checkout";
+  if (n.indexOf("SEPARACAO") !== -1) return "sep";
   if (n.indexOf("CONFERENCIA") !== -1 || n.indexOf("FATURAMENTO") !== -1) return col ? "conf_colmeia" : "conf_checkout";
   return null;
 }
@@ -1153,7 +1153,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
   compAdm.linhas = r.data || [];
   if (recarregarBase || !compAdm.indice) compAdm.indice = (await carregarIndiceBaseAtivos()).indice;
   var idx = compAdm.indice;
-  var doGrupo = compAdm.linhas.filter(function (l) { return l.turno === compAdm.turno && l.atividade === compAdm.atv; });
+  var doGrupo = compAdm.linhas.filter(function (l) { return l.turno === compAdm.turno && (l.atividade === compAdm.atv || (compAdm.atv === "sep" && /^sep_/.test(l.atividade))); });
   var foraDaBase = function (l) { return !idx.get(normalizarUsuarioWMS(l.usuario_wms)); };
 
   var linhasTimes = [1, 2, 3, 4].map(function (n) {
@@ -1194,7 +1194,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     "</div>" +
     '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
       '<div class="panel-head"><div><p class="kicker">Upload</p><h4>Planilha de escalação dos times <span class="badge-feito" id="comp-planilha-badge" hidden>✓ Feito</span></h4></div></div>' +
-      '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Turno, Atividade, Setor, Piso, Time</strong>. Uma linha por colaborador e atividade. Turno vazio usa o da Base de Ativos. A planilha <strong>substitui</strong> a escalação das combinações de turno e atividade que ela traz; o restante fica como está.</p>' +
+      '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Turno, Atividade, Setor, Piso, Time</strong>. Uma linha por colaborador e atividade (Separação, Conferência Checkout ou Conferência Colmeia; Separação vale para Checkout e Colmeia). Turno vazio usa o da Base de Ativos. A planilha <strong>substitui</strong> a escalação das combinações de turno e atividade que ela traz; o restante fica como está.</p>' +
       '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button>' +
       '<div class="upload-status" id="comp-planilha-status"></div></div></div></div>';
 
@@ -1246,8 +1246,8 @@ async function renderCompeticaoAdmin(recarregarBase) {
 
   document.getElementById("comp-btn-modelo").addEventListener("click", function () {
     var aoa = [["Nome", "Usuário WMS", "Turno", "Atividade", "Setor", "Piso", "Time"],
-      ["Livia Silva", "LIVIA.SILVA", "1º Turno", "Separação Checkout", "Calçados", 1, "01"],
-      ["Jessica Moura", "JESSICA.MOURA", "1º Turno", "Separação Colmeia", "Calçados", 1, "02"],
+      ["Livia Silva", "LIVIA.SILVA", "1º Turno", "Separação", "Calçados", 1, "01"],
+      ["Jessica Moura", "JESSICA.MOURA", "1º Turno", "Separação", "Calçados", 1, "02"],
       ["Ana B. Silva", "ANA.B.SILVA", "2º Turno", "Conferência Checkout", "Vestuário", 1, "04"]];
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
@@ -1300,7 +1300,9 @@ async function processarPlanilhaCompeticao(file, idx) {
   var pares = new Map();
   registros.forEach(function (r) { pares.set(r.atividade + "|" + r.turno, [r.atividade, r.turno]); });
   for (var par of pares.values()) {
-    var d = await supabaseClient.from("competicao_times").delete().eq("atividade", par[0]).eq("turno", par[1]);
+    var d = par[0] === "sep"
+      ? await supabaseClient.from("competicao_times").delete().in("atividade", ["sep", "sep_checkout", "sep_colmeia"]).eq("turno", par[1])
+      : await supabaseClient.from("competicao_times").delete().eq("atividade", par[0]).eq("turno", par[1]);
     if (d.error) throw new Error("Falha ao limpar a escalação anterior: " + d.error.message);
   }
   for (var i = 0; i < registros.length; i += 200) {

@@ -1565,7 +1565,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var temHora = atv.segFonte ? !!prod[atv.segFonte].segundos : atv.fontes.every(function(f){ return !!prod[f].segundos; });
     var times = [1,2,3,4].map(function(n){ return { n:n, cor:TIMES_COR[n], membros:new Map() }; });
     var turnoSel = compEstado.turno;
-    var linhas = competicaoTimes.filter(function(r){ return (turnoSel === 'Todos' || r.turno === turnoSel) && atv.fontes.indexOf(r.atividade) !== -1; });
+    // Separação é cadastrada uma vez só; Checkout/Colmeia apenas fatiam a produção (aceita também cadastros antigos sep_*).
+    var ehSep = atv.fontes[0].indexOf('sep_') === 0, soUma = ehSep && atv.fontes.length === 1;
+    var linhas = competicaoTimes.filter(function(r){ return (turnoSel === 'Todos' || r.turno === turnoSel) && (ehSep ? /^sep/.test(r.atividade) : atv.fontes.indexOf(r.atividade) !== -1); });
     var usadas = {}; atv.fontes.forEach(function(f){ usadas[f] = new Set(); });
     // Um palpite nunca "rouba" o usuário exato de outro membro.
     var exatos = {}; linhas.forEach(function(r){ exatos[chaveUsuario(r.usuario_wms)] = r.usuario_wms; });
@@ -1576,7 +1578,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     porPessoa.forEach(function(r){
       var t = times[r.time-1]; if (!t) return;
       var m = { usuario:r.usuario_wms, nome:r.nome, valor:0, seg:0, setor:r.setor, piso:r.piso, casados:[] };
-      (t.linhasPessoa = t.linhasPessoa || []).push(r);
       atv.fontes.forEach(function(f){
         var p = prod[f], achada = null;
         chavesDoMembro(r).some(function(k, i){
@@ -1598,6 +1599,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           return false;
         });
       }
+      if (soUma && m.valor <= 0) return;   // na visão Colmeia/Checkout só conta quem produziu ali
+      (t.linhasPessoa = t.linhasPessoa || []).push(r);
       t.membros.set(r.usuario_wms, m);
     });
     var todos = [];
