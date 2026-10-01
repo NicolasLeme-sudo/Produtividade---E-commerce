@@ -1712,17 +1712,22 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var usa = {}; fontes.forEach(function(f){ usa[defs[f][0]] = true; });
     var faltando = Object.keys(usa).filter(function(k){ return !conjuntos[k] || !conjuntos[k].length; });
     if (faltando.length === Object.keys(usa).length) return { aviso:'Abasteça a '+(usa.s ? 'Separação' : 'Conferência')+' Analítica em Admin > Abastecimento de base para ver a produção por hora.' };
+    var datas = {};
     Object.keys(usa).forEach(function(k){
       filtrados[k] = filtrarSerieporGrupo(conjuntos[k] || [], 'competicao', 'data');
-      var ult = filtrados[k][filtrados[k].length-1];
-      if (ult && String(ult.data).slice(0,10) > dataDia) dataDia = String(ult.data).slice(0,10);
+      filtrados[k].forEach(function(d){ datas[String(d.data).slice(0,10)] = 1; });
     });
-    if (!dataDia) return { aviso:'Sem dados por hora no período filtrado.' };
-    var norm = {};   // norm[fonte][usuarioNormalizado] = 24 horas
+    var listaDatas = Object.keys(datas).sort();
+    if (!listaDatas.length) return { aviso:'Sem dados por hora no período filtrado.' };
+    var norm = {};   // norm[fonte][usuarioNormalizado] = 24 horas somadas em todos os dias do filtro
     fontes.forEach(function(f){
-      var dia = (filtrados[defs[f][0]] || []).filter(function(d){ return String(d.data).slice(0,10) === dataDia; })[0];
-      norm[f] = {}; if (!dia) return;
-      Object.keys(dia[defs[f][1]]||{}).forEach(function(u){ norm[f][chaveUsuario(u)] = dia[defs[f][1]][u]; });
+      norm[f] = {};
+      (filtrados[defs[f][0]] || []).forEach(function(dia){
+        Object.keys(dia[defs[f][1]]||{}).forEach(function(u){
+          var k = chaveUsuario(u), arr = norm[f][k] || (norm[f][k] = new Array(24).fill(0));
+          dia[defs[f][1]][u].forEach(function(v, i){ arr[i] += v||0; });
+        });
+      });
     });
     var series = {}, min = 24, max = -1;
     c.times.forEach(function(t){
@@ -1742,9 +1747,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       arr.forEach(function(v, i){ if (v > 0) { if (i < min) min = i; if (i > max) max = i; } });
       series[t.n] = arr;
     });
-    if (max < 0) return { aviso:'Nenhum membro dos times produziu em '+fmtDataBR(dataDia)+'.' };
+    if (max < 0) return { aviso:'Nenhum membro dos times produziu por hora no período.' };
     var horas = []; for (var h = min; h <= max; h++) horas.push(h);
-    return { data:dataDia, series:series, horas:horas, nota: atv.fontes.indexOf('conf_colmeia') !== -1 ? 'Conferência Colmeia não tem hora e fica fora deste gráfico.' : '' };
+    return { periodo: listaDatas.length === 1 ? fmtDataBR(listaDatas[0]) : fmtDataBR(listaDatas[0])+' a '+fmtDataBR(listaDatas[listaDatas.length-1]), dias:listaDatas.length, series:series, horas:horas, nota: atv.fontes.indexOf('conf_colmeia') !== -1 ? 'Conferência Colmeia não tem hora e fica fora deste gráfico.' : '' };
   }
 
   var compTip = null;
@@ -1909,7 +1914,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var placar = placarHtml(c, crit);
     var aviso = c.temDados ? '' : '<p class="fonte">Os relatórios desta atividade ainda não têm produção por dia no período. Reenvie-os em Admin &gt; Abastecimento de base.</p>';
     var dHora = horasDoDia(c);
-    var kickHora = 'Itens por hora' + (dHora.data ? ' · dia ' + fmtDataBR(dHora.data) : '') + ' · ' + compEstado.turno + (dHora.nota ? ' · ' + dHora.nota : '');
+    var kickHora = 'Itens por hora' + (dHora.periodo ? ' · ' + dHora.periodo + (dHora.dias > 1 ? ' (' + dHora.dias + ' dias somados)' : '') : '') + ' · ' + compEstado.turno + (dHora.nota ? ' · ' + dHora.nota : '');
     var cardHora = '<div class="panel comp-card"><div class="panel-head"><div><p class="kicker">'+esc(kickHora)+'</p><h4>Produção por time ao longo do dia</h4></div></div>'+
       (dHora.aviso
         ? '<div class="comp-vazio">'+esc(dHora.aviso)+'</div>'
