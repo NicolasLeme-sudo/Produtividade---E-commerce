@@ -302,10 +302,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 }
 /* ---------- Competição ---------- */
 .comp-placar{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) minmax(190px,.9fr); gap:12px;}
-.comp-sel{display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; padding:10px 14px; margin-bottom:12px; font-size:.78rem;}
-.comp-sel-i{display:inline-flex; align-items:center; gap:6px; cursor:pointer;}
-.comp-bloco-atv{margin-bottom:18px;}
-.comp-bloco-atv .kicker{margin:0 0 8px;}
 .comp-total{position:relative;}
 .comp-total::before{content:''; position:absolute; left:-7px; top:4px; bottom:4px; width:1px; background:var(--text-muted); opacity:.55;}
 @media (max-width:1100px){ .comp-total::before{display:none;} }
@@ -711,7 +707,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
               <button class="chip" data-atv="sep_checkout">Separação · Checkout</button>
               <button class="chip" data-atv="conf_checkout">Conferência · Checkout</button>
               <button class="chip" data-atv="conf_colmeia">Conferência · Colmeia</button>
-              <button class="chip" data-atv="todas">▦ Todas agrupadas</button>
+              <button class="chip" id="comp-atv-todos" type="button">Marcar todos</button>
             </div>
           </div>
           <div style="flex-basis:100%; height:0; margin-top:-12px;" aria-hidden="true"></div>
@@ -1488,7 +1484,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // ---------- Competição entre times ----------
   var competicaoTimes = [];
-  var compEstado = { turno:'Todos', atv:'sep_geral', atvSel:{ sep_colmeia:true, sep_checkout:true, conf_checkout:true, conf_colmeia:true }, crit:'media', verTodos:{}, ocultos:{}, rolagem:0 };
+  var compEstado = { turno:'Todos', sel:{ sep_geral:true }, crit:'media', verTodos:{}, ocultos:{}, rolagem:0 };
   var TIMES_COR = { 1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'}, 4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'} };
   var ATIV_COMP = {
     sep_geral:     { rot:'Separação · Geral', fontes:['sep_checkout','sep_colmeia'], unid:'peças', segFonte:'sep_geral' },
@@ -1558,27 +1554,44 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     return { valores: valoresMap, segundos: fontes.s ? somar(fontes.s) : null, datas: valoresMap.datas, temDados: !!(fontes.v && fontes.v.length) };
   }
 
+  var ORDEM_ATV = ['sep_geral','sep_colmeia','sep_checkout','conf_checkout','conf_colmeia'];
+  // Atividade efetiva: uma só usa a definição pronta; várias marcadas viram uma soma das fontes.
+  function atvAtual(){
+    var ks = ORDEM_ATV.filter(function(k){ return compEstado.sel[k]; });
+    if (!ks.length) ks = ['sep_geral'];
+    if (ks.length === 1) return ATIV_COMP[ks[0]];
+    var fontes = [];
+    ks.forEach(function(k){ ATIV_COMP[k].fontes.forEach(function(f){ if (fontes.indexOf(f) === -1) fontes.push(f); }); });
+    var sepN = fontes.filter(function(f){ return f.indexOf('sep_') === 0; });
+    var tempo = sepN.length === 2 ? ['sep_geral'] : sepN.slice();
+    if (fontes.indexOf('conf_checkout') !== -1) tempo.push('conf_checkout');
+    return { rot: ks.filter(function(k){ return !(compEstado.sel.sep_geral && (k === 'sep_colmeia' || k === 'sep_checkout')); }).map(function(k){ return ATIV_COMP[k].rot; }).join(' + '), fontes: fontes, unid:'peças', tempo: tempo, multi:true };
+  }
+
   function calcularCompeticao(){
-    var atv = ATIV_COMP[compEstado.atv];
-    var prod = {}; atv.fontes.forEach(function(f){ prod[f] = producaoDaFonte(f); });
-    if (atv.segFonte) prod[atv.segFonte] = producaoDaFonte(atv.segFonte);
-    var temHora = atv.segFonte ? !!prod[atv.segFonte].segundos : atv.fontes.every(function(f){ return !!prod[f].segundos; });
+    var atv = atvAtual();
+    var tempo = atv.tempo || (atv.segFonte ? [atv.segFonte] : atv.fontes.filter(function(f){ return f !== 'conf_colmeia'; }));
+    var prod = {}; atv.fontes.concat(tempo).forEach(function(f){ if (!prod[f]) prod[f] = producaoDaFonte(f); });
+    var temHora = atv.fontes.indexOf('conf_colmeia') === -1 && tempo.length > 0 && tempo.every(function(f){ return !!prod[f].segundos; });
     var times = [1,2,3,4].map(function(n){ return { n:n, cor:TIMES_COR[n], membros:new Map() }; });
     var turnoSel = compEstado.turno;
+    var grupoDe = function(f){ return f.indexOf('sep') === 0 ? 'sep' : f; };
     // Separação é cadastrada uma vez só; Checkout/Colmeia apenas fatiam a produção (aceita também cadastros antigos sep_*).
-    var ehSep = atv.fontes[0].indexOf('sep_') === 0, soUma = ehSep && atv.fontes.length === 1;
-    var linhas = competicaoTimes.filter(function(r){ return (turnoSel === 'Todos' || r.turno === turnoSel) && (ehSep ? /^sep/.test(r.atividade) : atv.fontes.indexOf(r.atividade) !== -1); });
+    var gruposSel = {}; atv.fontes.forEach(function(f){ gruposSel[grupoDe(f)] = true; });
+    var soUma = atv.fontes.length === 1 && atv.fontes[0].indexOf('sep_') === 0;
+    var linhas = competicaoTimes.filter(function(r){ return (turnoSel === 'Todos' || r.turno === turnoSel) && gruposSel[grupoDe(r.atividade)]; });
     var usadas = {}; atv.fontes.forEach(function(f){ usadas[f] = new Set(); });
     // Um palpite nunca "rouba" o usuário exato de outro membro.
     var exatos = {}; linhas.forEach(function(r){ exatos[chaveUsuario(r.usuario_wms)] = r.usuario_wms; });
-    // Na Separação · Geral cada pessoa soma Checkout + Colmeia, mesmo que
-    // esteja cadastrada só num dos dois times; vale o time do 1º cadastro.
+    // Cada cadastro (pessoa + atividade) soma a produção da sua atividade no time dele; vale o 1º cadastro de cada atividade.
     var porPessoa = new Map();
-    linhas.forEach(function(r){ if (!porPessoa.has(r.usuario_wms)) porPessoa.set(r.usuario_wms, r); });
+    linhas.forEach(function(r){ var k = r.usuario_wms+'|'+grupoDe(r.atividade); if (!porPessoa.has(k)) porPessoa.set(k, r); });
     porPessoa.forEach(function(r){
       var t = times[r.time-1]; if (!t) return;
-      var m = { usuario:r.usuario_wms, nome:r.nome, valor:0, seg:0, setor:r.setor, piso:r.piso, casados:[] };
-      atv.fontes.forEach(function(f){
+      var g = grupoDe(r.atividade);
+      var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, valor:0, seg:0, setor:r.setor, piso:r.piso, casados:[] };
+      var valorAntes = m.valor;
+      atv.fontes.filter(function(f){ return grupoDe(f) === g; }).forEach(function(f){
         var p = prod[f], achada = null;
         chavesDoMembro(r).some(function(k, i){
           if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false;
@@ -1588,17 +1601,16 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         if (!achada) return;
         usadas[f].add(achada);
         m.valor += p.valores.get(achada) || 0;
-        if (p.segundos && !atv.segFonte) m.seg += p.segundos.get(achada) || 0;
         if (achada !== chaveUsuario(r.usuario_wms) && achada !== chaveUsuario(r.nome) && m.casados.indexOf(achada) === -1) m.casados.push(achada);
       });
-      if (atv.segFonte && prod[atv.segFonte].segundos) {
-        var ps = prod[atv.segFonte].segundos;
+      tempo.filter(function(f){ return grupoDe(f) === g || (g === 'sep' && f === 'sep_geral'); }).forEach(function(f){
+        var ps = prod[f].segundos; if (!ps) return;
         chavesDoMembro(r).some(function(k, i){
           if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false;
-          if (ps.has(k)) { m.seg = ps.get(k) || 0; return true; }
+          if (ps.has(k)) { m.seg += ps.get(k) || 0; return true; }
           return false;
         });
-      }
+      });
       if (soUma && m.valor <= 0) return;   // na visão Colmeia/Checkout só conta quem produziu ali
       (t.linhasPessoa = t.linhasPessoa || []).push(r);
       t.membros.set(r.usuario_wms, m);
@@ -1691,36 +1703,48 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // ---------- produção por hora (Separação / Conferência analíticas) ----------
   function horasDoDia(c){
-    var a = compEstado.atv, o = snapshots.outbound || {};
-    if (a === 'conf_colmeia') return { aviso:'A Conferência Colmeia só vem com data no WMS, sem a hora. Escolha outra atividade para ver por hora.' };
-    var ehConf = a.indexOf('conf_') === 0;
-    var dias = (ehConf ? (o.conferencia||{}) : (o.separacao||{})).analitico;
-    var tipos = { sep_geral:['checkout','colmeia'], sep_colmeia:['colmeia'], sep_checkout:['checkout'], conf_checkout:['checkout'] }[a];
-    if (!dias || !dias.length) return { aviso:'Abasteça a '+(ehConf ? 'Conferência' : 'Separação')+' Analítica em Admin > Abastecimento de base para ver a produção por hora.' };
-    var filtrados = filtrarSerieporGrupo(dias, 'competicao', 'data');
-    var dia = filtrados[filtrados.length-1];
-    var norm = {};
-    tipos.forEach(function(tp){ norm[tp] = {}; Object.keys(dia[tp]||{}).forEach(function(u){ norm[tp][chaveUsuario(u)] = dia[tp][u]; }); });
+    var o = snapshots.outbound || {}, atv = c.atv;
+    var fontes = atv.fontes.filter(function(f){ return f !== 'conf_colmeia'; });
+    if (!fontes.length) return { aviso:'A Conferência Colmeia só vem com data no WMS, sem a hora. Escolha outra atividade para ver por hora.' };
+    // cada fonte lê um conjunto analítico e um tipo (checkout/colmeia)
+    var defs = { sep_checkout:['s','checkout'], sep_colmeia:['s','colmeia'], conf_checkout:['c','checkout'] };
+    var conjuntos = { s:(o.separacao||{}).analitico, c:(o.conferencia||{}).analitico }, filtrados = {}, dataDia = '';
+    var usa = {}; fontes.forEach(function(f){ usa[defs[f][0]] = true; });
+    var faltando = Object.keys(usa).filter(function(k){ return !conjuntos[k] || !conjuntos[k].length; });
+    if (faltando.length === Object.keys(usa).length) return { aviso:'Abasteça a '+(usa.s ? 'Separação' : 'Conferência')+' Analítica em Admin > Abastecimento de base para ver a produção por hora.' };
+    Object.keys(usa).forEach(function(k){
+      filtrados[k] = filtrarSerieporGrupo(conjuntos[k] || [], 'competicao', 'data');
+      var ult = filtrados[k][filtrados[k].length-1];
+      if (ult && String(ult.data).slice(0,10) > dataDia) dataDia = String(ult.data).slice(0,10);
+    });
+    if (!dataDia) return { aviso:'Sem dados por hora no período filtrado.' };
+    var norm = {};   // norm[fonte][usuarioNormalizado] = 24 horas
+    fontes.forEach(function(f){
+      var dia = (filtrados[defs[f][0]] || []).filter(function(d){ return String(d.data).slice(0,10) === dataDia; })[0];
+      norm[f] = {}; if (!dia) return;
+      Object.keys(dia[defs[f][1]]||{}).forEach(function(u){ norm[f][chaveUsuario(u)] = dia[defs[f][1]][u]; });
+    });
     var series = {}, min = 24, max = -1;
     c.times.forEach(function(t){
       var arr = new Array(24).fill(0);
       (t.linhasPessoa || []).forEach(function(r){
-        tipos.forEach(function(tp){
+        var g = /^sep/.test(r.atividade) ? 'sep' : r.atividade;
+        fontes.filter(function(f){ return (f.indexOf('sep_') === 0 ? 'sep' : f) === g; }).forEach(function(f){
           var achada = null;
           chavesDoMembro(r).some(function(k, i){
             if (i > 0 && c.exatos[k] && c.exatos[k] !== r.usuario_wms) return false;
-            if (norm[tp][k]) { achada = k; return true; }
+            if (norm[f][k]) { achada = k; return true; }
             return false;
           });
-          if (achada) norm[tp][achada].forEach(function(v, i){ arr[i] += v||0; });
+          if (achada) norm[f][achada].forEach(function(v, i){ arr[i] += v||0; });
         });
       });
       arr.forEach(function(v, i){ if (v > 0) { if (i < min) min = i; if (i > max) max = i; } });
       series[t.n] = arr;
     });
-    if (max < 0) return { aviso:'Nenhum membro dos times produziu em '+fmtDataBR(String(dia.data).slice(0,10))+'.' };
+    if (max < 0) return { aviso:'Nenhum membro dos times produziu em '+fmtDataBR(dataDia)+'.' };
     var horas = []; for (var h = min; h <= max; h++) horas.push(h);
-    return { data:String(dia.data).slice(0,10), series:series, horas:horas };
+    return { data:dataDia, series:series, horas:horas, nota: atv.fontes.indexOf('conf_colmeia') !== -1 ? 'Conferência Colmeia não tem hora e fica fora deste gráfico.' : '' };
   }
 
   var compTip = null;
@@ -1866,34 +1890,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '<div class="comp-sub">'+esc(rotPeriodo)+'</div></div>';
     return '<div class="comp-placar">'+cards+cardTotal+'</div>';
   }
-  var ORDEM_TODAS = ['sep_colmeia','sep_checkout','conf_checkout','conf_colmeia'];
-  // Todas as atividades em blocos, com caixas para escolher quais aparecem.
-  function renderCompeticaoTodas(elP, elE){
-    var crit = CRIT_COMP[compEstado.crit], atvOriginal = compEstado.atv, critOriginal = compEstado.crit;
-    document.getElementById('comp-kicker').textContent = 'Todas agrupadas · '+compEstado.turno+' · '+crit.rot;
-    var caixas = '<div class="panel comp-sel"><span class="comp-dica">Mostrar:</span>'+ORDEM_TODAS.map(function(k){
-      return '<label class="comp-sel-i"><input type="checkbox" data-k="'+k+'"'+(compEstado.atvSel[k] ? ' checked' : '')+'> '+esc(ATIV_COMP[k].rot)+'</label>';
-    }).join('')+'</div>';
-    var blocos = '', marcadas = ORDEM_TODAS.filter(function(k){ return compEstado.atvSel[k]; });
-    marcadas.forEach(function(k){
-      compEstado.atv = k;
-      var c, critUsada = compEstado.crit, nota = '';
-      try {
-        c = calcularCompeticao();
-        if (compEstado.crit === 'hora' && !c.temHora) { compEstado.crit = 'media'; critUsada = 'media'; nota = ' · sem tempo no relatório, exibindo média por membro'; c = calcularCompeticao(); }
-      } finally { compEstado.atv = atvOriginal; compEstado.crit = critOriginal; }
-      var cr = CRIT_COMP[critUsada], membros = c.times.reduce(function(a,t){ return a+t.lista.length; }, 0);
-      blocos += '<div class="comp-bloco-atv"><p class="kicker">'+esc(c.atv.rot)+' · '+esc(cr.rot)+esc(nota)+'</p>'+
-        (membros ? placarHtml(c, cr) : '<div class="comp-vazio">Sem times montados para esta atividade neste turno.</div>')+'</div>';
-    });
-    elP.innerHTML = caixas + (blocos || estadoVazio('Nenhuma atividade marcada','Marque ao menos uma atividade acima.'));
-    elE.innerHTML = '';
-    elP.querySelectorAll('.comp-sel input').forEach(function(i){ i.addEventListener('change', function(){ compEstado.atvSel[i.getAttribute('data-k')] = i.checked; renderCompeticao(); }); });
-  }
   function renderCompeticao(){
     var elP = document.getElementById('bloco-placar'), elE = document.getElementById('bloco-equipes');
     if (!elP) return;
-    if (compEstado.atv === 'todas') { renderCompeticaoTodas(elP, elE); return; }
     var c = calcularCompeticao(), crit = CRIT_COMP[compEstado.crit];
     // Peças por hora só existe onde o relatório traz o tempo trabalhado (Separação e Conferência Checkout).
     var btnHora = document.querySelector('#comp-crit [data-crit="hora"]');
@@ -1910,7 +1909,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var placar = placarHtml(c, crit);
     var aviso = c.temDados ? '' : '<p class="fonte">Os relatórios desta atividade ainda não têm produção por dia no período. Reenvie-os em Admin &gt; Abastecimento de base.</p>';
     var dHora = horasDoDia(c);
-    var kickHora = 'Itens por hora' + (dHora.data ? ' · dia ' + fmtDataBR(dHora.data) : '') + ' · ' + compEstado.turno;
+    var kickHora = 'Itens por hora' + (dHora.data ? ' · dia ' + fmtDataBR(dHora.data) : '') + ' · ' + compEstado.turno + (dHora.nota ? ' · ' + dHora.nota : '');
     var cardHora = '<div class="panel comp-card"><div class="panel-head"><div><p class="kicker">'+esc(kickHora)+'</p><h4>Produção por time ao longo do dia</h4></div></div>'+
       (dHora.aviso
         ? '<div class="comp-vazio">'+esc(dHora.aviso)+'</div>'
@@ -1942,7 +1941,26 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         });
       });
     }
-    ligar('comp-turno','data-turno','turno'); ligar('comp-atv','data-atv','atv'); ligar('comp-crit','data-crit','crit');
+    ligar('comp-turno','data-turno','turno'); ligar('comp-crit','data-crit','crit');
+    // Atividade: multisseleção; ao menos uma fica marcada. "Marcar todos" liga todas.
+    function pintarAtv(){
+      document.querySelectorAll('#comp-atv .chip[data-atv]').forEach(function(b){ b.classList.toggle('on', !!compEstado.sel[b.getAttribute('data-atv')]); });
+      var todos = ORDEM_ATV.every(function(k){ return compEstado.sel[k]; });
+      var bt = document.getElementById('comp-atv-todos'); if (bt) { bt.classList.toggle('on', todos); bt.textContent = todos ? 'Todos marcados' : 'Marcar todos'; }
+    }
+    document.querySelectorAll('#comp-atv .chip[data-atv]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-atv');
+        if (compEstado.sel[k]) { if (Object.keys(compEstado.sel).filter(function(x){ return compEstado.sel[x]; }).length > 1) delete compEstado.sel[k]; }
+        else compEstado.sel[k] = true;
+        compEstado.rolagem = 0; pintarAtv(); renderCompeticao();
+      });
+    });
+    document.getElementById('comp-atv-todos').addEventListener('click', function(){
+      ORDEM_ATV.forEach(function(k){ compEstado.sel[k] = true; });
+      compEstado.rolagem = 0; pintarAtv(); renderCompeticao();
+    });
+    pintarAtv();
   }
   ligarFiltrosCompeticao();
 
