@@ -308,10 +308,11 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-sub{font-size:.72rem; color:var(--text-muted);}
 .comp-linha{display:flex; justify-content:space-between; gap:8px; font-size:.75rem; color:var(--text-label); border-top:1px dashed var(--border); padding-top:8px;}
 .comp-linha b{color:var(--text); font-variant-numeric:tabular-nums;}
-.comp-barra{display:grid; grid-template-columns:80px 1fr 96px; gap:10px; align-items:center; font-size:.8rem;}
+.comp-barra{display:grid; grid-template-columns:80px 1fr 150px; gap:10px; align-items:center; font-size:.8rem;}
 .comp-trilho{height:14px; background:var(--bg-input); border-radius:7px; overflow:hidden;}
 .comp-trilho i{display:block; height:100%; background:var(--c); border-radius:7px;}
 .comp-barra b{text-align:right; font-variant-numeric:tabular-nums;}
+.comp-pct{display:inline-block; min-width:52px; margin-left:10px; font-weight:600; color:var(--text-muted);}
 .comp-equipes{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px;}
 .comp-eq{background:var(--bg-card); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-width:0;}
 .comp-eq-head{background:var(--cs); color:var(--c); font-weight:800; font-size:.78rem; padding:9px 12px; display:flex; justify-content:space-between;}
@@ -339,7 +340,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-aviso{color:var(--amber); font-size:.66rem; font-weight:700;}
 .comp-ok{color:var(--olive); font-size:.66rem; font-weight:700;}
 @media (max-width:1100px){ .comp-placar,.comp-equipes{grid-template-columns:repeat(2,minmax(0,1fr));} .comp-adm-grid{grid-template-columns:1fr;} }
-@media (max-width:560px){ .comp-placar,.comp-equipes{grid-template-columns:1fr;} .comp-barra{grid-template-columns:64px 1fr 80px;} }
+@media (max-width:560px){ .comp-placar,.comp-equipes{grid-template-columns:1fr;} .comp-barra{grid-template-columns:64px 1fr 120px;} }
 </style>
 </head>
 <body>
@@ -1543,7 +1544,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       var combos = {}; t.lista.forEach(function(m){ combos[m.setor+' · Piso '+m.piso] = 1; });
       t.composicao = Object.keys(combos);
     });
-    return { times:times, atv:atv, temHora:temHora, temDados: atv.fontes.some(function(f){ return prod[f].temDados; }) };
+    // Base da %: tudo que foi separado/conferido na atividade no período, inclusive quem não está em time.
+    var totalGeral = 0; atv.fontes.forEach(function(f){ prod[f].valores.forEach(function(v){ totalGeral += v || 0; }); });
+    return { times:times, atv:atv, temHora:temHora, totalGeral:totalGeral, temDados: atv.fontes.some(function(f){ return prod[f].temDados; }) };
   }
 
   function renderCompeticao(){
@@ -1577,10 +1580,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     }).join('');
     var aviso = c.temDados ? '' : '<p class="fonte">Os relatórios desta atividade ainda não têm produção por dia no período. Reenvie-os em Admin &gt; Abastecimento de base.</p>';
     var barras = ordenados.map(function(t){
-      return '<div class="comp-barra" style="--c:var('+t.cor.c+')"><span>Time 0'+t.n+'</span><div class="comp-trilho"><i style="width:'+(max ? (t.score/max*100).toFixed(1) : 0)+'%"></i></div><b>'+vf(t.score)+'</b></div>';
+      return '<div class="comp-barra" style="--c:var('+t.cor.c+')"><span>Time 0'+t.n+'</span><div class="comp-trilho"><i style="width:'+(max ? (t.score/max*100).toFixed(1) : 0)+'%"></i></div><b>'+vf(t.score)+'<span class="comp-pct" title="Total do time ('+fmt(t.total)+') ÷ total da atividade no período ('+fmt(c.totalGeral)+')">'+(c.totalGeral ? (t.total/c.totalGeral*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) : '0,0')+'%</span></b></div>';
     }).join('');
     elP.innerHTML = '<div class="comp-placar">'+cards+'</div>'+
-      '<div class="panel" style="margin-top:14px"><div class="panel-head"><div><p class="kicker">'+esc(crit.rot)+'</p><h4>Confronto dos times</h4></div></div><div style="display:flex; flex-direction:column; gap:9px">'+barras+'</div></div>'+aviso;
+      '<div class="panel" style="margin-top:14px"><div class="panel-head"><div><p class="kicker">'+esc(crit.rot)+'</p><h4>Confronto dos times</h4></div><span class="pill info" title="Base da % ao lado de cada time">Total da atividade no período: '+fmt(c.totalGeral)+'</span></div><div style="display:flex; flex-direction:column; gap:9px">'+barras+'</div></div>'+aviso;
     elE.innerHTML = '<div class="comp-equipes">'+c.times.map(function(t){
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var todos = compEstado.verTodos[t.n], lista = todos ? t.lista : t.lista.slice(0,5);
