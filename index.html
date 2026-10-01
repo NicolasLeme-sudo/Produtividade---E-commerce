@@ -335,7 +335,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-membro small{display:block; color:var(--text-muted); font-size:.66rem;}
 .comp-edit{grid-column:1 / -1; display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
 .comp-add{display:flex; gap:8px; flex-wrap:wrap;}
-.comp-add input,.comp-add select,.comp-edit select{border:1px solid var(--border); background:var(--bg-card); color:var(--text); border-radius:7px; padding:7px 10px; font-size:.76rem; font-family:inherit; min-width:0; flex:1 1 110px;}
+.comp-add input,.comp-add select,.comp-edit select,.comp-edit input{border:1px solid var(--border); background:var(--bg-card); color:var(--text); border-radius:7px; padding:7px 10px; font-size:.76rem; font-family:inherit; min-width:0; flex:1 1 110px;}
 .comp-aviso{color:var(--amber); font-size:.66rem; font-weight:700;}
 .comp-ok{color:var(--olive); font-size:.66rem; font-weight:700;}
 @media (max-width:1100px){ .comp-placar,.comp-equipes{grid-template-columns:repeat(2,minmax(0,1fr));} .comp-adm-grid{grid-template-columns:1fr;} }
@@ -1454,6 +1454,20 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   function chaveUsuario(s){
     return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/,/g,'.').trim().toUpperCase();
   }
+  // O usuário do WMS costuma ser primeiro + último nome (BRUNO.PIRES), mas a
+  // Base de Ativos chuta primeiro + segundo (BRUNO.FRANCA). Ordem de tentativa:
+  // usuário gravado, nome completo, primeiro + último, primeiro + demais
+  // sobrenomes (do fim para o começo) e primeiro + inicial do 2º + último.
+  var CONECTIVOS_COMP = ['DE','DA','DO','DAS','DOS','E'];
+  function chavesDoMembro(r){
+    var ks = [chaveUsuario(r.usuario_wms), chaveUsuario(r.nome)];
+    var t = chaveUsuario(r.nome).split(/\s+/).filter(function(x){ return x && CONECTIVOS_COMP.indexOf(x) === -1; });
+    if (t.length > 1) {
+      t.slice(1).reverse().forEach(function(x){ ks.push(t[0]+'.'+x); });
+      if (t.length > 2) ks.push(t[0]+'.'+t[1].charAt(0)+'.'+t[t.length-1]);
+    }
+    return ks.filter(function(k, i){ return k && ks.indexOf(k) === i; });
+  }
   function nomeBonito(u){
     return String(u||'').split(/[.\s]+/).filter(Boolean).map(function(x){ return x.charAt(0).toUpperCase()+x.slice(1).toLowerCase(); }).join(' ');
   }
@@ -1491,15 +1505,28 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var prod = {}; atv.fontes.forEach(function(f){ prod[f] = producaoDaFonte(f); });
     var temHora = atv.fontes.length === 1 && !!prod[atv.fontes[0]].segundos;
     var times = [1,2,3,4].map(function(n){ return { n:n, cor:TIMES_COR[n], membros:new Map() }; });
-    competicaoTimes.forEach(function(r){
-      if (r.turno !== compEstado.turno || atv.fontes.indexOf(r.atividade) === -1) return;
+    var linhas = competicaoTimes.filter(function(r){ return r.turno === compEstado.turno && atv.fontes.indexOf(r.atividade) !== -1; });
+    // Um palpite nunca "rouba" o usuário exato de outro membro.
+    var exatos = {}; linhas.forEach(function(r){ exatos[chaveUsuario(r.usuario_wms)] = r.usuario_wms; });
+    // Na Separação · Geral cada pessoa soma Checkout + Colmeia, mesmo que
+    // esteja cadastrada só num dos dois times; vale o time do 1º cadastro.
+    var porPessoa = new Map();
+    linhas.forEach(function(r){ if (!porPessoa.has(r.usuario_wms)) porPessoa.set(r.usuario_wms, r); });
+    porPessoa.forEach(function(r){
       var t = times[r.time-1]; if (!t) return;
-      var p = prod[r.atividade];
-      var v = p.valores.get(chaveUsuario(r.usuario_wms));
-      if (v === undefined) v = p.valores.get(chaveUsuario(r.nome));
-      var seg = p.segundos ? (p.segundos.get(chaveUsuario(r.usuario_wms)) || p.segundos.get(chaveUsuario(r.nome)) || 0) : 0;
-      var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, valor:0, seg:0, setor:r.setor, piso:r.piso };
-      m.valor += (v||0); m.seg += seg;
+      var m = { usuario:r.usuario_wms, nome:r.nome, valor:0, seg:0, setor:r.setor, piso:r.piso, casados:[] };
+      atv.fontes.forEach(function(f){
+        var p = prod[f], achada = null;
+        chavesDoMembro(r).some(function(k, i){
+          if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false;
+          if (p.valores.has(k)) { achada = k; return true; }
+          return false;
+        });
+        if (!achada) return;
+        m.valor += p.valores.get(achada) || 0;
+        if (p.segundos) m.seg += p.segundos.get(achada) || 0;
+        if (achada !== chaveUsuario(r.usuario_wms) && achada !== chaveUsuario(r.nome) && m.casados.indexOf(achada) === -1) m.casados.push(achada);
+      });
       t.membros.set(r.usuario_wms, m);
     });
     var todos = [];
@@ -1558,7 +1585,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var todos = compEstado.verTodos[t.n], lista = todos ? t.lista : t.lista.slice(0,5);
       return '<div class="comp-eq" '+st+'><div class="comp-eq-head"><span>Time 0'+t.n+'</span><span>'+t.lista.length+(t.lista.length===1?' membro':' membros')+'</span></div><ol>'+
-        lista.map(function(m,i){ return '<li><span class="rk">'+(i+1)+'</span><span class="nm">'+esc(nomeBonito(m.usuario))+'<span class="meta">'+esc(m.usuario)+' · '+esc(m.setor)+' · Piso '+m.piso+'</span></span><b>'+fmt(m.valor)+'</b></li>'; }).join('')+
+        lista.map(function(m,i){ return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+'<span class="meta">'+(m.casados.length ? 'WMS: '+esc(m.casados.join(', ')) : esc(m.usuario))+' · '+esc(m.setor)+' · Piso '+m.piso+'</span></span><b>'+fmt(m.valor)+'</b></li>'; }).join('')+
         '</ol>'+(t.lista.length>5 ? '<button class="comp-mais" data-ver="'+t.n+'">'+(todos ? 'Mostrar menos' : 'Ver todos os '+t.lista.length)+'</button>' : '')+'</div>';
     }).join('')+'</div>';
     elE.querySelectorAll('.comp-mais').forEach(function(b){ b.addEventListener('click', function(){ var n = b.getAttribute('data-ver'); compEstado.verTodos[n] = !compEstado.verTodos[n]; renderCompeticao(); }); });
