@@ -40,6 +40,8 @@
   --olive:#45C645; --olive-soft:#1B3320; --amber:#F6BD00; --amber-soft:#332B10;
   --red:#C8102E; --red-soft:#331015; --gelo:#93A5B8; --laranja:#E8830D;
   --shadow:0 2px 12px rgba(0,0,0,.4);
+  --t1:#EF5B5B; --t2:#4C95F0; --t3:#45C665; --t4:#F6C400;
+  --t1-soft:#3A1A1E; --t2-soft:#16283F; --t3-soft:#173322; --t4-soft:#332B10;
 }
 [data-tema="claro"] {
   --bg:#F3F4F7; --bg-card:#FFFFFF; --bg-sidebar:#132043; --bg-input:#F8F9FB;
@@ -48,6 +50,8 @@
   --olive:#2E9E2E; --olive-soft:#E4F3E4; --amber:#C9960A; --amber-soft:#FBF0D9;
   --red:#C0392B; --red-soft:#FBE4E1; --gelo:#8FA3B8; --laranja:#C26A00;
   --shadow:0 2px 8px rgba(0,0,0,.08);
+  --t1:#D63A3A; --t2:#2F7DE1; --t3:#2FA84F; --t4:#E0B000;
+  --t1-soft:#FBE6E6; --t2-soft:#E6F0FC; --t3-soft:#E3F4E8; --t4-soft:#FBF3D6;
 }
 *, *::before, *::after { box-sizing:border-box; }
 html, body { height:100%; margin:0; }
@@ -89,6 +93,16 @@ body{
 .nav-item:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
 .nav-dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.6; flex:0 0 auto;}
 .nav-group.oculto{display:none;}
+.nav-label{display:flex; align-items:center; gap:4px;}
+.nav-label-txt{flex:1;}
+.nav-seta{width:22px; height:22px; border:none; border-radius:6px; background:transparent; color:rgba(255,255,255,.45); cursor:pointer; display:grid; place-items:center; flex:0 0 auto; transition:transform .18s;}
+.nav-seta:hover{background:rgba(255,255,255,.08); color:#fff;}
+.nav-seta:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
+.nav-group.aberto .nav-seta{transform:rotate(180deg);}
+.nav-filhos{display:flex; flex-direction:column; gap:2px; margin-left:10px; padding-left:6px; border-left:1px solid rgba(255,255,255,.08);}
+.nav-filhos[hidden]{display:none;}
+.tag-novo{font-size:.55rem; background:var(--amber); color:#1C2333; padding:1px 6px; border-radius:8px; font-weight:800; letter-spacing:.04em; margin-left:6px;}
+@media (prefers-reduced-motion:reduce){ .nav-seta{transition:none;} }
 .badge-admin{margin-left:auto; font-size:8.5px; font-weight:700; background:rgba(178,58,46,.2); color:var(--red); padding:2px 6px; border-radius:10px;}
 .sidebar-footer{margin-top:auto; padding:12px 16px; border-top:1px solid rgba(255,255,255,.07); display:flex; flex-direction:column; gap:6px;}
 .sidebar-footer .perfil{font-size:11px; color:#9BAAC4;}
@@ -282,6 +296,50 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   .filter-note{margin-left:0;}
   .kpi-2x{grid-column:auto;}
 }
+/* ---------- Competição ---------- */
+.comp-placar{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px;}
+.comp-time{background:var(--bg-card); border:1px solid var(--border); border-top:4px solid var(--c); border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; min-width:0;}
+.comp-time.lider{box-shadow:0 0 0 1px var(--c) inset;}
+.comp-top{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+.comp-nome{font-weight:800; font-size:.88rem; display:flex; align-items:center; gap:8px;}
+.comp-dot{width:12px; height:12px; border-radius:50%; background:var(--c); flex-shrink:0;}
+.comp-pos{font-size:.7rem; font-weight:800; color:var(--c); background:var(--cs); padding:2px 8px; border-radius:999px;}
+.comp-big{font-size:1.6rem; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums;}
+.comp-sub{font-size:.72rem; color:var(--text-muted);}
+.comp-linha{display:flex; justify-content:space-between; gap:8px; font-size:.75rem; color:var(--text-label); border-top:1px dashed var(--border); padding-top:8px;}
+.comp-linha b{color:var(--text); font-variant-numeric:tabular-nums;}
+.comp-barra{display:grid; grid-template-columns:80px 1fr 96px; gap:10px; align-items:center; font-size:.8rem;}
+.comp-trilho{height:14px; background:var(--bg-input); border-radius:7px; overflow:hidden;}
+.comp-trilho i{display:block; height:100%; background:var(--c); border-radius:7px;}
+.comp-barra b{text-align:right; font-variant-numeric:tabular-nums;}
+.comp-equipes{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px;}
+.comp-eq{background:var(--bg-card); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-width:0;}
+.comp-eq-head{background:var(--cs); color:var(--c); font-weight:800; font-size:.78rem; padding:9px 12px; display:flex; justify-content:space-between;}
+.comp-eq ol{list-style:none; margin:0; padding:6px 0;}
+.comp-eq li{display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:6px; padding:6px 12px; font-size:.76rem; align-items:center;}
+.comp-eq li:nth-child(-n+3) .rk{color:var(--c); font-weight:800;}
+.comp-eq .rk{color:var(--text-muted); font-size:.7rem;}
+.comp-eq .nm{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.comp-eq .meta{font-size:.62rem; color:var(--text-muted); display:block;}
+.comp-eq li b{font-variant-numeric:tabular-nums;}
+.comp-mais{font-size:.7rem; color:var(--accent); padding:4px 12px 10px; background:none; border:none; text-align:left; cursor:pointer; font-family:inherit;}
+.chip[disabled]{opacity:.4; cursor:not-allowed;}
+.comp-adm-grid{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:14px;}
+.comp-adm table{width:100%; border-collapse:collapse; font-size:.78rem;}
+.comp-adm th{font-size:.62rem; letter-spacing:.07em; text-transform:uppercase; color:var(--text-muted); text-align:left; padding:8px; border-bottom:1px solid var(--border); font-weight:600;}
+.comp-adm td{padding:9px 8px; border-bottom:1px solid var(--border);}
+.comp-adm tbody tr{cursor:pointer;}
+.comp-adm tr.sel td{background:var(--accent-soft);}
+.comp-adm .tbl-wrap{overflow-x:auto;}
+.comp-membro{display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:.78rem; background:var(--bg-input);}
+.comp-membro small{display:block; color:var(--text-muted); font-size:.66rem;}
+.comp-edit{grid-column:1 / -1; display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+.comp-add{display:flex; gap:8px; flex-wrap:wrap;}
+.comp-add input,.comp-add select,.comp-edit select{border:1px solid var(--border); background:var(--bg-card); color:var(--text); border-radius:7px; padding:7px 10px; font-size:.76rem; font-family:inherit; min-width:0; flex:1 1 110px;}
+.comp-aviso{color:var(--amber); font-size:.66rem; font-weight:700;}
+.comp-ok{color:var(--olive); font-size:.66rem; font-weight:700;}
+@media (max-width:1100px){ .comp-placar,.comp-equipes{grid-template-columns:repeat(2,minmax(0,1fr));} .comp-adm-grid{grid-template-columns:1fr;} }
+@media (max-width:560px){ .comp-placar,.comp-equipes{grid-template-columns:1fr;} .comp-barra{grid-template-columns:64px 1fr 80px;} }
 </style>
 </head>
 <body>
@@ -333,6 +391,11 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       <div class="nav-label" tabindex="0">Reversa</div>
       <div class="nav-item" tabindex="0" data-page="reversa" data-target="integracao"><span class="nav-dot"></span>Integração</div>
       <div class="nav-item" tabindex="0" data-page="reversa" data-target="vinculacao"><span class="nav-dot"></span>Vinculação</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label" tabindex="0">Competição<span class="tag-novo">NOVO</span></div>
+      <div class="nav-item" tabindex="0" data-page="competicao" data-target="placar"><span class="nav-dot"></span>Placar dos times</div>
+      <div class="nav-item" tabindex="0" data-page="competicao" data-target="equipes"><span class="nav-dot"></span>Ranking por time</div>
     </div>
     <div class="nav-group" id="grupoAdmin">
       <div class="nav-label" tabindex="0">Admin <span style="color:var(--amber)">·</span> restrito</div>
@@ -574,6 +637,65 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
             </div>
           </div>
           <div id="bloco-vinculacao"></div>
+        </div>
+      </div>
+
+      <!-- ============ COMPETIÇÃO ============ -->
+      <div class="page" data-page-content="competicao" hidden>
+
+        <div class="filterbar">
+          <div class="filter-group" id="comp-turno">
+            <label>Turno</label>
+            <div class="chips">
+              <button class="chip on" data-turno="1º Turno">1º Turno</button>
+              <button class="chip" data-turno="2º Turno">2º Turno</button>
+              <button class="chip" data-turno="3º Turno">3º Turno</button>
+              <button class="chip" data-turno="ADM">ADM</button>
+            </div>
+          </div>
+          <div class="filter-group" id="comp-atv">
+            <label>Atividade</label>
+            <div class="chips">
+              <button class="chip on" data-atv="sep_geral">Separação · Geral</button>
+              <button class="chip" data-atv="sep_colmeia">Separação · Colmeia</button>
+              <button class="chip" data-atv="sep_checkout">Separação · Checkout</button>
+              <button class="chip" data-atv="conf_checkout">Conferência · Checkout / Faturamento</button>
+              <button class="chip" data-atv="conf_colmeia">Conferência · Colmeia</button>
+            </div>
+          </div>
+          <div class="filter-group data-filtro" data-filtro-grupo="competicao">
+            <label>Data</label>
+            <div class="chips">
+              <button class="chip" data-modo-data="dia">Dia</button>
+              <button class="chip" data-modo-data="periodo">Período</button>
+              <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
+            </div>
+          </div>
+          <div class="filter-group" id="comp-crit">
+            <label>Critério de classificação</label>
+            <div class="chips">
+              <button class="chip on" data-crit="media">Média por membro</button>
+              <button class="chip" data-crit="total">Produtividade geral</button>
+              <button class="chip" data-crit="hora">Peças por hora</button>
+              <button class="chip" data-crit="acima">% acima da média</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection" id="placar">
+          <div class="sub-head">
+            <div><p class="kicker" id="comp-kicker">Competição</p><h3>Placar dos times</h3></div>
+            <div class="sub-head-tools"><span class="pill auto">Automático</span></div>
+          </div>
+          <div id="bloco-placar"></div>
+        </div>
+
+        <div class="subsection" id="equipes">
+          <div class="sub-head">
+            <div><p class="kicker">Competição · Membros</p><h3>Ranking dentro de cada time</h3></div>
+          </div>
+          <div id="bloco-equipes"></div>
         </div>
       </div>
 
@@ -1267,6 +1389,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     } else if (grupo === 'reversa') {
       var dr = snapshots.reversa || {};
       renderIntegracao(dr.integracao); renderVinculacao(dr.vinculacao);
+    } else if (grupo === 'competicao') {
+      renderCompeticao();
     } else if (grupo === 'admin') {
       // Redesenhar os cards de Abastecimento apaga qualquer arquivo já
       // selecionado nos inputs — só faz sentido depois de ligar/desligar o
@@ -1282,6 +1406,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     (data||[]).forEach(function(row){ snapshots[row.pagina] = row.dados; });
     var { data: cfg } = await supabaseClient.from('config_geral').select('ciclo_inventario_ativo').eq('chave','geral').single();
     cicloInventarioAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
+    await carregarCompeticaoTimes(true);
     renderPagina(currentGroup, evitarRerenderAdmin);
   }
   window.recarregarSnapshots = carregarSnapshots;
@@ -1305,6 +1430,188 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     XLSX.writeFile(wb, 'produtividade_'+nomeOperacao+'.xlsx');
   };
 
+
+  // ---------- Competição entre times ----------
+  var competicaoTimes = [];
+  var compEstado = { turno:'1º Turno', atv:'sep_geral', crit:'media', verTodos:{} };
+  var TIMES_COR = { 1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'}, 4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'} };
+  var ATIV_COMP = {
+    sep_geral:     { rot:'Separação · Geral', fontes:['sep_checkout','sep_colmeia'], unid:'peças + unid.' },
+    sep_colmeia:   { rot:'Separação · Colmeia', fontes:['sep_colmeia'], unid:'unidades' },
+    sep_checkout:  { rot:'Separação · Checkout', fontes:['sep_checkout'], unid:'peças' },
+    conf_checkout: { rot:'Conferência · Checkout / Faturamento', fontes:['conf_checkout'], unid:'peças' },
+    conf_colmeia:  { rot:'Conferência · Colmeia', fontes:['conf_colmeia'], unid:'unidades' }
+  };
+  var CRIT_COMP = {
+    media: { rot:'Média por membro', sub:'por membro' },
+    total: { rot:'Produtividade geral', sub:'no total do time' },
+    hora:  { rot:'Peças por hora', sub:'por hora trabalhada' },
+    acima: { rot:'% acima da média', sub:'dos membros acima da média do turno', pct:true }
+  };
+
+  // Mesma ideia do ingest: compara usuário/nome sem acento, em maiúscula, com "," virando ".".
+  function chaveUsuario(s){
+    return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/,/g,'.').trim().toUpperCase();
+  }
+  function nomeBonito(u){
+    return String(u||'').split(/[.\s]+/).filter(Boolean).map(function(x){ return x.charAt(0).toUpperCase()+x.slice(1).toLowerCase(); }).join(' ');
+  }
+
+  async function carregarCompeticaoTimes(semRender){
+    var r = await supabaseClient.from('competicao_times').select('*');
+    if (r.error) { console.error('Erro ao ler competicao_times', r.error); competicaoTimes = []; }
+    else competicaoTimes = r.data || [];
+    if (!semRender && currentGroup === 'competicao') renderCompeticao();
+  }
+  window.recarregarCompeticao = function(){ return carregarCompeticaoTimes(false); };
+
+  // Produção por pessoa na atividade atômica, só nos dias do filtro de data da tela.
+  function producaoDaFonte(fonte){
+    var o = snapshots.outbound || {}, sep = o.separacao || {}, conf = o.conferencia || {};
+    var fontes = {
+      sep_checkout:  { v: sep.checkoutDia, s: sep.checkoutSegDia },
+      sep_colmeia:   { v: sep.colmeiaDia, s: null },
+      conf_checkout: { v: conf.confCheckoutDia, s: conf.confCheckoutSegDia },
+      conf_colmeia:  { v: conf.confColmeiaUnitDia, s: null }
+    }[fonte];
+    function somar(dias){
+      var m = new Map();
+      if (!dias || !dias.length) return m;
+      filtrarSerieporGrupo(dias, 'competicao', 'data').forEach(function(d){
+        Object.keys(d.itens||{}).forEach(function(n){ var k = chaveUsuario(n); m.set(k, (m.get(k)||0) + (d.itens[n]||0)); });
+      });
+      return m;
+    }
+    return { valores: somar(fontes.v), segundos: fontes.s ? somar(fontes.s) : null, temDados: !!(fontes.v && fontes.v.length) };
+  }
+
+  function calcularCompeticao(){
+    var atv = ATIV_COMP[compEstado.atv];
+    var prod = {}; atv.fontes.forEach(function(f){ prod[f] = producaoDaFonte(f); });
+    var temHora = atv.fontes.length === 1 && !!prod[atv.fontes[0]].segundos;
+    var times = [1,2,3,4].map(function(n){ return { n:n, cor:TIMES_COR[n], membros:new Map() }; });
+    competicaoTimes.forEach(function(r){
+      if (r.turno !== compEstado.turno || atv.fontes.indexOf(r.atividade) === -1) return;
+      var t = times[r.time-1]; if (!t) return;
+      var p = prod[r.atividade];
+      var v = p.valores.get(chaveUsuario(r.usuario_wms));
+      if (v === undefined) v = p.valores.get(chaveUsuario(r.nome));
+      var seg = p.segundos ? (p.segundos.get(chaveUsuario(r.usuario_wms)) || p.segundos.get(chaveUsuario(r.nome)) || 0) : 0;
+      var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, valor:0, seg:0, setor:r.setor, piso:r.piso };
+      m.valor += (v||0); m.seg += seg;
+      t.membros.set(r.usuario_wms, m);
+    });
+    var todos = [];
+    times.forEach(function(t){ t.lista = Array.from(t.membros.values()).sort(function(a,b){ return b.valor-a.valor; }); t.lista.forEach(function(m){ todos.push(m.valor); }); });
+    var mediaTurno = todos.length ? todos.reduce(function(a,b){ return a+b; },0)/todos.length : 0;
+    times.forEach(function(t){
+      var n = t.lista.length;
+      t.total = t.lista.reduce(function(s,m){ return s+m.valor; },0);
+      t.seg = t.lista.reduce(function(s,m){ return s+m.seg; },0);
+      t.media = n ? t.total/n : 0;
+      t.hora = (temHora && t.seg > 0) ? t.total/(t.seg/3600) : 0;
+      t.acima = n ? t.lista.filter(function(m){ return m.valor > mediaTurno; }).length/n*100 : 0;
+      t.score = { media:t.media, total:t.total, hora:t.hora, acima:t.acima }[compEstado.crit];
+      var combos = {}; t.lista.forEach(function(m){ combos[m.setor+' · Piso '+m.piso] = 1; });
+      t.composicao = Object.keys(combos);
+    });
+    return { times:times, atv:atv, temHora:temHora, temDados: atv.fontes.some(function(f){ return prod[f].temDados; }) };
+  }
+
+  function renderCompeticao(){
+    var elP = document.getElementById('bloco-placar'), elE = document.getElementById('bloco-equipes');
+    if (!elP) return;
+    var c = calcularCompeticao(), crit = CRIT_COMP[compEstado.crit];
+    // Peças por hora só existe onde o relatório traz tempo (Checkout).
+    var btnHora = document.querySelector('#comp-crit [data-crit="hora"]');
+    if (btnHora) btnHora.disabled = !c.temHora;
+    if (compEstado.crit === 'hora' && !c.temHora) { compEstado.crit = 'media'; crit = CRIT_COMP.media; document.querySelectorAll('#comp-crit .chip').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-crit') === 'media'); }); c = calcularCompeticao(); }
+    document.getElementById('comp-kicker').textContent = c.atv.rot+' · '+compEstado.turno+' · '+crit.rot;
+    var totalMembros = c.times.reduce(function(s,t){ return s+t.lista.length; },0);
+    if (!totalMembros) {
+      var msg = perfilAtual === 'admin' ? 'Monte os times em Admin &gt; Abastecimento de base &gt; Competição.' : 'Os times deste turno e atividade ainda não foram montados.';
+      elP.innerHTML = estadoVazio('Sem times para '+esc(c.atv.rot)+' no '+esc(compEstado.turno), msg);
+      elE.innerHTML = '';
+      return;
+    }
+    function vf(v){ return crit.pct ? Math.round(v)+'%' : fmt(v); }
+    var ordenados = c.times.filter(function(t){ return t.lista.length; }).sort(function(a,b){ return b.score-a.score; });
+    var sem = c.times.filter(function(t){ return !t.lista.length; });
+    var max = ordenados.length ? ordenados[0].score : 0;
+    var cards = ordenados.concat(sem).map(function(t, i){
+      var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
+      if (!t.lista.length) return '<div class="comp-time" '+st+'><div class="comp-top"><span class="comp-nome"><span class="comp-dot"></span>Time 0'+t.n+' · '+t.cor.nome+'</span></div><div class="comp-sub">Sem membros neste turno e atividade.</div></div>';
+      return '<div class="comp-time'+(i===0?' lider':'')+'" '+st+'>'+
+        '<div class="comp-top"><span class="comp-nome"><span class="comp-dot"></span>Time 0'+t.n+' · '+t.cor.nome+'</span><span class="comp-pos">'+(i+1)+'º</span></div>'+
+        '<div><div class="comp-big">'+vf(t.score)+'</div><div class="comp-sub">'+(crit.pct ? crit.sub : c.atv.unid+' '+crit.sub)+'</div></div>'+
+        '<div class="comp-linha"><span>Total <b>'+fmt(t.total)+'</b></span><span><b>'+t.lista.length+'</b> '+(t.lista.length===1?'membro':'membros')+'</span></div>'+
+        '<div class="comp-sub">'+esc(t.composicao.join(' + '))+'</div></div>';
+    }).join('');
+    var aviso = c.temDados ? '' : '<p class="fonte">Os relatórios desta atividade ainda não têm produção por dia no período. Reenvie-os em Admin &gt; Abastecimento de base.</p>';
+    var barras = ordenados.map(function(t){
+      return '<div class="comp-barra" style="--c:var('+t.cor.c+')"><span>Time 0'+t.n+'</span><div class="comp-trilho"><i style="width:'+(max ? (t.score/max*100).toFixed(1) : 0)+'%"></i></div><b>'+vf(t.score)+'</b></div>';
+    }).join('');
+    elP.innerHTML = '<div class="comp-placar">'+cards+'</div>'+
+      '<div class="panel" style="margin-top:14px"><div class="panel-head"><div><p class="kicker">'+esc(crit.rot)+'</p><h4>Confronto dos times</h4></div></div><div style="display:flex; flex-direction:column; gap:9px">'+barras+'</div></div>'+aviso;
+    elE.innerHTML = '<div class="comp-equipes">'+c.times.map(function(t){
+      var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
+      var todos = compEstado.verTodos[t.n], lista = todos ? t.lista : t.lista.slice(0,5);
+      return '<div class="comp-eq" '+st+'><div class="comp-eq-head"><span>Time 0'+t.n+'</span><span>'+t.lista.length+(t.lista.length===1?' membro':' membros')+'</span></div><ol>'+
+        lista.map(function(m,i){ return '<li><span class="rk">'+(i+1)+'</span><span class="nm">'+esc(nomeBonito(m.usuario))+'<span class="meta">'+esc(m.usuario)+' · '+esc(m.setor)+' · Piso '+m.piso+'</span></span><b>'+fmt(m.valor)+'</b></li>'; }).join('')+
+        '</ol>'+(t.lista.length>5 ? '<button class="comp-mais" data-ver="'+t.n+'">'+(todos ? 'Mostrar menos' : 'Ver todos os '+t.lista.length)+'</button>' : '')+'</div>';
+    }).join('')+'</div>';
+    elE.querySelectorAll('.comp-mais').forEach(function(b){ b.addEventListener('click', function(){ var n = b.getAttribute('data-ver'); compEstado.verTodos[n] = !compEstado.verTodos[n]; renderCompeticao(); }); });
+  }
+  function ligarFiltrosCompeticao(){
+    function ligar(id, attr, chave){
+      document.querySelectorAll('#'+id+' .chip').forEach(function(b){
+        b.addEventListener('click', function(){
+          if (b.disabled) return;
+          document.querySelectorAll('#'+id+' .chip').forEach(function(x){ x.classList.remove('on'); });
+          b.classList.add('on'); compEstado[chave] = b.getAttribute(attr); renderCompeticao();
+        });
+      });
+    }
+    ligar('comp-turno','data-turno','turno'); ligar('comp-atv','data-atv','atv'); ligar('comp-crit','data-crit','crit');
+  }
+  ligarFiltrosCompeticao();
+
+  // ---------- menu lateral retrátil ----------
+  var SETA_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+  var NAV_KEY = 'nav_grupos_abertos';
+  function lerNavAbertos(){ try { return JSON.parse(localStorage.getItem(NAV_KEY) || 'null'); } catch(e){ return null; } }
+  function gravarNavAbertos(){
+    try { localStorage.setItem(NAV_KEY, JSON.stringify(Array.from(document.querySelectorAll('.nav-group.aberto')).map(function(g){ return g.getAttribute('data-grupo'); }))); } catch(e){}
+  }
+  function abrirGrupoNav(g, abrir, gravar){
+    var f = g.querySelector('.nav-filhos'), s = g.querySelector('.nav-seta');
+    if (!f) return;
+    f.hidden = !abrir; g.classList.toggle('aberto', abrir);
+    if (s) s.setAttribute('aria-expanded', String(abrir));
+    if (gravar) gravarNavAbertos();
+  }
+  (function montarMenuRetratil(){
+    var salvos = lerNavAbertos();
+    document.querySelectorAll('.nav-group').forEach(function(g){
+      var label = g.querySelector('.nav-label');
+      var itens = Array.from(g.querySelectorAll('.nav-item'));
+      if (!label || !itens.length) return;
+      var nome = label.textContent.trim().replace(/NOVO$/,'').trim();
+      g.setAttribute('data-grupo', nome);
+      var filhos = document.createElement('div'); filhos.className = 'nav-filhos';
+      itens.forEach(function(i){ filhos.appendChild(i); });
+      g.appendChild(filhos);
+      var texto = label.innerHTML;
+      label.innerHTML = '<span class="nav-label-txt">'+texto+'</span><button type="button" class="nav-seta" aria-label="Abrir ou fechar '+nome+'">'+SETA_SVG+'</button>';
+      var abrir = salvos ? salvos.indexOf(nome) !== -1 : !!g.querySelector('.nav-item.active');
+      if (g.querySelector('.nav-item.active')) abrir = true;
+      abrirGrupoNav(g, abrir, false);
+      label.querySelector('.nav-seta').addEventListener('click', function(e){
+        e.stopPropagation(); abrirGrupoNav(g, filhos.hidden, true);
+      });
+    });
+  })();
+
   // ---------- navegação ----------
   var navItems = document.querySelectorAll('.nav-item');
   var pages = document.querySelectorAll('[data-page-content]');
@@ -1315,11 +1622,14 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var grupo = item.getAttribute('data-page');
     var alvo = item.getAttribute('data-target');
     navItems.forEach(function(n){ n.classList.toggle('active', n === item); });
+    var grupoNav = item.closest('.nav-group');
+    if (grupoNav && grupoNav.querySelector('.nav-filhos') && grupoNav.querySelector('.nav-filhos').hidden) abrirGrupoNav(grupoNav, true, true);
     if (grupo !== currentGroup) {
       currentGroup = grupo;
       pages.forEach(function(p){ p.hidden = (p.getAttribute('data-page-content') !== grupo); });
       var titulos = { outbound:['Outbound','Separação · Conferência · Expedição'], inbound:['Inbound','Recebimento · Armazenagem · Mov. de Pallets'],
         estoque:['Gestão de Estoque','Inventário · Corte · Pula · Cancelamentos WMS'], reversa:['Reversa','Integração · Vinculação'],
+        competicao:['Competição','Placar dos times · Ranking por time'],
         admin:['Admin','Abastecimento de base · Base de ativos'] };
       document.getElementById('page-title').textContent = titulos[grupo][0];
       document.getElementById('page-sub').textContent = titulos[grupo][1];

@@ -360,6 +360,7 @@ function processarProdutividadeSeparacao(rows) {
   var porUsuario = new Map();
   var porDia = new Map();
   var porUsuarioDia = new Map();
+  var segundosDia = new Map(); // tempo trabalhado — base do critério "peças por hora" da Competição
   rows.forEach(function (row) {
     var usuario = obterCampo(row, ["Usuário", "Usuario"]) || "(sem usuário)";
     var pecas = numero(obterCampo(row, ["Peças", "Pecas"]));
@@ -368,21 +369,25 @@ function processarProdutividadeSeparacao(rows) {
     porUsuario.set(usuario, (porUsuario.get(usuario) || 0) + pecas);
     if (dataISO) porDia.set(dataISO, (porDia.get(dataISO) || 0) + pecas);
     somarNoDia(porUsuarioDia, dataISO, usuario, pecas);
+    somarNoDia(segundosDia, dataISO, usuario, numero(obterCampo(row, ["Tempo em Segundos"])));
   });
-  return { porUsuario: porUsuario, porDia: porDia, porUsuarioDia: porUsuarioDia };
+  return { porUsuario: porUsuario, porDia: porDia, porUsuarioDia: porUsuarioDia, segundosDia: segundosDia };
 }
 
 // ---- 4) Conferência Checkout/Etiqueta ----
 function processarConferenciaCheckout(rows) {
   var porConferente = new Map();
   var dia = new Map();
+  var segundosDia = new Map();
   rows.forEach(function (row) {
     var conferente = obterCampo(row, ["Conferente"]) || "(sem conferente)";
     var pecas = numero(obterCampo(row, ["Peças", "Pecas"]));
+    var dataISO = paraDataISO(obterCampo(row, ["Data"]));
     porConferente.set(conferente, (porConferente.get(conferente) || 0) + pecas);
-    somarNoDia(dia, paraDataISO(obterCampo(row, ["Data"])), conferente, pecas);
+    somarNoDia(dia, dataISO, conferente, pecas);
+    somarNoDia(segundosDia, dataISO, conferente, numero(obterCampo(row, ["Tempo em Segundos"])));
   });
-  return { total: porConferente, dia: dia };
+  return { total: porConferente, dia: dia, segundosDia: segundosDia };
 }
 
 // ---- 5) Conferência Colmeia ----
@@ -1010,6 +1015,217 @@ async function salvarMetaInventario() {
   }
 }
 
+// =========================================================================
+// COMPETIÇÃO — gestão dos times (tabela competicao_times)
+// Cada linha = um colaborador numa atividade e turno, com setor, piso e time.
+// Calçados e Vestuário dividem o piso 1, por isso o setor é guardado por membro.
+// =========================================================================
+var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
+var COMP_ATIVS = [
+  ["sep_checkout", "Separação · Checkout"], ["sep_colmeia", "Separação · Colmeia"],
+  ["conf_checkout", "Conferência · Checkout / Faturamento"], ["conf_colmeia", "Conferência · Colmeia"],
+];
+var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"] };
+var compAdm = { turno: "1º Turno", atv: "sep_checkout", time: 1, editando: null, linhas: [], indice: null };
+
+function htmlSeguro(t) {
+  return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+}
+function atividadeDeTexto(t) {
+  var n = normalizarTexto(t), col = n.indexOf("COLMEIA") !== -1;
+  if (n.indexOf("SEPARACAO") !== -1) return col ? "sep_colmeia" : "sep_checkout";
+  if (n.indexOf("CONFERENCIA") !== -1 || n.indexOf("FATURAMENTO") !== -1) return col ? "conf_colmeia" : "conf_checkout";
+  return null;
+}
+function turnoDeTexto(t) {
+  var n = normalizarTexto(t);
+  if (n === "ADM") return "ADM";
+  var m = /^([123])/.exec(n);
+  return m ? COMP_TURNOS[Number(m[1]) - 1] : null;
+}
+function setorDeTexto(t) {
+  var n = normalizarTexto(t);
+  if (n.indexOf("VESTU") !== -1) return "Vestuário";
+  if (n.indexOf("CALC") !== -1) return "Calçados";
+  return null;
+}
+function inteiroDe(t, min, max) {
+  var m = /\d+/.exec(String(t == null ? "" : t));
+  var n = m ? Number(m[0]) : NaN;
+  return n >= min && n <= max ? n : null;
+}
+function opcoes(lista, atual) {
+  return lista.map(function (o) {
+    var v = Array.isArray(o) ? o[0] : o, r = Array.isArray(o) ? o[1] : o;
+    return '<option value="' + htmlSeguro(v) + '"' + (String(v) === String(atual) ? " selected" : "") + ">" + htmlSeguro(r) + "</option>";
+  }).join("");
+}
+
+async function renderCompeticaoAdmin(recarregarBase) {
+  var el = document.getElementById("bloco-competicao-admin");
+  if (!el) return;
+  var r = await supabaseClient.from("competicao_times").select("*");
+  compAdm.linhas = r.data || [];
+  if (recarregarBase || !compAdm.indice) compAdm.indice = (await carregarIndiceBaseAtivos()).indice;
+  var idx = compAdm.indice;
+  var doGrupo = compAdm.linhas.filter(function (l) { return l.turno === compAdm.turno && l.atividade === compAdm.atv; });
+  var foraDaBase = function (l) { return !idx.get(normalizarUsuarioWMS(l.usuario_wms)); };
+
+  var linhasTimes = [1, 2, 3, 4].map(function (n) {
+    var m = doGrupo.filter(function (l) { return l.time === n; });
+    var combos = {}; m.forEach(function (l) { combos[l.setor + " · Piso " + l.piso] = 1; });
+    var ks = Object.keys(combos), pend = m.filter(foraDaBase).length;
+    return '<tr data-time="' + n + '"' + (n === compAdm.time ? ' class="sel"' : "") + ' tabindex="0"><td><span class="comp-nome" style="--c:var(' + COMP_TIMES[n][1] + ')"><span class="comp-dot"></span>Time 0' + n + " · " + COMP_TIMES[n][0] + "</span></td>" +
+      "<td>" + (ks.length > 1 ? '<span class="pill parcial">Personalizada</span>' : '<span class="pill info">Padrão</span>') + "</td>" +
+      "<td>" + (ks.length ? htmlSeguro(ks.join(" + ")) : "—") + '</td><td class="num">' + m.length + "</td>" +
+      "<td>" + (pend ? '<span class="comp-aviso">' + pend + " fora da base</span>" : '<span class="comp-ok">OK</span>') + "</td></tr>";
+  }).join("");
+
+  var membros = doGrupo.filter(function (l) { return l.time === compAdm.time; }).sort(function (a, b) { return a.usuario_wms.localeCompare(b.usuario_wms); });
+  var htmlMembros = membros.map(function (l) {
+    var b = idx.get(normalizarUsuarioWMS(l.usuario_wms));
+    var sub = htmlSeguro(l.usuario_wms) + " · " + htmlSeguro(l.setor) + " · Piso " + l.piso + " · " + (b ? htmlSeguro(b.turno || "sem turno") : '<span class="comp-aviso">não está na Base de Ativos</span>');
+    var edicao = compAdm.editando === l.id
+      ? '<div class="comp-edit"><select data-campo="turno">' + opcoes(COMP_TURNOS, l.turno) + '</select><select data-campo="time">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Time 0" + n]; }), l.time) + '</select>' +
+        '<select data-campo="setor">' + opcoes(["Calçados", "Vestuário"], l.setor) + '</select><select data-campo="piso">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Piso " + n]; }), l.piso) + "</select>" +
+        '<button class="btn" data-acao="salvar" data-id="' + l.id + '">Salvar</button><button class="btn ghost" data-acao="cancelar">Cancelar</button></div>'
+      : "";
+    return '<div class="comp-membro"><span>' + htmlSeguro(l.nome || l.usuario_wms) + "<small>" + sub + '</small></span><button class="btn ghost" data-acao="editar" data-id="' + l.id + '">Editar</button><button class="btn ghost" style="color:var(--red)" data-acao="remover" data-id="' + l.id + '">Remover</button>' + edicao + "</div>";
+  }).join("") || '<p class="fonte">Nenhum membro neste time ainda.</p>';
+
+  el.innerHTML =
+    '<div class="comp-adm"><div class="comp-adm-grid">' +
+      '<div class="panel" style="display:flex; flex-direction:column; gap:12px">' +
+        '<div class="panel-head"><div><p class="kicker">Times por turno e atividade</p><h4>Times</h4></div></div>' +
+        '<div class="comp-add"><select id="comp-sel-turno" aria-label="Turno">' + opcoes(COMP_TURNOS, compAdm.turno) + '</select><select id="comp-sel-atv" aria-label="Atividade">' + opcoes(COMP_ATIVS, compAdm.atv) + "</select></div>" +
+        '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Composição</th><th>Setor · Piso</th><th class="num">Membros</th><th>Base de Ativos</th></tr></thead><tbody id="comp-tb-times">' + linhasTimes + "</tbody></table></div>" +
+        '<p class="fonte">Calçados e Vestuário dividem o piso 1, então cada membro tem setor e piso próprios. Padrão: todos do mesmo setor e piso. Personalizada: o time mistura setores ou pisos. Clique num time para editar os membros.</p>' +
+      "</div>" +
+      '<div class="panel" style="display:flex; flex-direction:column; gap:10px">' +
+        '<div class="panel-head"><div><p class="kicker">' + htmlSeguro(compAdm.turno) + " · " + htmlSeguro((COMP_ATIVS.filter(function (a) { return a[0] === compAdm.atv; })[0] || [])[1]) + '</p><h4>Time 0' + compAdm.time + " · " + COMP_TIMES[compAdm.time][0] + "</h4></div></div>" +
+        '<div class="comp-add"><input id="comp-novo-usuario" placeholder="Usuário WMS (ex.: NOME.SOBRENOME)" aria-label="Usuário WMS"><select id="comp-novo-setor" aria-label="Setor">' + opcoes(["Calçados", "Vestuário"]) + '</select><select id="comp-novo-piso" aria-label="Piso">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Piso " + n]; })) + '</select><button class="btn" id="comp-btn-add">Adicionar</button></div>' +
+        '<div class="upload-status" id="comp-membro-status"></div>' + htmlMembros +
+      "</div>" +
+    "</div>" +
+    '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
+      '<div class="panel-head"><div><p class="kicker">Upload</p><h4>Planilha de escalação dos times <span class="badge-feito" id="comp-planilha-badge" hidden>✓ Feito</span></h4></div></div>' +
+      '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Turno, Atividade, Setor, Piso, Time</strong>. Uma linha por colaborador e atividade. Turno vazio usa o da Base de Ativos. A planilha <strong>substitui</strong> a escalação das combinações de turno e atividade que ela traz; o restante fica como está.</p>' +
+      '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button>' +
+      '<div class="upload-status" id="comp-planilha-status"></div></div></div></div>';
+
+  var avisoMembro = function (t, classe) { var a = document.getElementById("comp-membro-status"); if (a) { a.textContent = t; a.className = "upload-status" + (classe ? " " + classe : ""); } };
+  var recarregar = async function () { await renderCompeticaoAdmin(false); if (window.recarregarCompeticao) window.recarregarCompeticao(); };
+
+  document.getElementById("comp-sel-turno").addEventListener("change", function () { compAdm.turno = this.value; compAdm.editando = null; renderCompeticaoAdmin(false); });
+  document.getElementById("comp-sel-atv").addEventListener("change", function () { compAdm.atv = this.value; compAdm.editando = null; renderCompeticaoAdmin(false); });
+  el.querySelectorAll("#comp-tb-times tr").forEach(function (tr) {
+    var sel = function () { compAdm.time = Number(tr.getAttribute("data-time")); compAdm.editando = null; renderCompeticaoAdmin(false); };
+    tr.addEventListener("click", sel);
+    tr.addEventListener("keydown", function (e) { if (e.key === "Enter") sel(); });
+  });
+
+  document.getElementById("comp-btn-add").addEventListener("click", async function () {
+    var digitado = document.getElementById("comp-novo-usuario").value.trim();
+    if (!digitado) { avisoMembro("Informe o usuário do WMS.", "pendente"); return; }
+    var base = idx.get(normalizarUsuarioWMS(digitado));
+    var registro = {
+      usuario_wms: base && base.usuario_wms ? base.usuario_wms : digitado.toUpperCase(), nome: base ? base.nome : null,
+      turno: compAdm.turno, atividade: compAdm.atv, time: compAdm.time,
+      setor: document.getElementById("comp-novo-setor").value, piso: Number(document.getElementById("comp-novo-piso").value),
+      atualizado_em: new Date().toISOString(),
+    };
+    var { error } = await supabaseClient.from("competicao_times").upsert(registro, { onConflict: "usuario_wms,atividade,turno" });
+    if (error) { avisoMembro("Erro: " + error.message, "erro"); return; }
+    await recarregar();
+    avisoMembro(base ? "Membro adicionado." : "Adicionado, mas este usuário não está na Base de Ativos — confira o nome.", base ? "ok" : "pendente");
+  });
+
+  el.querySelectorAll("[data-acao]").forEach(function (b) {
+    b.addEventListener("click", async function () {
+      var acao = b.getAttribute("data-acao"), id = b.getAttribute("data-id");
+      if (acao === "editar") { compAdm.editando = id; renderCompeticaoAdmin(false); }
+      else if (acao === "cancelar") { compAdm.editando = null; renderCompeticaoAdmin(false); }
+      else if (acao === "remover") {
+        var rr = await supabaseClient.from("competicao_times").delete().eq("id", id);
+        if (rr.error) avisoMembro("Erro: " + rr.error.message, "erro"); else recarregar();
+      } else if (acao === "salvar") {
+        var linha = b.closest(".comp-membro"), novo = { atualizado_em: new Date().toISOString() };
+        linha.querySelectorAll("[data-campo]").forEach(function (sel) { var c = sel.getAttribute("data-campo"); novo[c] = (c === "time" || c === "piso") ? Number(sel.value) : sel.value; });
+        var ru = await supabaseClient.from("competicao_times").update(novo).eq("id", id);
+        if (ru.error) avisoMembro("Erro: " + ru.error.message, "erro"); else { compAdm.editando = null; recarregar(); }
+      }
+    });
+  });
+
+  document.getElementById("comp-btn-modelo").addEventListener("click", function () {
+    var aoa = [["Nome", "Usuário WMS", "Turno", "Atividade", "Setor", "Piso", "Time"],
+      ["Livia Silva", "LIVIA.SILVA", "1º Turno", "Separação Checkout", "Calçados", 1, "01"],
+      ["Jessica Moura", "JESSICA.MOURA", "1º Turno", "Separação Colmeia", "Calçados", 1, "02"],
+      ["Ana B. Silva", "ANA.B.SILVA", "2º Turno", "Conferência Checkout / Faturamento", "Vestuário", 1, "04"]];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
+    XLSX.writeFile(wb, "modelo_competicao_times.xlsx");
+  });
+  document.getElementById("comp-btn-planilha").addEventListener("click", async function () {
+    var input = document.getElementById("comp-planilha");
+    if (!input.files.length) { definirStatus("comp-planilha", "Escolha a planilha primeiro.", "pendente"); return; }
+    definirStatus("comp-planilha", "Lendo planilha…", "pendente");
+    try {
+      var res = await processarPlanilhaCompeticao(input.files[0], idx);
+      await renderCompeticaoAdmin(false);
+      if (window.recarregarCompeticao) window.recarregarCompeticao();
+      definirStatus("comp-planilha", res.texto, res.classe); // depois do redesenho, senão a mensagem some
+    } catch (e) { console.error(e); definirStatus("comp-planilha", "Erro: " + e.message, "erro"); }
+  });
+  restaurarStatusAbastecimento();
+}
+
+async function processarPlanilhaCompeticao(file, idx) {
+  var rows = await parseArquivoGenerico(file);
+  var validos = new Map(), erros = [], foraBase = 0;
+  rows.forEach(function (row, i) {
+    var linha = i + 2;
+    var usuarioRaw = String(obterCampo(row, ["Usuário WMS", "Usuario WMS", "Usuário", "Usuario"]) || "").trim();
+    if (!usuarioRaw && !String(obterCampo(row, ["Nome"]) || "").trim()) return; // linha vazia
+    var base = usuarioRaw ? idx.get(normalizarUsuarioWMS(usuarioRaw)) : null;
+    var atividade = atividadeDeTexto(obterCampo(row, ["Atividade"]));
+    var turno = turnoDeTexto(obterCampo(row, ["Turno"]) || (base && base.turno) || "");
+    var setor = setorDeTexto(obterCampo(row, ["Setor"]));
+    var piso = inteiroDe(obterCampo(row, ["Piso", "Andar"]), 1, 4);
+    var time = inteiroDe(obterCampo(row, ["Time"]), 1, 4);
+    var falta = [];
+    if (!usuarioRaw) falta.push("usuário WMS");
+    if (!atividade) falta.push("atividade");
+    if (!turno) falta.push("turno");
+    if (!setor) falta.push("setor");
+    if (!piso) falta.push("piso (1 a 4)");
+    if (!time) falta.push("time (1 a 4)");
+    if (falta.length) { erros.push("linha " + linha + " (" + (usuarioRaw || "sem usuário") + "): " + falta.join(", ")); return; }
+    if (!base) foraBase++;
+    var usuario = base && base.usuario_wms ? base.usuario_wms : usuarioRaw.toUpperCase();
+    validos.set(usuario + "|" + atividade + "|" + turno, {
+      usuario_wms: usuario, nome: base ? base.nome : (String(obterCampo(row, ["Nome"]) || "").trim() || null),
+      turno: turno, atividade: atividade, setor: setor, piso: piso, time: time, atualizado_em: new Date().toISOString(),
+    });
+  });
+  var registros = Array.from(validos.values());
+  if (!registros.length) throw new Error(erros.length ? "Nenhuma linha válida. " + erros.slice(0, 3).join(" · ") : "A planilha não tem linhas.");
+  var pares = new Map();
+  registros.forEach(function (r) { pares.set(r.atividade + "|" + r.turno, [r.atividade, r.turno]); });
+  for (var par of pares.values()) {
+    var d = await supabaseClient.from("competicao_times").delete().eq("atividade", par[0]).eq("turno", par[1]);
+    if (d.error) throw new Error("Falha ao limpar a escalação anterior: " + d.error.message);
+  }
+  for (var i = 0; i < registros.length; i += 200) {
+    var ins = await supabaseClient.from("competicao_times").insert(registros.slice(i, i + 200));
+    if (ins.error) throw new Error("Falha ao gravar os times: " + ins.error.message);
+  }
+  var resumo = "✓ " + registros.length + " membro(s) gravado(s) em " + pares.size + " combinação(ões) de turno e atividade";
+  if (foraBase) resumo += " · " + foraBase + " fora da Base de Ativos";
+  if (erros.length) resumo += " · " + erros.length + " linha(s) ignorada(s): " + erros.slice(0, 3).join("; ");
+  return { texto: resumo, classe: erros.length ? "pendente" : "ok" };
+}
+
 // Agrupa uploads por setor (igual à navegação lateral), com espaçamento e
 // título entre os grupos — em vez de todos os cards jogados em sequência.
 function grupoAbastecimento(titulo, itensHtml) {
@@ -1047,8 +1263,10 @@ async function renderAbastecimento() {
       caixaUpload("up-corte-tela", "Corte em Tela", "Alimenta o KPI <strong>Cortes em tela</strong>."),
       caixaUpload("up-corte-resolvido", "Corte Resolvido", "Alimenta <strong>Cortes aceitos</strong> e <strong>Cortes no endereço</strong>."),
     ]) +
+    grupoAbastecimento("Competição", ['<div id="bloco-competicao-admin"><div class="panel">Carregando…</div></div>']) +
     grupoAbastecimento("Manual", [renderFormPallets()]);
   restaurarStatusAbastecimento();
+  renderCompeticaoAdmin(true);
 }
 
 function renderFormPallets() {
@@ -1232,6 +1450,7 @@ async function processar(id) {
       atual2.separacao.ranking = atual2.separacao.ranking || {};
       atual2.separacao.ranking.checkout = mapParaRanking(r2.porUsuario);
       atual2.separacao.checkoutDia = mesclarDias(atual2.separacao.checkoutDia, diaMapParaArray(r2.porUsuarioDia));
+      atual2.separacao.checkoutSegDia = mesclarDias(atual2.separacao.checkoutSegDia, diaMapParaArray(r2.segundosDia));
       atual2.separacao.ranking.geral = mapParaRanking(mapaGeral);
       // "single" do KPI de topo vem do Acompanhamento_Op (up-acompanhamento-op), não daqui.
       var serieAnterior2 = (atual2.separacao.seriesDia || []).reduce(function (m, d) { m.set(d.data, d); return m; }, new Map());
@@ -1251,6 +1470,7 @@ async function processar(id) {
       var atual3 = await lerSnapshot("outbound");
       atual3.conferencia = atual3.conferencia || {};
       atual3.conferencia.confCheckoutDia = mesclarDias(atual3.conferencia.confCheckoutDia, diaMapParaArray(r3.dia));
+      atual3.conferencia.confCheckoutSegDia = mesclarDias(atual3.conferencia.confCheckoutSegDia, diaMapParaArray(r3.segundosDia));
       atual3.conferencia.confCheckout = mapParaRanking(mapa3);
       atual3.conferencia.totalCheckout = somaMapa(mapa3);
       await salvarSnapshot("outbound", atual3);
