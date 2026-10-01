@@ -298,7 +298,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   .kpi-2x{grid-column:auto;}
 }
 /* ---------- Competição ---------- */
-.comp-placar{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px;}
+.comp-placar{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) minmax(190px,.9fr); gap:12px;}
+.comp-total .comp-big{color:var(--accent-light);}
 .comp-time{background:var(--bg-card); border:1px solid var(--border); border-top:4px solid var(--c); border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; min-width:0;}
 .comp-time.lider{box-shadow:0 0 0 1px var(--c) inset;}
 .comp-top{display:flex; justify-content:space-between; align-items:center; gap:8px;}
@@ -1529,13 +1530,16 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     }[fonte];
     function somar(dias){
       var m = new Map();
+      m.datas = [];
       if (!dias || !dias.length) return m;
       filtrarSerieporGrupo(dias, 'competicao', 'data').forEach(function(d){
+        m.datas.push(String(d.data).slice(0,10));
         Object.keys(d.itens||{}).forEach(function(n){ var k = chaveUsuario(n); m.set(k, (m.get(k)||0) + (d.itens[n]||0)); });
       });
       return m;
     }
-    return { valores: somar(fontes.v), segundos: fontes.s ? somar(fontes.s) : null, temDados: !!(fontes.v && fontes.v.length) };
+    var valoresMap = somar(fontes.v);
+    return { valores: valoresMap, segundos: fontes.s ? somar(fontes.s) : null, datas: valoresMap.datas, temDados: !!(fontes.v && fontes.v.length) };
   }
 
   function calcularCompeticao(){
@@ -1608,7 +1612,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         else if (!tu) semTurno.add(k);
       });
     });
-    return { times:times, atv:atv, temHora:temHora, totalGeral:totalGeral, fora:fora, semTurno:semTurno.size, exatos:exatos, temDados: atv.fontes.some(function(f){ return prod[f].temDados; }) };
+    var datasPeriodo = {}; atv.fontes.forEach(function(f){ (prod[f].datas || []).forEach(function(dt){ datasPeriodo[dt] = 1; }); });
+    datasPeriodo = Object.keys(datasPeriodo).sort().map(function(dt){ return { data:dt }; });
+    return { times:times, atv:atv, temHora:temHora, totalGeral:totalGeral, fora:fora, datasPeriodo:datasPeriodo, semTurno:semTurno.size, exatos:exatos, temDados: atv.fontes.some(function(f){ return prod[f].temDados; }) };
   }
 
 
@@ -1804,6 +1810,13 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         '<div class="comp-linha"><span>Total <b>'+fmt(t.total)+'</b></span><span><b>'+t.lista.length+'</b> '+(t.lista.length===1?'membro':'membros')+'</span></div>'+
         '<div class="comp-sub">'+esc(t.composicao.join(' + '))+'</div></div>';
     }).join('');
+    var totalTimes = c.times.reduce(function(s,t){ return s + t.total; }, 0), totalPeriodo = totalTimes + c.fora;
+    var rotPeriodo = c.datasPeriodo.length ? rotuloPeriodoAcumulado('competicao', c.datasPeriodo) : 'Sem dados no período';
+    var cardTotal = '<div class="comp-time comp-total" style="--c:var(--accent)"><div class="comp-top"><span class="comp-nome">Total do período</span></div>'+
+      '<div><div class="comp-big">'+fmt(totalPeriodo)+'</div><div class="comp-sub">'+esc(c.atv.unid)+' · '+esc(c.atv.rot)+'</div></div>'+
+      '<div class="comp-linha"><span>Times <b>'+fmt(totalTimes)+'</b></span><span><b>'+(totalPeriodo ? pctComp(totalTimes/totalPeriodo*100) : '0,0%')+'</b></span></div>'+
+      '<div class="comp-linha" style="border-top:none; padding-top:0"><span>Fora dos times <b>'+fmt(c.fora)+'</b></span><span><b>'+(totalPeriodo ? pctComp(c.fora/totalPeriodo*100) : '0,0%')+'</b></span></div>'+
+      '<div class="comp-sub">'+esc(rotPeriodo)+'</div></div>';
     var aviso = c.temDados ? '' : '<p class="fonte">Os relatórios desta atividade ainda não têm produção por dia no período. Reenvie-os em Admin &gt; Abastecimento de base.</p>';
     var dHora = horasDoDia(c);
     var kickHora = 'Itens por hora' + (dHora.data ? ' · dia ' + fmtDataBR(dHora.data) : '') + ' · ' + compEstado.turno;
@@ -1816,7 +1829,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '<div class="comp-pizza-corpo" id="comp-pizza-corpo"><div id="comp-pizza"></div><div class="comp-leg-pizza" id="comp-leg-pizza"></div></div></div>';
     var rolagemAtual = document.getElementById('comp-escada-scroll');
     if (rolagemAtual) compEstado.rolagem = rolagemAtual.scrollLeft;
-    elP.innerHTML = '<div class="comp-placar">'+cards+'</div><div class="comp-linha2">'+cardPizza+cardHora+'</div>'+aviso;
+    elP.innerHTML = '<div class="comp-placar">'+cards+cardTotal+'</div><div class="comp-linha2">'+cardPizza+cardHora+'</div>'+aviso;
     desenharPizzaComp(c);
     if (!dHora.aviso) desenharHorasComp(c, dHora);
     elE.innerHTML = '<div class="comp-equipes">'+c.times.map(function(t){
