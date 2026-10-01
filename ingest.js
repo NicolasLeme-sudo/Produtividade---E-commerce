@@ -253,31 +253,71 @@ function diasHoraParaArray(dias) {
     return o;
   }).sort(function (a, b) { return a.data.localeCompare(b.data); });
 }
+// Cada relatório analítico gera, no mesmo passe: a produção por HORA (pelo
+// horário de início da tarefa) e as mesmas visões por DIA que o relatório
+// sintético antigo gerava, já separando Checkout de Colmeia. O dia dos totais é
+// o da coluna "Data" do WMS (igual ao sintético); a hora vem do início da tarefa.
+// Tempo trabalhado = último "fim" − primeiro "início" de cada pessoa no dia
+// (conferido: bate exatamente com o "Tempo em Segundos" do sintético).
+function segundosDoTexto(v) {
+  var m = /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(v == null ? "" : v));
+  return m ? Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +(m[6] || 0)) / 1000 : null;
+}
+function novoAcumuladorAnalitico() {
+  return { horas: new Map(), pecas: { checkout: new Map(), colmeia: new Map() }, spans: new Map(), totais: { checkout: new Map(), colmeia: new Map() } };
+}
+function registrarSpan(ac, chave, ini, fim) {
+  var sp = ac.spans.get(chave);
+  if (!sp) ac.spans.set(chave, [ini, fim]);
+  else { if (ini < sp[0]) sp[0] = ini; if (fim > sp[1]) sp[1] = fim; }
+}
+function acumularAnalitico(ac, row, tipo, usuario) {
+  var ini = obterCampo(row, ["Data/Hora Início", "Data/Hora Inicio"]);
+  var fimTxt = obterCampo(row, ["Data/Hora Fim"]);
+  var dataInicio = paraDataISO(ini), hora = horaDoTexto(ini);
+  var dataDia = paraDataISO(obterCampo(row, ["Data"])) || dataInicio;
+  if (!dataInicio || hora === null || !dataDia) return;
+  var pecas = numero(obterCampo(row, ["Peças", "Pecas"]));
+  acumularHora(ac.horas, dataInicio, tipo, usuario, hora, pecas);
+  somarNoDia(ac.pecas[tipo], dataDia, usuario, pecas);
+  ac.totais[tipo].set(usuario, (ac.totais[tipo].get(usuario) || 0) + pecas);
+  var i0 = segundosDoTexto(ini), i1 = segundosDoTexto(fimTxt);
+  if (i0 !== null && i1 !== null) {
+    registrarSpan(ac, dataDia + "|" + tipo + "|" + usuario, i0, i1);
+    registrarSpan(ac, dataDia + "|geral|" + usuario, i0, i1);
+  }
+}
+// spans -> { checkout, colmeia, geral }: Map(dia -> Map(usuario -> segundos))
+function segundosPorTipoDia(ac) {
+  var out = { checkout: new Map(), colmeia: new Map(), geral: new Map() };
+  ac.spans.forEach(function (sp, chave) {
+    var p = chave.split("|");
+    somarNoDia(out[p[1]], p[0], p.slice(2).join("|"), Math.max(0, sp[1] - sp[0]));
+  });
+  return out;
+}
 function processarSeparacaoAnalitica(rows) {
-  var dias = new Map();
+  var ac = novoAcumuladorAnalitico();
   rows.forEach(function (row) {
-    var ini = obterCampo(row, ["Data/Hora Início", "Data/Hora Inicio"]);
-    var data = paraDataISO(ini), hora = horaDoTexto(ini);
-    if (!data || hora === null) return;
     // Confirmado no export real (Separação Analítico): Região Destino = CHECKOUT ou COLMEIA - <cor>.
     var destino = normalizarTexto(obterCampo(row, ["Região Destino", "Regiao Destino"]));
     var tipo = destino.indexOf("COLMEIA") !== -1 ? "colmeia" : (destino.indexOf("CHECKOUT") !== -1 ? "checkout" : null);
     var usuario = String(obterCampo(row, ["Usuário", "Usuario"]) || "").trim();
     if (!tipo || !usuario) return;
-    acumularHora(dias, data, tipo, usuario, hora, numero(obterCampo(row, ["Peças", "Pecas"])));
+    acumularAnalitico(ac, row, tipo, usuario);
   });
-  return diasHoraParaArray(dias);
+  ac.seg = segundosPorTipoDia(ac);
+  return ac;
 }
 function processarConferenciaAnalitica(rows) {
-  var dias = new Map();
+  var ac = novoAcumuladorAnalitico();
   rows.forEach(function (row) {
-    var ini = obterCampo(row, ["Data/Hora Início", "Data/Hora Inicio"]);
-    var data = paraDataISO(ini), hora = horaDoTexto(ini);
     var usuario = String(obterCampo(row, ["Conferênte", "Conferente"]) || "").trim();
-    if (!data || hora === null || !usuario) return;
-    acumularHora(dias, data, "checkout", usuario, hora, numero(obterCampo(row, ["Peças", "Pecas"])));
+    if (!usuario) return;
+    acumularAnalitico(ac, row, "checkout", usuario);
   });
-  return diasHoraParaArray(dias);
+  ac.seg = segundosPorTipoDia(ac);
+  return ac;
 }
 
 // Turno de cada pessoa vem da Base de Ativos. É gravado junto do snapshot de
@@ -433,41 +473,6 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
   });
 
   return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia };
-}
-
-// ---- 2) Produtividade de Separação -> Separação Checkout ----
-function processarProdutividadeSeparacao(rows) {
-  var porUsuario = new Map();
-  var porDia = new Map();
-  var porUsuarioDia = new Map();
-  var segundosDia = new Map(); // tempo trabalhado — base do critério "peças por hora" da Competição
-  rows.forEach(function (row) {
-    var usuario = obterCampo(row, ["Usuário", "Usuario"]) || "(sem usuário)";
-    var pecas = numero(obterCampo(row, ["Peças", "Pecas"]));
-    // Confirmado no export real (Produtividade de Separação Sintética 21.09): coluna "Data".
-    var dataISO = paraDataISO(obterCampo(row, ["Data"]));
-    porUsuario.set(usuario, (porUsuario.get(usuario) || 0) + pecas);
-    if (dataISO) porDia.set(dataISO, (porDia.get(dataISO) || 0) + pecas);
-    somarNoDia(porUsuarioDia, dataISO, usuario, pecas);
-    somarNoDia(segundosDia, dataISO, usuario, numero(obterCampo(row, ["Tempo em Segundos"])));
-  });
-  return { porUsuario: porUsuario, porDia: porDia, porUsuarioDia: porUsuarioDia, segundosDia: segundosDia };
-}
-
-// ---- 4) Conferência Checkout/Etiqueta ----
-function processarConferenciaCheckout(rows) {
-  var porConferente = new Map();
-  var dia = new Map();
-  var segundosDia = new Map();
-  rows.forEach(function (row) {
-    var conferente = obterCampo(row, ["Conferente"]) || "(sem conferente)";
-    var pecas = numero(obterCampo(row, ["Peças", "Pecas"]));
-    var dataISO = paraDataISO(obterCampo(row, ["Data"]));
-    porConferente.set(conferente, (porConferente.get(conferente) || 0) + pecas);
-    somarNoDia(dia, dataISO, conferente, pecas);
-    somarNoDia(segundosDia, dataISO, conferente, numero(obterCampo(row, ["Tempo em Segundos"])));
-  });
-  return { total: porConferente, dia: dia, segundosDia: segundosDia };
 }
 
 // ---- 5) Conferência Colmeia ----
@@ -1329,16 +1334,14 @@ async function renderAbastecimento() {
     // cobre mais de um setor, então abastece uma vez só em vez de tirar o
     // mesmo relatório de novo com filtros diferentes pra cada tela.
     grupoAbastecimento("Compartilhados entre setores", [
-      caixaUpload("up-kardex-geral", "Kardex (sem filtro)", "Alimenta <strong>Separação Colmeia · Pula · Pendente de fechamento</strong> (Outbound) e <strong>Armazenagem</strong> (Inbound) — mesmo relatório, o sistema separa pelo Tipo do Local e pelo prefixo do Local."),
+      caixaUpload("up-kardex-geral", "Kardex (sem filtro)", "Alimenta <strong>Pendente de fechamento</strong> (Outbound), <strong>Pula</strong> (Gestão de Estoque) e <strong>Armazenagem</strong> (Inbound) — mesmo relatório, o sistema separa pelo Tipo do Local e pelo prefixo do Local."),
       caixaUpload("up-gerenciador-or-geral", "Gerenciador de OR (sem filtro)", "Alimenta <strong>Recebimento</strong> (Inbound) e <strong>Vinculação</strong> (Reversa) — mesmo relatório, o sistema separa pelo Tipo do Recebimento."),
       caixaUpload("up-controle-nf-geral", "Controle de Nota Fiscal (sem filtro)", "Alimenta <strong>Cancelamentos WMS</strong> (Gestão de Estoque) e <strong>Integração</strong> (Reversa) — mesmo relatório, o sistema separa pela Operação/Status."),
     ]) +
     grupoAbastecimento("Outbound", [
       caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
-      caixaUpload("up-separacao-analitica", "Separação Analítica", "Alimenta o gráfico <strong>Produção por hora</strong> da Competição (Separação Geral, Checkout e Colmeia). Uma linha por tarefa, com Data/Hora Início."),
-      caixaUpload("up-conferencia-analitica", "Conferência Analítica", "Alimenta o gráfico <strong>Produção por hora</strong> da Competição (Conferência Checkout / Faturamento)."),
-      caixaUpload("up-prod-separacao", "Produtividade de Separação", "Alimenta <strong>Separação Checkout</strong>."),
-      caixaUpload("up-conf-checkout", "Conferência Checkout/Etiqueta", "Alimenta <strong>Conferência Checkout</strong>."),
+      caixaUpload("up-separacao-analitica", "Separação Analítica", "Alimenta <strong>Separação Checkout e Colmeia</strong> (ranking, gráfico por dia, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Uma linha por tarefa, com Data/Hora Início. Substitui a Produtividade de Separação."),
+      caixaUpload("up-conferencia-analitica", "Conferência Analítica", "Alimenta <strong>Conferência Checkout / Faturamento</strong> (ranking, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Substitui a Conferência Checkout/Etiqueta."),
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
     ]) +
     grupoAbastecimento("Gestão de Estoque", [
@@ -1489,16 +1492,8 @@ async function processar(id) {
         separadores: r.separadoresColmeiaDistintos,
         pendente: r.pendenteFechamento,
       });
-      atual.separacao.ranking = atual.separacao.ranking || {};
-      atual.separacao.ranking.colmeia = mapParaRanking(r.separacaoColmeiaPorUsuario);
-      atual.separacao.ranking.geral = mapParaRanking(r.separacaoColmeiaPorUsuario); // mesclado com checkout no próximo upload
-      var serieAnterior = (atual.separacao.seriesDia || []).reduce(function (m, d) { m.set(d.data, d); return m; }, new Map());
-      r.porDiaColmeia.forEach(function (valor, data) {
-        var dia = serieAnterior.get(data) || { data: data };
-        dia.colmeia = valor; serieAnterior.set(data, dia);
-      });
-      atual.separacao.seriesDia = Array.from(serieAnterior.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });
-      atual.separacao.colmeiaDia = mesclarDias(atual.separacao.colmeiaDia, diaMapParaArray(r.colmeiaDia));
+      // A Separação Colmeia por pessoa/dia vem da Separação Analítica (Região Destino
+      // COLMEIA); o Kardex fica só com Pendente de fechamento, Pula e Armazenagem.
       await salvarSnapshot("outbound", atual);
 
       // Pula fica na página de Estoque (setor Gestão de Estoque)
@@ -1522,60 +1517,59 @@ async function processar(id) {
       atual5.recebimento.reversa = Object.assign({}, atual5.recebimento.reversa, { itensArmazenados: r5.totalReversa });
       await salvarSnapshot("inbound", atual5);
 
-      definirStatus(id, "✓ Kardex processado: Separação/Pula/Pendente (Outbound) + Armazenagem (Inbound).", "ok");
+      definirStatus(id, "✓ Kardex processado: Pendente de fechamento (Outbound), Pula (Estoque) e Armazenagem (Inbound).", "ok");
     }
 
-    else if (id === "up-prod-separacao") {
-      var rows2 = await parseArquivoGenerico(input.files[0]);
-      var r2 = processarProdutividadeSeparacao(rows2);
-      var atual2 = await lerSnapshot("outbound");
-      atual2.separacao = atual2.separacao || {};
-      var rankingColmeiaAtual = (atual2.separacao.ranking && atual2.separacao.ranking.colmeia) || [];
-      var mapaColmeia = new Map(rankingColmeiaAtual.map(function (i) { return [i.nome, i.valor]; }));
-      var mapaGeral = new Map(mapaColmeia);
-      r2.porUsuario.forEach(function (v, k) { mapaGeral.set(k, (mapaGeral.get(k) || 0) + v); });
-      atual2.separacao.ranking = atual2.separacao.ranking || {};
-      atual2.separacao.ranking.checkout = mapParaRanking(r2.porUsuario);
-      atual2.separacao.checkoutDia = mesclarDias(atual2.separacao.checkoutDia, diaMapParaArray(r2.porUsuarioDia));
-      atual2.separacao.checkoutSegDia = mesclarDias(atual2.separacao.checkoutSegDia, diaMapParaArray(r2.segundosDia));
-      atual2.separacao.ranking.geral = mapParaRanking(mapaGeral);
-      // "single" do KPI de topo vem do Acompanhamento_Op (up-acompanhamento-op), não daqui.
-      var serieAnterior2 = (atual2.separacao.seriesDia || []).reduce(function (m, d) { m.set(d.data, d); return m; }, new Map());
-      r2.porDia.forEach(function (valor, data) {
-        var dia = serieAnterior2.get(data) || { data: data };
-        dia.checkout = valor; serieAnterior2.set(data, dia);
+    else if (id === "up-separacao-analitica") {
+      var rowsSA = await parseArquivoGenerico(input.files[0]);
+      var acS = processarSeparacaoAnalitica(rowsSA);
+      var diasS = diasHoraParaArray(acS.horas);
+      if (!diasS.length) throw new Error("Nenhuma linha válida: confira se o arquivo traz Data/Hora Início, Região Destino e Usuário.");
+      var atualSA = await lerSnapshot("outbound");
+      atualSA.separacao = atualSA.separacao || {};
+      var sepA = atualSA.separacao;
+      // Os dias do arquivo substituem os já salvos; os demais ficam (guarda até 31 dias de hora a hora).
+      sepA.analitico = mesclarDias(sepA.analitico, diasS).slice(-31);
+      sepA.checkoutDia = mesclarDias(sepA.checkoutDia, diaMapParaArray(acS.pecas.checkout));
+      sepA.colmeiaDia = mesclarDias(sepA.colmeiaDia, diaMapParaArray(acS.pecas.colmeia));
+      sepA.checkoutSegDia = mesclarDias(sepA.checkoutSegDia, diaMapParaArray(acS.seg.checkout));
+      sepA.colmeiaSegDia = mesclarDias(sepA.colmeiaSegDia, diaMapParaArray(acS.seg.colmeia));
+      sepA.geralSegDia = mesclarDias(sepA.geralSegDia, diaMapParaArray(acS.seg.geral));   // Checkout + Colmeia juntos (sem somar tempos sobrepostos)
+      // Gráfico "Itens separados por dia": Checkout x Colmeia, agora cada um só com o seu.
+      var serieSA = (sepA.seriesDia || []).reduce(function (m, d) { m.set(d.data, d); return m; }, new Map());
+      var porDiaTotal = { checkout: new Map(), colmeia: new Map() };
+      ["checkout", "colmeia"].forEach(function (t) { acS.pecas[t].forEach(function (m, dia) { var tot = 0; m.forEach(function (v) { tot += v; }); porDiaTotal[t].set(dia, tot); }); });
+      new Set(Array.from(porDiaTotal.checkout.keys()).concat(Array.from(porDiaTotal.colmeia.keys()))).forEach(function (dia) {
+        var d = serieSA.get(dia) || { data: dia };
+        d.checkout = porDiaTotal.checkout.get(dia) || 0; d.colmeia = porDiaTotal.colmeia.get(dia) || 0;
+        serieSA.set(dia, d);
       });
-      atual2.separacao.seriesDia = Array.from(serieAnterior2.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });
-      await salvarSnapshot("outbound", atual2);
-      definirStatus(id, "✓ Produtividade de Separação processada.", "ok");
+      sepA.seriesDia = Array.from(serieSA.values()).sort(function (a2, b2) { return a2.data.localeCompare(b2.data); });
+      sepA.ranking = sepA.ranking || {};
+      sepA.ranking.checkout = mapParaRanking(acS.totais.checkout);
+      sepA.ranking.colmeia = mapParaRanking(acS.totais.colmeia);
+      var geralSA = new Map(acS.totais.checkout);
+      acS.totais.colmeia.forEach(function (v, k) { geralSA.set(k, (geralSA.get(k) || 0) + v); });
+      sepA.ranking.geral = mapParaRanking(geralSA);
+      await salvarSnapshot("outbound", atualSA);
+      definirStatus(id, "✓ Separação Analítica processada: " + diasS.length + " dia(s), de " + fmtDataBRIngest(diasS[0].data) + (diasS.length > 1 ? " a " + fmtDataBRIngest(diasS[diasS.length - 1].data) : "") + " (Checkout + Colmeia, por dia e por hora).", "ok");
     }
 
-    else if (id === "up-separacao-analitica" || id === "up-conferencia-analitica") {
-      var ehSep = id === "up-separacao-analitica";
-      var rowsAn = await parseArquivoGenerico(input.files[0]);
-      var novosDias = ehSep ? processarSeparacaoAnalitica(rowsAn) : processarConferenciaAnalitica(rowsAn);
-      if (!novosDias.length) throw new Error("Nenhuma linha válida: confira se o arquivo traz Data/Hora Início" + (ehSep ? ", Região Destino e Usuário." : " e Conferênte."));
-      var atualAn = await lerSnapshot("outbound");
-      var chaveBloco = ehSep ? "separacao" : "conferencia";
-      atualAn[chaveBloco] = atualAn[chaveBloco] || {};
-      // Mesmo critério dos outros: os dias do arquivo substituem os já salvos, os demais ficam (guarda até 31 dias).
-      atualAn[chaveBloco].analitico = mesclarDias(atualAn[chaveBloco].analitico, novosDias).slice(-31);
-      await salvarSnapshot("outbound", atualAn);
-      definirStatus(id, "✓ " + novosDias.length + " dia(s) por hora processado(s): " + fmtDataBRIngest(novosDias[0].data) + (novosDias.length > 1 ? " a " + fmtDataBRIngest(novosDias[novosDias.length - 1].data) : "") + ".", "ok");
-    }
-
-    else if (id === "up-conf-checkout") {
-      var rows3 = await parseArquivoGenerico(input.files[0]);
-      var r3 = processarConferenciaCheckout(rows3);
-      var mapa3 = r3.total;
-      var atual3 = await lerSnapshot("outbound");
-      atual3.conferencia = atual3.conferencia || {};
-      atual3.conferencia.confCheckoutDia = mesclarDias(atual3.conferencia.confCheckoutDia, diaMapParaArray(r3.dia));
-      atual3.conferencia.confCheckoutSegDia = mesclarDias(atual3.conferencia.confCheckoutSegDia, diaMapParaArray(r3.segundosDia));
-      atual3.conferencia.confCheckout = mapParaRanking(mapa3);
-      atual3.conferencia.totalCheckout = somaMapa(mapa3);
-      await salvarSnapshot("outbound", atual3);
-      definirStatus(id, "✓ Conferência Checkout/Etiqueta processada.", "ok");
+    else if (id === "up-conferencia-analitica") {
+      var rowsCA = await parseArquivoGenerico(input.files[0]);
+      var acC = processarConferenciaAnalitica(rowsCA);
+      var diasC = diasHoraParaArray(acC.horas);
+      if (!diasC.length) throw new Error("Nenhuma linha válida: confira se o arquivo traz Data/Hora Início e Conferênte.");
+      var atualCA = await lerSnapshot("outbound");
+      atualCA.conferencia = atualCA.conferencia || {};
+      var confA = atualCA.conferencia;
+      confA.analitico = mesclarDias(confA.analitico, diasC).slice(-31);
+      confA.confCheckoutDia = mesclarDias(confA.confCheckoutDia, diaMapParaArray(acC.pecas.checkout));
+      confA.confCheckoutSegDia = mesclarDias(confA.confCheckoutSegDia, diaMapParaArray(acC.seg.checkout));
+      confA.confCheckout = mapParaRanking(acC.totais.checkout);
+      confA.totalCheckout = somaMapa(acC.totais.checkout);
+      await salvarSnapshot("outbound", atualCA);
+      definirStatus(id, "✓ Conferência Analítica processada: " + diasC.length + " dia(s), de " + fmtDataBRIngest(diasC[0].data) + (diasC.length > 1 ? " a " + fmtDataBRIngest(diasC[diasC.length - 1].data) : "") + " (por dia e por hora).", "ok");
     }
 
     else if (id === "up-conf-colmeia") {

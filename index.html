@@ -1058,12 +1058,11 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     return kpiSplitHtml('--accent', 'Acumulado de separação', single, multi,
       '<div class="delta flat centro">'+esc(dias.length ? rotuloPeriodoAcumulado(nomeGrupo, dias) : 'Sem dados no período')+'</div>');
   }
-  // Separadores em operação = usuários distintos da tela "Produtividade de Separação
-  // (sintética)" no dia mais recente com registro. Só essa fonte (checkoutDia): o Kardex
-  // não entra, porque traz movimentação de armazenagem junto. Vem das quebras por
-  // dia/usuário já salvas, então acompanha o "hoje" sem reenviar arquivo.
+  // Separadores em operação = usuários distintos que separaram (Checkout ou Colmeia,
+  // vindos da Separação Analítica) no dia mais recente com registro. O Kardex não entra,
+  // porque traz movimentação de armazenagem junto.
   function separadoresDoDia(d){
-    var arr = d.checkoutDia || [], recente = '';
+    var arr = (d.checkoutDia || []).concat(d.colmeiaDia || []), recente = '';
     arr.forEach(function(x){ var dt = String(x.data).slice(0,10); if (dt > recente) recente = dt; });
     if (!recente) return null;
     var nomes = {};
@@ -1078,7 +1077,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   }
   function kpiSeparadoresHtml(d){
     var s = separadoresDoDia(d);
-    if (!s) return kpiHtml('--amber','Separadores em operação', '—', 'abasteça a Produtividade de Separação','flat');
+    if (!s) return kpiHtml('--amber','Separadores em operação', '—', 'abasteça a Separação Analítica','flat');
     return kpiHtml('--amber','Separadores em operação', fmt(s.n), 'separaram em '+fmtDataBR(s.data),'up');
   }
   function kpiEmSeparacaoHtml(k){
@@ -1098,7 +1097,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '</div>';
     var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por dia</p><h4>Colmeia × Checkout</h4></div></div>'+
       barrasDiaHtml(serieFiltrada, [ {campo:'checkout', cor:'--accent', rotulo:'Checkout (SINGLE)'}, {campo:'colmeia', cor:'--olive', rotulo:'Colmeia (MULTI)'} ]) +
-      '<p class="fonte">Fonte: Kardex de Movimentações (Colmeia) + Produtividade de Separação (Checkout).</p></div>';
+      '<p class="fonte">Fonte: Separação Analítica (Checkout e Colmeia, pela Região Destino).</p></div>';
     var ranking = (d.ranking && d.ranking.geral) || [];
     if ((d.colmeiaDia && d.colmeiaDia.length) || (d.checkoutDia && d.checkoutDia.length)) {
       var somaSep = {};
@@ -1121,7 +1120,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var totalVol = colmeiaVol ? somaValores(colmeiaVol) : d.totalColmeiaVol;
     el.innerHTML = '<div class="duo">'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Peças conferidas</p><h4>Checkout &amp; Etiqueta</h4></div><span class="pill info">'+fmt(totalCheckout)+'</span></div>'+
-      barListHtml(confCheckout) + '<p class="fonte">Fonte: Produtividade Conferência Checkout/Etiqueta</p></div>'+
+      barListHtml(confCheckout) + '<p class="fonte">Fonte: Conferência Analítica (Checkout / Faturamento)</p></div>'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Unidades montadas</p><h4>Colmeia</h4></div><span class="pill info">'+fmt(totalUnit)+' · '+fmt(totalVol)+' vol.</span></div>'+
       barListHtml(colmeiaUnit) +
       '<p class="fonte">Fonte: Conferência Colmeia (Qtde Unitária Montada)</p></div></div>';
@@ -1475,7 +1474,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   var compEstado = { turno:'Todos', atv:'sep_geral', crit:'media', verTodos:{}, ocultos:{}, rolagem:0 };
   var TIMES_COR = { 1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'}, 4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'} };
   var ATIV_COMP = {
-    sep_geral:     { rot:'Separação · Geral', fontes:['sep_checkout','sep_colmeia'], unid:'peças + unid.' },
+    sep_geral:     { rot:'Separação · Geral', fontes:['sep_checkout','sep_colmeia'], unid:'peças', segFonte:'sep_geral' },
     sep_colmeia:   { rot:'Separação · Colmeia', fontes:['sep_colmeia'], unid:'unidades' },
     sep_checkout:  { rot:'Separação · Checkout', fontes:['sep_checkout'], unid:'peças' },
     conf_checkout: { rot:'Conferência · Checkout / Faturamento', fontes:['conf_checkout'], unid:'peças' },
@@ -1523,9 +1522,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var o = snapshots.outbound || {}, sep = o.separacao || {}, conf = o.conferencia || {};
     var fontes = {
       sep_checkout:  { v: sep.checkoutDia, s: sep.checkoutSegDia },
-      sep_colmeia:   { v: sep.colmeiaDia, s: null },
+      sep_colmeia:   { v: sep.colmeiaDia, s: sep.colmeiaSegDia },
       conf_checkout: { v: conf.confCheckoutDia, s: conf.confCheckoutSegDia },
-      conf_colmeia:  { v: conf.confColmeiaUnitDia, s: null }
+      conf_colmeia:  { v: conf.confColmeiaUnitDia, s: null },
+      sep_geral:     { v: null, s: sep.geralSegDia }   // só o tempo: Checkout + Colmeia juntos, sem somar horas sobrepostas
     }[fonte];
     function somar(dias){
       var m = new Map();
@@ -1541,7 +1541,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   function calcularCompeticao(){
     var atv = ATIV_COMP[compEstado.atv];
     var prod = {}; atv.fontes.forEach(function(f){ prod[f] = producaoDaFonte(f); });
-    var temHora = atv.fontes.length === 1 && !!prod[atv.fontes[0]].segundos;
+    if (atv.segFonte) prod[atv.segFonte] = producaoDaFonte(atv.segFonte);
+    var temHora = atv.segFonte ? !!prod[atv.segFonte].segundos : atv.fontes.every(function(f){ return !!prod[f].segundos; });
     var times = [1,2,3,4].map(function(n){ return { n:n, cor:TIMES_COR[n], membros:new Map() }; });
     var turnoSel = compEstado.turno;
     var linhas = competicaoTimes.filter(function(r){ return (turnoSel === 'Todos' || r.turno === turnoSel) && atv.fontes.indexOf(r.atividade) !== -1; });
@@ -1566,9 +1567,17 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         if (!achada) return;
         usadas[f].add(achada);
         m.valor += p.valores.get(achada) || 0;
-        if (p.segundos) m.seg += p.segundos.get(achada) || 0;
+        if (p.segundos && !atv.segFonte) m.seg += p.segundos.get(achada) || 0;
         if (achada !== chaveUsuario(r.usuario_wms) && achada !== chaveUsuario(r.nome) && m.casados.indexOf(achada) === -1) m.casados.push(achada);
       });
+      if (atv.segFonte && prod[atv.segFonte].segundos) {
+        var ps = prod[atv.segFonte].segundos;
+        chavesDoMembro(r).some(function(k, i){
+          if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false;
+          if (ps.has(k)) { m.seg = ps.get(k) || 0; return true; }
+          return false;
+        });
+      }
       t.membros.set(r.usuario_wms, m);
     });
     var todos = [];
@@ -1770,7 +1779,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var elP = document.getElementById('bloco-placar'), elE = document.getElementById('bloco-equipes');
     if (!elP) return;
     var c = calcularCompeticao(), crit = CRIT_COMP[compEstado.crit];
-    // Peças por hora só existe onde o relatório traz tempo (Checkout).
+    // Peças por hora só existe onde o relatório traz o tempo trabalhado (Separação e Conferência Checkout).
     var btnHora = document.querySelector('#comp-crit [data-crit="hora"]');
     if (btnHora) btnHora.disabled = !c.temHora;
     if (compEstado.crit === 'hora' && !c.temHora) { compEstado.crit = 'media'; crit = CRIT_COMP.media; document.querySelectorAll('#comp-crit .chip').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-crit') === 'media'); }); c = calcularCompeticao(); }
