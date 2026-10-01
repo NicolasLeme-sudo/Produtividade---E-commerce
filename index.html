@@ -326,6 +326,40 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-eq li b{font-variant-numeric:tabular-nums;}
 .comp-mais{font-size:.7rem; color:var(--accent); padding:4px 12px 10px; background:none; border:none; text-align:left; cursor:pointer; font-family:inherit;}
 .chip[disabled]{opacity:.4; cursor:not-allowed;}
+.comp-linha2{display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.35fr); gap:14px; align-items:stretch; margin-top:14px;}
+.comp-card{display:flex; flex-direction:column; gap:12px; min-width:0;}
+.comp-vazio{flex:1; display:grid; place-items:center; min-height:200px; color:var(--text-muted); font-size:.8rem; text-align:center; padding:0 16px;}
+.comp-pizza-corpo{flex:1; display:flex; align-items:center; gap:14px; min-height:268px;}
+.comp-pizza-corpo svg{flex:none; overflow:visible;}
+.comp-fatia{cursor:pointer; transition:opacity .15s, transform .15s;}
+.comp-pizza-corpo.foco .comp-fatia{opacity:.3;}
+.comp-pizza-corpo.foco .comp-fatia.ativa{opacity:1;}
+.comp-leg-pizza{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.comp-leg{display:grid; grid-template-columns:12px minmax(0,1fr); gap:8px; align-items:center; padding:6px 8px; border-radius:7px; font-size:.78rem;}
+.comp-leg i{width:10px; height:10px; border-radius:50%; background:var(--c);}
+.comp-leg.ativo{background:var(--bg-input); font-weight:700;}
+.comp-aviso{margin-top:6px; padding:8px 8px 0; border-top:1px dashed var(--border); font-size:.7rem; color:var(--amber);}
+.comp-corpo{flex:1; display:flex; flex-direction:column; justify-content:center; min-height:268px;}
+.comp-escada-flex{display:flex; align-items:flex-start;}
+.comp-eixo{flex:none;}
+.comp-escada-scroll{flex:1; min-width:0; overflow-x:auto; overflow-y:hidden; padding-bottom:8px; scrollbar-width:thin; scrollbar-color:var(--accent) transparent;}
+.comp-escada-scroll::-webkit-scrollbar{height:10px;}
+.comp-escada-scroll::-webkit-scrollbar-thumb{background:var(--accent); border-radius:5px;}
+.comp-escada-scroll::-webkit-scrollbar-track{background:var(--bg-input); border-radius:5px;}
+.comp-coluna{cursor:pointer; transition:opacity .15s;}
+.comp-grupo.foco .comp-coluna{opacity:.25;}
+.comp-grupo.foco .comp-coluna.ativa{opacity:1;}
+.comp-leg-horas{display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; font-size:.74rem; color:var(--text-label);}
+.comp-leg-btn{font:inherit; color:inherit; background:none; border:1px solid var(--border); border-radius:999px; padding:3px 10px; cursor:pointer; display:inline-flex; align-items:center;}
+.comp-leg-btn i{display:inline-block; width:10px; height:10px; border-radius:3px; background:var(--c); margin-right:6px;}
+.comp-leg-btn:hover{background:var(--bg-input);}
+.comp-leg-btn[aria-pressed="false"]{opacity:.45; text-decoration:line-through;}
+.comp-leg-btn[aria-pressed="false"] i{background:var(--text-muted);}
+.comp-limpar{font:inherit; font-size:.72rem; color:var(--accent); background:none; border:none; cursor:pointer; padding:3px 4px;}
+.comp-dica{color:var(--text-muted); font-size:.7rem; display:inline-flex; align-items:center; gap:6px;}
+.comp-tip{position:fixed; z-index:60; pointer-events:none; background:#0B111C; color:#E8EBF2; border-radius:8px; padding:8px 11px; font-size:.75rem; box-shadow:0 8px 22px rgba(0,0,0,.35); line-height:1.4; max-width:250px;}
+.comp-tip[hidden]{display:none;}
+@media (max-width:1100px){ .comp-linha2{grid-template-columns:1fr;} .comp-pizza-corpo{flex-wrap:wrap; justify-content:center;} }
 .comp-adm-grid{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:14px;}
 .comp-adm table{width:100%; border-collapse:collapse; font-size:.78rem;}
 .comp-adm th{font-size:.62rem; letter-spacing:.07em; text-transform:uppercase; color:var(--text-muted); text-align:left; padding:8px; border-bottom:1px solid var(--border); font-weight:600;}
@@ -649,7 +683,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="filter-group" id="comp-turno">
             <label>Turno</label>
             <div class="chips">
-              <button class="chip on" data-turno="1º Turno">1º Turno</button>
+              <button class="chip on" data-turno="Todos">Todos</button>
+              <button class="chip" data-turno="1º Turno">1º Turno</button>
               <button class="chip" data-turno="2º Turno">2º Turno</button>
               <button class="chip" data-turno="3º Turno">3º Turno</button>
               <button class="chip" data-turno="ADM">ADM</button>
@@ -1437,7 +1472,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // ---------- Competição entre times ----------
   var competicaoTimes = [];
-  var compEstado = { turno:'1º Turno', atv:'sep_geral', crit:'media', verTodos:{} };
+  var compEstado = { turno:'Todos', atv:'sep_geral', crit:'media', verTodos:{}, ocultos:{}, rolagem:0 };
   var TIMES_COR = { 1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'}, 4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'} };
   var ATIV_COMP = {
     sep_geral:     { rot:'Separação · Geral', fontes:['sep_checkout','sep_colmeia'], unid:'peças + unid.' },
@@ -1508,7 +1543,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var prod = {}; atv.fontes.forEach(function(f){ prod[f] = producaoDaFonte(f); });
     var temHora = atv.fontes.length === 1 && !!prod[atv.fontes[0]].segundos;
     var times = [1,2,3,4].map(function(n){ return { n:n, cor:TIMES_COR[n], membros:new Map() }; });
-    var linhas = competicaoTimes.filter(function(r){ return r.turno === compEstado.turno && atv.fontes.indexOf(r.atividade) !== -1; });
+    var turnoSel = compEstado.turno;
+    var linhas = competicaoTimes.filter(function(r){ return (turnoSel === 'Todos' || r.turno === turnoSel) && atv.fontes.indexOf(r.atividade) !== -1; });
+    var usadas = {}; atv.fontes.forEach(function(f){ usadas[f] = new Set(); });
     // Um palpite nunca "rouba" o usuário exato de outro membro.
     var exatos = {}; linhas.forEach(function(r){ exatos[chaveUsuario(r.usuario_wms)] = r.usuario_wms; });
     // Na Separação · Geral cada pessoa soma Checkout + Colmeia, mesmo que
@@ -1518,6 +1555,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     porPessoa.forEach(function(r){
       var t = times[r.time-1]; if (!t) return;
       var m = { usuario:r.usuario_wms, nome:r.nome, valor:0, seg:0, setor:r.setor, piso:r.piso, casados:[] };
+      (t.linhasPessoa = t.linhasPessoa || []).push(r);
       atv.fontes.forEach(function(f){
         var p = prod[f], achada = null;
         chavesDoMembro(r).some(function(k, i){
@@ -1526,6 +1564,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           return false;
         });
         if (!achada) return;
+        usadas[f].add(achada);
         m.valor += p.valores.get(achada) || 0;
         if (p.segundos) m.seg += p.segundos.get(achada) || 0;
         if (achada !== chaveUsuario(r.usuario_wms) && achada !== chaveUsuario(r.nome) && m.casados.indexOf(achada) === -1) m.casados.push(achada);
@@ -1548,7 +1587,183 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     });
     // Base da %: tudo que foi separado/conferido na atividade no período, inclusive quem não está em time.
     var totalGeral = 0; atv.fontes.forEach(function(f){ prod[f].valores.forEach(function(v){ totalGeral += v || 0; }); });
-    return { times:times, atv:atv, temHora:temHora, totalGeral:totalGeral, temDados: atv.fontes.some(function(f){ return prod[f].temDados; }) };
+    // Quem produziu mas não está em nenhum time ("Fora dos times"), só do turno escolhido.
+    // O turno de cada pessoa vem da Base de Ativos e foi gravado junto dos dados no abastecimento.
+    var turnos = (snapshots.outbound && snapshots.outbound.turnoPorUsuario) || {};
+    var fora = 0, semTurno = new Set();
+    atv.fontes.forEach(function(f){
+      prod[f].valores.forEach(function(v, k){
+        if (usadas[f].has(k)) return;
+        var tu = turnos[k];
+        if (turnoSel === 'Todos' || tu === turnoSel) fora += v || 0;
+        else if (!tu) semTurno.add(k);
+      });
+    });
+    return { times:times, atv:atv, temHora:temHora, totalGeral:totalGeral, fora:fora, semTurno:semTurno.size, exatos:exatos, temDados: atv.fontes.some(function(f){ return prod[f].temDados; }) };
+  }
+
+
+  // ---------- produção por hora (Separação / Conferência analíticas) ----------
+  function horasDoDia(c){
+    var a = compEstado.atv, o = snapshots.outbound || {};
+    if (a === 'conf_colmeia') return { aviso:'A Conferência Colmeia só vem com data no WMS, sem a hora. Escolha outra atividade para ver por hora.' };
+    var ehConf = a.indexOf('conf_') === 0;
+    var dias = (ehConf ? (o.conferencia||{}) : (o.separacao||{})).analitico;
+    var tipos = { sep_geral:['checkout','colmeia'], sep_colmeia:['colmeia'], sep_checkout:['checkout'], conf_checkout:['checkout'] }[a];
+    if (!dias || !dias.length) return { aviso:'Abasteça a '+(ehConf ? 'Conferência' : 'Separação')+' Analítica em Admin > Abastecimento de base para ver a produção por hora.' };
+    var filtrados = filtrarSerieporGrupo(dias, 'competicao', 'data');
+    var dia = filtrados[filtrados.length-1];
+    var norm = {};
+    tipos.forEach(function(tp){ norm[tp] = {}; Object.keys(dia[tp]||{}).forEach(function(u){ norm[tp][chaveUsuario(u)] = dia[tp][u]; }); });
+    var series = {}, min = 24, max = -1;
+    c.times.forEach(function(t){
+      var arr = new Array(24).fill(0);
+      (t.linhasPessoa || []).forEach(function(r){
+        tipos.forEach(function(tp){
+          var achada = null;
+          chavesDoMembro(r).some(function(k, i){
+            if (i > 0 && c.exatos[k] && c.exatos[k] !== r.usuario_wms) return false;
+            if (norm[tp][k]) { achada = k; return true; }
+            return false;
+          });
+          if (achada) norm[tp][achada].forEach(function(v, i){ arr[i] += v||0; });
+        });
+      });
+      arr.forEach(function(v, i){ if (v > 0) { if (i < min) min = i; if (i > max) max = i; } });
+      series[t.n] = arr;
+    });
+    if (max < 0) return { aviso:'Nenhum membro dos times produziu em '+fmtDataBR(String(dia.data).slice(0,10))+'.' };
+    var horas = []; for (var h = min; h <= max; h++) horas.push(h);
+    return { data:String(dia.data).slice(0,10), series:series, horas:horas };
+  }
+
+  var compTip = null;
+  function tipComp(){
+    if (!compTip) { compTip = document.createElement('div'); compTip.className = 'comp-tip'; compTip.hidden = true; document.body.appendChild(compTip); }
+    return compTip;
+  }
+  function pctComp(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'; }
+
+  // Pizza da participação dos times no total da atividade; dados só no balão ao lado da fatia.
+  function desenharPizzaComp(c){
+    var box = document.getElementById('comp-pizza'), leg = document.getElementById('comp-leg-pizza'), corpo = document.getElementById('comp-pizza-corpo');
+    if (!box) return;
+    var fatias = c.times.filter(function(t){ return t.total > 0; }).map(function(t){ return { rot:'Time 0'+t.n, valor:t.total, cor:'var('+t.cor.c+')' }; })
+      .sort(function(a,b){ return b.valor - a.valor; });
+    if (c.fora > 0) fatias.push({ rot:'Fora dos times', valor:c.fora, cor:'var(--gelo)' });
+    var soma = fatias.reduce(function(a,f){ return a + f.valor; }, 0);
+    if (!soma) { corpo.innerHTML = '<div class="comp-vazio">Sem produção no período para esta atividade.</div>'; return; }
+    var R = 114, C = 128, S = 256, ang = -Math.PI/2;
+    var s = '<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'" role="img" aria-label="Participação dos times">';
+    fatias.forEach(function(f, i){
+      var a = f.valor/soma*Math.PI*2, a2 = ang + a;
+      f.meio = ang + a/2; f.pct = f.valor/soma*100;
+      if (fatias.length === 1) s += '<circle class="comp-fatia" data-i="0" cx="'+C+'" cy="'+C+'" r="'+R+'" fill="'+f.cor+'" tabindex="0"/>';
+      else s += '<path class="comp-fatia" data-i="'+i+'" d="M'+C+','+C+' L'+(C+R*Math.cos(ang)).toFixed(2)+','+(C+R*Math.sin(ang)).toFixed(2)+' A'+R+','+R+' 0 '+(a>Math.PI?1:0)+' 1 '+(C+R*Math.cos(a2)).toFixed(2)+','+(C+R*Math.sin(a2)).toFixed(2)+' Z" fill="'+f.cor+'" stroke="var(--bg-card)" stroke-width="2" stroke-linejoin="round" tabindex="0"/>';
+      ang = a2;
+    });
+    box.innerHTML = s + '</svg>';
+    leg.innerHTML = fatias.map(function(f, i){ return '<div class="comp-leg" data-i="'+i+'" style="--c:'+f.cor+'"><i></i><span>'+f.rot+'</span></div>'; }).join('') +
+      ((compEstado.turno !== 'Todos' && c.semTurno) ? '<div class="comp-aviso">'+c.semTurno+' pessoa(s) sem turno na Base de Ativos ficam de fora</div>' : '');
+    var tip = tipComp(), paths = box.querySelectorAll('.comp-fatia'), legs = leg.querySelectorAll('.comp-leg');
+    function foco(i){
+      corpo.classList.add('foco');
+      paths.forEach(function(p, k){ p.classList.toggle('ativa', k === i); p.style.transform = k === i ? 'translate('+(Math.cos(fatias[i].meio)*6)+'px,'+(Math.sin(fatias[i].meio)*6)+'px)' : ''; });
+      legs.forEach(function(l, k){ l.classList.toggle('ativo', k === i); });
+      var f = fatias[i];
+      tip.innerHTML = '<span style="color:'+f.cor+'">●</span> <b>'+f.rot+'</b><br><b>'+fmt(f.valor)+'</b> itens<br>'+pctComp(f.pct)+' do total da atividade ('+fmt(soma)+')';
+      tip.hidden = false;
+      var r = box.querySelector('svg').getBoundingClientRect();
+      if (Math.cos(f.meio) > 0.45) {          // fatia voltada para a legenda: balão acima ou abaixo da pizza
+        var acima = Math.sin(f.meio) < 0;
+        tip.style.left = Math.max(8, r.left + C - tip.offsetWidth/2 + Math.cos(f.meio)*40) + 'px';
+        tip.style.top = (acima ? Math.max(8, r.top + C - R - tip.offsetHeight - 6) : r.top + C + R + 6) + 'px';
+      } else {
+        var px = r.left + C + Math.cos(f.meio)*(R+8), py = r.top + C + Math.sin(f.meio)*(R+8);
+        tip.style.left = Math.max(8, Math.cos(f.meio) >= 0 ? px + 8 : px - tip.offsetWidth - 8) + 'px';
+        tip.style.top = Math.max(8, py - tip.offsetHeight/2) + 'px';
+      }
+    }
+    function limpar(){ corpo.classList.remove('foco'); paths.forEach(function(p){ p.classList.remove('ativa'); p.style.transform = ''; }); legs.forEach(function(l){ l.classList.remove('ativo'); }); tip.hidden = true; }
+    paths.forEach(function(p, i){ p.addEventListener('mouseenter', function(){ foco(i); }); p.addEventListener('focus', function(){ foco(i); }); p.addEventListener('blur', limpar); p.addEventListener('click', function(){ foco(i); }); });
+    legs.forEach(function(l, i){ l.addEventListener('mouseenter', function(){ foco(i); }); });
+    corpo.onmouseleave = limpar;
+  }
+
+  // Colunas por hora em escadinha (a maior atrás), com rolagem horizontal e legenda que filtra os times.
+  function desenharHorasComp(c, d){
+    var wrap = document.getElementById('comp-escada'), scroll = document.getElementById('comp-escada-scroll'), eixo = document.getElementById('comp-eixo'), legEl = document.getElementById('comp-leg-horas');
+    if (!wrap) return;
+    var rolagem = scroll.scrollLeft || compEstado.rolagem || 0;
+    var times = c.times.filter(function(t){ return t.lista.length; });
+    var vis = times.filter(function(t){ return !compEstado.ocultos[t.n]; });
+    legEl.innerHTML = '<span class="comp-dica">Clique para filtrar:</span>' + times.map(function(t){
+      return '<button type="button" class="comp-leg-btn" data-n="'+t.n+'" aria-pressed="'+(!compEstado.ocultos[t.n])+'" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</button>';
+    }).join('') + '<span class="comp-dica"><svg width="20" height="8" aria-hidden="true"><line x1="1" y1="4" x2="19" y2="4" stroke="var(--text-muted)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="0.1 4.5"/></svg> média por hora</span>' +
+      (Object.keys(compEstado.ocultos).length ? '<button type="button" class="comp-limpar" id="comp-leg-todos">Mostrar todos</button>' : '');
+    legEl.querySelectorAll('.comp-leg-btn').forEach(function(b){ b.addEventListener('click', function(){
+      var n = b.getAttribute('data-n');
+      if (compEstado.ocultos[n]) delete compEstado.ocultos[n];
+      else if (times.length - Object.keys(compEstado.ocultos).length > 1) compEstado.ocultos[n] = true;   // sempre sobra um time
+      compEstado.rolagem = scroll.scrollLeft; desenharHorasComp(c, d);
+    }); });
+    var todos = document.getElementById('comp-leg-todos');
+    if (todos) todos.addEventListener('click', function(){ compEstado.ocultos = {}; compEstado.rolagem = scroll.scrollLeft; desenharHorasComp(c, d); });
+
+    var HR = d.horas, H = 268, topo = 22, base = 224, GRUPO = 62, W = HR.length*GRUPO + 8;
+    var larg = GRUPO*0.3, passo = larg*0.42, larguraPilha = larg + passo*Math.max(0, vis.length-1);
+    var max = 0; vis.forEach(function(t){ HR.forEach(function(hh){ if (d.series[t.n][hh] > max) max = d.series[t.n][hh]; }); });
+    var vMax = Math.max(50, Math.ceil(max/50)*50), y = function(v){ return base - v/vMax*(base-topo); };
+    var ax = '<svg width="38" height="'+H+'" viewBox="0 0 38 '+H+'" aria-hidden="true">';
+    [0, vMax/2, vMax].forEach(function(v){ ax += '<text x="32" y="'+(y(v)+3)+'" font-size="9.5" fill="var(--text-muted)" text-anchor="end">'+fmt(v)+'</text>'; });
+    eixo.innerHTML = ax + '</svg>';
+    var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="display:block" role="img" aria-label="Itens por hora por time">';
+    [0, vMax/2, vMax].forEach(function(v){ s += '<line x1="0" y1="'+y(v)+'" x2="'+W+'" y2="'+y(v)+'" stroke="var(--border)"'+(v?' stroke-dasharray="3 5"':'')+'/>'; });
+    var pts = HR.map(function(hh, i){ var t = 0; vis.forEach(function(x){ t += d.series[x.n][hh]; }); return [i*GRUPO + GRUPO/2 + 4, y(t/vis.length)]; });
+    if (pts.length > 1) s += '<path d="'+suave(pts)+'" fill="none" stroke="var(--text-muted)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="0.1 4.5" opacity=".8"/>';
+    HR.forEach(function(hh, i){
+      var x0 = 4 + i*GRUPO + (GRUPO - larguraPilha)/2;
+      var ordem = vis.map(function(t){ return { t:t, v:d.series[t.n][hh] }; }).sort(function(a,b){ return b.v - a.v; });
+      var totalHora = ordem.reduce(function(a,o){ return a + o.v; }, 0);
+      s += '<g class="comp-grupo">';
+      ordem.forEach(function(o, k){
+        var x = x0 + k*passo, yy = y(o.v);
+        s += '<g class="comp-coluna" data-time="'+o.t.n+'" data-hora="'+hh+'" data-v="'+o.v+'" data-pct="'+(totalHora ? (o.v/totalHora*100).toFixed(1) : '0')+'" data-x="'+(x+larg/2)+'" data-y="'+yy+'" tabindex="0"><rect x="'+x.toFixed(1)+'" y="'+yy.toFixed(1)+'" width="'+larg.toFixed(1)+'" height="'+Math.max(0, base-yy).toFixed(1)+'" rx="3.5" fill="var('+o.t.cor.c+')" stroke="var(--bg-card)" stroke-width="1.2"/></g>';
+      });
+      s += '<text class="comp-rot" x="'+(x0 + larguraPilha/2)+'" y="'+(base+17)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(hh).padStart(2,'0')+'h</text></g>';
+    });
+    wrap.innerHTML = s + '<g id="comp-rotulo"></g></svg>';
+    var svg = wrap.querySelector('svg'), rot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    svg.appendChild(rot);
+    scroll.scrollLeft = rolagem;
+    var tip = tipComp();
+    function mostrar(col, ev){
+      var g = col.closest('.comp-grupo');
+      wrap.querySelectorAll('.comp-grupo').forEach(function(x){ x.classList.remove('foco'); x.querySelectorAll('.comp-coluna').forEach(function(cc){ cc.classList.remove('ativa'); }); });
+      g.classList.add('foco'); col.classList.add('ativa'); g.appendChild(col);
+      var v = +col.dataset.v, x = +col.dataset.x, yy = +col.dataset.y, tm = c.times.filter(function(t){ return String(t.n) === col.dataset.time; })[0];
+      rot.innerHTML = '<rect x="'+(x-20)+'" y="'+(yy-22)+'" width="40" height="16" rx="4" fill="var(--bg-card)" stroke="var(--border)"/><text x="'+x+'" y="'+(yy-10)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle">'+fmt(v)+'</text>';
+      tip.innerHTML = '<span style="color:var('+tm.cor.c+')">●</span> <b>Time 0'+tm.n+'</b><br>'+String(col.dataset.hora).padStart(2,'0')+'h às '+String(+col.dataset.hora+1).padStart(2,'0')+'h<br><b>'+fmt(v)+'</b> itens · '+col.dataset.pct.replace('.',',')+'% da hora';
+      tip.hidden = false;
+      var r = col.getBoundingClientRect(), px = ev && ev.clientX ? ev.clientX : r.left + r.width/2, py = ev && ev.clientY ? ev.clientY : r.top;
+      tip.style.left = Math.min(px + 14, window.innerWidth - tip.offsetWidth - 8) + 'px';
+      tip.style.top = Math.max(8, py - tip.offsetHeight - 10) + 'px';
+    }
+    function limpar(){
+      tip.hidden = true; rot.innerHTML = '';
+      wrap.querySelectorAll('.comp-grupo').forEach(function(g){
+        g.classList.remove('foco');
+        var cols = Array.from(g.querySelectorAll('.comp-coluna')).sort(function(a,b){ return b.dataset.v - a.dataset.v; }), rotulo = g.querySelector('.comp-rot');
+        cols.forEach(function(cc){ cc.classList.remove('ativa'); g.insertBefore(cc, rotulo); });
+      });
+    }
+    wrap.querySelectorAll('.comp-coluna').forEach(function(col){
+      col.addEventListener('mousemove', function(e){ mostrar(col, e); });
+      col.addEventListener('focus', function(){ mostrar(col); });
+      col.addEventListener('click', function(e){ mostrar(col, e); });
+      col.addEventListener('blur', limpar);
+    });
+    wrap.onmouseleave = limpar;
   }
 
   function renderCompeticao(){
@@ -1581,11 +1796,20 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         '<div class="comp-sub">'+esc(t.composicao.join(' + '))+'</div></div>';
     }).join('');
     var aviso = c.temDados ? '' : '<p class="fonte">Os relatórios desta atividade ainda não têm produção por dia no período. Reenvie-os em Admin &gt; Abastecimento de base.</p>';
-    var barras = ordenados.map(function(t){
-      return '<div class="comp-barra" style="--c:var('+t.cor.c+')"><span>Time 0'+t.n+'</span><div class="comp-trilho"><i style="width:'+(max ? (t.score/max*100).toFixed(1) : 0)+'%"></i></div><b>'+vf(t.score)+'<span class="comp-pct" title="Total do time ('+fmt(t.total)+') ÷ total da atividade no período ('+fmt(c.totalGeral)+')">'+(c.totalGeral ? (t.total/c.totalGeral*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) : '0,0')+'%</span></b></div>';
-    }).join('');
-    elP.innerHTML = '<div class="comp-placar">'+cards+'</div>'+
-      '<div class="panel" style="margin-top:14px"><div class="panel-head"><div><p class="kicker">'+esc(crit.rot)+'</p><h4>Confronto dos times</h4></div></div><div style="display:flex; flex-direction:column; gap:9px">'+barras+'</div></div>'+aviso;
+    var dHora = horasDoDia(c);
+    var kickHora = 'Itens por hora' + (dHora.data ? ' · dia ' + fmtDataBR(dHora.data) : '') + ' · ' + compEstado.turno;
+    var cardHora = '<div class="panel comp-card"><div class="panel-head"><div><p class="kicker">'+esc(kickHora)+'</p><h4>Produção por time ao longo do dia</h4></div></div>'+
+      (dHora.aviso
+        ? '<div class="comp-vazio">'+esc(dHora.aviso)+'</div>'
+        : '<div class="comp-corpo"><div class="comp-escada-flex"><div class="comp-eixo" id="comp-eixo"></div><div class="comp-escada-scroll" id="comp-escada-scroll"><div id="comp-escada"></div></div></div></div><div class="comp-leg-horas" id="comp-leg-horas"></div>')+
+      '</div>';
+    var cardPizza = '<div class="panel comp-card"><div class="panel-head"><div><p class="kicker">'+esc(c.atv.rot)+' · '+esc(compEstado.turno)+'</p><h4>Participação dos times</h4></div></div>'+
+      '<div class="comp-pizza-corpo" id="comp-pizza-corpo"><div id="comp-pizza"></div><div class="comp-leg-pizza" id="comp-leg-pizza"></div></div></div>';
+    var rolagemAtual = document.getElementById('comp-escada-scroll');
+    if (rolagemAtual) compEstado.rolagem = rolagemAtual.scrollLeft;
+    elP.innerHTML = '<div class="comp-placar">'+cards+'</div><div class="comp-linha2">'+cardPizza+cardHora+'</div>'+aviso;
+    desenharPizzaComp(c);
+    if (!dHora.aviso) desenharHorasComp(c, dHora);
     elE.innerHTML = '<div class="comp-equipes">'+c.times.map(function(t){
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var todos = compEstado.verTodos[t.n], lista = todos ? t.lista : t.lista.slice(0,5);
@@ -1601,7 +1825,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         b.addEventListener('click', function(){
           if (b.disabled) return;
           document.querySelectorAll('#'+id+' .chip').forEach(function(x){ x.classList.remove('on'); });
-          b.classList.add('on'); compEstado[chave] = b.getAttribute(attr); renderCompeticao();
+          b.classList.add('on'); compEstado[chave] = b.getAttribute(attr); if (chave === 'turno' || chave === 'atv') compEstado.rolagem = 0; renderCompeticao();
         });
       });
     }

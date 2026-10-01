@@ -228,7 +228,87 @@ function resolverColaborador(usuarioRaw, indiceBaseAtivos) {
 // =========================================================================
 // 3) GRAVAÇÃO NO SUPABASE — única fronteira de escrita deste arquivo
 // =========================================================================
+// =========================================================================
+// SEPARAÇÃO / CONFERÊNCIA ANALÍTICAS -> produção por usuário e HORA
+// Uma linha por tarefa, com Data/Hora Início. A hora (0 a 23) e o dia vêm do
+// início da tarefa (tarefa que cruza a meia-noite fica no dia/hora em que começou).
+// Formato salvo: [{ data, checkout: { USUARIO: [24 valores] }, colmeia: {...} }]
+// =========================================================================
+function horaDoTexto(v) {
+  var m = /\s(\d{1,2}):/.exec(String(v == null ? "" : v));
+  var h = m ? Number(m[1]) : NaN;
+  return h >= 0 && h <= 23 ? h : null;
+}
+function acumularHora(dias, data, tipo, usuario, hora, valor) {
+  var dia = dias.get(data) || { data: data, checkout: new Map(), colmeia: new Map() };
+  dias.set(data, dia);
+  var arr = dia[tipo].get(usuario) || new Array(24).fill(0);
+  arr[hora] += valor;
+  dia[tipo].set(usuario, arr);
+}
+function diasHoraParaArray(dias) {
+  return Array.from(dias.values()).map(function (d) {
+    var o = { data: d.data, checkout: {}, colmeia: {} };
+    ["checkout", "colmeia"].forEach(function (t) { d[t].forEach(function (arr, u) { o[t][u] = arr; }); });
+    return o;
+  }).sort(function (a, b) { return a.data.localeCompare(b.data); });
+}
+function processarSeparacaoAnalitica(rows) {
+  var dias = new Map();
+  rows.forEach(function (row) {
+    var ini = obterCampo(row, ["Data/Hora Início", "Data/Hora Inicio"]);
+    var data = paraDataISO(ini), hora = horaDoTexto(ini);
+    if (!data || hora === null) return;
+    // Confirmado no export real (Separação Analítico): Região Destino = CHECKOUT ou COLMEIA - <cor>.
+    var destino = normalizarTexto(obterCampo(row, ["Região Destino", "Regiao Destino"]));
+    var tipo = destino.indexOf("COLMEIA") !== -1 ? "colmeia" : (destino.indexOf("CHECKOUT") !== -1 ? "checkout" : null);
+    var usuario = String(obterCampo(row, ["Usuário", "Usuario"]) || "").trim();
+    if (!tipo || !usuario) return;
+    acumularHora(dias, data, tipo, usuario, hora, numero(obterCampo(row, ["Peças", "Pecas"])));
+  });
+  return diasHoraParaArray(dias);
+}
+function processarConferenciaAnalitica(rows) {
+  var dias = new Map();
+  rows.forEach(function (row) {
+    var ini = obterCampo(row, ["Data/Hora Início", "Data/Hora Inicio"]);
+    var data = paraDataISO(ini), hora = horaDoTexto(ini);
+    var usuario = String(obterCampo(row, ["Conferênte", "Conferente"]) || "").trim();
+    if (!data || hora === null || !usuario) return;
+    acumularHora(dias, data, "checkout", usuario, hora, numero(obterCampo(row, ["Peças", "Pecas"])));
+  });
+  return diasHoraParaArray(dias);
+}
+
+// Turno de cada pessoa vem da Base de Ativos. É gravado junto do snapshot de
+// Outbound porque o perfil Gestão não tem acesso à tabela base_ativos.
+var TURNOS_VALIDOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
+var baseTurnos = null; // { indice, lista } — preenchido em processar()
+function nomesDoOutbound(d) {
+  var nomes = {};
+  function dias(arr) { (arr || []).forEach(function (x) { Object.keys(x.itens || {}).forEach(function (n) { nomes[n] = 1; }); }); }
+  function analitico(arr) { (arr || []).forEach(function (x) { ["checkout", "colmeia"].forEach(function (t) { Object.keys(x[t] || {}).forEach(function (n) { nomes[n] = 1; }); }); }); }
+  var sep = d.separacao || {}, conf = d.conferencia || {};
+  dias(sep.checkoutDia); dias(sep.colmeiaDia); analitico(sep.analitico);
+  dias(conf.confCheckoutDia); dias(conf.confColmeiaUnitDia); analitico(conf.analitico);
+  return Object.keys(nomes);
+}
+function anexarTurnos(d) {
+  if (!baseTurnos) return;
+  var porNomeCompleto = new Map();
+  baseTurnos.lista.forEach(function (r) { porNomeCompleto.set(normalizarUsuarioWMS(r.nome), r); });
+  var mapa = Object.assign({}, d.turnoPorUsuario || {});
+  nomesDoOutbound(d).forEach(function (nome) {
+    var chave = normalizarUsuarioWMS(nome);
+    var reg = baseTurnos.indice.get(chave) || porNomeCompleto.get(chave);
+    var turno = reg ? String(reg.turno || "").trim() : "";
+    if (TURNOS_VALIDOS.indexOf(turno) !== -1) mapa[chave] = turno;
+  });
+  d.turnoPorUsuario = mapa;
+}
+
 async function salvarSnapshot(pagina, dadosNovos) {
+  if (pagina === "outbound") anexarTurnos(dadosNovos);
   var { data: sessao } = await supabaseClient.auth.getSession();
   // atualizado_por é uuid (references auth.users.id) — precisa do id da sessão, não do e-mail.
   var userId = sessao && sessao.session ? sessao.session.user.id : null;
@@ -1228,6 +1308,8 @@ async function processarPlanilhaCompeticao(file, idx) {
   return { texto: resumo, classe: erros.length ? "pendente" : "ok" };
 }
 
+function fmtDataBRIngest(iso) { var p = String(iso).slice(0, 10).split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : iso; }
+
 // Agrupa uploads por setor (igual à navegação lateral), com espaçamento e
 // título entre os grupos — em vez de todos os cards jogados em sequência.
 function grupoAbastecimento(titulo, itensHtml) {
@@ -1253,6 +1335,8 @@ async function renderAbastecimento() {
     ]) +
     grupoAbastecimento("Outbound", [
       caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
+      caixaUpload("up-separacao-analitica", "Separação Analítica", "Alimenta o gráfico <strong>Produção por hora</strong> da Competição (Separação Geral, Checkout e Colmeia). Uma linha por tarefa, com Data/Hora Início."),
+      caixaUpload("up-conferencia-analitica", "Conferência Analítica", "Alimenta o gráfico <strong>Produção por hora</strong> da Competição (Conferência Checkout / Faturamento)."),
       caixaUpload("up-prod-separacao", "Produtividade de Separação", "Alimenta <strong>Separação Checkout</strong>."),
       caixaUpload("up-conf-checkout", "Conferência Checkout/Etiqueta", "Alimenta <strong>Conferência Checkout</strong>."),
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
@@ -1386,7 +1470,8 @@ async function processar(id) {
       return;
     }
 
-    var { indice, indicePorPrimeiroNome } = await carregarIndiceBaseAtivos();
+    var { indice, indicePorPrimeiroNome, lista: listaBase } = await carregarIndiceBaseAtivos();
+    baseTurnos = { indice: indice, lista: listaBase || [] };
 
     if (id === "up-kardex-geral") {
       // Um único Kardex (sem filtro) alimenta Separação/Pula/Pendente (Outbound
@@ -1463,6 +1548,20 @@ async function processar(id) {
       atual2.separacao.seriesDia = Array.from(serieAnterior2.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });
       await salvarSnapshot("outbound", atual2);
       definirStatus(id, "✓ Produtividade de Separação processada.", "ok");
+    }
+
+    else if (id === "up-separacao-analitica" || id === "up-conferencia-analitica") {
+      var ehSep = id === "up-separacao-analitica";
+      var rowsAn = await parseArquivoGenerico(input.files[0]);
+      var novosDias = ehSep ? processarSeparacaoAnalitica(rowsAn) : processarConferenciaAnalitica(rowsAn);
+      if (!novosDias.length) throw new Error("Nenhuma linha válida: confira se o arquivo traz Data/Hora Início" + (ehSep ? ", Região Destino e Usuário." : " e Conferênte."));
+      var atualAn = await lerSnapshot("outbound");
+      var chaveBloco = ehSep ? "separacao" : "conferencia";
+      atualAn[chaveBloco] = atualAn[chaveBloco] || {};
+      // Mesmo critério dos outros: os dias do arquivo substituem os já salvos, os demais ficam (guarda até 31 dias).
+      atualAn[chaveBloco].analitico = mesclarDias(atualAn[chaveBloco].analitico, novosDias).slice(-31);
+      await salvarSnapshot("outbound", atualAn);
+      definirStatus(id, "✓ " + novosDias.length + " dia(s) por hora processado(s): " + fmtDataBRIngest(novosDias[0].data) + (novosDias.length > 1 ? " a " + fmtDataBRIngest(novosDias[novosDias.length - 1].data) : "") + ".", "ok");
     }
 
     else if (id === "up-conf-checkout") {
