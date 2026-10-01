@@ -1158,7 +1158,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
 
   var linhasTimes = [1, 2, 3, 4].map(function (n) {
     var m = doGrupo.filter(function (l) { return l.time === n; });
-    var combos = {}; m.forEach(function (l) { combos[l.setor + " · Piso " + l.piso] = 1; });
+    var combos = {}; m.forEach(function (l) { combos[l.setor ? l.setor + " · Piso " + l.piso : "Sem setor/piso"] = 1; });
     var ks = Object.keys(combos), pend = m.filter(foraDaBase).length;
     return '<tr data-time="' + n + '"' + (n === compAdm.time ? ' class="sel"' : "") + ' tabindex="0"><td><span class="comp-nome" style="--c:var(' + COMP_TIMES[n][1] + ')"><span class="comp-dot"></span>Time 0' + n + " · " + COMP_TIMES[n][0] + "</span></td>" +
       "<td>" + (ks.length > 1 ? '<span class="pill parcial">Personalizada</span>' : '<span class="pill info">Padrão</span>') + "</td>" +
@@ -1169,7 +1169,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
   var membros = doGrupo.filter(function (l) { return l.time === compAdm.time; }).sort(function (a, b) { return a.usuario_wms.localeCompare(b.usuario_wms); });
   var htmlMembros = membros.map(function (l) {
     var b = idx.get(normalizarUsuarioWMS(l.usuario_wms));
-    var sub = htmlSeguro(l.usuario_wms) + " · " + htmlSeguro(l.setor) + " · Piso " + l.piso + " · " + (b ? htmlSeguro(b.turno || "sem turno") : '<span class="comp-aviso">não está na Base de Ativos</span>');
+    var sub = htmlSeguro(l.usuario_wms) + " · " + (l.setor ? htmlSeguro(l.setor) + " · Piso " + l.piso : "Sem setor/piso") + " · " + (b ? htmlSeguro(b.turno || "sem turno") : '<span class="comp-aviso">não está na Base de Ativos</span>');
     var edicao = compAdm.editando === l.id
       ? '<div class="comp-edit"><input data-campo="nome" value="' + htmlSeguro(l.nome || "") + '" aria-label="Nome completo" title="Nome completo: a Competição acha o usuário do WMS pelo primeiro e último nome">' + '<select data-campo="turno">' + opcoes(COMP_TURNOS, l.turno) + '</select><select data-campo="time">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Time 0" + n]; }), l.time) + '</select>' +
         '<select data-campo="setor">' + opcoes(["Calçados", "Vestuário"], l.setor) + '</select><select data-campo="piso">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Piso " + n]; }), l.piso) + "</select>" +
@@ -1194,7 +1194,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     "</div>" +
     '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
       '<div class="panel-head"><div><p class="kicker">Upload</p><h4>Planilha de escalação dos times <span class="badge-feito" id="comp-planilha-badge" hidden>✓ Feito</span></h4></div></div>' +
-      '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Turno, Atividade, Setor, Piso, Time</strong>. Uma linha por colaborador e atividade (Separação, Conferência Checkout ou Conferência Colmeia; Separação vale para Checkout e Colmeia). Turno vazio usa o da Base de Ativos. A planilha <strong>substitui</strong> a escalação das combinações de turno e atividade que ela traz; o restante fica como está.</p>' +
+      '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Turno, Atividade, Setor, Piso, Time</strong>. Setor e Piso podem ficar em branco ou "-" na Conferência Colmeia. Uma linha por colaborador e atividade (Separação, Conferência Checkout ou Conferência Colmeia; Separação vale para Checkout e Colmeia). Turno vazio usa o da Base de Ativos. A planilha <strong>substitui</strong> a escalação das combinações de turno e atividade que ela traz; o restante fica como está.</p>' +
       '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button>' +
       '<div class="upload-status" id="comp-planilha-status"></div></div></div></div>';
 
@@ -1284,15 +1284,16 @@ async function processarPlanilhaCompeticao(file, idx) {
     if (!usuarioRaw) falta.push("usuário WMS");
     if (!atividade) falta.push("atividade");
     if (!turno) falta.push("turno");
-    if (!setor) falta.push("setor");
-    if (!piso) falta.push("piso (1 a 4)");
+    var semLocal = atividade === "conf_colmeia";   // Colmeia não se divide por setor/piso: "-" ou vazio vale
+    if (!setor && !semLocal) falta.push("setor");
+    if (!piso && !semLocal) falta.push("piso (1 a 4)");
     if (!time) falta.push("time (1 a 4)");
     if (falta.length) { erros.push("linha " + linha + " (" + (usuarioRaw || "sem usuário") + "): " + falta.join(", ")); return; }
     if (!base) foraBase++;
     var usuario = normalizarUsuarioWMS(usuarioRaw); // o da planilha, não o palpite da Base de Ativos
     validos.set(usuario + "|" + atividade + "|" + turno, {
       usuario_wms: usuario, nome: base ? base.nome : (String(obterCampo(row, ["Nome"]) || "").trim() || null),
-      turno: turno, atividade: atividade, setor: setor, piso: piso, time: time, atualizado_em: new Date().toISOString(),
+      turno: turno, atividade: atividade, setor: setor || null, piso: piso || null, time: time, atualizado_em: new Date().toISOString(),
     });
   });
   var registros = Array.from(validos.values());

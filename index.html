@@ -1626,7 +1626,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       t.hora = (temHora && t.seg > 0) ? t.total/(t.seg/3600) : 0;
       t.acima = n ? t.lista.filter(function(m){ return m.valor > mediaTurno; }).length/n*100 : 0;
       t.score = { media:t.media, total:t.total, hora:t.hora, acima:t.acima }[compEstado.crit];
-      var combos = {}; t.lista.forEach(function(m){ combos[m.setor+' · Piso '+m.piso] = 1; });
+      var combos = {}; t.lista.forEach(function(m){ combos[m.setor ? m.setor+' · Piso '+m.piso : 'Sem setor/piso'] = 1; });
       t.composicao = Object.keys(combos);
     });
     // Base da %: tudo que foi separado/conferido na atividade no período, inclusive quem não está em time.
@@ -1926,7 +1926,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var todos = compEstado.verTodos[t.n], lista = todos ? t.lista : t.lista.slice(0,5);
       return '<div class="comp-eq" '+st+'><div class="comp-eq-head"><span>Time 0'+t.n+'</span><span>'+t.lista.length+(t.lista.length===1?' membro':' membros')+'</span></div><ol>'+
-        lista.map(function(m,i){ return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+'<span class="meta">'+esc(m.casados.length ? m.casados.join(', ') : m.usuario)+' · '+esc(m.setor)+' · Piso '+m.piso+'</span></span><b>'+fmt(m.valor)+'</b></li>'; }).join('')+
+        lista.map(function(m,i){ return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+'<span class="meta">'+esc(m.casados.length ? m.casados.join(', ') : m.usuario)+' · '+(m.setor ? esc(m.setor)+' · Piso '+m.piso : 'Sem setor/piso')+'</span></span><b>'+fmt(m.valor)+'</b></li>'; }).join('')+
         '</ol>'+(t.lista.length>5 ? '<button class="comp-mais" data-ver="'+t.n+'">'+(todos ? 'Mostrar menos' : 'Ver todos os '+t.lista.length)+'</button>' : '')+'</div>';
     }).join('')+'</div>';
     elE.querySelectorAll('.comp-mais').forEach(function(b){ b.addEventListener('click', function(){ var n = b.getAttribute('data-ver'); compEstado.verTodos[n] = !compEstado.verTodos[n]; renderCompeticao(); }); });
