@@ -689,7 +689,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
         <div class="subsection" id="vinculacao">
           <div class="sub-head">
-            <div><p class="kicker">Reversa · Vinculação</p><h3>ORs vinculadas por colaborador</h3></div>
+            <div><p class="kicker">Reversa · Vinculação</p><h3 id="vinc-titulo">ORs vinculadas por colaborador</h3></div>
             <div class="sub-head-tools">
               <span class="pill parcial">Parcial</span>
               <button class="btn-icon" title="Exportar produtividade de Vinculação" onclick="exportarOperacao('vinculacao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
@@ -1305,17 +1305,32 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   function renderVinculacao(d){
     var el = document.getElementById('bloco-vinculacao');
-    if (!d) { el.innerHTML = estadoVazio('Sem dados de Vinculação ainda', SEM_DADOS_TXT); return; }
+    var titulo = document.getElementById('vinc-titulo');
+    if (!d) { if (titulo) titulo.textContent = 'ORs vinculadas por colaborador'; el.innerHTML = estadoVazio('Sem dados de Vinculação ainda', SEM_DADOS_TXT); return; }
     var rankingVinc = rankingFiltrado(d.rankingDia, 'reversa') || d.ranking;
-    var totalOR = d.totalOR, naoIdent = d.naoIdentificado;
+    // Unidade: PEDIDOS (notas fiscais distintas do campo "Nota Fiscal") nos dias enviados depois
+    // da mudança (têm "ors" no resumo do dia); ORs nos dias antigos, até o arquivo ser reenviado.
+    var total = d.totalOR, naoIdent = d.naoIdentificado, totalOR = d.totalOR, naoIdentOR = d.naoIdentificadoOR || 0;
+    var emPedidos = d.unidade === 'pedidos', diasAntigos = 0;
+    if (emPedidos) { total = d.totalPedidos; naoIdent = d.naoIdentificadoPedidos; }
     if (d.resumoDia && d.resumoDia.length) {
-      totalOR = 0; naoIdent = 0;
-      filtrarSerieporGrupo(d.resumoDia, 'reversa', 'data').forEach(function(x){ totalOR += x.total; naoIdent += x.naoIdentificado; });
+      total = 0; naoIdent = 0; totalOR = 0; naoIdentOR = 0; var novos = 0;
+      filtrarSerieporGrupo(d.resumoDia, 'reversa', 'data').forEach(function(x){
+        total += x.total; naoIdent += x.naoIdentificado;
+        if (x.ors != null) { novos++; totalOR += x.ors; naoIdentOR += x.orsNaoIdentificado || 0; } else diasAntigos++;
+      });
+      emPedidos = novos > 0;
     }
-    var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Nome extraído do campo "Veiculo"</p><h4>Ranking de vinculação</h4></div><span class="pill info">'+fmt(totalOR)+' ORs</span></div>'+
+    if (titulo) titulo.textContent = emPedidos ? 'Pedidos vinculados por colaborador' : 'ORs vinculadas por colaborador';
+    var unid = emPedidos ? 'pedidos' : 'ORs';
+    var pill = fmt(total)+' '+unid+(emPedidos && totalOR ? ' · '+fmt(totalOR)+' ORs' : '');
+    var legenda = '<strong>'+fmt(naoIdent)+' '+unid+'</strong> sem nome identificável no campo Veiculo'+(emPedidos ? ' ('+fmt(naoIdentOR)+' ORs)' : '')+' — aparecem como "não identificado", nunca descartados.';
+    var aviso = emPedidos && diasAntigos
+      ? '<div class="legend-line"><span>⚠ '+fmt(diasAntigos)+(diasAntigos===1 ? ' dia do período ainda está' : ' dias do período ainda estão')+' em ORs — reenvie o Gerenciador de OR desse período para contar em pedidos.</span></div>' : '';
+    var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Nome extraído do campo "Veiculo"</p><h4>Ranking de vinculação</h4></div><span class="pill info">'+pill+'</span></div>'+
       barListHtml(rankingVinc) +
-      '<div class="legend-line"><span><strong>'+fmt(naoIdent)+' ORs</strong> sem nome identificável no campo Veiculo — aparecem como "não identificado", nunca descartadas.</span></div>'+
-      '<p class="fonte">O WMS não grava quem vinculou: "Cadastrado pelo Usuário" é sempre SILT (integração).</p></div>';
+      '<div class="legend-line"><span>'+legenda+'</span></div>'+ aviso +
+      '<p class="fonte">O WMS não grava quem vinculou: "Cadastrado pelo Usuário" é sempre SILT (integração). Pedido = cada nota fiscal do campo "Nota Fiscal" da OR.</p></div>';
     el.innerHTML = painel;
   }
 
