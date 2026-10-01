@@ -1606,20 +1606,19 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // ---------- menu lateral retrátil ----------
   var SETA_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-  var NAV_KEY = 'nav_grupos_abertos';
-  function lerNavAbertos(){ try { return JSON.parse(localStorage.getItem(NAV_KEY) || 'null'); } catch(e){ return null; } }
-  function gravarNavAbertos(){
-    try { localStorage.setItem(NAV_KEY, JSON.stringify(Array.from(document.querySelectorAll('.nav-group.aberto')).map(function(g){ return g.getAttribute('data-grupo'); }))); } catch(e){}
-  }
-  function abrirGrupoNav(g, abrir, gravar){
+  function abrirGrupoNav(g, abrir){
     var f = g.querySelector('.nav-filhos'), s = g.querySelector('.nav-seta');
     if (!f) return;
+    // Sanfona: abrir um setor fecha os outros.
+    if (abrir) document.querySelectorAll('.nav-group.aberto').forEach(function(o){
+      if (o === g) return;
+      var of = o.querySelector('.nav-filhos'), os = o.querySelector('.nav-seta');
+      if (of) of.hidden = true; o.classList.remove('aberto'); if (os) os.setAttribute('aria-expanded','false');
+    });
     f.hidden = !abrir; g.classList.toggle('aberto', abrir);
     if (s) s.setAttribute('aria-expanded', String(abrir));
-    if (gravar) gravarNavAbertos();
   }
   (function montarMenuRetratil(){
-    var salvos = lerNavAbertos();
     document.querySelectorAll('.nav-group').forEach(function(g){
       var label = g.querySelector('.nav-label');
       var itens = Array.from(g.querySelectorAll('.nav-item'));
@@ -1631,11 +1630,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       g.appendChild(filhos);
       var texto = label.innerHTML;
       label.innerHTML = '<span class="nav-label-txt">'+texto+'</span><button type="button" class="nav-seta" aria-label="Abrir ou fechar '+nome+'">'+SETA_SVG+'</button>';
-      var abrir = salvos ? salvos.indexOf(nome) !== -1 : !!g.querySelector('.nav-item.active');
-      if (g.querySelector('.nav-item.active')) abrir = true;
-      abrirGrupoNav(g, abrir, false);
+      abrirGrupoNav(g, !!g.querySelector('.nav-item.active'));
       label.querySelector('.nav-seta').addEventListener('click', function(e){
-        e.stopPropagation(); abrirGrupoNav(g, filhos.hidden, true);
+        e.stopPropagation(); abrirGrupoNav(g, filhos.hidden);
       });
     });
   })();
@@ -1651,7 +1648,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var alvo = item.getAttribute('data-target');
     navItems.forEach(function(n){ n.classList.toggle('active', n === item); });
     var grupoNav = item.closest('.nav-group');
-    if (grupoNav && grupoNav.querySelector('.nav-filhos') && grupoNav.querySelector('.nav-filhos').hidden) abrirGrupoNav(grupoNav, true, true);
+    if (grupoNav && grupoNav.querySelector('.nav-filhos') && grupoNav.querySelector('.nav-filhos').hidden) abrirGrupoNav(grupoNav, true);
     if (grupo !== currentGroup) {
       currentGroup = grupo;
       pages.forEach(function(p){ p.hidden = (p.getAttribute('data-page-content') !== grupo); });
