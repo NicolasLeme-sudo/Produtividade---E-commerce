@@ -1901,7 +1901,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     document.getElementById('comp-kicker').textContent = c.atv.rot+' · '+compEstado.turno+' · '+crit.rot;
     var totalMembros = c.times.reduce(function(s,t){ return s+t.lista.length; },0);
     if (!totalMembros) {
-      var msg = perfilAtual === 'admin' ? 'Monte os times em Admin &gt; Abastecimento de base &gt; Competição.' : 'Os times deste turno e atividade ainda não foram montados.';
+      var msg = perfilAtual === 'admin' ? 'Monte os times em Admin > Abastecimento de base > Competição.' : 'Os times deste turno e atividade ainda não foram montados.';
       elP.innerHTML = estadoVazio('Sem times para '+esc(c.atv.rot)+' no '+esc(compEstado.turno), msg);
       elE.innerHTML = '';
       return;
