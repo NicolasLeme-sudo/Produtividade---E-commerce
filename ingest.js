@@ -1086,7 +1086,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     var b = idx.get(normalizarUsuarioWMS(l.usuario_wms));
     var sub = htmlSeguro(l.usuario_wms) + " · " + htmlSeguro(l.setor) + " · Piso " + l.piso + " · " + (b ? htmlSeguro(b.turno || "sem turno") : '<span class="comp-aviso">não está na Base de Ativos</span>');
     var edicao = compAdm.editando === l.id
-      ? '<div class="comp-edit"><input data-campo="usuario_wms" value="' + htmlSeguro(l.usuario_wms) + '" aria-label="Usuário WMS" title="Usuário exatamente como aparece no WMS">' + '<select data-campo="turno">' + opcoes(COMP_TURNOS, l.turno) + '</select><select data-campo="time">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Time 0" + n]; }), l.time) + '</select>' +
+      ? '<div class="comp-edit"><input data-campo="nome" value="' + htmlSeguro(l.nome || "") + '" aria-label="Nome completo" title="Nome completo: a Competição acha o usuário do WMS pelo primeiro e último nome">' + '<select data-campo="turno">' + opcoes(COMP_TURNOS, l.turno) + '</select><select data-campo="time">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Time 0" + n]; }), l.time) + '</select>' +
         '<select data-campo="setor">' + opcoes(["Calçados", "Vestuário"], l.setor) + '</select><select data-campo="piso">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Piso " + n]; }), l.piso) + "</select>" +
         '<button class="btn" data-acao="salvar" data-id="' + l.id + '">Salvar</button><button class="btn ghost" data-acao="cancelar">Cancelar</button></div>'
       : "";
@@ -1151,8 +1151,8 @@ async function renderCompeticaoAdmin(recarregarBase) {
         if (rr.error) avisoMembro("Erro: " + rr.error.message, "erro"); else recarregar();
       } else if (acao === "salvar") {
         var linha = b.closest(".comp-membro"), novo = { atualizado_em: new Date().toISOString() };
-        linha.querySelectorAll("[data-campo]").forEach(function (sel) { var c = sel.getAttribute("data-campo"); novo[c] = (c === "time" || c === "piso") ? Number(sel.value) : (c === "usuario_wms" ? normalizarUsuarioWMS(sel.value) : sel.value); });
-        if (!novo.usuario_wms) { avisoMembro("Informe o usuário do WMS.", "pendente"); return; }
+        linha.querySelectorAll("[data-campo]").forEach(function (sel) { var c = sel.getAttribute("data-campo"); novo[c] = (c === "time" || c === "piso") ? Number(sel.value) : (c === "nome" ? sel.value.trim().toUpperCase() : sel.value); });
+        if (!novo.nome) { avisoMembro("Informe o nome completo.", "pendente"); return; }
         var ru = await supabaseClient.from("competicao_times").update(novo).eq("id", id);
         if (ru.error) avisoMembro("Erro: " + ru.error.message, "erro"); else { compAdm.editando = null; recarregar(); }
       }
