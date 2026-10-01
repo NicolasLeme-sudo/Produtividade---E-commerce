@@ -870,31 +870,66 @@ function extrairNomeDoVeiculo(textoVeiculo, indiceBaseAtivos, indicePorPrimeiroN
 // com "QUALIDADE" (ou outra categoria sem "REVERSA") são de um time à parte,
 // que bipa material validado pela Qualidade, e não entram nem no total nem
 // no "não identificado" desta tela.
+// Cada OR traz várias notas fiscais no campo "Nota Fiscal", separadas por vírgula; cada
+// nota é a devolução de um pedido. O ranking conta as NOTAS DISTINTAS que cada pessoa
+// vinculou (pedidos), e não uma OR por linha. A mesma nota em duas ORs da mesma pessoa
+// conta uma vez; em ORs de pessoas diferentes conta para as duas no ranking, e o total
+// geral conta cada nota uma vez só. Linhas com Nota Fiscal vazia seguem de fora.
+function listarNotasFiscais(valor) {
+  var vistas = new Set(), lista = [];
+  String(valor == null ? "" : valor).split(/[,;]+/).forEach(function (nf) {
+    nf = nf.trim();
+    if (nf && !vistas.has(nf)) { vistas.add(nf); lista.push(nf); }
+  });
+  return lista;
+}
 function processarVinculacaoReversa(orReversaRows, indiceBaseAtivos, indicePorPrimeiroNome) {
-  var totalOR = 0, naoIdentificado = 0;
-  var ranking = new Map();
-  var rankingDia = new Map();
-  var resumoDia = new Map(); // data -> { total, naoIdentificado }
+  var totalOR = 0, naoIdentificadoOR = 0;
+  var nfGeral = new Set(), nfNaoIdent = new Set();
+  var nfPessoa = new Map();    // nome -> Set de notas
+  var nfPessoaDia = new Map(); // "data|nome" -> { data, nome, notas:Set }
+  var diaInfo = new Map();     // data -> { data, nfs:Set, nfsNaoIdent:Set, ors, orsNaoIdentificado }
   orReversaRows.forEach(function (row) {
-    var notaFiscal = obterCampo(row, ["Nota Fiscal"]);
-    if (!notaFiscal || !String(notaFiscal).trim()) return; // só ORs vinculadas
+    var notas = listarNotasFiscais(obterCampo(row, ["Nota Fiscal"]));
+    if (!notas.length) return; // só ORs vinculadas
     var veiculo = obterCampo(row, ["Veiculo", "Veículo"]) || "";
     if (normalizarTexto(veiculo).indexOf("REVERSA") === -1) return; // fora do time de Reversa
     totalOR++;
     // Data em que a OR foi cadastrada/vinculada (Gerenciador de OR, "Data de Cadastro").
     var dataISO = paraDataISO(obterCampo(row, ["Data de Cadastro"]));
-    var resumo = dataISO ? (resumoDia.get(dataISO) || { data: dataISO, total: 0, naoIdentificado: 0 }) : null;
-    if (resumo) { resumo.total++; resumoDia.set(dataISO, resumo); }
+    var dia = null;
+    if (dataISO) {
+      dia = diaInfo.get(dataISO) || { data: dataISO, nfs: new Set(), nfsNaoIdent: new Set(), ors: 0, orsNaoIdentificado: 0 };
+      diaInfo.set(dataISO, dia); dia.ors++;
+    }
+    notas.forEach(function (nf) { nfGeral.add(nf); if (dia) dia.nfs.add(nf); });
     var colaborador = extrairNomeDoVeiculo(veiculo, indiceBaseAtivos, indicePorPrimeiroNome);
     if (colaborador) {
-      ranking.set(colaborador.nome, (ranking.get(colaborador.nome) || 0) + 1);
-      somarNoDia(rankingDia, dataISO, colaborador.nome, 1);
+      var setP = nfPessoa.get(colaborador.nome) || new Set(); nfPessoa.set(colaborador.nome, setP);
+      notas.forEach(function (nf) { setP.add(nf); });
+      if (dataISO) {
+        var chave = dataISO + "|" + colaborador.nome;
+        var reg = nfPessoaDia.get(chave) || { data: dataISO, nome: colaborador.nome, notas: new Set() };
+        nfPessoaDia.set(chave, reg);
+        notas.forEach(function (nf) { reg.notas.add(nf); });
+      }
     } else {
-      naoIdentificado++;
-      if (resumo) resumo.naoIdentificado++;
+      naoIdentificadoOR++;
+      notas.forEach(function (nf) { nfNaoIdent.add(nf); if (dia) dia.nfsNaoIdent.add(nf); });
+      if (dia) dia.orsNaoIdentificado++;
     }
   });
-  return { totalOR: totalOR, naoIdentificado: naoIdentificado, ranking: ranking, rankingDia: rankingDia, resumoDia: Array.from(resumoDia.values()).sort(function (a, b) { return a.data.localeCompare(b.data); }) };
+  var ranking = new Map(), rankingDia = new Map();
+  nfPessoa.forEach(function (set, nome) { ranking.set(nome, set.size); });
+  nfPessoaDia.forEach(function (reg) { somarNoDia(rankingDia, reg.data, reg.nome, reg.notas.size); });
+  var resumoDia = Array.from(diaInfo.values()).map(function (d) {
+    return { data: d.data, total: d.nfs.size, naoIdentificado: d.nfsNaoIdent.size, ors: d.ors, orsNaoIdentificado: d.orsNaoIdentificado };
+  }).sort(function (a, b) { return a.data.localeCompare(b.data); });
+  return {
+    totalPedidos: nfGeral.size, naoIdentificadoPedidos: nfNaoIdent.size,
+    totalOR: totalOR, naoIdentificadoOR: naoIdentificadoOR,
+    ranking: ranking, rankingDia: rankingDia, resumoDia: resumoDia,
+  };
 }
 
 // ---- 14) Acompanhamento_Op -> Itens em separação + Aguardando geração de onda ----
@@ -1635,7 +1670,10 @@ async function processar(id) {
       var atualR2 = await lerSnapshot("reversa");
       var vincAnt = atualR2.vinculacao || {};
       atualR2.vinculacao = {
-        totalOR: r12.totalOR, naoIdentificado: r12.naoIdentificado, ranking: mapParaRanking(r12.ranking),
+        unidade: "pedidos",
+        totalOR: r12.totalOR, naoIdentificadoOR: r12.naoIdentificadoOR,
+        totalPedidos: r12.totalPedidos, naoIdentificadoPedidos: r12.naoIdentificadoPedidos,
+        ranking: mapParaRanking(r12.ranking),
         rankingDia: mesclarDias(vincAnt.rankingDia, diaMapParaArray(r12.rankingDia)),
         resumoDia: mesclarDias(vincAnt.resumoDia, r12.resumoDia),
       };
