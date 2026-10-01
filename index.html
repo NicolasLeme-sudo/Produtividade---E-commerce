@@ -1585,7 +1585,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var todos = compEstado.verTodos[t.n], lista = todos ? t.lista : t.lista.slice(0,5);
       return '<div class="comp-eq" '+st+'><div class="comp-eq-head"><span>Time 0'+t.n+'</span><span>'+t.lista.length+(t.lista.length===1?' membro':' membros')+'</span></div><ol>'+
-        lista.map(function(m,i){ return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+'<span class="meta">'+(m.casados.length ? 'WMS: '+esc(m.casados.join(', ')) : esc(m.usuario))+' · '+esc(m.setor)+' · Piso '+m.piso+'</span></span><b>'+fmt(m.valor)+'</b></li>'; }).join('')+
+        lista.map(function(m,i){ return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+'<span class="meta">'+esc(m.casados.length ? m.casados.join(', ') : m.usuario)+' · '+esc(m.setor)+' · Piso '+m.piso+'</span></span><b>'+fmt(m.valor)+'</b></li>'; }).join('')+
         '</ol>'+(t.lista.length>5 ? '<button class="comp-mais" data-ver="'+t.n+'">'+(todos ? 'Mostrar menos' : 'Ver todos os '+t.lista.length)+'</button>' : '')+'</div>';
     }).join('')+'</div>';
     elE.querySelectorAll('.comp-mais').forEach(function(b){ b.addEventListener('click', function(){ var n = b.getAttribute('data-ver'); compEstado.verTodos[n] = !compEstado.verTodos[n]; renderCompeticao(); }); });
