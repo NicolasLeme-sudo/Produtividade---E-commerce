@@ -1585,7 +1585,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       return '<div class="comp-barra" style="--c:var('+t.cor.c+')"><span>Time 0'+t.n+'</span><div class="comp-trilho"><i style="width:'+(max ? (t.score/max*100).toFixed(1) : 0)+'%"></i></div><b>'+vf(t.score)+'<span class="comp-pct" title="Total do time ('+fmt(t.total)+') ÷ total da atividade no período ('+fmt(c.totalGeral)+')">'+(c.totalGeral ? (t.total/c.totalGeral*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) : '0,0')+'%</span></b></div>';
     }).join('');
     elP.innerHTML = '<div class="comp-placar">'+cards+'</div>'+
-      '<div class="panel" style="margin-top:14px"><div class="panel-head"><div><p class="kicker">'+esc(crit.rot)+'</p><h4>Confronto dos times</h4></div><span class="pill info" title="Base da % ao lado de cada time">Total da atividade no período: '+fmt(c.totalGeral)+'</span></div><div style="display:flex; flex-direction:column; gap:9px">'+barras+'</div></div>'+aviso;
+      '<div class="panel" style="margin-top:14px"><div class="panel-head"><div><p class="kicker">'+esc(crit.rot)+'</p><h4>Confronto dos times</h4></div></div><div style="display:flex; flex-direction:column; gap:9px">'+barras+'</div></div>'+aviso;
     elE.innerHTML = '<div class="comp-equipes">'+c.times.map(function(t){
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var todos = compEstado.verTodos[t.n], lista = todos ? t.lista : t.lista.slice(0,5);
