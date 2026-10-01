@@ -102,7 +102,7 @@ body{
 .nav-filhos{display:flex; flex-direction:column; gap:2px; margin-left:10px; padding-left:6px; border-left:1px solid rgba(255,255,255,.08);}
 .nav-filhos[hidden]{display:none;}
 .tag-novo{font-size:.55rem; background:var(--amber); color:#1C2333; padding:1px 6px; border-radius:8px; font-weight:800; letter-spacing:.04em; margin-left:6px;}
-@media (prefers-reduced-motion:reduce){ .nav-seta{transition:none;} }
+@media (prefers-reduced-motion:reduce){ .nav-seta, .fb-seta{transition:none;} }
 .badge-admin{margin-left:auto; font-size:8.5px; font-weight:700; background:rgba(178,58,46,.2); color:var(--red); padding:2px 6px; border-radius:10px;}
 .sidebar-footer{margin-top:auto; padding:12px 16px; border-top:1px solid rgba(255,255,255,.07); display:flex; flex-direction:column; gap:6px;}
 .sidebar-footer .perfil{font-size:11px; color:#9BAAC4;}
@@ -130,8 +130,22 @@ body{
 
 .filterbar{position:sticky; top:0; z-index:5; display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px;}
 .filtro-flutuante-estoque{position:sticky; top:0; z-index:5; display:grid;}
-.filtro-flutuante-estoque .filterbar{position:static; grid-area:1/1; transition:opacity .15s ease;}
+.filtro-flutuante-estoque .filterbar{position:relative; grid-area:1/1; transition:opacity .15s ease;}
 .filtro-flutuante-estoque .filterbar.filtro-oculto{opacity:0; visibility:hidden; pointer-events:none;}
+.filterbar{padding-right:46px;}
+/* filtros retráteis: mesma setinha do menu lateral (▼ recolhida, gira para ▲ quando aberta) */
+.fb-seta{position:absolute; top:10px; right:12px; width:22px; height:22px; border:none; border-radius:6px; background:transparent; color:var(--text-muted); cursor:pointer; display:grid; place-items:center; transition:transform .18s;}
+.fb-seta:hover{background:var(--bg-input); color:var(--text);}
+.fb-seta:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
+.filterbar:not(.fb-recolhida) .fb-seta{transform:rotate(180deg);}
+.fb-resumo{display:none; align-items:center; gap:12px; min-width:0; flex:1; font-size:.78rem;}
+.fb-rot{font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); font-weight:600; flex:0 0 auto;}
+.fb-txt{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; color:var(--text);}
+.fb-sep{color:var(--text-muted); margin:0 8px; font-weight:400;}
+.filterbar.fb-recolhida{flex-wrap:nowrap; align-items:center; gap:12px; padding-top:9px; padding-bottom:9px;}
+.filterbar.fb-recolhida > :not(.fb-resumo):not(.fb-seta){display:none !important;}
+.filterbar.fb-recolhida .fb-resumo{display:flex;}
+.filterbar.fb-recolhida .fb-seta{top:50%; margin-top:-11px;}
 .filter-group{display:flex; flex-direction:column; gap:6px;}
 .filter-group > label{font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); font-weight:600;}
 .chips{display:flex; gap:6px; flex-wrap:wrap;}
@@ -1999,6 +2013,65 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       label.querySelector('.nav-seta').addEventListener('click', function(e){
         e.stopPropagation(); abrirGrupoNav(g, filhos.hidden);
       });
+    });
+  })();
+
+  // ---------- filtros retráteis (setinha igual à do menu lateral) ----------
+  // Cada página lembra se os filtros estavam recolhidos (localStorage, por página).
+  // Recolhida, a barra vira uma linha com o resumo do que está selecionado. Como os
+  // filtros ficam escondidos, o resumo só precisa ser montado ao recolher.
+  (function montarFiltrosRetrateis(){
+    var CHAVE = 'produtividade_filtros_recolhidos';
+    function ler(){ try { return JSON.parse(localStorage.getItem(CHAVE) || '{}') || {}; } catch(e){ return {}; } }
+    function gravar(o){ try { localStorage.setItem(CHAVE, JSON.stringify(o)); } catch(e){} }
+    function dataBR(v){ return /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v.split('-').reverse().join('/') : ''; }
+    function partesResumo(barra){
+      var partes = [];
+      barra.querySelectorAll('.filter-group').forEach(function(g){
+        var on = Array.from(g.querySelectorAll('.chip.on')).filter(function(c){ return c.id !== 'comp-atv-todos'; });
+        if (!on.length) return;
+        var txt = on.map(function(c){ return c.textContent.trim(); }).join(', ');
+        if (g.id === 'comp-atv' && on.length === g.querySelectorAll('.chip[data-atv]').length) txt = 'Todas as atividades';
+        if (g.querySelector('[data-modo-data="periodo"].on')) {
+          var de = g.querySelector('input[data-periodo="de"]'), ate = g.querySelector('input[data-periodo="ate"]');
+          var d1 = dataBR(de && de.value), d2 = dataBR(ate && ate.value);
+          txt = 'Período: ' + (d1 || '…') + ' a ' + (d2 || '…');
+        }
+        partes.push(txt);
+      });
+      return partes;
+    }
+    function atualizarResumo(barra){
+      var txt = barra.querySelector('.fb-txt'); if (!txt) return;
+      txt.innerHTML = partesResumo(barra).map(esc).join('<span class="fb-sep">│</span>');
+    }
+    function aplicar(pagina, barras, recolhida){
+      barras.forEach(function(b){
+        if (recolhida) atualizarResumo(b);
+        b.classList.toggle('fb-recolhida', recolhida);
+        var s = b.querySelector('.fb-seta');
+        s.setAttribute('aria-expanded', String(!recolhida));
+        s.setAttribute('aria-label', recolhida ? 'Expandir filtros' : 'Recolher filtros');
+        s.title = recolhida ? 'Expandir filtros' : 'Recolher filtros';
+      });
+    }
+    var estado = ler();
+    document.querySelectorAll('[data-page-content]').forEach(function(pag){
+      var nome = pag.getAttribute('data-page-content');
+      var barras = Array.from(pag.querySelectorAll('.filterbar'));
+      if (!barras.length) return;
+      barras.forEach(function(b){
+        var resumo = document.createElement('div'); resumo.className = 'fb-resumo';
+        resumo.innerHTML = '<span class="fb-rot">Filtros</span><span class="fb-txt"></span>';
+        var seta = document.createElement('button'); seta.type = 'button'; seta.className = 'fb-seta'; seta.innerHTML = SETA_SVG;
+        b.appendChild(resumo); b.appendChild(seta);
+        seta.addEventListener('click', function(){
+          var recolher = !barras[0].classList.contains('fb-recolhida');
+          aplicar(nome, barras, recolher);
+          var e = ler(); if (recolher) e[nome] = true; else delete e[nome]; gravar(e);
+        });
+      });
+      aplicar(nome, barras, !!estado[nome]);
     });
   })();
 
