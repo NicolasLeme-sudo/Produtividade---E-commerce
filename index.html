@@ -194,6 +194,9 @@ body{
 .bar-scroll::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
 .bar-list{display:flex; flex-direction:column; gap:10px;}
 .bar-row{display:grid; grid-template-columns:140px 1fr 92px; align-items:center; gap:10px; font-size:.78rem; min-height:18px;}
+.bar-row.clic{cursor:pointer;} .bar-row.clic:hover{background:var(--bg-input);}
+.hs-pop{position:fixed; z-index:70; background:var(--bg-card,#16213a); color:var(--text,#e6ecf7); border:1px solid var(--border,#26344f); border-radius:10px; padding:12px 14px; box-shadow:0 12px 30px rgba(0,0,0,.45); width:min(520px,94vw);}
+.hs-pop[hidden]{display:none;} .hs-pop .hs-t{display:flex; justify-content:space-between; gap:10px; font-weight:700; font-size:.85rem; margin-bottom:4px;} .hs-pop .hs-x{cursor:pointer; opacity:.7;} .hs-pop .hs-sub{font-size:.7rem; opacity:.7; margin:0 0 6px;} .hs-pop text{fill:currentColor; font-size:10px;}
 .bar-row .nome{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .bar-track{background:var(--bg-input); border-radius:5px; height:12px; overflow:hidden; display:flex;}
 .bar-track i{display:block; height:100%;}
@@ -299,6 +302,13 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 }
 /* ---------- Competição ---------- */
 .comp-placar{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) minmax(190px,.9fr); gap:12px;}
+.comp-sel{display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; padding:10px 14px; margin-bottom:12px; font-size:.78rem;}
+.comp-sel-i{display:inline-flex; align-items:center; gap:6px; cursor:pointer;}
+.comp-bloco-atv{margin-bottom:18px;}
+.comp-bloco-atv .kicker{margin:0 0 8px;}
+.comp-total{position:relative;}
+.comp-total::before{content:''; position:absolute; left:-7px; top:4px; bottom:4px; width:1px; background:var(--text-muted); opacity:.55;}
+@media (max-width:1100px){ .comp-total::before{display:none;} }
 .comp-total .comp-big{color:var(--accent-light);}
 .comp-time{background:var(--bg-card); border:1px solid var(--border); border-top:4px solid var(--c); border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; min-width:0;}
 .comp-time.lider{box-shadow:0 0 0 1px var(--c) inset;}
@@ -335,7 +345,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-fatia{cursor:pointer; transition:opacity .15s, transform .15s;}
 .comp-pizza-corpo.foco .comp-fatia{opacity:.3;}
 .comp-pizza-corpo.foco .comp-fatia.ativa{opacity:1;}
-.comp-leg-pizza{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.comp-leg-col{flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; align-self:stretch; justify-content:center;}
+.comp-pizza-info{min-height:44px; padding:8px 11px; border:1px solid var(--border); border-radius:8px; background:var(--bg-input); font-size:.76rem; line-height:1.45; color:var(--text-label);}
+.comp-leg-pizza{flex:none; min-width:0; display:flex; flex-direction:column; gap:2px;}
 .comp-leg{display:grid; grid-template-columns:12px minmax(0,1fr); gap:8px; align-items:center; padding:6px 8px; border-radius:7px; font-size:.78rem;}
 .comp-leg i{width:10px; height:10px; border-radius:50%; background:var(--c);}
 .comp-leg.ativo{background:var(--bg-input); font-weight:700;}
@@ -699,6 +711,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
               <button class="chip" data-atv="sep_checkout">Separação · Checkout</button>
               <button class="chip" data-atv="conf_checkout">Conferência · Checkout / Faturamento</button>
               <button class="chip" data-atv="conf_colmeia">Conferência · Colmeia</button>
+              <button class="chip" data-atv="todas">▦ Todas agrupadas</button>
             </div>
           </div>
           <div style="flex-basis:100%; height:0; margin-top:-12px;" aria-hidden="true"></div>
@@ -834,7 +847,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var cor = opts.cor || '--accent';
     var html = itens.map(function(i){
       var pct = Math.max(2, Math.round((i.valor||0)/max*100));
-      return '<div class="bar-row"><div class="nome" title="'+esc(i.nome)+'">'+esc(nomeCurto(i.nome))+'</div>'+
+      return '<div class="bar-row'+(opts.clicavel?' clic':'')+'"'+(opts.clicavel?' data-nome="'+esc(i.nome)+'"':'')+'><div class="nome" title="'+esc(i.nome)+'">'+esc(nomeCurto(i.nome))+'</div>'+
         '<div class="bar-track"><i style="width:'+pct+'%; background:var('+cor+')"></i></div>'+
         '<div class="num">'+fmt(i.valor)+(opts.sufixo||'')+'</div></div>';
     }).join('');
@@ -1096,7 +1109,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       kpiEmSeparacaoHtml(k)+
       kpiSeparadoresHtml(d)+
       '</div>';
-    var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por dia</p><h4>Colmeia × Checkout</h4></div></div>'+
+    var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por dia</p></div></div>'+
       barrasDiaHtml(serieFiltrada, [ {campo:'checkout', cor:'--accent', rotulo:'Checkout (SINGLE)'}, {campo:'colmeia', cor:'--olive', rotulo:'Colmeia (MULTI)'} ]) +
       '<p class="fonte">Fonte: Separação Analítica (Checkout e Colmeia, pela Região Destino).</p></div>';
     var ranking = (d.ranking && d.ranking.geral) || [];
@@ -1106,8 +1119,11 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       ranking = Object.keys(somaSep).map(function(n){ return { nome:n, valor:somaSep[n] }; }).sort(function(a,b){ return b.valor - a.valor; });
     }
     var painelRanking = '<div class="panel"><div class="panel-head"><div><p class="kicker">Ranking de separadores</p><h4>Produtividade por separador</h4></div></div>'+
-      barListHtml(ranking) + '</div>';
+      barListHtml(ranking, {clicavel:true}) + '<div class="scroll-hint">Clique na barra para ver as peças por hora</div></div>';
     document.getElementById('bloco-separacao').innerHTML = kpisHtml + painelSerie + painelRanking;
+    document.querySelectorAll('#bloco-separacao .bar-row.clic').forEach(function(r){
+      r.addEventListener('click', function(ev){ ev.stopPropagation(); abrirHorasSeparador(r.getAttribute('data-nome'), r); });
+    });
   }
 
   function renderConferencia(d){
@@ -1162,8 +1178,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var totNormal = d.normalDia && d.normalDia.length ? somaValores(armNormal) : d.totalNormal;
     var totReversa = d.reversaDia && d.reversaDia.length ? somaValores(armReversa) : d.totalReversa;
     el.innerHTML = '<div class="duo">'+
-      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços H / I / J</p><h4>Estoque normal</h4></div><span class="pill info">'+fmt(totNormal)+'</span></div>'+ barListHtml(armNormal, {cor:'--accent'}) + '</div>'+
-      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços iniciados em S</p><h4>Reversa</h4></div><span class="pill info">'+fmt(totReversa)+'</span></div>'+ barListHtml(armReversa, {cor:'--laranja'}) + '</div>'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços H / I / J</p><h4>Recebimento</h4></div><span class="pill info">'+fmt(totNormal)+'</span></div>'+ barListHtml(armNormal, {cor:'--accent'}) + '</div>'+
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços iniciados em S</p><h4>Devolução</h4></div><span class="pill info">'+fmt(totReversa)+'</span></div>'+ barListHtml(armReversa, {cor:'--laranja'}) + '</div>'+
       '</div><p class="fonte">Fonte: Kardex de Endereço · regra Estoque Antes − Estoque Após.</p>';
   }
 
@@ -1472,7 +1488,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // ---------- Competição entre times ----------
   var competicaoTimes = [];
-  var compEstado = { turno:'Todos', atv:'sep_geral', crit:'media', verTodos:{}, ocultos:{}, rolagem:0 };
+  var compEstado = { turno:'Todos', atv:'sep_geral', atvSel:{ sep_colmeia:true, sep_checkout:true, conf_checkout:true, conf_colmeia:true }, crit:'media', verTodos:{}, ocultos:{}, rolagem:0 };
   var TIMES_COR = { 1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'}, 4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'} };
   var ATIV_COMP = {
     sep_geral:     { rot:'Separação · Geral', fontes:['sep_checkout','sep_colmeia'], unid:'peças', segFonte:'sep_geral' },
@@ -1618,6 +1634,58 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   }
 
 
+  // ---------- peças por hora de um separador (popover) ----------
+  function caminhoSuave(p){
+    if (p.length < 2) return 'M'+p[0][0]+','+p[0][1];
+    var d = 'M'+p[0][0]+','+p[0][1];
+    for (var i = 0; i < p.length-1; i++){
+      var p0 = p[i-1] || p[i], p1 = p[i], p2 = p[i+1], p3 = p[i+2] || p2;
+      var c1x = p1[0]+(p2[0]-p0[0])/6, c1y = p1[1]+(p2[1]-p0[1])/6, c2x = p2[0]-(p3[0]-p1[0])/6, c2y = p2[1]-(p3[1]-p1[1])/6;
+      d += ' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2[0]+','+p2[1];
+    }
+    return d;
+  }
+  function horasDoSeparador(nome){
+    var dias = filtrarSerieporGrupo(((snapshots.outbound||{}).separacao||{}).analitico || [], 'outbound', 'data');
+    var alvo = chaveUsuario(nome), arr = new Array(24).fill(0), achou = false;
+    dias.forEach(function(dia){
+      ['checkout','colmeia'].forEach(function(tp){
+        Object.keys(dia[tp]||{}).forEach(function(u){
+          if (chaveUsuario(u) === alvo) { achou = true; dia[tp][u].forEach(function(v,i){ arr[i] += v||0; }); }
+        });
+      });
+    });
+    return { arr:arr, achou:achou, dias:dias.length };
+  }
+  var hsPop = null;
+  function abrirHorasSeparador(nome, linha){
+    if (!hsPop) {
+      hsPop = document.createElement('div'); hsPop.className = 'hs-pop'; hsPop.hidden = true; document.body.appendChild(hsPop);
+      document.addEventListener('click', function(e){ if (!hsPop.hidden && !hsPop.contains(e.target)) hsPop.hidden = true; });
+      document.addEventListener('keydown', function(e){ if (e.key === 'Escape') hsPop.hidden = true; });
+    }
+    var h = horasDoSeparador(nome), min = 24, max = -1;
+    h.arr.forEach(function(v,i){ if (v > 0) { if (i < min) min = i; if (i > max) max = i; } });
+    var corpo;
+    if (!h.achou || max < 0) {
+      corpo = '<p class="hs-sub">Sem horas no período filtrado. A Separação Analítica guarda os últimos 31 dias; reabasteça-a para ver este colaborador.</p>';
+    } else {
+      var W = 500, H = 150, pad = 26, n = max-min+1, vmax = Math.max.apply(null, h.arr) || 1;
+      var pts = []; for (var i = min; i <= max; i++) pts.push([ n === 1 ? W/2 : Math.round(pad+(W-2*pad)*(i-min)/(n-1)), Math.round(H-24-(H-56)*h.arr[i]/vmax) ]);
+      var rot = '', eix = '';
+      pts.forEach(function(p, k){ rot += '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3" fill="var(--accent)"/><text x="'+p[0]+'" y="'+(p[1]-8)+'" text-anchor="middle">'+fmt(h.arr[min+k])+'</text>'; eix += '<text x="'+p[0]+'" y="'+(H-6)+'" text-anchor="middle" opacity=".7">'+('0'+(min+k)).slice(-2)+'h</text>'; });
+      corpo = '<p class="hs-sub">Peças por hora (hora de início da tarefa) · '+h.dias+' dia(s) no filtro · total '+fmt(h.arr.reduce(function(a,b){return a+b;},0))+'</p>'+
+        '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img"><path d="'+caminhoSuave(pts)+'" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/>'+rot+eix+'</svg>';
+    }
+    hsPop.innerHTML = '<div class="hs-t"><span>'+esc(nomeCurto(nome))+'</span><span class="hs-x" title="Fechar">✕</span></div>'+corpo;
+    hsPop.querySelector('.hs-x').addEventListener('click', function(){ hsPop.hidden = true; });
+    hsPop.hidden = false;
+    var r = linha.getBoundingClientRect(), pw = hsPop.offsetWidth, ph = hsPop.offsetHeight;
+    var x = Math.max(8, Math.min(r.left + 140, window.innerWidth - pw - 8));
+    var y = r.bottom + 6; if (y + ph > window.innerHeight - 8) y = Math.max(8, r.top - ph - 6);
+    hsPop.style.left = x+'px'; hsPop.style.top = y+'px';
+  }
+
   // ---------- produção por hora (Separação / Conferência analíticas) ----------
   function horasDoDia(c){
     var a = compEstado.atv, o = snapshots.outbound || {};
@@ -1664,7 +1732,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var box = document.getElementById('comp-pizza'), leg = document.getElementById('comp-leg-pizza'), corpo = document.getElementById('comp-pizza-corpo');
     if (!box) return;
     var fatias = c.times.filter(function(t){ return t.total > 0; }).map(function(t){ return { rot:'Time 0'+t.n, valor:t.total, cor:'var('+t.cor.c+')' }; })
-      .sort(function(a,b){ return b.valor - a.valor; });
+      .sort(function(a,b){ return a.rot < b.rot ? -1 : 1; });   // legenda fixa: Time 01, 02, 03, 04
     if (c.fora > 0) fatias.push({ rot:'Fora dos times', valor:c.fora, cor:'var(--gelo)' });
     var soma = fatias.reduce(function(a,f){ return a + f.valor; }, 0);
     if (!soma) { corpo.innerHTML = '<div class="comp-vazio">Sem produção no período para esta atividade.</div>'; return; }
@@ -1680,26 +1748,16 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     box.innerHTML = s + '</svg>';
     leg.innerHTML = fatias.map(function(f, i){ return '<div class="comp-leg" data-i="'+i+'" style="--c:'+f.cor+'"><i></i><span>'+f.rot+'</span></div>'; }).join('') +
       ((compEstado.turno !== 'Todos' && c.semTurno) ? '<div class="comp-aviso">'+c.semTurno+' pessoa(s) sem turno na Base de Ativos ficam de fora</div>' : '');
-    var tip = tipComp(), paths = box.querySelectorAll('.comp-fatia'), legs = leg.querySelectorAll('.comp-leg');
+    var info = document.getElementById('comp-pizza-info'), DICA = 'Passe o mouse sobre uma fatia ou time', paths = box.querySelectorAll('.comp-fatia'), legs = leg.querySelectorAll('.comp-leg');
+    info.textContent = DICA;
     function foco(i){
       corpo.classList.add('foco');
       paths.forEach(function(p, k){ p.classList.toggle('ativa', k === i); p.style.transform = k === i ? 'translate('+(Math.cos(fatias[i].meio)*6)+'px,'+(Math.sin(fatias[i].meio)*6)+'px)' : ''; });
       legs.forEach(function(l, k){ l.classList.toggle('ativo', k === i); });
       var f = fatias[i];
-      tip.innerHTML = '<span style="color:'+f.cor+'">●</span> <b>'+f.rot+'</b><br><b>'+fmt(f.valor)+'</b> itens<br>'+pctComp(f.pct)+' do total da atividade ('+fmt(soma)+')';
-      tip.hidden = false;
-      var r = box.querySelector('svg').getBoundingClientRect();
-      if (Math.cos(f.meio) > 0.45) {          // fatia voltada para a legenda: balão acima ou abaixo da pizza
-        var acima = Math.sin(f.meio) < 0;
-        tip.style.left = Math.max(8, r.left + C - tip.offsetWidth/2 + Math.cos(f.meio)*40) + 'px';
-        tip.style.top = (acima ? Math.max(8, r.top + C - R - tip.offsetHeight - 6) : r.top + C + R + 6) + 'px';
-      } else {
-        var px = r.left + C + Math.cos(f.meio)*(R+8), py = r.top + C + Math.sin(f.meio)*(R+8);
-        tip.style.left = Math.max(8, Math.cos(f.meio) >= 0 ? px + 8 : px - tip.offsetWidth - 8) + 'px';
-        tip.style.top = Math.max(8, py - tip.offsetHeight/2) + 'px';
-      }
+      info.innerHTML = '<span style="color:'+f.cor+'">●</span> <b>'+f.rot+'</b> · <b>'+fmt(f.valor)+'</b> itens<br>'+pctComp(f.pct)+' do total da atividade ('+fmt(soma)+')';
     }
-    function limpar(){ corpo.classList.remove('foco'); paths.forEach(function(p){ p.classList.remove('ativa'); p.style.transform = ''; }); legs.forEach(function(l){ l.classList.remove('ativo'); }); tip.hidden = true; }
+    function limpar(){ corpo.classList.remove('foco'); paths.forEach(function(p){ p.classList.remove('ativa'); p.style.transform = ''; }); legs.forEach(function(l){ l.classList.remove('ativo'); }); info.textContent = DICA; }
     paths.forEach(function(p, i){ p.addEventListener('mouseenter', function(){ foco(i); }); p.addEventListener('focus', function(){ foco(i); }); p.addEventListener('blur', limpar); p.addEventListener('click', function(){ foco(i); }); });
     legs.forEach(function(l, i){ l.addEventListener('mouseenter', function(){ foco(i); }); });
     corpo.onmouseleave = limpar;
@@ -1781,22 +1839,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     wrap.onmouseleave = limpar;
   }
 
-  function renderCompeticao(){
-    var elP = document.getElementById('bloco-placar'), elE = document.getElementById('bloco-equipes');
-    if (!elP) return;
-    var c = calcularCompeticao(), crit = CRIT_COMP[compEstado.crit];
-    // Peças por hora só existe onde o relatório traz o tempo trabalhado (Separação e Conferência Checkout).
-    var btnHora = document.querySelector('#comp-crit [data-crit="hora"]');
-    if (btnHora) btnHora.disabled = !c.temHora;
-    if (compEstado.crit === 'hora' && !c.temHora) { compEstado.crit = 'media'; crit = CRIT_COMP.media; document.querySelectorAll('#comp-crit .chip').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-crit') === 'media'); }); c = calcularCompeticao(); }
-    document.getElementById('comp-kicker').textContent = c.atv.rot+' · '+compEstado.turno+' · '+crit.rot;
-    var totalMembros = c.times.reduce(function(s,t){ return s+t.lista.length; },0);
-    if (!totalMembros) {
-      var msg = perfilAtual === 'admin' ? 'Monte os times em Admin &gt; Abastecimento de base &gt; Competição.' : 'Os times deste turno e atividade ainda não foram montados.';
-      elP.innerHTML = estadoVazio('Sem times para '+esc(c.atv.rot)+' no '+esc(compEstado.turno), msg);
-      elE.innerHTML = '';
-      return;
-    }
+  // Cards dos 4 times + card do total do período, para um cálculo c e critério crit.
+  function placarHtml(c, crit){
     function vf(v){ return crit.pct ? Math.round(v)+'%' : fmt(Math.round(v)); } // média sem casas decimais
     var ordenados = c.times.filter(function(t){ return t.lista.length; }).sort(function(a,b){ return b.score-a.score; });
     var sem = c.times.filter(function(t){ return !t.lista.length; });
@@ -1817,6 +1861,50 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '<div class="comp-linha"><span>Times <b>'+fmt(totalTimes)+'</b></span><span><b>'+(totalPeriodo ? pctComp(totalTimes/totalPeriodo*100) : '0,0%')+'</b></span></div>'+
       '<div class="comp-linha" style="border-top:none; padding-top:0"><span>Fora dos times <b>'+fmt(c.fora)+'</b></span><span><b>'+(totalPeriodo ? pctComp(c.fora/totalPeriodo*100) : '0,0%')+'</b></span></div>'+
       '<div class="comp-sub">'+esc(rotPeriodo)+'</div></div>';
+    return '<div class="comp-placar">'+cards+cardTotal+'</div>';
+  }
+  var ORDEM_TODAS = ['sep_colmeia','sep_checkout','conf_checkout','conf_colmeia'];
+  // Todas as atividades em blocos, com caixas para escolher quais aparecem.
+  function renderCompeticaoTodas(elP, elE){
+    var crit = CRIT_COMP[compEstado.crit], atvOriginal = compEstado.atv, critOriginal = compEstado.crit;
+    document.getElementById('comp-kicker').textContent = 'Todas agrupadas · '+compEstado.turno+' · '+crit.rot;
+    var caixas = '<div class="panel comp-sel"><span class="comp-dica">Mostrar:</span>'+ORDEM_TODAS.map(function(k){
+      return '<label class="comp-sel-i"><input type="checkbox" data-k="'+k+'"'+(compEstado.atvSel[k] ? ' checked' : '')+'> '+esc(ATIV_COMP[k].rot)+'</label>';
+    }).join('')+'</div>';
+    var blocos = '', marcadas = ORDEM_TODAS.filter(function(k){ return compEstado.atvSel[k]; });
+    marcadas.forEach(function(k){
+      compEstado.atv = k;
+      var c, critUsada = compEstado.crit, nota = '';
+      try {
+        c = calcularCompeticao();
+        if (compEstado.crit === 'hora' && !c.temHora) { compEstado.crit = 'media'; critUsada = 'media'; nota = ' · sem tempo no relatório, exibindo média por membro'; c = calcularCompeticao(); }
+      } finally { compEstado.atv = atvOriginal; compEstado.crit = critOriginal; }
+      var cr = CRIT_COMP[critUsada], membros = c.times.reduce(function(a,t){ return a+t.lista.length; }, 0);
+      blocos += '<div class="comp-bloco-atv"><p class="kicker">'+esc(c.atv.rot)+' · '+esc(cr.rot)+esc(nota)+'</p>'+
+        (membros ? placarHtml(c, cr) : '<div class="comp-vazio">Sem times montados para esta atividade neste turno.</div>')+'</div>';
+    });
+    elP.innerHTML = caixas + (blocos || estadoVazio('Nenhuma atividade marcada','Marque ao menos uma atividade acima.'));
+    elE.innerHTML = '';
+    elP.querySelectorAll('.comp-sel input').forEach(function(i){ i.addEventListener('change', function(){ compEstado.atvSel[i.getAttribute('data-k')] = i.checked; renderCompeticao(); }); });
+  }
+  function renderCompeticao(){
+    var elP = document.getElementById('bloco-placar'), elE = document.getElementById('bloco-equipes');
+    if (!elP) return;
+    if (compEstado.atv === 'todas') { renderCompeticaoTodas(elP, elE); return; }
+    var c = calcularCompeticao(), crit = CRIT_COMP[compEstado.crit];
+    // Peças por hora só existe onde o relatório traz o tempo trabalhado (Separação e Conferência Checkout).
+    var btnHora = document.querySelector('#comp-crit [data-crit="hora"]');
+    if (btnHora) btnHora.disabled = !c.temHora;
+    if (compEstado.crit === 'hora' && !c.temHora) { compEstado.crit = 'media'; crit = CRIT_COMP.media; document.querySelectorAll('#comp-crit .chip').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-crit') === 'media'); }); c = calcularCompeticao(); }
+    document.getElementById('comp-kicker').textContent = c.atv.rot+' · '+compEstado.turno+' · '+crit.rot;
+    var totalMembros = c.times.reduce(function(s,t){ return s+t.lista.length; },0);
+    if (!totalMembros) {
+      var msg = perfilAtual === 'admin' ? 'Monte os times em Admin &gt; Abastecimento de base &gt; Competição.' : 'Os times deste turno e atividade ainda não foram montados.';
+      elP.innerHTML = estadoVazio('Sem times para '+esc(c.atv.rot)+' no '+esc(compEstado.turno), msg);
+      elE.innerHTML = '';
+      return;
+    }
+    var placar = placarHtml(c, crit);
     var aviso = c.temDados ? '' : '<p class="fonte">Os relatórios desta atividade ainda não têm produção por dia no período. Reenvie-os em Admin &gt; Abastecimento de base.</p>';
     var dHora = horasDoDia(c);
     var kickHora = 'Itens por hora' + (dHora.data ? ' · dia ' + fmtDataBR(dHora.data) : '') + ' · ' + compEstado.turno;
@@ -1826,10 +1914,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         : '<div class="comp-corpo"><div class="comp-escada-flex"><div class="comp-eixo" id="comp-eixo"></div><div class="comp-escada-scroll" id="comp-escada-scroll"><div id="comp-escada"></div></div></div></div><div class="comp-leg-horas" id="comp-leg-horas"></div>')+
       '</div>';
     var cardPizza = '<div class="panel comp-card"><div class="panel-head"><div><p class="kicker">'+esc(c.atv.rot)+' · '+esc(compEstado.turno)+'</p><h4>Participação dos times</h4></div></div>'+
-      '<div class="comp-pizza-corpo" id="comp-pizza-corpo"><div id="comp-pizza"></div><div class="comp-leg-pizza" id="comp-leg-pizza"></div></div></div>';
+      '<div class="comp-pizza-corpo" id="comp-pizza-corpo"><div id="comp-pizza"></div><div class="comp-leg-col"><div class="comp-pizza-info" id="comp-pizza-info"></div><div class="comp-leg-pizza" id="comp-leg-pizza"></div></div></div></div>';
     var rolagemAtual = document.getElementById('comp-escada-scroll');
     if (rolagemAtual) compEstado.rolagem = rolagemAtual.scrollLeft;
-    elP.innerHTML = '<div class="comp-placar">'+cards+cardTotal+'</div><div class="comp-linha2">'+cardPizza+cardHora+'</div>'+aviso;
+    elP.innerHTML = placar+'<div class="comp-linha2">'+cardPizza+cardHora+'</div>'+aviso;
     desenharPizzaComp(c);
     if (!dHora.aviso) desenharHorasComp(c, dHora);
     elE.innerHTML = '<div class="comp-equipes">'+c.times.map(function(t){
