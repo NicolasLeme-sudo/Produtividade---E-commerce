@@ -709,7 +709,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
               <button class="chip on" data-atv="sep_geral">Separação · Geral</button>
               <button class="chip" data-atv="sep_colmeia">Separação · Colmeia</button>
               <button class="chip" data-atv="sep_checkout">Separação · Checkout</button>
-              <button class="chip" data-atv="conf_checkout">Conferência · Checkout / Faturamento</button>
+              <button class="chip" data-atv="conf_checkout">Conferência · Checkout</button>
               <button class="chip" data-atv="conf_colmeia">Conferência · Colmeia</button>
               <button class="chip" data-atv="todas">▦ Todas agrupadas</button>
             </div>
@@ -1137,7 +1137,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var totalVol = colmeiaVol ? somaValores(colmeiaVol) : d.totalColmeiaVol;
     el.innerHTML = '<div class="duo">'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Peças conferidas</p><h4>Checkout &amp; Etiqueta</h4></div><span class="pill info">'+fmt(totalCheckout)+'</span></div>'+
-      barListHtml(confCheckout) + '<p class="fonte">Fonte: Conferência Analítica (Checkout / Faturamento)</p></div>'+
+      barListHtml(confCheckout) + '<p class="fonte">Fonte: Conferência Analítica (Checkout)</p></div>'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Unidades montadas</p><h4>Colmeia</h4></div><span class="pill info">'+fmt(totalUnit)+' · '+fmt(totalVol)+' vol.</span></div>'+
       barListHtml(colmeiaUnit) +
       '<p class="fonte">Fonte: Conferência Colmeia (Qtde Unitária Montada)</p></div></div>';
@@ -1494,7 +1494,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     sep_geral:     { rot:'Separação · Geral', fontes:['sep_checkout','sep_colmeia'], unid:'peças', segFonte:'sep_geral' },
     sep_colmeia:   { rot:'Separação · Colmeia', fontes:['sep_colmeia'], unid:'unidades' },
     sep_checkout:  { rot:'Separação · Checkout', fontes:['sep_checkout'], unid:'peças' },
-    conf_checkout: { rot:'Conferência · Checkout / Faturamento', fontes:['conf_checkout'], unid:'peças' },
+    conf_checkout: { rot:'Conferência · Checkout', fontes:['conf_checkout'], unid:'peças' },
     conf_colmeia:  { rot:'Conferência · Colmeia', fontes:['conf_colmeia'], unid:'unidades' }
   };
   var CRIT_COMP = {

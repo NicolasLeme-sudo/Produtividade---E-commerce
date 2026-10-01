@@ -1108,7 +1108,7 @@ async function salvarMetaInventario() {
 var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
 var COMP_ATIVS = [
   ["sep_checkout", "Separação · Checkout"], ["sep_colmeia", "Separação · Colmeia"],
-  ["conf_checkout", "Conferência · Checkout / Faturamento"], ["conf_colmeia", "Conferência · Colmeia"],
+  ["conf_checkout", "Conferência · Checkout"], ["conf_colmeia", "Conferência · Colmeia"],
 ];
 var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"] };
 var compAdm = { turno: "1º Turno", atv: "sep_checkout", time: 1, editando: null, linhas: [], indice: null };
@@ -1248,7 +1248,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     var aoa = [["Nome", "Usuário WMS", "Turno", "Atividade", "Setor", "Piso", "Time"],
       ["Livia Silva", "LIVIA.SILVA", "1º Turno", "Separação Checkout", "Calçados", 1, "01"],
       ["Jessica Moura", "JESSICA.MOURA", "1º Turno", "Separação Colmeia", "Calçados", 1, "02"],
-      ["Ana B. Silva", "ANA.B.SILVA", "2º Turno", "Conferência Checkout / Faturamento", "Vestuário", 1, "04"]];
+      ["Ana B. Silva", "ANA.B.SILVA", "2º Turno", "Conferência Checkout", "Vestuário", 1, "04"]];
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
     XLSX.writeFile(wb, "modelo_competicao_times.xlsx");
@@ -1341,7 +1341,7 @@ async function renderAbastecimento() {
     grupoAbastecimento("Outbound", [
       caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
       caixaUpload("up-separacao-analitica", "Separação Analítica", "Alimenta <strong>Separação Checkout e Colmeia</strong> (ranking, gráfico por dia, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Uma linha por tarefa, com Data/Hora Início. Substitui a Produtividade de Separação."),
-      caixaUpload("up-conferencia-analitica", "Conferência Analítica", "Alimenta <strong>Conferência Checkout / Faturamento</strong> (ranking, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Substitui a Conferência Checkout/Etiqueta."),
+      caixaUpload("up-conferencia-analitica", "Conferência Analítica", "Alimenta <strong>Conferência Checkout</strong> (ranking, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Substitui a Conferência Checkout/Etiqueta."),
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
     ]) +
     grupoAbastecimento("Gestão de Estoque", [
