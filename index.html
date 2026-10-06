@@ -754,7 +754,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         <div class="subsection" id="abastecimento">
           <div class="sub-head">
             <div><p class="kicker">Admin · Abastecimento de base</p><h3>Relatórios que alimentam cada tela</h3></div>
-            <span class="pill manual">Restrito ao Admin</span>
           </div>
           <div id="bloco-abastecimento"></div>
         </div>
@@ -762,7 +761,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         <div class="subsection" id="ativos">
           <div class="sub-head">
             <div><p class="kicker">Admin · Base de ativos</p><h3>Colaboradores cadastrados</h3></div>
-            <span class="pill manual">Restrito ao Admin</span>
           </div>
           <div id="bloco-ativos"></div>
         </div>
@@ -923,7 +921,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var box = idContainer && document.getElementById(idContainer);
     var larguraDisp = box && box.clientWidth ? box.clientWidth - 40 : 640;
     var n = pontos.length;
-    var W = Math.max(n*80, Math.min(larguraDisp, 1100)), H = 210, esq = 52, dir = 30, topo = 36, base = 164;
+    var ESC = 1.5, W = Math.max(n*90, Math.min(larguraDisp/ESC, 900)), H = 210, esq = 52, dir = 30, topo = 36, base = 164;
     var maxV = Math.max.apply(null, pontos.map(function(p){ return p.valor||0; })) || 1;
     var passoY = Math.pow(10, Math.floor(Math.log10(maxV/2)));
     var vMax = Math.ceil(maxV/passoY)*passoY;
@@ -932,7 +930,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var y = function(v){ return base - (v/vMax)*(base-topo); };
     var pts = pontos.map(function(p,i){ return [x(i), y(p.valor||0)]; });
     var c = 'var('+cor+')';
-    var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="display:block; overflow:visible" role="img" aria-label="Série diária">';
+    var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+Math.round(W*ESC)+'" height="'+Math.round(H*ESC)+'" style="display:block; overflow:visible" role="img" aria-label="Série diária">';
     s += '<line x1="'+esq+'" y1="'+base+'" x2="'+(W-dir)+'" y2="'+base+'" stroke="var(--border)"/>';
     s += '<line x1="'+esq+'" y1="'+topo+'" x2="'+(W-dir)+'" y2="'+topo+'" stroke="var(--border)" stroke-dasharray="3 6"/>';
     s += '<text x="'+(esq-8)+'" y="'+(base+4)+'" font-size="9.5" fill="var(--text-muted)" text-anchor="end">0</text>';
