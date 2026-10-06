@@ -846,8 +846,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         '<div class="bar-track"><i style="width:'+pct+'%; background:var('+cor+')"></i></div>'+
         '<div class="num">'+fmt(i.valor)+(opts.sufixo||'')+'</div></div>';
     }).join('');
-    return '<div class="bar-scroll"><div class="bar-list">'+html+'</div></div>' +
-      (itens.length > 5 ? '<div class="scroll-hint">↕ '+itens.length+' colaboradores — role para ver todos</div>' : '');
+    return '<div class="bar-scroll"><div class="bar-list">'+html+'</div></div>';
   }
 
   function tabelaOpHtml(colunas, linhas, totalizar){
@@ -1114,7 +1113,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       ranking = Object.keys(somaSep).map(function(n){ return { nome:n, valor:somaSep[n] }; }).sort(function(a,b){ return b.valor - a.valor; });
     }
     var painelRanking = '<div class="panel"><div class="panel-head"><div><p class="kicker">Ranking de separadores</p><h4>Produtividade por separador</h4></div></div>'+
-      barListHtml(ranking, {clicavel:true}) + '<div class="scroll-hint">Clique na barra para ver as peças por hora</div></div>';
+      barListHtml(ranking, {clicavel:true}) + '</div>';
     document.getElementById('bloco-separacao').innerHTML = kpisHtml + painelSerie + painelRanking;
     document.querySelectorAll('#bloco-separacao .bar-row.clic').forEach(function(r){
       r.addEventListener('click', function(ev){ ev.stopPropagation(); abrirHorasSeparador(r.getAttribute('data-nome'), r); });
@@ -1203,10 +1202,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Meta Dia × Itens Contados · linha = Curva Real</p><h4>Realizado × Meta × Curva</h4></div></div>'+
       chartBarrasLinhaHtml(serieInvFiltrada) +
       '<div class="legend-line"><span><i class="sq" style="background:var(--accent)"></i>Meta Dia</span><span><i class="sq" style="background:var(--amber)"></i>Itens Contados</span><span><i style="background:var(--olive)"></i>Curva Real</span></div>'+
-      '<p class="fonte">Produtividade de inventário é por ciclo, não por colaborador: todo mundo faz a 1ª contagem e um único usuário faz as seguintes.</p></div>';
+      '</div>';
     var painelHeat = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens bipados por bloco e piso</p><h4>Matriz Bloco × Piso</h4></div></div>'+
       heatmapHtml(d.heatmap) +
-      '<div class="legend-line"><span>Mapeamento: A/B/C = Calçados (pisos 1 a 4), E/F/G = Vestuário (só piso 1), sem Bloco D.</span></div></div>';
+      '</div>';
     document.getElementById('bloco-inventario').innerHTML = avisoCiclo + kpisHtml + painelSerie + painelHeat;
   }
 
@@ -1267,7 +1266,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '<div class="panel"><div class="panel-head"><div><p class="kicker">'+fmt(totalPeriodo)+' cancelamentos no período</p><h4>Motivo</h4></div></div>'+ barListHtml(motivos) + '</div>'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Quem cancelou</p><h4>Usuário</h4></div></div>'+
       tabelaOpHtml(['Usuário','Cancelamentos'], usuarios) +
-      '<div class="legend-line"><span>SINGLE: <strong>'+fmt(single)+'</strong> · MULTI: <strong>'+fmt(multi)+'</strong></span></div>'+
       '</div></div>';
   }
 
@@ -1284,7 +1282,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var serie = filtrarSerieporGrupo(d.serieDia, 'reversa', 'data');
     var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Evolução diária</p><h4>NFs integradas por dia</h4></div></div>'+
       chartLinhaSimplesHtml((serie||[]).map(function(p){ return {rotulo:fmtDataBR(p.data).slice(0,5), valor:p.total}; }), '--olive', 'bloco-integracao') +
-      '<p class="fonte">Junção: OR → Controle de NF Reversa (campo Ordem de Recebimento) → Itens de NF de Entrada (idNotaFiscal). Os KPIs mostram só o que está em tela.</p></div>';
+      '</div>';
     document.getElementById('bloco-integracao').innerHTML = kpisHtml + painel;
   }
 
@@ -1309,13 +1307,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     if (titulo) titulo.textContent = emPedidos ? 'Pedidos vinculados por colaborador' : 'ORs vinculadas por colaborador';
     var unid = emPedidos ? 'pedidos' : 'ORs';
     var pill = fmt(total)+' '+unid+(emPedidos && totalOR ? ' · '+fmt(totalOR)+' ORs' : '');
-    var legenda = '<strong>'+fmt(naoIdent)+' '+unid+'</strong> sem nome identificável no campo Veiculo'+(emPedidos ? ' ('+fmt(naoIdentOR)+' ORs)' : '')+' — aparecem como "não identificado", nunca descartados.';
-    var aviso = emPedidos && diasAntigos
-      ? '<div class="legend-line"><span>⚠ '+fmt(diasAntigos)+(diasAntigos===1 ? ' dia do período ainda está' : ' dias do período ainda estão')+' em ORs — reenvie o Gerenciador de OR desse período para contar em pedidos.</span></div>' : '';
     var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Nome extraído do campo "Veiculo"</p><h4>Ranking de vinculação</h4></div><span class="pill info">'+pill+'</span></div>'+
-      barListHtml(rankingVinc) +
-      '<div class="legend-line"><span>'+legenda+'</span></div>'+ aviso +
-      '<p class="fonte">O WMS não grava quem vinculou: "Cadastrado pelo Usuário" é sempre SILT (integração). Pedido = cada nota fiscal do campo "Nota Fiscal" da OR.</p></div>';
+      barListHtml(rankingVinc) + '</div>';
     el.innerHTML = painel;
   }
 
@@ -1792,8 +1785,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       ang = a2;
     });
     box.innerHTML = s + '</svg>';
-    leg.innerHTML = fatias.map(function(f, i){ return '<div class="comp-leg" data-i="'+i+'" style="--c:'+f.cor+'"><i></i><span>'+f.rot+'</span></div>'; }).join('') +
-      ((compEstado.turno !== 'Todos' && c.semTurno) ? '<div class="comp-aviso">'+c.semTurno+' pessoa(s) sem turno na Base de Ativos ficam de fora</div>' : '');
+    leg.innerHTML = fatias.map(function(f, i){ return '<div class="comp-leg" data-i="'+i+'" style="--c:'+f.cor+'"><i></i><span>'+f.rot+'</span></div>'; }).join('');
     var info = document.getElementById('comp-pizza-info'), DICA = 'Passe o mouse sobre uma fatia ou time', paths = box.querySelectorAll('.comp-fatia'), legs = leg.querySelectorAll('.comp-leg');
     info.textContent = DICA;
     function foco(i){
