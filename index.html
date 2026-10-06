@@ -503,7 +503,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Outbound · Separação</p><h3>Status atual e produtividade por separador</h3></div>
             <div class="sub-head-tools">
-              <span class="pill auto">Automático</span>
               <button class="btn-icon" title="Exportar produtividade de Separação" onclick="exportarOperacao('separacao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -514,7 +513,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Outbound · Conferência</p><h3>Ranking de conferência por colaborador</h3></div>
             <div class="sub-head-tools">
-              <span class="pill auto">Automático</span>
               <button class="btn-icon" title="Exportar produtividade de Conferência" onclick="exportarOperacao('conferencia')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -525,7 +523,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Outbound · Expedição</p><h3>Volumes expedidos × forecast — hoje ±7 dias</h3></div>
             <div class="sub-head-tools">
-              <span class="pill auto" id="exp-pill">Automático</span>
+              <span class="pill parcial" id="exp-pill" hidden></span>
               <button class="btn-icon" title="Exportar produtividade de Expedição" onclick="exportarOperacao('expedicao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -535,11 +533,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
               <span class="pill info">Arraste para ver dias futuros</span>
             </div>
             <div class="chart-scroll-x" id="expScroll"><div id="expChart"></div></div>
-            <div class="legend-line">
-              <span><i style="background:var(--olive)"></i>Expedido (realizado)</span>
-              <span><i style="background:var(--accent)"></i>Forecast / meta</span>
-            </div>
-            <p class="fonte">Fonte: Report E-commerce (Acompanhamento_Exp + Forecast mensal). O dia de hoje só mostra o expedido depois que a expedição é fechada lá. Não responde ao filtro de data.</p>
           </div>
         </div>
 
@@ -565,7 +558,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Inbound · Recebimento</p><h3>ORs conferidas × itens armazenados</h3></div>
             <div class="sub-head-tools">
-              <span class="pill auto">Automático</span>
               <button class="btn-icon" title="Exportar produtividade de Recebimento" onclick="exportarOperacao('recebimento')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -576,7 +568,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Inbound · Armazenagem</p><h3>Itens armazenados por colaborador</h3></div>
             <div class="sub-head-tools">
-              <span class="pill auto">Automático</span>
               <button class="btn-icon" title="Exportar produtividade de Armazenagem" onclick="exportarOperacao('armazenagem')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -587,7 +578,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Inbound · Movimentação de Pallets</p><h3>Movimentação por turno e por piso</h3></div>
             <div class="sub-head-tools">
-              <span class="pill manual">Manual</span>
               <button class="btn-icon" title="Exportar Movimentação de Pallets" onclick="exportarOperacao('pallets')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -630,7 +620,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Gestão de Estoque · Inventário</p><h3>Ciclo — bipagens e curva</h3></div>
             <div class="sub-head-tools">
-              <span class="pill auto">Automático</span>
               <button class="btn-icon" title="Exportar produtividade de Inventário" onclick="exportarOperacao('inventario')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -643,7 +632,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Gestão de Estoque · Corte e Pula</p><h3>Falso corte e produtividade de Pula</h3></div>
             <div class="sub-head-tools">
-              <span class="pill auto">Automático</span>
               <button class="btn-icon" title="Exportar produtividade de Corte · Pula" onclick="exportarOperacao('corte')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -654,7 +642,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Gestão de Estoque · Cancelamentos WMS</p><h3>Pedidos cancelados por motivo e usuário</h3></div>
             <div class="sub-head-tools">
-              <span class="pill auto">Automático</span>
               <button class="btn-icon" title="Exportar Cancelamentos WMS" onclick="exportarOperacao('cancelamentos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -682,7 +669,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Reversa · Integração de Pedidos</p><h3>NFs de devolução na base</h3></div>
             <div class="sub-head-tools">
-              <span class="pill auto">Automático</span>
               <button class="btn-icon" title="Exportar produtividade de Integração" onclick="exportarOperacao('integracao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -693,7 +679,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="sub-head">
             <div><p class="kicker">Reversa · Vinculação</p><h3 id="vinc-titulo">ORs vinculadas por colaborador</h3></div>
             <div class="sub-head-tools">
-              <span class="pill parcial">Parcial</span>
               <button class="btn-icon" title="Exportar produtividade de Vinculação" onclick="exportarOperacao('vinculacao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
             </div>
           </div>
@@ -750,7 +735,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         <div class="subsection" id="placar">
           <div class="sub-head">
             <div><p class="kicker" id="comp-kicker">Competição</p><h3>Placar dos times</h3></div>
-            <div class="sub-head-tools"><span class="pill auto">Automático</span></div>
+            <div class="sub-head-tools"></div>
           </div>
           <div id="bloco-placar"></div>
         </div>
@@ -1123,7 +1108,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '</div>';
     var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por dia</p></div></div>'+
       barrasDiaHtml(serieFiltrada, [ {campo:'checkout', cor:'--accent', rotulo:'Checkout (SINGLE)'}, {campo:'colmeia', cor:'--olive', rotulo:'Colmeia (MULTI)'} ]) +
-      '<p class="fonte">Fonte: Separação Analítica (Checkout e Colmeia, pela Região Destino).</p></div>';
+      '</div>';
     var ranking = (d.ranking && d.ranking.geral) || [];
     if ((d.colmeiaDia && d.colmeiaDia.length) || (d.checkoutDia && d.checkoutDia.length)) {
       var somaSep = {};
@@ -1149,10 +1134,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var totalVol = colmeiaVol ? somaValores(colmeiaVol) : d.totalColmeiaVol;
     el.innerHTML = '<div class="duo">'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Peças conferidas</p><h4>Checkout &amp; Etiqueta</h4></div><span class="pill info">'+fmt(totalCheckout)+'</span></div>'+
-      barListHtml(confCheckout) + '<p class="fonte">Fonte: Conferência Analítica (Checkout)</p></div>'+
+      barListHtml(confCheckout) + '</div>'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Unidades montadas</p><h4>Colmeia</h4></div><span class="pill info">'+fmt(totalUnit)+' · '+fmt(totalVol)+' vol.</span></div>'+
       barListHtml(colmeiaUnit) +
-      '<p class="fonte">Fonte: Conferência Colmeia (Qtde Unitária Montada)</p></div></div>';
+      '</div></div>';
   }
 
   function renderRecebimento(d, arm){
@@ -1178,7 +1163,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     }
     var duo = '<div class="duo">'+srCard('Recebimento normal', normalObj, '--olive') + srCard('Reversa', reversaObj, '--laranja') + '</div>';
     var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Ranking por conferente</p><h4>ORs conferidas</h4></div></div>'+
-      barListHtml(rankingRec) + '<p class="fonte">Fonte: Gerenciador de OR (geral), campo "Usuário da Conferência".</p></div>';
+      barListHtml(rankingRec) + '</div>';
     el.innerHTML = duo + painel;
   }
 
@@ -1192,7 +1177,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     el.innerHTML = '<div class="duo">'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços H / I / J</p><h4>Recebimento</h4></div><span class="pill info">'+fmt(totNormal)+'</span></div>'+ barListHtml(armNormal, {cor:'--accent'}) + '</div>'+
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Endereços iniciados em S</p><h4>Devolução</h4></div><span class="pill info">'+fmt(totReversa)+'</span></div>'+ barListHtml(armReversa, {cor:'--laranja'}) + '</div>'+
-      '</div><p class="fonte">Fonte: Kardex de Endereço · regra Estoque Antes − Estoque Após.</p>';
+      '</div>';
   }
 
   function renderPallets(d){
@@ -1258,7 +1243,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     }
     var painel = '<div class="panel"><div class="panel-head"><div><p class="kicker">Separadores que sinalizaram corte/pula e o time localizou no endereço</p><h4>Maiores agressores</h4></div></div>'+
       barListHtml(lista.map(function(l){ return {nome:l.nome, valor:l.valor}; }), {cor:'--laranja'}) +
-      '<p class="fonte">Fonte: Base Geral Corte/Pula — abas "Pulas - Colmeia" e "Corte Físico - Checkout Express", campo STATUS = NO ENDEREÇO.</p></div>';
+      '</div>';
     el.innerHTML = kpisHtml + painel;
   }
 
@@ -1285,7 +1270,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '<div class="panel"><div class="panel-head"><div><p class="kicker">Quem cancelou</p><h4>Usuário</h4></div></div>'+
       tabelaOpHtml(['Usuário','Cancelamentos'], usuarios) +
       '<div class="legend-line"><span>SINGLE: <strong>'+fmt(single)+'</strong> · MULTI: <strong>'+fmt(multi)+'</strong></span></div>'+
-      '<p class="fonte">Fonte: Controle de Nota Fiscal, coluna Data de Cancelamento.</p></div></div>';
+      '</div></div>';
   }
 
   function renderIntegracao(d){
@@ -1374,7 +1359,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var { data, error } = await reportEcommClient.rpc('produtividade_expedicao', { de: isoLocal(de), ate: isoLocal(ate) });
     if (error) {
       console.error('Erro ao ler expedição do Report E-commerce', error);
-      var pill = document.getElementById('exp-pill'); if (pill) { pill.className = 'pill parcial'; pill.textContent = 'Sem conexão'; }
+      var pill = document.getElementById('exp-pill'); if (pill) { pill.className = 'pill parcial'; pill.textContent = 'Sem conexão'; pill.hidden = false; }
       box.innerHTML = estadoVazio('Não foi possível ler a expedição', 'Falha ao consultar o Report E-commerce: '+esc(error.message||''));
       return;
     }
@@ -1400,7 +1385,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var box = document.getElementById('expChart');
     if (!EXP.length) { box.innerHTML = estadoVazio('Sem dados de expedição na janela', 'O Report E-commerce ainda não tem expedição/forecast para estes dias.'); return; }
     var IDX_HOJE = Math.max(0, EXP.findIndex(function(p){ return p.hoje; }));
-    var PAD_L=62, PASSO=96, PAD_R=46, ALTO=46, BAIXO=196;
+    var PAD_L=62, PASSO=112, PAD_R=46, ALTO=46, BAIXO=196, ESCALA=1.45;
     function xPos(i){ return PAD_L + i*PASSO; }
     var maxV = Math.max.apply(null, EXP.map(function(p){ return Math.max(p.exp||0, p.meta||0); })) || 1;
     var passoY = Math.pow(10, Math.floor(Math.log10(maxV/4)));
@@ -1416,7 +1401,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       if(at.length) out.push(at);
       return out;
     }
-    var s = '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Volumes expedidos contra forecast">';
+    var s = '<svg width="'+Math.round(W*ESCALA)+'" height="'+Math.round(H*ESCALA)+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Volumes expedidos contra forecast">';
     var xFut = xPos(IDX_HOJE) + PASSO/2;
     if (IDX_HOJE < EXP.length-1) {
       s += '<rect x="'+xFut+'" y="'+(ALTO-24)+'" width="'+(W-xFut-6)+'" height="'+(BAIXO-ALTO+48)+'" fill="var(--bg-input)" opacity="0.5"/>';
@@ -1454,7 +1439,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     });
     box.innerHTML = s + '</svg>';
     var sc = document.getElementById('expScroll');
-    requestAnimationFrame(function(){ if (sc.clientWidth) sc.scrollLeft = xh - sc.clientWidth/2; });
+    requestAnimationFrame(function(){ if (sc.clientWidth) sc.scrollLeft = xh*ESCALA - sc.clientWidth/2; });
   }
 
   // ---------- orquestração por página ----------
