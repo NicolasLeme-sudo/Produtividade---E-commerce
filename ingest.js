@@ -1041,6 +1041,7 @@ function definirStatus(id, texto, classe) {
     var textoFinal = texto + " · " + quando;
     try { localStorage.setItem("abastecimento_" + id, textoFinal); } catch (e) {}
     if (el) { el.textContent = textoFinal; el.className = "upload-status ok"; }
+    registrarAbastecimento(id, texto);   // grava no banco: vale em qualquer navegador
   } else {
     if (el) { el.textContent = texto; el.className = "upload-status" + (classe ? " " + classe : ""); }
   }
@@ -1050,7 +1051,72 @@ function definirStatus(id, texto, classe) {
 // Chamado depois de renderizar a tela de Abastecimento: relê o localStorage
 // e repõe a última confirmação de cada card, já que o innerHTML foi recriado
 // do zero (sem isso, a mensagem "some" ao sair e voltar pra tela).
+// ---- Registro de abastecimentos no banco (tabela abastecimentos) ----
+// Último dia com dado de cada upload, lido do snapshot recém-gravado.
+var ULTIMO_DIA_FONTES = {
+  "up-kardex-geral": [["inbound", ["armazenagem", "normalDia"]], ["inbound", ["armazenagem", "reversaDia"]], ["estoque", ["pula", "rankingDia"]]],
+  "up-gerenciador-or-geral": [["inbound", ["recebimento", "resumoDia"]], ["reversa", ["vinculacao", "resumoDia"]]],
+  "up-controle-nf-geral": [["estoque", ["cancelamentos", "porDia"]], ["reversa", ["integracao", "serieDia"]]],
+  "up-separacao-analitica": [["outbound", ["separacao", "checkoutDia"]], ["outbound", ["separacao", "colmeiaDia"]]],
+  "up-conferencia-analitica": [["outbound", ["conferencia", "confCheckoutDia"]]],
+  "up-conf-colmeia": [["outbound", ["conferencia", "confColmeiaUnitDia"]]],
+  "up-corte-tela": [["estoque", ["corte", "serieTela"]]],
+  "up-corte-resolvido": [["estoque", ["corte", "resolvidoDia"]]],
+};
+async function ultimoDiaDosDados(id) {
+  var fontes = ULTIMO_DIA_FONTES[id];
+  if (!fontes) return null;
+  var cache = {}, maior = null;
+  for (var i = 0; i < fontes.length; i++) {
+    var pag = fontes[i][0];
+    if (!cache[pag]) cache[pag] = await lerSnapshot(pag);
+    var no = cache[pag];
+    fontes[i][1].forEach(function (k) { no = no && no[k]; });
+    if (!Array.isArray(no)) continue;
+    no.forEach(function (x) {
+      var d = x && (x.data || x.dia);
+      if (d && /^\d{4}-\d{2}-\d{2}/.test(String(d))) { d = String(d).slice(0, 10); if (!maior || d > maior) maior = d; }
+    });
+  }
+  return maior;
+}
+async function registrarAbastecimento(id, resumo) {
+  try {
+    var ultimo = await ultimoDiaDosDados(id);
+    var { data: sessao } = await supabaseClient.auth.getSession();
+    var usuario = sessao && sessao.session ? sessao.session.user.email : null;
+    var linha = { id: id, enviado_em: new Date().toISOString(), usuario: usuario, resumo: String(resumo || "").replace(/^✓\s*/, ""), ultimo_dia: ultimo };
+    var { error } = await supabaseClient.from("abastecimentos").upsert(linha, { onConflict: "id" });
+    if (error) throw error;
+    mostrarAbastecimento(linha);
+  } catch (e) { console.error("Não foi possível registrar o abastecimento", e); }
+}
+function mostrarAbastecimento(l) {
+  var el = document.getElementById(l.id + "-status");
+  if (!el) return;
+  var q = new Date(l.enviado_em);
+  var quando = q.toLocaleDateString("pt-BR") + " às " + q.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  var html = "✓ " + htmlSeguro(l.resumo || "Enviado") + " · enviado em " + quando;
+  if (l.usuario) html += " por " + htmlSeguro(l.usuario);
+  if (l.ultimo_dia) {
+    html += " · dados até <strong>" + fmtDataBRIngest(l.ultimo_dia) + "</strong>";
+    var p = String(l.ultimo_dia).slice(0, 10).split("-"), hoje = new Date();
+    var atraso = Math.floor((new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()) - new Date(+p[0], +p[1] - 1, +p[2])) / 86400000);
+    if (atraso > 3) html += ' <span class="comp-aviso" style="border:none;padding:0;margin:0">⚠ ' + atraso + " dias sem dados novos</span>";
+  }
+  el.innerHTML = html; el.className = "upload-status ok";
+  var badge = document.getElementById(l.id + "-badge"); if (badge) badge.hidden = false;
+}
+async function carregarAbastecimentos() {
+  try {
+    var { data, error } = await supabaseClient.from("abastecimentos").select("*");
+    if (error) throw error;
+    (data || []).forEach(mostrarAbastecimento);
+  } catch (e) { console.error("Não foi possível ler os abastecimentos", e); }
+}
+
 function restaurarStatusAbastecimento() {
+  carregarAbastecimentos();
   document.querySelectorAll('[id$="-status"]').forEach(function (el) {
     var id = el.id.replace(/-status$/, "");
     var salvo;

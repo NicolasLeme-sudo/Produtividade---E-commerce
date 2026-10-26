@@ -521,7 +521,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
         <div class="subsection" id="expedicao">
           <div class="sub-head">
-            <div><p class="kicker">Outbound · Expedição</p><h3>Volumes expedidos × forecast — hoje ±7 dias</h3></div>
+            <div><p class="kicker">Outbound · Expedição</p><h3 id="exp-titulo">Volumes expedidos × forecast — hoje ±7 dias</h3></div>
             <div class="sub-head-tools">
               <span class="pill parcial" id="exp-pill" hidden></span>
               <button class="btn-icon" title="Exportar produtividade de Expedição" onclick="exportarOperacao('expedicao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></button>
@@ -529,8 +529,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           </div>
           <div class="panel">
             <div class="panel-head">
-              <div><p class="kicker">Janela própria · hoje ±7 dias</p><h4>Expedido × Forecast (itens)</h4></div>
-              <span class="pill info">Arraste para ver dias futuros</span>
+              <div><p class="kicker" id="exp-kicker">Janela própria · hoje ±7 dias</p><h4>Expedido × Forecast (itens)</h4></div>
+              <div class="chips" id="exp-janela"><button type="button" class="chip on" data-dias="7">7 dias</button><button type="button" class="chip" data-dias="15">15 dias</button></div>
             </div>
             <div class="chart-scroll-x" id="expScroll"><div id="expChart"></div></div>
           </div>
@@ -1318,7 +1318,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   var REPORT_ECOMM_URL = 'https://tawliuofpmfohylqdnix.supabase.co';
   var REPORT_ECOMM_KEY = 'sb_publishable__a5cJ6yFJIMgf505C4v7vQ_igDbuv5k';
   var reportEcommClient = window.supabase.createClient(REPORT_ECOMM_URL, REPORT_ECOMM_KEY, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'report-ecomm-leitura' } });
-  var expCache = null;
+  var expCache = {}, expJanela = 7;   // cache por janela (±7 ou ±15 dias)
   var DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
   function chipLabel(x, y, texto, cor){
@@ -1340,13 +1340,22 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   }
   function isoLocal(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
 
+  document.querySelectorAll('#exp-janela .chip').forEach(function(b){
+    b.addEventListener('click', function(){
+      expJanela = +b.getAttribute('data-dias');
+      document.querySelectorAll('#exp-janela .chip').forEach(function(x){ x.classList.toggle('on', x === b); });
+      document.getElementById('exp-titulo').textContent = 'Volumes expedidos × forecast — hoje ±'+expJanela+' dias';
+      document.getElementById('exp-kicker').textContent = 'Janela própria · hoje ±'+expJanela+' dias';
+      carregarExpedicao();
+    });
+  });
   async function carregarExpedicao(){
     var box = document.getElementById('expChart');
     if (!box) return;
-    if (expCache) { desenharExpedicao(expCache); return; }
+    if (expCache[expJanela]) { desenharExpedicao(expCache[expJanela]); return; }
     var hoje = new Date(); hoje.setHours(0,0,0,0);
     var de = new Date(hoje), ate = new Date(hoje);
-    de.setDate(de.getDate()-7); ate.setDate(ate.getDate()+7);
+    de.setDate(de.getDate()-expJanela); ate.setDate(ate.getDate()+expJanela);
     var { data, error } = await reportEcommClient.rpc('produtividade_expedicao', { de: isoLocal(de), ate: isoLocal(ate) });
     if (error) {
       console.error('Erro ao ler expedição do Report E-commerce', error);
@@ -1355,7 +1364,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       return;
     }
     var hojeISO = isoLocal(hoje);
-    expCache = (data||[]).map(function(r){
+    var lista = (data||[]).map(function(r){
       var iso = String(r.data).slice(0,10), p = iso.split('-');
       var dt = new Date(+p[0], +p[1]-1, +p[2]);
       var futuro = iso > hojeISO, ehHoje = iso === hojeISO;
@@ -1368,8 +1377,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       };
     });
     snapshots.outbound = snapshots.outbound || {};
-    snapshots.outbound.expedicao = expCache.map(function(x){ return { data:x.iso, expedido:x.exp, forecast:x.meta }; });
-    desenharExpedicao(expCache);
+    expCache[expJanela] = lista;
+    snapshots.outbound.expedicao = lista.map(function(x){ return { data:x.iso, expedido:x.exp, forecast:x.meta }; });
+    desenharExpedicao(lista);
   }
 
   function desenharExpedicao(EXP){
