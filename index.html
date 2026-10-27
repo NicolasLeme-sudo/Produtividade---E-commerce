@@ -1949,13 +1949,15 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var rolagem = scroll.scrollLeft || compEstado.rolagem || 0;
     var times = c.times.filter(function(t){ return t.lista.length; });
     var sel = times.filter(function(t){ return compEstado.selHoras[t.n]; });
-    var modo = !sel.length ? 'geral' : (sel.length === times.length && times.length > 1 ? 'todos' : 'foco');
+    var modo = sel.length ? 'foco' : 'geral';   // com 1 ou mais times marcados, a soma deles aparece dentro da coluna do total
     var slot = document.getElementById('comp-janela-slot');
     slot.innerHTML = chipsTimesHtml(times);
     function redesenhar(){ compEstado.rolagem = scroll.scrollLeft; desenharHorasComp(c, d); }
     slot.querySelectorAll('[data-n]').forEach(function(b){ b.addEventListener('click', function(){ var n = b.getAttribute('data-n'); if (compEstado.selHoras[n]) delete compEstado.selHoras[n]; else compEstado.selHoras[n] = true; redesenhar(); }); });
     slot.querySelector('[data-todos]').addEventListener('click', function(){
-      if (modo === 'todos') compEstado.selHoras = {}; else { compEstado.selHoras = {}; times.forEach(function(t){ compEstado.selHoras[t.n] = true; }); }
+      var todos = sel.length === times.length;
+      compEstado.selHoras = {};
+      if (!todos) times.forEach(function(t){ compEstado.selHoras[t.n] = true; });
       redesenhar();
     });
 
@@ -2005,7 +2007,11 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
             acc += v;
           });
         }
-        s += '</g><text x="'+rotX(i)+'" y="'+(y(parte)-6)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle" pointer-events="none">'+fmt(parte)+'</text>';
+        s += '</g>';
+        // rótulo do total da hora em cima da coluna escura; a soma dos times marcados fica em cima da parte colorida
+        if (modo === 'foco' && parte !== tot) s += '<text x="'+rotX(i)+'" y="'+(y(tot)-6)+'" font-size="10.5" font-weight="700" fill="var(--text-muted)" text-anchor="middle" pointer-events="none">'+fmt(tot)+'</text>';
+        var yParte = (modo === 'foco' && parte !== tot) ? Math.max(y(parte)-6, y(tot)+15) : y(parte)-6;   // nunca encosta no rótulo do total
+        if (yParte < base - 4) s += '<text x="'+rotX(i)+'" y="'+yParte+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle" pointer-events="none">'+fmt(parte)+'</text>';
         s += '<text class="comp-rot" x="'+rotX(i)+'" y="'+(base+17)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(hh).padStart(2,'0')+'h</text></g>';
       });
     }
