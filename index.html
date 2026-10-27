@@ -345,8 +345,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-rastro{position:absolute; left:4%; bottom:6px; height:5px; width:calc((93% - 62px) * var(--p) + 32px); border-radius:3px; background:linear-gradient(90deg, transparent, var(--c));}
 .comp-cavalo{position:absolute; left:calc(4% + 62px + (93% - 62px) * var(--p)); bottom:2px; width:96px; height:63px; margin-left:-78px; transform:scale(-.62,.62); transform-origin:50% 100%; background:var(--c); z-index:2;
   -webkit-mask:url(/cavalo-sprite.png) 0 0/1536px 63px no-repeat; mask:url(/cavalo-sprite.png) 0 0/1536px 63px no-repeat; animation:comp-galope var(--d,.8s) steps(16) infinite var(--dl,0s);}
+@property --p{ syntax:'<number>'; inherits:false; initial-value:0; }
+.comp-cavalo,.comp-rastro{transition:--p 1.4s cubic-bezier(.25,.8,.3,1);}
 @keyframes comp-galope{from{-webkit-mask-position:0 0; mask-position:0 0;} to{-webkit-mask-position:-1536px 0; mask-position:-1536px 0;}}
-@media (prefers-reduced-motion:reduce){ .comp-cavalo{animation:none;} }
+@media (prefers-reduced-motion:reduce){ .comp-cavalo{animation:none;} .comp-cavalo,.comp-rastro{transition:none;} }
 .comp-raia-num{display:grid; grid-template-columns:1fr 1fr; text-align:right; font-variant-numeric:tabular-nums; font-size:.86rem; gap:8px;}
 .comp-raia-num b{color:var(--accent-light);}
 .comp-raia-num span{color:var(--text); font-weight:600;}
@@ -455,6 +457,12 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-tip .tip-total{border-top:1px solid #253048; margin-top:7px; padding-top:7px; font-size:.82rem;}
 .comp-tip .tip-total span{color:#E8EBF2; font-weight:700;}
 .comp-tip .tip-sep{border-top:1px dashed #253048; margin:5px 0 2px;}
+.comp-tip.comp-tip-cor{background:var(--c); color:#0B111C;}
+.comp-tip.comp-tip-cor .tip-sub,.comp-tip.comp-tip-cor .tip-l span{color:rgba(11,17,28,.78);}
+.comp-tip.comp-tip-cor .tip-total{border-top-color:rgba(11,17,28,.25);}
+.comp-tip.comp-tip-cor .tip-total span{color:#0B111C;}
+.comp-cavalo{cursor:pointer;}
+.comp-cavalo:focus{outline:none;}
 .comp-tip[hidden]{display:none;}
 @media (max-width:1100px){ .comp-linha2{grid-template-columns:1fr;} .comp-pizza-corpo{flex-wrap:wrap; justify-content:center;} }
 .comp-adm-grid{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:14px;}
@@ -564,9 +572,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="filter-group data-filtro" data-filtro-grupo="outbound">
             <label>Data</label>
             <div class="chips">
-              <button class="chip" data-modo-data="dia">Dia</button>
+              <button class="chip on" data-modo-data="dia">Dia</button>
               <button class="chip" data-modo-data="periodo">Período</button>
-              <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
               <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
             </div>
           </div>
@@ -619,9 +627,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="filter-group data-filtro" data-filtro-grupo="inbound">
             <label>Data</label>
             <div class="chips">
-              <button class="chip" data-modo-data="dia">Dia</button>
+              <button class="chip on" data-modo-data="dia">Dia</button>
               <button class="chip" data-modo-data="periodo">Período</button>
-              <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
               <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
             </div>
           </div>
@@ -668,9 +676,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
             <div class="filter-group data-filtro" data-filtro-grupo="inventario">
               <label>Data</label>
               <div class="chips">
-                <button class="chip" data-modo-data="dia">Dia</button>
+                <button class="chip on" data-modo-data="dia">Dia</button>
                 <button class="chip" data-modo-data="periodo">Período</button>
-                <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
+                <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
                 <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
               </div>
             </div>
@@ -680,9 +688,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
             <div class="filter-group data-filtro" data-filtro-grupo="corte">
               <label>Data</label>
               <div class="chips">
-                <button class="chip" data-modo-data="dia">Dia</button>
+                <button class="chip on" data-modo-data="dia">Dia</button>
                 <button class="chip" data-modo-data="periodo">Período</button>
-                <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
+                <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
                 <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
               </div>
             </div>
@@ -731,9 +739,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="filter-group data-filtro" data-filtro-grupo="reversa">
             <label>Data</label>
             <div class="chips">
-              <button class="chip" data-modo-data="dia">Dia</button>
+              <button class="chip on" data-modo-data="dia">Dia</button>
               <button class="chip" data-modo-data="periodo">Período</button>
-              <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
               <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
             </div>
           </div>
@@ -793,17 +801,17 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="filter-group data-filtro" data-filtro-grupo="competicao">
             <label>Data</label>
             <div class="chips">
-              <button class="chip" data-modo-data="dia">Dia</button>
+              <button class="chip on" data-modo-data="dia">Dia</button>
               <button class="chip" data-modo-data="periodo">Período</button>
-              <button class="chip on" data-modo-data="d7">Últimos 7 dias</button>
+              <button class="chip" data-modo-data="d7">Últimos 7 dias</button>
               <button class="chip" data-modo-data="d10">Últimos 10 dias</button>
             </div>
           </div>
           <div class="filter-group" id="comp-crit">
             <label>Critério de classificação</label>
             <div class="chips">
-              <button class="chip on" data-crit="media">Média por membro</button>
-              <button class="chip" data-crit="total">Produtividade geral</button>
+              <button class="chip" data-crit="media">Média por membro</button>
+              <button class="chip on" data-crit="total">Produtividade geral</button>
               <button class="chip" data-crit="hora">Peças por hora</button>
               <button class="chip" data-crit="acima">% acima da média</button>
             </div>
@@ -1057,7 +1065,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     document.querySelectorAll('[data-filtro-grupo]').forEach(function(grupo){
       var nomeGrupo = grupo.getAttribute('data-filtro-grupo');
       var hoje = new Date(), inicio = new Date(); inicio.setDate(hoje.getDate()-6);
-      filtrosData[nomeGrupo] = filtrosData[nomeGrupo] || { modo:'d7', de: isoDeData(inicio), ate: isoDeData(hoje) };
+      filtrosData[nomeGrupo] = filtrosData[nomeGrupo] || { modo:'dia', de: isoDeData(inicio), ate: isoDeData(hoje) };   // padrão: produtividade do dia
       var f = filtrosData[nomeGrupo];
       // Campos De/Até: só aparecem com o chip "Período" selecionado.
       var campo = document.createElement('div');
@@ -1085,7 +1093,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   }
   function filtrarSerieporGrupo(serie, nomeGrupo, campoData){
     if (!serie || !serie.length) return serie;
-    var f = filtrosData[nomeGrupo] || { modo:'d7' };
+    var f = filtrosData[nomeGrupo] || { modo:'dia' };
     var ordenada = serie.slice().sort(function(a,b){ return String(a[campoData]).localeCompare(String(b[campoData])); });
     if (f.modo === 'd7') return ordenada.slice(-7);
     if (f.modo === 'd10') return ordenada.slice(-10);
@@ -1130,7 +1138,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   // acumulado do período do filtro: soma da MESMA série do gráfico "Itens separados por dia"
   // (Checkout = SINGLE, Colmeia = MULTI), então os dois sempre batem
   function rotuloPeriodoAcumulado(nomeGrupo, dias){
-    var modo = (filtrosData[nomeGrupo] || {modo:'d7'}).modo, nDias = dias.length;
+    var modo = (filtrosData[nomeGrupo] || {modo:'dia'}).modo, nDias = dias.length;
     var ini = fmtDataBR(String(dias[0].data).slice(0,10)), fim = fmtDataBR(String(dias[nDias-1].data).slice(0,10));
     var plural = function(n){ return n + (n===1 ? ' dia' : ' dias'); };
     if (modo === 'dia') return 'Dia ' + fim;
@@ -1582,7 +1590,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   // Cada time tem líder (sem produção), separadores e conferentes; Embalagem e Embarque usam,
   // por enquanto, a produção da Conferência.
   var competicaoTimes = [];
-  var compEstado = { turno:'Todos', atv:'ambos', ops:{ checkout:true, colmeia:true }, crit:'media', verTodos:{}, selHoras:{}, rolagem:0 };
+  var compEstado = { turno:'Todos', atv:'ambos', ops:{ checkout:true, colmeia:true }, crit:'total', verTodos:{}, selHoras:{}, pPista:{}, rolagem:0 };
   var TIMES_COR = {
     1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'},
     4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'}, 5:{nome:'Laranja', c:'--t5', s:'--t5-soft'}, 6:{nome:'Roxo', c:'--t6', s:'--t6-soft'}
@@ -2104,12 +2112,13 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       lista = lista.slice().sort(function(a,b){ return b.total - a.total || a.n - b.n; });   // maior realizado em cima
       return lista.map(function(t, i){
         var pct = t.meta ? Math.min(1, t.total/t.meta) : 0, x = pct.toFixed(4);   // 0 = largada, 1 = focinho na linha de chegada
+        var ant = compEstado.pPista[t.n] != null ? compEstado.pPista[t.n] : 0;   // começa de onde estava e anda até a nova posição
         var fase = FASES_CAVALO[(t.n-1) % FASES_CAVALO.length];
         var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
         return '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
           '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
-            '<span class="comp-rastro" style="--c:var('+t.cor.c+'); --p:'+x+'"></span>'+
-            '<span class="comp-cavalo" style="--c:var('+t.cor.c+'); --p:'+x+'; --d:'+fase[0]+'; --dl:'+fase[1]+'" role="img" aria-label="Time 0'+t.n+': '+Math.round(pct*100)+'% da meta"></span></div>'+(i === 0 ? '<span class="comp-chegada" style="height:'+(lista.length*42)+'px"></span>' : '')+'</div>'+
+            '<span class="comp-rastro" data-p="'+x+'" style="--c:var('+t.cor.c+'); --p:'+ant+'"></span>'+
+            '<span class="comp-cavalo" data-n="'+t.n+'" data-p="'+x+'" tabindex="0" style="--c:var('+t.cor.c+'); --p:'+ant+'; --d:'+fase[0]+'; --dl:'+fase[1]+'" role="button" aria-label="Time 0'+t.n+': '+Math.round(pct*100)+'% da meta"></span></div>'+(i === 0 ? '<span class="comp-chegada" style="height:'+(lista.length*42)+'px"></span>' : '')+'</div>'+
           '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>';
       }).join('');
     }
@@ -2122,6 +2131,31 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         '<div class="comp-pista-grupo">Colmeia</div>'+ raias(col) +
         '<div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div>'+
       '</div></div>';
+  }
+
+  // Clique no cavalo: tooltip na cor do time com o realizado em Separação e Conferência.
+  function ligarCavalos(c){
+    var tip = tipGrafico('pista', '.comp-cavalo');
+    // dispara a corrida até a posição nova (a transição de --p fica no CSS)
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      document.querySelectorAll('.comp-cavalo[data-p], .comp-rastro[data-p]').forEach(function(el){ el.style.setProperty('--p', el.getAttribute('data-p')); });
+    }); });
+    c.times.forEach(function(t){ compEstado.pPista[t.n] = t.meta ? Math.min(1, t.total/t.meta) : 0; });
+    document.querySelectorAll('.comp-cavalo').forEach(function(cav){
+      function mostrar(){
+        var t = c.times[+cav.getAttribute('data-n') - 1];
+        tip.className = 'comp-tip comp-tip-cor';
+        tip.style.setProperty('--c', 'var('+t.cor.c+')');
+        var pct = t.meta ? Math.round(t.total/t.meta*100) : 0;
+        tip.innerHTML = infoQuebraHtml('var(--bg-card)', 'Time 0'+t.n+' · '+t.cor.nome, t.total, t.sep, t.conf, c, pct+'% da meta ('+fmt(t.meta)+')');
+        tip.hidden = false;
+        var r = cav.getBoundingClientRect();
+        tip.style.left = Math.max(8, Math.min(r.left + r.width/2 - tip.offsetWidth/2, window.innerWidth - tip.offsetWidth - 8)) + 'px';
+        tip.style.top = Math.max(8, r.top - tip.offsetHeight - 8) + 'px';
+      }
+      cav.addEventListener('click', mostrar);
+      cav.addEventListener('keydown', function(e){ if (e.key === 'Enter') mostrar(); });
+    });
   }
 
   // Cards dos 6 times em ordem fixa (Vermelho, Azul, Verde, Amarelo, Laranja, Roxo).
@@ -2176,7 +2210,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     // Peças por hora só existe onde o relatório traz o tempo trabalhado (Conferência Colmeia não traz).
     var btnHora = document.querySelector('#comp-crit [data-crit="hora"]');
     if (btnHora) btnHora.disabled = !c.temHora;
-    if (compEstado.crit === 'hora' && !c.temHora) { compEstado.crit = 'media'; crit = CRIT_COMP.media; document.querySelectorAll('#comp-crit .chip').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-crit') === 'media'); }); c = calcularCompeticao(); }
+    if (compEstado.crit === 'hora' && !c.temHora) { compEstado.crit = 'total'; crit = CRIT_COMP.total; document.querySelectorAll('#comp-crit .chip').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-crit') === 'total'); }); c = calcularCompeticao(); }
     var totalMembros = c.times.reduce(function(s,t){ return s+t.lista.length+t.lideres.length; },0);
     if (!totalMembros) {
       var msg = perfilAtual === 'admin' ? 'Monte os times em Admin > Abastecimento de base > Competição.' : 'Os times deste turno ainda não foram montados.';
@@ -2196,6 +2230,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var rolagemAtual = document.getElementById('comp-escada-scroll');
     if (rolagemAtual) compEstado.rolagem = rolagemAtual.scrollLeft;
     elP.innerHTML = pistaHtml(c) + placarHtml(c, crit) + '<div class="comp-linha2">'+cardPizza+cardHora+'</div>'+aviso;
+    ligarCavalos(c);
     desenharPizzaComp(c);
     if (!dHora.aviso) desenharHorasComp(c, dHora);
     elE.innerHTML = rankingTimesHtml(c);
