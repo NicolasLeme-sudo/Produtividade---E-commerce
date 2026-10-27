@@ -1203,24 +1203,29 @@ async function salvarMetaInventario() {
 
 // =========================================================================
 // COMPETIÇÃO — gestão dos times (tabela competicao_times)
-// Cada linha = um colaborador numa atividade e turno, com setor, piso e time.
-// Calçados e Vestuário dividem o piso 1, por isso o setor é guardado por membro.
+// Cada linha = um colaborador numa atividade e turno, com piso, time, observação (Colmeia) e líder.
 // =========================================================================
 var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
-var COMP_ATIVS = [
-  ["sep", "Separação"],
-  ["conf_checkout", "Conferência · Checkout"], ["conf_colmeia", "Conferência · Colmeia"],
-];
-var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"] };
-var compAdm = { turno: "1º Turno", atv: "sep", time: 1, editando: null, linhas: [], indice: null };
+var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"]];
+var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Laranja", "--t5"], 6: ["Roxo", "--t6"] };
+var COMP_NUM_TIMES = [1, 2, 3, 4, 5, 6];
+var compAdm = { turno: "1º Turno", time: 1, editando: null, linhas: [], indice: null };
 
 function htmlSeguro(t) {
   return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
 }
+function rotuloAtividade(a) {
+  var base = String(a || "").replace(/_.*/, "");
+  var r = COMP_ATIVS.filter(function (x) { return x[0] === base; })[0];
+  return r ? r[1] : a;
+}
+// Atividade genérica da planilha. "Conferência Colmeia" (formato antigo) vira Conferência + Observação Colmeia.
 function atividadeDeTexto(t) {
-  var n = normalizarTexto(t), col = n.indexOf("COLMEIA") !== -1;
-  if (n.indexOf("SEPARACAO") !== -1) return "sep";
-  if (n.indexOf("CONFERENCIA") !== -1 || n.indexOf("FATURAMENTO") !== -1) return col ? "conf_colmeia" : "conf_checkout";
+  var n = normalizarTexto(t);
+  if (n.indexOf("SEPARA") !== -1) return "sep";
+  if (n.indexOf("CONFER") !== -1 || n.indexOf("FATURAMENTO") !== -1) return "conf";
+  if (n.indexOf("EMBALA") !== -1) return "emb";
+  if (n.indexOf("EMBARQ") !== -1 || n.indexOf("EXPEDI") !== -1) return "exp";
   return null;
 }
 function turnoDeTexto(t) {
@@ -1228,12 +1233,6 @@ function turnoDeTexto(t) {
   if (n === "ADM") return "ADM";
   var m = /^([123])/.exec(n);
   return m ? COMP_TURNOS[Number(m[1]) - 1] : null;
-}
-function setorDeTexto(t) {
-  var n = normalizarTexto(t);
-  if (n.indexOf("VESTU") !== -1) return "Vestuário";
-  if (n.indexOf("CALC") !== -1) return "Calçados";
-  return null;
 }
 function inteiroDe(t, min, max) {
   var m = /\d+/.exec(String(t == null ? "" : t));
@@ -1243,8 +1242,19 @@ function inteiroDe(t, min, max) {
 function opcoes(lista, atual) {
   return lista.map(function (o) {
     var v = Array.isArray(o) ? o[0] : o, r = Array.isArray(o) ? o[1] : o;
-    return '<option value="' + htmlSeguro(v) + '"' + (String(v) === String(atual) ? " selected" : "") + ">" + htmlSeguro(r) + "</option>";
+    return '<option value="' + htmlSeguro(v) + '"' + (String(v) === String(atual == null ? "" : atual) ? " selected" : "") + ">" + htmlSeguro(r) + "</option>";
   }).join("");
+}
+var OPC_PISO = [["", "Sem piso"], [1, "Piso 1"], [2, "Piso 2"], [3, "Piso 3"], [4, "Piso 4"]];
+var OPC_OBS = [["", "Sem observação"], ["Colmeia", "Colmeia"]];
+var OPC_LIDER = [["false", "Membro"], ["true", "Líder"]];
+
+// Tabela com todas as classificações aceitas na planilha (sem texto explicativo).
+function tabelaClassificacoesCompeticao() {
+  var col = function (itens) { return itens.map(htmlSeguro).join("<br>"); };
+  return '<div class="tbl-wrap"><table class="comp-classif"><thead><tr><th>Atividade</th><th>Turno</th><th>Piso</th><th>Time</th><th>Observação</th><th>Líder</th></tr></thead><tbody><tr>' +
+    "<td>" + col(COMP_ATIVS.map(function (a) { return a[1]; })) + "</td><td>" + col(COMP_TURNOS) + "</td><td>" + col(["1", "2", "3", "4", "(vazio)"]) + "</td>" +
+    "<td>" + col(COMP_NUM_TIMES.map(function (n) { return "0" + n + " · " + COMP_TIMES[n][0]; })) + "</td><td>" + col(["(vazio)", "Colmeia"]) + "</td><td>" + col(["S", "N"]) + "</td></tr></tbody></table></div>";
 }
 
 async function renderCompeticaoAdmin(recarregarBase) {
@@ -1254,56 +1264,65 @@ async function renderCompeticaoAdmin(recarregarBase) {
   compAdm.linhas = r.data || [];
   if (recarregarBase || !compAdm.indice) compAdm.indice = (await carregarIndiceBaseAtivos()).indice;
   var idx = compAdm.indice;
-  var doGrupo = compAdm.linhas.filter(function (l) { return l.turno === compAdm.turno && (l.atividade === compAdm.atv || (compAdm.atv === "sep" && /^sep_/.test(l.atividade))); });
+  var doTurno = compAdm.linhas.filter(function (l) { return l.turno === compAdm.turno; });
   var foraDaBase = function (l) { return !idx.get(normalizarUsuarioWMS(l.usuario_wms)); };
 
-  var linhasTimes = [1, 2, 3, 4].map(function (n) {
-    var m = doGrupo.filter(function (l) { return l.time === n; });
-    var combos = {}; m.forEach(function (l) { combos[l.setor ? l.setor + " · Piso " + l.piso : "Sem setor/piso"] = 1; });
-    var ks = Object.keys(combos), pend = m.filter(foraDaBase).length;
+  var linhasTimes = COMP_NUM_TIMES.map(function (n) {
+    var m = doTurno.filter(function (l) { return l.time === n; });
+    var lideres = m.filter(function (l) { return l.lider; }).map(function (l) { return l.nome || l.usuario_wms; });
+    var cont = {}; m.filter(function (l) { return !l.lider; }).forEach(function (l) { var a = rotuloAtividade(l.atividade); cont[a] = (cont[a] || 0) + 1; });
+    var ativ = Object.keys(cont).map(function (a) { return a + " " + cont[a]; }).join(" · ");
+    var pend = m.filter(foraDaBase).length;
     return '<tr data-time="' + n + '"' + (n === compAdm.time ? ' class="sel"' : "") + ' tabindex="0"><td><span class="comp-nome" style="--c:var(' + COMP_TIMES[n][1] + ')"><span class="comp-dot"></span>Time 0' + n + " · " + COMP_TIMES[n][0] + "</span></td>" +
-      "<td>" + (ks.length > 1 ? '<span class="pill parcial">Personalizada</span>' : '<span class="pill info">Padrão</span>') + "</td>" +
-      "<td>" + (ks.length ? htmlSeguro(ks.join(" + ")) : "—") + '</td><td class="num">' + m.length + "</td>" +
+      '<td><span class="comp-lider-adm" style="--c:var(' + COMP_TIMES[n][1] + ')">' + (lideres.length ? htmlSeguro(lideres.join(", ")) : "—") + "</span></td>" +
+      "<td>" + (ativ ? htmlSeguro(ativ) : "—") + '</td><td class="num">' + m.length + "</td>" +
       "<td>" + (pend ? '<span class="comp-aviso">' + pend + " fora da base</span>" : '<span class="comp-ok">OK</span>') + "</td></tr>";
   }).join("");
 
-  var membros = doGrupo.filter(function (l) { return l.time === compAdm.time; }).sort(function (a, b) { return a.usuario_wms.localeCompare(b.usuario_wms); });
+  var membros = doTurno.filter(function (l) { return l.time === compAdm.time; }).sort(function (a, b) {
+    return (b.lider ? 1 : 0) - (a.lider ? 1 : 0) || rotuloAtividade(a.atividade).localeCompare(rotuloAtividade(b.atividade)) || a.usuario_wms.localeCompare(b.usuario_wms);
+  });
   var htmlMembros = membros.map(function (l) {
     var b = idx.get(normalizarUsuarioWMS(l.usuario_wms));
-    var sub = htmlSeguro(l.usuario_wms) + " · " + (l.setor ? htmlSeguro(l.setor) + " · Piso " + l.piso : "Sem setor/piso") + " · " + (b ? htmlSeguro(b.turno || "sem turno") : '<span class="comp-aviso">não está na Base de Ativos</span>');
+    var sub = htmlSeguro(l.usuario_wms) + " · " + htmlSeguro(rotuloAtividade(l.atividade)) + (l.observacao ? " · " + htmlSeguro(l.observacao) : "") + (l.piso ? " · Piso " + l.piso : "") + " · " + (b ? htmlSeguro(b.turno || "sem turno") : '<span class="comp-aviso">não está na Base de Ativos</span>');
     var edicao = compAdm.editando === l.id
-      ? '<div class="comp-edit"><input data-campo="nome" value="' + htmlSeguro(l.nome || "") + '" aria-label="Nome completo" title="Nome completo: a Competição acha o usuário do WMS pelo primeiro e último nome">' + '<select data-campo="turno">' + opcoes(COMP_TURNOS, l.turno) + '</select><select data-campo="time">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Time 0" + n]; }), l.time) + '</select>' +
-        '<select data-campo="setor">' + opcoes(["Calçados", "Vestuário"], l.setor) + '</select><select data-campo="piso">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Piso " + n]; }), l.piso) + "</select>" +
+      ? '<div class="comp-edit"><input data-campo="nome" value="' + htmlSeguro(l.nome || "") + '" aria-label="Nome completo" title="Nome completo: a Competição acha o usuário do WMS pelo primeiro e último nome">' +
+        '<select data-campo="atividade">' + opcoes(COMP_ATIVS, String(l.atividade).replace(/_.*/, "")) + '</select><select data-campo="turno">' + opcoes(COMP_TURNOS, l.turno) + '</select>' +
+        '<select data-campo="time">' + opcoes(COMP_NUM_TIMES.map(function (n) { return [n, "Time 0" + n]; }), l.time) + '</select><select data-campo="piso">' + opcoes(OPC_PISO, l.piso) + "</select>" +
+        '<select data-campo="observacao">' + opcoes(OPC_OBS, l.observacao || "") + '</select><select data-campo="lider">' + opcoes(OPC_LIDER, String(!!l.lider)) + "</select>" +
         '<button class="btn" data-acao="salvar" data-id="' + l.id + '">Salvar</button><button class="btn ghost" data-acao="cancelar">Cancelar</button></div>'
       : "";
-    return '<div class="comp-membro"><span>' + htmlSeguro(l.nome || l.usuario_wms) + "<small>" + sub + '</small></span><button class="btn ghost" data-acao="editar" data-id="' + l.id + '">Editar</button><button class="btn ghost" style="color:var(--red)" data-acao="remover" data-id="' + l.id + '">Remover</button>' + edicao + "</div>";
+    var nome = l.lider ? '<b class="comp-lider-adm" style="--c:var(' + COMP_TIMES[l.time][1] + ')">' + htmlSeguro(l.nome || l.usuario_wms) + " · Líder</b>" : htmlSeguro(l.nome || l.usuario_wms);
+    return '<div class="comp-membro"><span>' + nome + "<small>" + sub + '</small></span><button class="btn ghost" data-acao="editar" data-id="' + l.id + '">Editar</button><button class="btn ghost" style="color:var(--red)" data-acao="remover" data-id="' + l.id + '">Remover</button>' + edicao + "</div>";
   }).join("") || '<p class="fonte">Nenhum membro neste time ainda.</p>';
 
   el.innerHTML =
     '<div class="comp-adm"><div class="comp-adm-grid">' +
       '<div class="panel" style="display:flex; flex-direction:column; gap:12px">' +
-        '<div class="panel-head"><div><p class="kicker">Times por turno e atividade</p><h4>Times</h4></div></div>' +
-        '<div class="comp-add"><select id="comp-sel-turno" aria-label="Turno">' + opcoes(COMP_TURNOS, compAdm.turno) + '</select><select id="comp-sel-atv" aria-label="Atividade">' + opcoes(COMP_ATIVS, compAdm.atv) + "</select></div>" +
-        '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Composição</th><th>Setor · Piso</th><th class="num">Membros</th><th>Base de Ativos</th></tr></thead><tbody id="comp-tb-times">' + linhasTimes + "</tbody></table></div>" +
-        '<p class="fonte">Calçados e Vestuário dividem o piso 1, então cada membro tem setor e piso próprios. Padrão: todos do mesmo setor e piso. Personalizada: o time mistura setores ou pisos. Clique num time para editar os membros.</p>' +
+        '<div class="panel-head"><div><p class="kicker">Times por turno</p><h4>Times</h4></div></div>' +
+        '<div class="comp-add"><select id="comp-sel-turno" aria-label="Turno">' + opcoes(COMP_TURNOS, compAdm.turno) + "</select></div>" +
+        '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Líder</th><th>Atividades</th><th class="num">Membros</th><th>Base de Ativos</th></tr></thead><tbody id="comp-tb-times">' + linhasTimes + "</tbody></table></div>" +
       "</div>" +
       '<div class="panel" style="display:flex; flex-direction:column; gap:10px">' +
-        '<div class="panel-head"><div><p class="kicker">' + htmlSeguro(compAdm.turno) + " · " + htmlSeguro((COMP_ATIVS.filter(function (a) { return a[0] === compAdm.atv; })[0] || [])[1]) + '</p><h4>Time 0' + compAdm.time + " · " + COMP_TIMES[compAdm.time][0] + "</h4></div></div>" +
-        '<div class="comp-add"><input id="comp-novo-usuario" placeholder="Usuário WMS (ex.: NOME.SOBRENOME)" aria-label="Usuário WMS"><select id="comp-novo-setor" aria-label="Setor">' + opcoes(["Calçados", "Vestuário"]) + '</select><select id="comp-novo-piso" aria-label="Piso">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Piso " + n]; })) + '</select><button class="btn" id="comp-btn-add">Adicionar</button></div>' +
-        '<div class="upload-status" id="comp-membro-status"></div>' + '<div class="comp-lista-membros">' + htmlMembros + '</div>' +
+        '<div class="panel-head"><div><p class="kicker">' + htmlSeguro(compAdm.turno) + '</p><h4>Time 0' + compAdm.time + " · " + COMP_TIMES[compAdm.time][0] + "</h4></div></div>" +
+        '<div class="comp-add"><input id="comp-novo-usuario" placeholder="Usuário WMS (ex.: NOME.SOBRENOME)" aria-label="Usuário WMS">' +
+          '<select id="comp-novo-atv" aria-label="Atividade">' + opcoes(COMP_ATIVS, "sep") + '</select><select id="comp-novo-piso" aria-label="Piso">' + opcoes(OPC_PISO, "") + "</select>" +
+          '<select id="comp-novo-obs" aria-label="Observação">' + opcoes(OPC_OBS, "") + '</select><select id="comp-novo-lider" aria-label="Líder">' + opcoes(OPC_LIDER, "false") + "</select>" +
+          '<button class="btn" id="comp-btn-add">Adicionar</button></div>' +
+        '<div class="upload-status" id="comp-membro-status"></div>' + '<div class="comp-lista-membros">' + htmlMembros + "</div>" +
       "</div>" +
     "</div>" +
     '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
       '<div class="panel-head"><div><p class="kicker">Upload</p><h4>Planilha de escalação dos times <span class="badge-feito" id="comp-planilha-badge" hidden>✓ Feito</span></h4></div></div>' +
-      '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Turno, Atividade, Setor, Piso, Time</strong>. Setor e Piso podem ficar em branco ou "-" na Conferência Colmeia. Uma linha por colaborador e atividade (Separação, Conferência Checkout ou Conferência Colmeia; Separação vale para Checkout e Colmeia). Turno vazio usa o da Base de Ativos. A planilha <strong>substitui</strong> a escalação das combinações de turno e atividade que ela traz; o restante fica como está.</p>' +
+      '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Atividade, Turno, Piso, Time, Observação, Líder</strong>.</p>' +
       '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button>' +
-      '<div class="upload-status" id="comp-planilha-status"></div></div></div></div>';
+      '<div class="upload-status" id="comp-planilha-status"></div></div>' +
+      tabelaClassificacoesCompeticao() + "</div></div>";
 
   var avisoMembro = function (t, classe) { var a = document.getElementById("comp-membro-status"); if (a) { a.textContent = t; a.className = "upload-status" + (classe ? " " + classe : ""); } };
   var recarregar = async function () { await renderCompeticaoAdmin(false); if (window.recarregarCompeticao) window.recarregarCompeticao(); };
 
   document.getElementById("comp-sel-turno").addEventListener("change", function () { compAdm.turno = this.value; compAdm.editando = null; renderCompeticaoAdmin(false); });
-  document.getElementById("comp-sel-atv").addEventListener("change", function () { compAdm.atv = this.value; compAdm.editando = null; renderCompeticaoAdmin(false); });
   el.querySelectorAll("#comp-tb-times tr").forEach(function (tr) {
     var sel = function () { compAdm.time = Number(tr.getAttribute("data-time")); compAdm.editando = null; renderCompeticaoAdmin(false); };
     tr.addEventListener("click", sel);
@@ -1314,11 +1333,14 @@ async function renderCompeticaoAdmin(recarregarBase) {
     var digitado = document.getElementById("comp-novo-usuario").value.trim();
     if (!digitado) { avisoMembro("Informe o usuário do WMS.", "pendente"); return; }
     var base = idx.get(normalizarUsuarioWMS(digitado));
+    var piso = document.getElementById("comp-novo-piso").value;
     var registro = {
       // Grava o usuário digitado: o usuario_wms da Base de Ativos é um palpite (1º + 2º nome) e costuma diferir do WMS.
       usuario_wms: normalizarUsuarioWMS(digitado), nome: base ? base.nome : null,
-      turno: compAdm.turno, atividade: compAdm.atv, time: compAdm.time,
-      setor: document.getElementById("comp-novo-setor").value, piso: Number(document.getElementById("comp-novo-piso").value),
+      turno: compAdm.turno, atividade: document.getElementById("comp-novo-atv").value, time: compAdm.time,
+      piso: piso ? Number(piso) : null, setor: null,
+      observacao: document.getElementById("comp-novo-obs").value || null,
+      lider: document.getElementById("comp-novo-lider").value === "true",
       atualizado_em: new Date().toISOString(),
     };
     var { error } = await supabaseClient.from("competicao_times").upsert(registro, { onConflict: "usuario_wms,atividade,turno" });
@@ -1337,7 +1359,15 @@ async function renderCompeticaoAdmin(recarregarBase) {
         if (rr.error) avisoMembro("Erro: " + rr.error.message, "erro"); else recarregar();
       } else if (acao === "salvar") {
         var linha = b.closest(".comp-membro"), novo = { atualizado_em: new Date().toISOString() };
-        linha.querySelectorAll("[data-campo]").forEach(function (sel) { var c = sel.getAttribute("data-campo"); novo[c] = (c === "time" || c === "piso") ? Number(sel.value) : (c === "nome" ? sel.value.trim().toUpperCase() : sel.value); });
+        linha.querySelectorAll("[data-campo]").forEach(function (sel) {
+          var c = sel.getAttribute("data-campo"), v = sel.value;
+          if (c === "time") novo.time = Number(v);
+          else if (c === "piso") novo.piso = v ? Number(v) : null;
+          else if (c === "lider") novo.lider = v === "true";
+          else if (c === "observacao") novo.observacao = v || null;
+          else if (c === "nome") novo.nome = v.trim().toUpperCase();
+          else novo[c] = v;
+        });
         if (!novo.nome) { avisoMembro("Informe o nome completo.", "pendente"); return; }
         var ru = await supabaseClient.from("competicao_times").update(novo).eq("id", id);
         if (ru.error) avisoMembro("Erro: " + ru.error.message, "erro"); else { compAdm.editando = null; recarregar(); }
@@ -1345,11 +1375,20 @@ async function renderCompeticaoAdmin(recarregarBase) {
     });
   });
 
+  // Modelo com uma linha de exemplo para cada combinação de Atividade × Observação × Líder.
   document.getElementById("comp-btn-modelo").addEventListener("click", function () {
-    var aoa = [["Nome", "Usuário WMS", "Turno", "Atividade", "Setor", "Piso", "Time"],
-      ["Livia Silva", "LIVIA.SILVA", "1º Turno", "Separação", "Calçados", 1, "01"],
-      ["Jessica Moura", "JESSICA.MOURA", "1º Turno", "Separação", "Calçados", 1, "02"],
-      ["Ana B. Silva", "ANA.B.SILVA", "2º Turno", "Conferência Checkout", "Vestuário", 1, "04"]];
+    var aoa = [["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Time", "Observação", "Líder"]];
+    var k = 0;
+    COMP_ATIVS.forEach(function (a) {
+      var obsPossiveis = (a[0] === "sep" || a[0] === "conf") ? ["", "Colmeia"] : [""];
+      obsPossiveis.forEach(function (obs) {
+        ["S", "N"].forEach(function (lid) {
+          var time = obs ? (k % 2 ? 6 : 5) : (k % 4) + 1;
+          aoa.push(["Colaborador " + (k + 1), "NOME.SOBRENOME" + (k + 1), a[1], COMP_TURNOS[k % COMP_TURNOS.length], obs ? "" : (time <= 4 ? time : ""), "0" + time, obs, lid]);
+          k++;
+        });
+      });
+    });
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
     XLSX.writeFile(wb, "modelo_competicao_times.xlsx");
@@ -1368,6 +1407,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
   restaurarStatusAbastecimento();
 }
 
+// A planilha substitui a escalação inteira dos turnos que ela traz (todas as atividades); os outros turnos ficam como estão.
 async function processarPlanilhaCompeticao(file, idx) {
   var rows = await parseArquivoGenerico(file);
   var validos = new Map(), erros = [], foraBase = 0;
@@ -1376,42 +1416,39 @@ async function processarPlanilhaCompeticao(file, idx) {
     var usuarioRaw = String(obterCampo(row, ["Usuário WMS", "Usuario WMS", "Usuário", "Usuario"]) || "").trim();
     if (!usuarioRaw && !String(obterCampo(row, ["Nome"]) || "").trim()) return; // linha vazia
     var base = usuarioRaw ? idx.get(normalizarUsuarioWMS(usuarioRaw)) : null;
-    var atividade = atividadeDeTexto(obterCampo(row, ["Atividade"]));
+    var textoAtv = obterCampo(row, ["Atividade"]);
+    var atividade = atividadeDeTexto(textoAtv);
     var turno = turnoDeTexto(obterCampo(row, ["Turno"]) || (base && base.turno) || "");
-    var setor = setorDeTexto(obterCampo(row, ["Setor"]));
     var piso = inteiroDe(obterCampo(row, ["Piso", "Andar"]), 1, 4);
-    var time = inteiroDe(obterCampo(row, ["Time"]), 1, 4);
+    var time = inteiroDe(obterCampo(row, ["Time"]), 1, 6);
+    var obsTxt = normalizarTexto(obterCampo(row, ["Observação", "Observacao", "Obs"]));
+    var observacao = (obsTxt.indexOf("COLMEIA") !== -1 || normalizarTexto(textoAtv).indexOf("COLMEIA") !== -1) ? "Colmeia" : null;
+    var lider = /^(S|SIM|X|TRUE|1)$/.test(normalizarTexto(obterCampo(row, ["Líder", "Lider"])));
     var falta = [];
     if (!usuarioRaw) falta.push("usuário WMS");
     if (!atividade) falta.push("atividade");
     if (!turno) falta.push("turno");
-    var semLocal = atividade === "conf_colmeia";   // Colmeia não se divide por setor/piso: "-" ou vazio vale
-    if (!setor && !semLocal) falta.push("setor");
-    if (!piso && !semLocal) falta.push("piso (1 a 4)");
-    if (!time) falta.push("time (1 a 4)");
+    if (!time) falta.push("time (01 a 06)");
     if (falta.length) { erros.push("linha " + linha + " (" + (usuarioRaw || "sem usuário") + "): " + falta.join(", ")); return; }
     if (!base) foraBase++;
     var usuario = normalizarUsuarioWMS(usuarioRaw); // o da planilha, não o palpite da Base de Ativos
     validos.set(usuario + "|" + atividade + "|" + turno, {
       usuario_wms: usuario, nome: base ? base.nome : (String(obterCampo(row, ["Nome"]) || "").trim() || null),
-      turno: turno, atividade: atividade, setor: setor || null, piso: piso || null, time: time, atualizado_em: new Date().toISOString(),
+      turno: turno, atividade: atividade, setor: null, piso: piso || null, time: time,
+      observacao: observacao, lider: lider, atualizado_em: new Date().toISOString(),
     });
   });
   var registros = Array.from(validos.values());
   if (!registros.length) throw new Error(erros.length ? "Nenhuma linha válida. " + erros.slice(0, 3).join(" · ") : "A planilha não tem linhas.");
-  var pares = new Map();
-  registros.forEach(function (r) { pares.set(r.atividade + "|" + r.turno, [r.atividade, r.turno]); });
-  for (var par of pares.values()) {
-    var d = par[0] === "sep"
-      ? await supabaseClient.from("competicao_times").delete().in("atividade", ["sep", "sep_checkout", "sep_colmeia"]).eq("turno", par[1])
-      : await supabaseClient.from("competicao_times").delete().eq("atividade", par[0]).eq("turno", par[1]);
-    if (d.error) throw new Error("Falha ao limpar a escalação anterior: " + d.error.message);
-  }
+  var turnos = Array.from(new Set(registros.map(function (r) { return r.turno; })));
+  var d = await supabaseClient.from("competicao_times").delete().in("turno", turnos);
+  if (d.error) throw new Error("Falha ao limpar a escalação anterior: " + d.error.message);
   for (var i = 0; i < registros.length; i += 200) {
     var ins = await supabaseClient.from("competicao_times").insert(registros.slice(i, i + 200));
     if (ins.error) throw new Error("Falha ao gravar os times: " + ins.error.message);
   }
-  var resumo = "✓ " + registros.length + " membro(s) gravado(s) em " + pares.size + " combinação(ões) de turno e atividade";
+  var lideres = registros.filter(function (r) { return r.lider; }).length;
+  var resumo = "✓ " + registros.length + " membro(s) gravado(s) em " + turnos.length + " turno(s) · " + lideres + " líder(es)";
   if (foraBase) resumo += " · " + foraBase + " fora da Base de Ativos";
   if (erros.length) resumo += " · " + erros.length + " linha(s) ignorada(s): " + erros.slice(0, 3).join("; ");
   return { texto: resumo, classe: erros.length ? "pendente" : "ok" };
