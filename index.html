@@ -414,7 +414,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-vazio{flex:1; display:grid; place-items:center; min-height:200px; color:var(--text-muted); font-size:.8rem; text-align:center; padding:0 16px;}
 .comp-pizza-corpo{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; min-height:268px;}
 .comp-pizza-corpo svg{flex:none; overflow:visible;}
-.comp-fatia{cursor:pointer; transition:opacity .15s, transform .15s;}
+.comp-fatia{cursor:pointer; transition:opacity .15s, transform .15s; outline:none;}
+.comp-fatia:focus,.comp-coluna:focus{outline:none;}
 .comp-pizza-corpo.foco .comp-fatia{opacity:.3;}
 .comp-pizza-corpo.foco .comp-fatia.ativa{opacity:1;}
 .comp-leg-col{flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; align-self:stretch; justify-content:center;}
@@ -1965,11 +1966,11 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var considerados = modo === 'geral' ? times : sel;
     var soma = function(arr, hh){ return arr.reduce(function(a, t){ return a + (d.series[t.n][hh] || 0); }, 0); };
     var totalHora = HR.map(function(hh){ return soma(times, hh); });
-    var metaHora = considerados.reduce(function(a, t){ return a + META_DIA_TIME[t.n]; }, 0) * Math.max(1, d.dias || 1) / Math.max(1, HR.length * Math.max(1, d.dias || 1));   // meta do dia ÷ horas do gráfico
-    if (modo === 'todos') metaHora = metaHora / Math.max(1, considerados.length);   // uma coluna por time: meta de um time por hora
-    var disponivel = (scroll.clientWidth || 600) - 8, minimo = modo === 'todos' ? 62 + Math.max(0, times.length-4)*10 : 48;
+    // Média por hora do que está em destaque (total ou soma dos times marcados), nas horas do gráfico.
+    var mediaHora = HR.reduce(function(a, hh){ return a + soma(considerados, hh); }, 0) / Math.max(1, HR.length);
+    var disponivel = (scroll.clientWidth || 600) - 8, minimo = 100;   // coluna larga; as demais horas aparecem arrastando a barra
     var GRUPO = Math.max(minimo, Math.floor(disponivel / HR.length)), W = HR.length*GRUPO + 8;
-    var max = metaHora;
+    var max = mediaHora;
     if (modo === 'todos') times.forEach(function(t){ HR.forEach(function(hh){ if (d.series[t.n][hh] > max) max = d.series[t.n][hh]; }); });
     else totalHora.forEach(function(v){ if (v > max) max = v; });
     var passoY = max > 500 ? 500 : 50, vMax = Math.max(50, Math.ceil(max*1.08/passoY)*passoY), y = function(v){ return base - v/vMax*(base-topo); };
@@ -1992,7 +1993,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         s += '<text class="comp-rot" x="'+rotX(i)+'" y="'+(base+17)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(hh).padStart(2,'0')+'h</text></g>';
       });
     } else {
-      var lc = Math.min(46, GRUPO*0.58);
+      var lc = Math.min(72, GRUPO*0.6);
       HR.forEach(function(hh, i){
         var x = rotX(i) - lc/2, tot = totalHora[i], parte = modo === 'geral' ? tot : soma(sel, hh);
         s += '<g class="comp-grupo"><g class="comp-coluna" data-hora="'+hh+'" data-v="'+parte+'" data-x="'+rotX(i)+'" data-y="'+y(parte)+'" tabindex="0">';
@@ -2015,10 +2016,12 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         s += '<text class="comp-rot" x="'+rotX(i)+'" y="'+(base+17)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(hh).padStart(2,'0')+'h</text></g>';
       });
     }
-    // linha da meta por hora
-    var yM = y(metaHora);
+    // linha da média por hora
+    var yM = y(mediaHora);
     s += '<line x1="0" x2="'+W+'" y1="'+yM+'" y2="'+yM+'" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5" pointer-events="none"/>';
-    s += '<text x="6" y="'+(yM-6)+'" font-size="10.5" font-weight="700" fill="var(--amber)" pointer-events="none">Meta/hora '+fmt(Math.round(metaHora))+(modo === 'todos' ? ' por time' : '')+'</text>';
+    var txtMedia = 'Média/hora '+fmt(Math.round(mediaHora)), largMedia = txtMedia.length*6.2 + 12;
+    s += '<rect x="2" y="'+(yM-19)+'" width="'+largMedia+'" height="16" rx="4" fill="var(--bg-card)" stroke="var(--amber)" stroke-width="1" pointer-events="none"/>';
+    s += '<text x="8" y="'+(yM-7)+'" font-size="10.5" font-weight="700" fill="var(--amber)" pointer-events="none">'+txtMedia+'</text>';
     wrap.innerHTML = s + '</svg>';
     var svg = wrap.querySelector('svg'), rot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     svg.appendChild(rot);
@@ -2030,7 +2033,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         : modo === 'geral'
           ? '<span class="comp-leg-cor" style="--c:var(--comp-geral)"><i></i>Todos os times</span>'
           : '<span class="comp-leg-cor" style="--c:var(--comp-fundo)"><i></i>Total da hora</span>' + sel.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join(''))
-      + '<span class="comp-dica"><svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5"/></svg> meta por hora</span>';
+      + '<span class="comp-dica"><svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5"/></svg> média por hora</span>';
 
     function somaGrupo(arrs, lista, hh){ return lista.reduce(function(a, t){ return a + (arrs[t.n][hh] || 0); }, 0); }
     function mostrar(col, comTip){
@@ -2130,7 +2133,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+nome+'<span class="meta">'+esc(m.casados.length ? m.casados.join(', ') : m.usuario)+(tags.length ? ' · '+esc(tags.join(', ')) : '')+'</span></span><b>'+fmt(valor(m))+'</b></li>';
       }).join('')+'</ol>' : '<p class="comp-vazio-mini">—</p>';
       return '<div class="comp-eq" '+st+'><div class="comp-eq-head"><span>Time 0'+t.n+'</span><span>'+(ehLider ? 'Líder de Equipe' : itens.length+' '+rotuloQtde(itens.length))+'</span></div>'+corpo+
-        (itens.length>5 ? '<button class="comp-mais" data-ver="'+chave+'">'+(todos ? 'Mostrar menos' : 'Ver todos os '+itens.length)+'</button>' : '')+'</div>';
+        (itens.length>5 ? '<button class="comp-mais" data-ver="'+chave+'">'+(todos ? 'Mostrar menos' : 'Visualizar Restante')+'</button>' : '')+'</div>';
     }
     var faixas = [
       { titulo:'Líderes', html: c.times.map(function(t){ return bloco(t, 'lid-'+t.n, t.lideres, function(n){ return n===1?'líder':'líderes'; }, null, true); }).join('') },
