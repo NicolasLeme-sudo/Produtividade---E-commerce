@@ -1589,6 +1589,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   };
   var NUM_TIMES = [1,2,3,4,5,6];
   var TIMES_COLMEIA = { 5:true, 6:true };
+  // Ordem dos cards e blocos na tela: Roxo antes do Laranja.
+  var ORDEM_CARDS = [1,2,3,4,6,5];
+  function timesEmOrdem(c){ return ORDEM_CARDS.map(function(n){ return c.times[n-1]; }); }
   var META_DIA_TIME = { 1:2000, 2:2000, 3:2000, 4:2000, 5:1200, 6:1200 };
   var ROT_ATV = { sep:'Separação', conf:'Conferência', ambos:'Separação + Conferência' };
   var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque' };
@@ -2124,7 +2127,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   // Cards dos 6 times em ordem fixa (Vermelho, Azul, Verde, Amarelo, Laranja, Roxo).
   function placarHtml(c, crit){
     function vf(v){ return crit.pct ? Math.round(v)+'%' : fmt(Math.round(v)); }
-    return '<div class="comp-placar">'+c.times.map(function(t){
+    return '<div class="comp-placar">'+timesEmOrdem(c).map(function(t){
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var cab = '<div class="comp-top"><span class="comp-nome"><span class="comp-dot"></span><span class="comp-nome-txt">Time 0'+t.n+' · '+t.cor.nome+'</span></span>'+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>';
       if (!t.lista.length) return '<div class="comp-time" '+st+'>'+cab+'<div class="comp-sub">Sem membros neste turno e atividade.</div></div>';
@@ -2153,12 +2156,12 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         (itens.length>5 ? '<button class="comp-mais" data-ver="'+chave+'">'+(todos ? 'Mostrar menos' : 'Visualizar Restante')+'</button>' : '')+'</div>';
     }
     var faixas = [
-      { titulo:'Líderes', html: c.times.map(function(t){ return bloco(t, 'lid-'+t.n, t.lideres, function(n){ return n===1?'líder':'líderes'; }, null, true); }).join('') },
-      { titulo:'Conferentes', html: c.times.map(function(t){
+      { titulo:'Líderes', html: timesEmOrdem(c).map(function(t){ return bloco(t, 'lid-'+t.n, t.lideres, function(n){ return n===1?'líder':'líderes'; }, null, true); }).join('') },
+      { titulo:'Conferentes', html: timesEmOrdem(c).map(function(t){
           var itens = t.todosMembros.filter(function(m){ return m.grupos.conf; }).sort(function(a,b){ return b.conf-a.conf; });
           return bloco(t, 'conf-'+t.n, itens, function(n){ return n===1?'membro':'membros'; }, function(m){ return m.conf; });
         }).join('') },
-      { titulo:'Separadores', html: c.times.map(function(t){
+      { titulo:'Separadores', html: timesEmOrdem(c).map(function(t){
           var itens = t.todosMembros.filter(function(m){ return m.grupos.sep; }).sort(function(a,b){ return b.sep-a.sep; });
           return bloco(t, 'sep-'+t.n, itens, function(n){ return n===1?'membro':'membros'; }, function(m){ return m.sep; });
         }).join('') }
