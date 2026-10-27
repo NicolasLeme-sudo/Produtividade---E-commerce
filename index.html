@@ -2143,13 +2143,8 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     wrap.innerHTML = s + '</svg>';
     var svg = wrap.querySelector('svg'), rot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     svg.appendChild(rot);
-    if (manterRolagem) scroll.scrollLeft = rolagem;
-    else {
-      // Abre com a hora atual no centro (se ela não estiver no gráfico, a hora mais próxima).
-      var agora = new Date().getHours(), idx = 0;
-      HR.forEach(function(hh, i){ if (Math.abs(hh - agora) < Math.abs(HR[idx] - agora)) idx = i; });
-      scroll.scrollLeft = Math.max(0, rotX(idx) - scroll.clientWidth/2);
-    }
+    // Abre sempre na primeira hora do dia (começo da barra); ao marcar times, mantém a posição.
+    scroll.scrollLeft = manterRolagem ? rolagem : 0;
 
     var corGeral = modo === 'geral' ? 'var(--comp-geral)' : (sel.length === 1 ? 'var('+sel[0].cor.c+')' : 'var(--accent-light)');
     legEl.innerHTML = (modo === 'todos'
