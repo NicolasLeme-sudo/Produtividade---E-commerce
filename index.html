@@ -418,6 +418,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-pizza-corpo svg{flex:none; overflow:visible;}
 .comp-fatia{cursor:pointer; transition:opacity .15s, transform .15s; outline:none;}
 .comp-fatia:focus,.comp-coluna:focus{outline:none;}
+/* sem o contorno branco de foco nos elementos clicáveis dos gráficos */
+svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .comp-pizza-corpo.foco .comp-fatia{opacity:.3;}
 .comp-pizza-corpo.foco .comp-fatia.ativa{opacity:1;}
 .comp-leg-col{flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; align-self:stretch; justify-content:center;}
