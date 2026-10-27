@@ -1315,7 +1315,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
       '<div class="panel-head"><div><p class="kicker">Upload</p><h4>Planilha de escalação dos times <span class="badge-feito" id="comp-planilha-badge" hidden>✓ Feito</span></h4></div></div>' +
       '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Atividade, Turno, Piso, Time, Observação, Líder</strong>.</p>' +
-      '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button>' +
+      '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button><button class="btn ghost" id="comp-btn-exportar">Exportar times atuais</button>' +
       '<div class="upload-status" id="comp-planilha-status"></div></div>' +
       tabelaClassificacoesCompeticao() + "</div></div>";
 
@@ -1392,6 +1392,21 @@ async function renderCompeticaoAdmin(recarregarBase) {
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
     XLSX.writeFile(wb, "modelo_competicao_times.xlsx");
+  });
+  // Exporta a escalação atual (todos os turnos) no mesmo formato da planilha de abastecimento.
+  document.getElementById("comp-btn-exportar").addEventListener("click", function () {
+    var ordemTurno = function (x) { return COMP_TURNOS.indexOf(x); };
+    var linhas = compAdm.linhas.slice().sort(function (a, b) {
+      return ordemTurno(a.turno) - ordemTurno(b.turno) || a.time - b.time || (b.lider ? 1 : 0) - (a.lider ? 1 : 0) || rotuloAtividade(a.atividade).localeCompare(rotuloAtividade(b.atividade)) || a.usuario_wms.localeCompare(b.usuario_wms);
+    });
+    var aoa = [["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Time", "Observação", "Líder"]].concat(linhas.map(function (l) {
+      var obs = l.observacao || (/colmeia$/.test(l.atividade) ? "Colmeia" : "");
+      return [l.nome || "", l.usuario_wms, rotuloAtividade(l.atividade), l.turno, l.piso || "", "0" + l.time, obs, l.lider ? "S" : "N"];
+    }));
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
+    var hoje = new Date();
+    XLSX.writeFile(wb, "times_competicao_" + hoje.getFullYear() + String(hoje.getMonth() + 1).padStart(2, "0") + String(hoje.getDate()).padStart(2, "0") + ".xlsx");
   });
   document.getElementById("comp-btn-planilha").addEventListener("click", async function () {
     var input = document.getElementById("comp-planilha");

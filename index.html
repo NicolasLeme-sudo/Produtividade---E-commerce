@@ -332,17 +332,18 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-pista-grade{display:grid; grid-template-columns:130px minmax(0,1fr) 200px; column-gap:14px; align-items:center;}
 .comp-pista-hd{font-size:.62rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); padding-bottom:6px;}
 .comp-pista-grupo{grid-column:1 / -1; font-size:.62rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); padding:10px 0 5px;}
-.comp-raia-nome{display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:800; color:var(--c); height:46px;}
+.comp-raia-nome{display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:800; color:var(--c); height:42px;}
 .comp-raia-nome i{width:10px; height:10px; border-radius:50%; background:var(--c); flex:none;}
-.comp-raia{height:46px; position:relative;}
+.comp-raia{height:42px; position:relative;}
 .comp-tk{position:absolute; inset:0; background:color-mix(in srgb, var(--olive) 10%, var(--bg-input)); border-left:1px solid var(--border); border-right:1px solid var(--border); border-bottom:1px dashed var(--border); overflow:hidden;}
 .comp-tk.prim{border-top:1px solid var(--border); border-radius:8px 8px 0 0;}
 .comp-tk.ult{border-bottom:1px solid var(--border); border-radius:0 0 8px 8px;}
 .comp-tk.prim.ult{border-radius:8px;}
 .comp-largada{position:absolute; left:4%; top:0; bottom:0; border-left:2px dashed color-mix(in srgb, var(--text-muted) 60%, transparent);}
-.comp-chegada{position:absolute; left:92%; top:0; bottom:0; width:14px; margin-left:-7px; background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/14px 14px; border-left:1px solid #111; border-right:1px solid #111;}
+/* faixa quadriculada: 2 colunas de 7px; a raia tem 42px (3 ciclos de 14px), então o xadrez continua igual de uma raia para a outra */
+.comp-chegada{position:absolute; left:92%; top:0; height:42px; width:14px; margin-left:-7px; z-index:1; background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/14px 14px;}
 .comp-rastro{position:absolute; left:4%; bottom:6px; height:5px; width:calc(var(--x) - 4%); border-radius:3px; background:linear-gradient(90deg, transparent, var(--c));}
-.comp-cavalo{position:absolute; left:var(--x); bottom:2px; width:96px; height:63px; margin-left:-48px; transform:scale(-.62,.62); transform-origin:50% 100%; background:var(--c);
+.comp-cavalo{position:absolute; left:var(--x); bottom:2px; width:96px; height:63px; margin-left:-48px; transform:scale(-.62,.62); transform-origin:50% 100%; background:var(--c); z-index:2;
   -webkit-mask:url(/cavalo-sprite.png) 0 0/1536px 63px no-repeat; mask:url(/cavalo-sprite.png) 0 0/1536px 63px no-repeat; animation:comp-galope var(--d,.8s) steps(16) infinite var(--dl,0s);}
 @keyframes comp-galope{from{-webkit-mask-position:0 0; mask-position:0 0;} to{-webkit-mask-position:-1536px 0; mask-position:-1536px 0;}}
 @media (prefers-reduced-motion:reduce){ .comp-cavalo{animation:none;} }
@@ -1985,15 +1986,15 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   var FASES_CAVALO = [['.8s','0s'],['.74s','-.31s'],['.86s','-.52s'],['.7s','-.13s'],['.82s','-.66s'],['.78s','-.4s']];
   function pistaHtml(c){
     function raias(lista){
-      lista = lista.slice().sort(function(a,b){ return (a.pos||99) - (b.pos||99); });
+      lista = lista.slice().sort(function(a,b){ return b.total - a.total || a.n - b.n; });   // maior realizado em cima
       return lista.map(function(t, i){
         var pct = t.meta ? Math.min(1, t.total/t.meta) : 0, x = (4 + pct*88).toFixed(1);   // 4% = largada, 92% = linha de chegada
         var fase = FASES_CAVALO[(t.n-1) % FASES_CAVALO.length];
         var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
-        return '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(t.pos ? t.pos+'º ' : '')+t.cor.nome+'</div>'+
-          '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span><span class="comp-chegada"></span>'+
+        return '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
+          '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
             '<span class="comp-rastro" style="--c:var('+t.cor.c+'); --x:'+x+'%"></span>'+
-            '<span class="comp-cavalo" style="--c:var('+t.cor.c+'); --x:'+x+'%; --d:'+fase[0]+'; --dl:'+fase[1]+'" role="img" aria-label="Time 0'+t.n+': '+Math.round(pct*100)+'% da meta"></span></div></div>'+
+            '<span class="comp-cavalo" style="--c:var('+t.cor.c+'); --x:'+x+'%; --d:'+fase[0]+'; --dl:'+fase[1]+'" role="img" aria-label="Time 0'+t.n+': '+Math.round(pct*100)+'% da meta"></span></div><span class="comp-chegada"></span></div>'+
           '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>';
       }).join('');
     }
