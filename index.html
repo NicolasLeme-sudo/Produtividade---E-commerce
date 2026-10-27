@@ -2117,7 +2117,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var totR = c.times.reduce(function(s,t){ return s + t.total; }, 0), totM = c.times.reduce(function(s,t){ return s + t.meta; }, 0);
     return '<div class="panel comp-pista"><div class="panel-head"><div><h4>Corrida das equipes</h4></div></div>'+
       '<div class="comp-pista-grade">'+
-        '<div class="comp-pista-hd">Equipe</div><div class="comp-pista-hd" style="text-align:center">Andamento da produção</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div>'+
+        '<div class="comp-pista-hd"></div><div class="comp-pista-hd" style="text-align:center">Andamento da produção</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div>'+
         '<div class="comp-pista-grupo">Equipes por piso</div>'+ raias(piso) +
         '<div class="comp-pista-grupo">Colmeia</div>'+ raias(col) +
         '<div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div>'+
