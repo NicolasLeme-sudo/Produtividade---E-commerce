@@ -1290,7 +1290,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
       '<div class="panel" style="display:flex; flex-direction:column; gap:10px">' +
         '<div class="panel-head"><div><p class="kicker">' + htmlSeguro(compAdm.turno) + " · " + htmlSeguro((COMP_ATIVS.filter(function (a) { return a[0] === compAdm.atv; })[0] || [])[1]) + '</p><h4>Time 0' + compAdm.time + " · " + COMP_TIMES[compAdm.time][0] + "</h4></div></div>" +
         '<div class="comp-add"><input id="comp-novo-usuario" placeholder="Usuário WMS (ex.: NOME.SOBRENOME)" aria-label="Usuário WMS"><select id="comp-novo-setor" aria-label="Setor">' + opcoes(["Calçados", "Vestuário"]) + '</select><select id="comp-novo-piso" aria-label="Piso">' + opcoes([1, 2, 3, 4].map(function (n) { return [n, "Piso " + n]; })) + '</select><button class="btn" id="comp-btn-add">Adicionar</button></div>' +
-        '<div class="upload-status" id="comp-membro-status"></div>' + htmlMembros +
+        '<div class="upload-status" id="comp-membro-status"></div>' + '<div class="comp-lista-membros">' + htmlMembros + '</div>' +
       "</div>" +
     "</div>" +
     '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
