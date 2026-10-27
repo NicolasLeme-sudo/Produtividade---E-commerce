@@ -360,6 +360,14 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-eq .comp-li-lider{grid-template-columns:minmax(0,1fr);}
 .comp-eq .comp-li-lider .nm{color:var(--c); font-weight:800; font-size:.82rem;}
 .comp-vazio-mini{color:var(--text-muted); font-size:.75rem; padding:8px 12px; margin:0;}
+/* chips de times do gráfico por hora */
+.comp-chips-horas{display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end;}
+.comp-chip-time{font:inherit; font-size:.72rem; color:var(--text-label); background:var(--bg-input); border:1px solid var(--border); border-radius:999px; padding:4px 11px; cursor:pointer;}
+.comp-chip-time:hover{color:var(--text);}
+.comp-chip-time.on{color:var(--c); border-color:var(--c); background:color-mix(in srgb, var(--c) 12%, var(--bg-input)); font-weight:700;}
+.comp-chip-todos{--c:var(--accent-light);}
+:root{--comp-geral:#2A5A9E; --comp-fundo:#2C3A52;}
+[data-tema="claro"]{--comp-geral:#1F4E8C; --comp-fundo:#DCE3EE;}
 /* janela de times do gráfico por hora */
 .comp-janela{position:relative;}
 .comp-janela-btn{font:inherit; font-size:.74rem; color:var(--text); background:var(--bg-input); border:1px solid var(--border); border-radius:999px; padding:4px 12px; cursor:pointer;}
@@ -425,6 +433,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-escada-scroll::-webkit-scrollbar-thumb{background:var(--accent); border-radius:5px;}
 .comp-escada-scroll::-webkit-scrollbar-track{background:var(--bg-input); border-radius:5px;}
 .comp-coluna{cursor:pointer; transition:opacity .15s;}
+.comp-leg-cor i{border-radius:3px;}
 .comp-grupo.foco .comp-coluna{opacity:.25;}
 .comp-grupo.foco .comp-coluna.ativa{opacity:1;}
 .comp-leg-horas{display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; font-size:.74rem; color:var(--text-label);}
@@ -1563,7 +1572,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   // Cada time tem líder (sem produção), separadores e conferentes; Embalagem e Embarque usam,
   // por enquanto, a produção da Conferência.
   var competicaoTimes = [];
-  var compEstado = { turno:'Todos', atv:'ambos', ops:{ checkout:true, colmeia:true }, crit:'media', verTodos:{}, ocultos:{}, rolagem:0 };
+  var compEstado = { turno:'Todos', atv:'ambos', ops:{ checkout:true, colmeia:true }, crit:'media', verTodos:{}, selHoras:{}, rolagem:0 };
   var TIMES_COR = {
     1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'},
     4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'}, 5:{nome:'Laranja', c:'--t5', s:'--t5-soft'}, 6:{nome:'Roxo', c:'--t6', s:'--t6-soft'}
@@ -1923,76 +1932,118 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     document.addEventListener('click', function fechar(e){ if (!corpo.isConnected) { document.removeEventListener('click', fechar); return; } if (!e.target.closest('.comp-fatia') && !e.target.closest('.comp-leg')) limpar(); });
   }
 
-  // Janela "Times" do gráfico por hora: marca os times que aparecem, com "Marcar todos".
-  function janelaTimesHtml(times){
-    var marcados = times.filter(function(t){ return !compEstado.ocultos[t.n]; }).length;
-    return '<div class="comp-janela"><button type="button" class="comp-janela-btn" id="comp-janela-btn" aria-expanded="false">Times · '+marcados+' de '+times.length+' ▾</button>'+
-      '<div class="comp-janela-pop" id="comp-janela-pop" hidden>'+
-        '<label class="comp-janela-item comp-janela-todos"><input type="checkbox" data-todos'+(marcados === times.length ? ' checked' : '')+'> Marcar todos</label>'+
-        times.map(function(t){ return '<label class="comp-janela-item" style="--c:var('+t.cor.c+')"><input type="checkbox" data-n="'+t.n+'"'+(compEstado.ocultos[t.n] ? '' : ' checked')+'><i></i>Time 0'+t.n+' · '+t.cor.nome+'</label>'; }).join('')+
-      '</div></div>';
+  // Chips dos times no topo do card do gráfico por hora (seleção múltipla; "Todos" marca todos).
+  function chipsTimesHtml(times){
+    var sel = compEstado.selHoras, todos = times.length && times.every(function(t){ return sel[t.n]; });
+    return '<div class="comp-chips-horas">'+times.map(function(t){
+      return '<button type="button" class="comp-chip-time'+(sel[t.n] ? ' on' : '')+'" data-n="'+t.n+'" style="--c:var('+t.cor.c+')">Time 0'+t.n+'</button>';
+    }).join('')+'<button type="button" class="comp-chip-time comp-chip-todos'+(todos ? ' on' : '')+'" data-todos>Todos</button></div>';
   }
 
-  // Colunas por hora em escadinha (a maior atrás), com rolagem horizontal; clique mostra total e quebra no quadro fixo.
+  // Produção por hora: sem time marcado, colunas do total em azul escuro; com alguns times marcados,
+  // a soma deles aparece colorida dentro da coluna do total (cinza); com todos marcados, uma coluna por time.
+  // A linha tracejada é a meta por hora (meta do dia dos times considerados ÷ horas do gráfico).
   function desenharHorasComp(c, d){
     var wrap = document.getElementById('comp-escada'), scroll = document.getElementById('comp-escada-scroll'), eixo = document.getElementById('comp-eixo'), legEl = document.getElementById('comp-leg-horas'), tip = tipGrafico('horas', '.comp-coluna');
     if (!wrap) return;
     var rolagem = scroll.scrollLeft || compEstado.rolagem || 0;
     var times = c.times.filter(function(t){ return t.lista.length; });
-    var vis = times.filter(function(t){ return !compEstado.ocultos[t.n]; });
-    document.getElementById('comp-janela-slot').innerHTML = janelaTimesHtml(times);
-    legEl.innerHTML = vis.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join('') +
-      '<span class="comp-dica"><svg width="20" height="8" aria-hidden="true"><line x1="1" y1="4" x2="19" y2="4" stroke="var(--text-muted)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="0.1 4.5"/></svg> média por hora</span>';
-    var btn = document.getElementById('comp-janela-btn'), pop = document.getElementById('comp-janela-pop');
-    btn.addEventListener('click', function(e){ e.stopPropagation(); pop.hidden = !pop.hidden; btn.setAttribute('aria-expanded', String(!pop.hidden)); });
-    pop.addEventListener('click', function(e){ e.stopPropagation(); });
-    function redesenhar(){ compEstado.rolagem = scroll.scrollLeft; desenharHorasComp(c, d); var p = document.getElementById('comp-janela-pop'), b = document.getElementById('comp-janela-btn'); if (p) { p.hidden = false; b.setAttribute('aria-expanded','true'); } }
-    pop.querySelector('[data-todos]').addEventListener('change', function(){ compEstado.ocultos = {}; redesenhar(); });
-    pop.querySelectorAll('[data-n]').forEach(function(cb){ cb.addEventListener('change', function(){
-      var n = cb.getAttribute('data-n');
-      if (cb.checked) delete compEstado.ocultos[n];
-      else if (times.length - Object.keys(compEstado.ocultos).length > 1) compEstado.ocultos[n] = true;   // sempre sobra um time
+    var sel = times.filter(function(t){ return compEstado.selHoras[t.n]; });
+    var modo = !sel.length ? 'geral' : (sel.length === times.length && times.length > 1 ? 'todos' : 'foco');
+    var slot = document.getElementById('comp-janela-slot');
+    slot.innerHTML = chipsTimesHtml(times);
+    function redesenhar(){ compEstado.rolagem = scroll.scrollLeft; desenharHorasComp(c, d); }
+    slot.querySelectorAll('[data-n]').forEach(function(b){ b.addEventListener('click', function(){ var n = b.getAttribute('data-n'); if (compEstado.selHoras[n]) delete compEstado.selHoras[n]; else compEstado.selHoras[n] = true; redesenhar(); }); });
+    slot.querySelector('[data-todos]').addEventListener('click', function(){
+      if (modo === 'todos') compEstado.selHoras = {}; else { compEstado.selHoras = {}; times.forEach(function(t){ compEstado.selHoras[t.n] = true; }); }
       redesenhar();
-    }); });
+    });
 
-    // Cada hora ganha a largura que sobrar no card: o gráfico sempre ocupa a área toda (com rolagem só se não couber).
     var HR = d.horas, H = 380, topo = 26, base = 334;
-    var disponivel = (scroll.clientWidth || 600) - 8, minimo = 62 + Math.max(0, vis.length-4)*10;
+    var considerados = modo === 'geral' ? times : sel;
+    var soma = function(arr, hh){ return arr.reduce(function(a, t){ return a + (d.series[t.n][hh] || 0); }, 0); };
+    var totalHora = HR.map(function(hh){ return soma(times, hh); });
+    var metaHora = considerados.reduce(function(a, t){ return a + META_DIA_TIME[t.n]; }, 0) * Math.max(1, d.dias || 1) / Math.max(1, HR.length * Math.max(1, d.dias || 1));   // meta do dia ÷ horas do gráfico
+    if (modo === 'todos') metaHora = metaHora / Math.max(1, considerados.length);   // uma coluna por time: meta de um time por hora
+    var disponivel = (scroll.clientWidth || 600) - 8, minimo = modo === 'todos' ? 62 + Math.max(0, times.length-4)*10 : 48;
     var GRUPO = Math.max(minimo, Math.floor(disponivel / HR.length)), W = HR.length*GRUPO + 8;
-    var larg = Math.min(30, (GRUPO*0.78) / (1 + 0.42*Math.max(0, vis.length-1))), passo = larg*0.42, larguraPilha = larg + passo*Math.max(0, vis.length-1);
-    var max = 0; vis.forEach(function(t){ HR.forEach(function(hh){ if (d.series[t.n][hh] > max) max = d.series[t.n][hh]; }); });
-    var vMax = Math.max(50, Math.ceil(max/50)*50), y = function(v){ return base - v/vMax*(base-topo); };
+    var max = metaHora;
+    if (modo === 'todos') times.forEach(function(t){ HR.forEach(function(hh){ if (d.series[t.n][hh] > max) max = d.series[t.n][hh]; }); });
+    else totalHora.forEach(function(v){ if (v > max) max = v; });
+    var passoY = max > 500 ? 500 : 50, vMax = Math.max(50, Math.ceil(max*1.08/passoY)*passoY), y = function(v){ return base - v/vMax*(base-topo); };
     var ax = '<svg width="38" height="'+H+'" viewBox="0 0 38 '+H+'" aria-hidden="true">';
     [0, vMax/2, vMax].forEach(function(v){ ax += '<text x="32" y="'+(y(v)+3)+'" font-size="9.5" fill="var(--text-muted)" text-anchor="end">'+fmt(v)+'</text>'; });
     eixo.innerHTML = ax + '</svg>';
-    var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="display:block" role="img" aria-label="Itens por hora por time">';
+    var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="display:block" role="img" aria-label="Itens por hora">';
     [0, vMax/2, vMax].forEach(function(v){ s += '<line x1="0" y1="'+y(v)+'" x2="'+W+'" y2="'+y(v)+'" stroke="var(--border)"'+(v?' stroke-dasharray="3 5"':'')+'/>'; });
-    var pts = HR.map(function(hh, i){ var t = 0; vis.forEach(function(x){ t += d.series[x.n][hh]; }); return [i*GRUPO + GRUPO/2 + 4, y(t/vis.length)]; });
-    if (pts.length > 1) s += '<path d="'+suave(pts)+'" fill="none" stroke="var(--text-muted)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="0.1 4.5" opacity=".8"/>';
-    HR.forEach(function(hh, i){
-      var x0 = 4 + i*GRUPO + (GRUPO - larguraPilha)/2;
-      var ordem = vis.map(function(t){ return { t:t, v:d.series[t.n][hh] }; }).sort(function(a,b){ return b.v - a.v; });
-      s += '<g class="comp-grupo">';
-      ordem.forEach(function(o, k){
-        var x = x0 + k*passo, yy = y(o.v);
-        s += '<g class="comp-coluna" data-time="'+o.t.n+'" data-hora="'+hh+'" data-v="'+o.v+'" data-x="'+(x+larg/2)+'" data-y="'+yy+'" tabindex="0"><rect x="'+x.toFixed(1)+'" y="'+yy.toFixed(1)+'" width="'+larg.toFixed(1)+'" height="'+Math.max(0, base-yy).toFixed(1)+'" rx="3" fill="var('+o.t.cor.c+')" stroke="var(--bg-card)" stroke-width="1"/></g>';
+    var rotX = function(i){ return 4 + i*GRUPO + GRUPO/2; };
+    if (modo === 'todos') {
+      var larg = Math.min(30, (GRUPO*0.78) / (1 + 0.42*Math.max(0, times.length-1))), passo = larg*0.42, pilha = larg + passo*Math.max(0, times.length-1);
+      HR.forEach(function(hh, i){
+        var x0 = 4 + i*GRUPO + (GRUPO - pilha)/2;
+        var ordem = times.map(function(t){ return { t:t, v:d.series[t.n][hh] }; }).sort(function(a,b){ return b.v - a.v; });
+        s += '<g class="comp-grupo">';
+        ordem.forEach(function(o, k){
+          var x = x0 + k*passo, yy = y(o.v);
+          s += '<g class="comp-coluna" data-time="'+o.t.n+'" data-hora="'+hh+'" data-v="'+o.v+'" data-x="'+(x+larg/2)+'" data-y="'+yy+'" tabindex="0"><rect x="'+x.toFixed(1)+'" y="'+yy.toFixed(1)+'" width="'+larg.toFixed(1)+'" height="'+Math.max(0, base-yy).toFixed(1)+'" rx="3" fill="var('+o.t.cor.c+')" stroke="var(--bg-card)" stroke-width="1"/></g>';
+        });
+        s += '<text class="comp-rot" x="'+rotX(i)+'" y="'+(base+17)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(hh).padStart(2,'0')+'h</text></g>';
       });
-      s += '<text class="comp-rot" x="'+(x0 + larguraPilha/2)+'" y="'+(base+17)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(hh).padStart(2,'0')+'h</text></g>';
-    });
+    } else {
+      var lc = Math.min(46, GRUPO*0.58);
+      HR.forEach(function(hh, i){
+        var x = rotX(i) - lc/2, tot = totalHora[i], parte = modo === 'geral' ? tot : soma(sel, hh);
+        s += '<g class="comp-grupo"><g class="comp-coluna" data-hora="'+hh+'" data-v="'+parte+'" data-x="'+rotX(i)+'" data-y="'+y(parte)+'" tabindex="0">';
+        if (modo === 'geral') s += '<rect x="'+x.toFixed(1)+'" y="'+y(tot).toFixed(1)+'" width="'+lc.toFixed(1)+'" height="'+Math.max(0, base-y(tot)).toFixed(1)+'" rx="4" fill="var(--comp-geral)"/>';
+        else {
+          s += '<rect x="'+x.toFixed(1)+'" y="'+y(tot).toFixed(1)+'" width="'+lc.toFixed(1)+'" height="'+Math.max(0, base-y(tot)).toFixed(1)+'" rx="4" fill="var(--comp-fundo)"/>';
+          var acc = 0;
+          sel.forEach(function(t, k){
+            var v = d.series[t.n][hh] || 0; if (!v) return;
+            var y1 = y(acc + v), y0 = y(acc);
+            s += '<rect x="'+x.toFixed(1)+'" y="'+y1.toFixed(1)+'" width="'+lc.toFixed(1)+'" height="'+Math.max(0, y0-y1).toFixed(1)+'" fill="var('+t.cor.c+')" stroke="var(--bg-card)" stroke-width="'+(sel.length > 1 ? 1 : 0)+'"/>';
+            acc += v;
+          });
+        }
+        s += '</g><text x="'+rotX(i)+'" y="'+(y(parte)-6)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle" pointer-events="none">'+fmt(parte)+'</text>';
+        s += '<text class="comp-rot" x="'+rotX(i)+'" y="'+(base+17)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(hh).padStart(2,'0')+'h</text></g>';
+      });
+    }
+    // linha da meta por hora
+    var yM = y(metaHora);
+    s += '<line x1="0" x2="'+W+'" y1="'+yM+'" y2="'+yM+'" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5" pointer-events="none"/>';
+    s += '<text x="6" y="'+(yM-6)+'" font-size="10.5" font-weight="700" fill="var(--amber)" pointer-events="none">Meta/hora '+fmt(Math.round(metaHora))+(modo === 'todos' ? ' por time' : '')+'</text>';
     wrap.innerHTML = s + '</svg>';
     var svg = wrap.querySelector('svg'), rot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     svg.appendChild(rot);
     scroll.scrollLeft = rolagem;
+
+    var corGeral = modo === 'geral' ? 'var(--comp-geral)' : (sel.length === 1 ? 'var('+sel[0].cor.c+')' : 'var(--accent-light)');
+    legEl.innerHTML = (modo === 'todos'
+        ? times.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join('')
+        : modo === 'geral'
+          ? '<span class="comp-leg-cor" style="--c:var(--comp-geral)"><i></i>Todos os times</span>'
+          : '<span class="comp-leg-cor" style="--c:var(--comp-fundo)"><i></i>Total da hora</span>' + sel.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join(''))
+      + '<span class="comp-dica"><svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5"/></svg> meta por hora</span>';
+
+    function somaGrupo(arrs, lista, hh){ return lista.reduce(function(a, t){ return a + (arrs[t.n][hh] || 0); }, 0); }
     function mostrar(col, comTip){
       var g = col.closest('.comp-grupo');
       wrap.querySelectorAll('.comp-grupo').forEach(function(x){ x.classList.remove('foco'); x.querySelectorAll('.comp-coluna').forEach(function(cc){ cc.classList.remove('ativa'); }); });
-      g.classList.add('foco'); col.classList.add('ativa'); g.appendChild(col);
-      var v = +col.dataset.v, x = +col.dataset.x, yy = +col.dataset.y, hh = +col.dataset.hora, n = +col.dataset.time;
-      var tm = c.times[n-1];
-      rot.innerHTML = '<rect x="'+(x-20)+'" y="'+(yy-22)+'" width="40" height="16" rx="4" fill="var(--bg-card)" stroke="var(--border)"/><text x="'+x+'" y="'+(yy-10)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle">'+fmt(v)+'</text>';
+      g.classList.add('foco'); col.classList.add('ativa');
+      var v = +col.dataset.v, hh = +col.dataset.hora, faixa = String(hh).padStart(2,'0')+'h às '+String(hh+1).padStart(2,'0')+'h';
+      if (modo === 'todos') {
+        g.appendChild(col);
+        var x = +col.dataset.x, yy = +col.dataset.y;
+        rot.innerHTML = '<rect x="'+(x-20)+'" y="'+(yy-22)+'" width="40" height="16" rx="4" fill="var(--bg-card)" stroke="var(--border)"/><text x="'+x+'" y="'+(yy-10)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle">'+fmt(v)+'</text>';
+      }
       if (!comTip) return;
-      // Tooltip ao clicar, ao lado da coluna (mesmo estilo da pizza): total e quebra Separação / Conferência.
-      tip.innerHTML = infoQuebraHtml('var('+tm.cor.c+')', 'Time 0'+n+' · '+String(hh).padStart(2,'0')+'h às '+String(hh+1).padStart(2,'0')+'h', v, d.sep[n][hh], d.conf[n][hh], c);
+      if (modo === 'todos') { var n = +col.dataset.time, tm = c.times[n-1]; tip.innerHTML = infoQuebraHtml('var('+tm.cor.c+')', 'Time 0'+n+' · '+faixa, v, d.sep[n][hh], d.conf[n][hh], c); }
+      else {
+        var lista = modo === 'geral' ? times : sel;
+        tip.innerHTML = infoQuebraHtml(corGeral, (modo === 'geral' ? 'Todos os times' : lista.map(function(t){ return 'Time 0'+t.n; }).join(' + '))+' · '+faixa, v, somaGrupo(d.sep, lista, hh), somaGrupo(d.conf, lista, hh), c) +
+          (lista.length > 1 ? '<br>'+lista.slice().sort(function(a,b){ return (d.series[b.n][hh]||0) - (d.series[a.n][hh]||0); }).map(function(t){ return '<span style="color:var('+t.cor.c+')">●</span> 0'+t.n+' <b>'+fmt(d.series[t.n][hh]||0)+'</b>'; }).join(' · ') : '');
+      }
       tip.hidden = false;
       var r = col.getBoundingClientRect();
       tip.style.left = Math.max(8, Math.min(r.right + 8, window.innerWidth - tip.offsetWidth - 8)) + 'px';
@@ -2003,7 +2054,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       wrap.querySelectorAll('.comp-grupo').forEach(function(g){
         g.classList.remove('foco');
         var cols = Array.from(g.querySelectorAll('.comp-coluna')).sort(function(a,b){ return b.dataset.v - a.dataset.v; }), rotulo = g.querySelector('.comp-rot');
-        cols.forEach(function(cc){ cc.classList.remove('ativa'); g.insertBefore(cc, rotulo); });
+        cols.forEach(function(cc){ cc.classList.remove('ativa'); if (modo === 'todos') g.insertBefore(cc, rotulo); });
       });
     }
     wrap.querySelectorAll('.comp-coluna').forEach(function(col){
@@ -2016,8 +2067,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     wrap._fechar = function fechar(e){ if (!wrap.isConnected) { document.removeEventListener('click', fechar); return; } if (!e.target.closest('.comp-coluna')) limpar(); };
     document.addEventListener('click', wrap._fechar);
   }
-  // Fecha a janela "Times" ao clicar fora dela.
-  document.addEventListener('click', function(){ var p = document.getElementById('comp-janela-pop'), b = document.getElementById('comp-janela-btn'); if (p && !p.hidden) { p.hidden = true; if (b) b.setAttribute('aria-expanded','false'); } });
 
   // ---------- pista de corrida: equipes por piso em cima, Colmeia embaixo, mesma linha de chegada ----------
   var FASES_CAVALO = [['.8s','0s'],['.74s','-.31s'],['.86s','-.52s'],['.7s','-.13s'],['.82s','-.66s'],['.78s','-.4s']];
