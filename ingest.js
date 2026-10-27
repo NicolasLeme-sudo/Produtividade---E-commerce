@@ -759,7 +759,7 @@ function processarCancelamentosWMS(rows) {
     var dataISO = paraDataISO(dataCancRaw);
     var dia = null;
     if (dataISO) {
-      dia = porDiaMap.get(dataISO) || { data: dataISO, total: 0, single: 0, multi: 0, motivos: {}, usuarios: {} };
+      dia = porDiaMap.get(dataISO) || { data: dataISO, total: 0, single: 0, multi: 0, motivos: {}, usuarios: {}, cruz: {}, smMotivo: {}, smUsuario: {} };
       porDiaMap.set(dataISO, dia);
       dia.total++;
     }
@@ -768,7 +768,7 @@ function processarCancelamentosWMS(rows) {
     // inconsistente (ex.: "Cancelado ERP" / "CANCELADO PELO ERP" / minúsculo),
     // então agrupamos pela forma normalizada (sem acento, maiúscula).
     var motivoRaw = obterCampo(row, ["Motivo de Cancelamento"]) || "(sem motivo)";
-    var motivo = normalizarTexto(motivoRaw);
+    var motivo = normalizarTexto(motivoRaw).replace(/^CANCELADO PELO ERP$/, "CANCELADO ERP");   // mesma coisa, grafias diferentes
     var usuario = obterCampo(row, ["Usuário Cancelamento", "Usuario Cancelamento"]) || "(sem usuário)";
     porMotivo.set(motivo, (porMotivo.get(motivo) || 0) + 1);
     porUsuario.set(usuario, (porUsuario.get(usuario) || 0) + 1);
@@ -779,6 +779,14 @@ function processarCancelamentosWMS(rows) {
       dia.motivos[motivo] = (dia.motivos[motivo] || 0) + 1;
       dia.usuarios[usuario] = (dia.usuarios[usuario] || 0) + 1;
       if (classificacao.indexOf("MULTI") !== -1) dia.multi++; else if (classificacao.indexOf("SINGLE") !== -1) dia.single++;
+      // Cruzamento motivo × usuário e quebra Single/Multi de cada um (detalhe ao clicar na tela).
+      var cm = dia.cruz[motivo] || (dia.cruz[motivo] = {});
+      cm[usuario] = (cm[usuario] || 0) + 1;
+      var tipo = classificacao.indexOf("MULTI") !== -1 ? "m" : (classificacao.indexOf("SINGLE") !== -1 ? "s" : null);
+      if (tipo) {
+        var a = dia.smMotivo[motivo] || (dia.smMotivo[motivo] = { s: 0, m: 0 }); a[tipo]++;
+        var b = dia.smUsuario[usuario] || (dia.smUsuario[usuario] = { s: 0, m: 0 }); b[tipo]++;
+      }
     }
   });
   var porDia = Array.from(porDiaMap.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });

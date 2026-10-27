@@ -459,6 +459,9 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .comp-tip .tip-total{border-top:1px solid #253048; margin-top:7px; padding-top:7px; font-size:.82rem;}
 .comp-tip .tip-total span{color:#E8EBF2; font-weight:700;}
 .comp-tip .tip-sep{border-top:1px dashed #253048; margin:5px 0 2px;}
+.comp-tip .tip-barra{height:4px; background:#1E2A3D; border-radius:2px; margin:0 0 4px;}
+.comp-tip .tip-barra i{display:block; height:100%; border-radius:2px; background:#5B9BD5;}
+.comp-tip{max-width:340px;}
 .comp-tip.comp-tip-cor{background:var(--c); color:#0B111C;}
 .comp-tip.comp-tip-cor .tip-sub,.comp-tip.comp-tip-cor .tip-l span{color:rgba(11,17,28,.78);}
 .comp-tip.comp-tip-cor .tip-total{border-top-color:rgba(11,17,28,.25);}
@@ -931,7 +934,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     var cor = opts.cor || '--accent';
     var html = itens.map(function(i){
       var pct = Math.max(2, Math.round((i.valor||0)/max*100));
-      return '<div class="bar-row'+(opts.clicavel?' clic':'')+'"'+(opts.clicavel?' data-nome="'+esc(i.nome)+'"':'')+'><div class="nome" title="'+esc(i.nome)+'">'+esc(nomeCurto(i.nome))+'</div>'+
+      return '<div class="bar-row'+(opts.clicavel?' clic':'')+'"'+(opts.clicavel?' data-nome="'+esc(i.nome)+'"':'')+'><div class="nome" title="'+esc(i.nome)+'">'+esc(opts.nomeInteiro ? i.nome : nomeCurto(i.nome))+'</div>'+
         '<div class="bar-track"><i style="width:'+pct+'%; background:var('+cor+')"></i></div>'+
         '<div class="num">'+fmt(i.valor)+(opts.sufixo||'')+'</div></div>';
     }).join('');
@@ -1388,29 +1391,65 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     el.innerHTML = kpisHtml + painel;
   }
 
+  // "CANCELADO PELO ERP" e "CANCELADO ERP" são o mesmo motivo (o WMS grava das duas formas).
+  function motivoCanc(m){ return String(m||'').replace(/^CANCELADO PELO ERP$/, 'CANCELADO ERP'); }
+  var cancDet = null;   // cruzamento motivo × usuário do período, para o detalhe ao clicar
   function renderCancelamentos(d){
     var el = document.getElementById('bloco-cancelamentos');
     if (!d) { el.innerHTML = estadoVazio('Sem cancelamentos no período', SEM_DADOS_TXT); return; }
-    var motivos = (d.porMotivo||[]).map(function(m){ return { nome:m.motivo, valor:m.total }; });
-    var usuarios = (d.porUsuario||[]).map(function(u){ return [u.usuario, u.qtd]; });
-    var totalPeriodo = d.totalPeriodo, single = d.single, multi = d.multi;
+    var mMot = {}, mUsu = {}, cruz = {}, smMot = {}, smUsu = {}, temCruz = false;
+    var totalPeriodo = d.totalPeriodo;
     if (d.porDia && d.porDia.length) {
       var dias = filtrarSerieporGrupo(d.porDia, 'corte', 'data');
-      var mMot = {}, mUsu = {};
-      totalPeriodo = 0; single = 0; multi = 0;
+      totalPeriodo = 0;
       dias.forEach(function(x){
-        totalPeriodo += x.total; single += x.single; multi += x.multi;
-        Object.keys(x.motivos||{}).forEach(function(m){ mMot[m] = (mMot[m]||0) + x.motivos[m]; });
+        totalPeriodo += x.total;
+        Object.keys(x.motivos||{}).forEach(function(m){ var k = motivoCanc(m); mMot[k] = (mMot[k]||0) + x.motivos[m]; });
         Object.keys(x.usuarios||{}).forEach(function(u){ mUsu[u] = (mUsu[u]||0) + x.usuarios[u]; });
+        if (x.cruz) temCruz = true;
+        Object.keys(x.cruz||{}).forEach(function(m){ var k = motivoCanc(m); cruz[k] = cruz[k] || {}; Object.keys(x.cruz[m]).forEach(function(u){ cruz[k][u] = (cruz[k][u]||0) + x.cruz[m][u]; }); });
+        Object.keys(x.smMotivo||{}).forEach(function(m){ var k = motivoCanc(m), o = smMot[k] || (smMot[k] = {s:0,m:0}); o.s += x.smMotivo[m].s; o.m += x.smMotivo[m].m; });
+        Object.keys(x.smUsuario||{}).forEach(function(u){ var o = smUsu[u] || (smUsu[u] = {s:0,m:0}); o.s += x.smUsuario[u].s; o.m += x.smUsuario[u].m; });
       });
-      motivos = Object.keys(mMot).map(function(m){ return { nome:m, valor:mMot[m] }; }).sort(function(a,b){ return b.valor-a.valor; });
-      usuarios = Object.keys(mUsu).map(function(u){ return [u, mUsu[u]]; }).sort(function(a,b){ return b[1]-a[1]; });
+    } else {
+      (d.porMotivo||[]).forEach(function(m){ var k = motivoCanc(m.motivo); mMot[k] = (mMot[k]||0) + m.total; });
+      (d.porUsuario||[]).forEach(function(u){ mUsu[u.usuario] = u.qtd; });
     }
+    var motivos = Object.keys(mMot).map(function(m){ return { nome:m, valor:mMot[m] }; }).sort(function(a,b){ return b.valor-a.valor; });
+    var usuarios = Object.keys(mUsu).map(function(u){ return { nome:u, valor:mUsu[u] }; }).sort(function(a,b){ return b.valor-a.valor; });
+    cancDet = { cruz:cruz, smMot:smMot, smUsu:smUsu, temCruz:temCruz, mMot:mMot, mUsu:mUsu };
     el.innerHTML = '<div class="duo">'+
-      '<div class="panel"><div class="panel-head"><div><p class="kicker">'+fmt(totalPeriodo)+' cancelamentos no período</p><h4>Motivo</h4></div></div>'+ barListHtml(motivos) + '</div>'+
-      '<div class="panel"><div class="panel-head"><div><p class="kicker">Quem cancelou</p><h4>Usuário</h4></div></div>'+
-      tabelaOpHtml(['Usuário','Cancelamentos'], usuarios) +
-      '</div></div>';
+      '<div class="panel"><div class="panel-head"><div><p class="kicker">'+fmt(totalPeriodo)+' cancelamentos no período</p><h4>Motivo</h4></div></div>'+ barListHtml(motivos, { clicavel:true, nomeInteiro:true }) + '</div>'+
+      '<div class="panel canc-usu"><div class="panel-head"><div><p class="kicker">Quem cancelou</p><h4>Usuário</h4></div></div>'+ barListHtml(usuarios, { clicavel:true, cor:'--accent-light', nomeInteiro:true }) + '</div></div>';
+    var tip = tipGrafico('canc', '.bar-row.clic');
+    el.querySelectorAll('.bar-row.clic').forEach(function(r){
+      r.addEventListener('click', function(){
+        var nome = r.getAttribute('data-nome'), ehUsuario = !!r.closest('.canc-usu');
+        tip.className = 'comp-tip';
+        tip.innerHTML = detalheCancelHtml(nome, ehUsuario);
+        tip.hidden = false;
+        var rr = r.getBoundingClientRect();
+        tip.style.left = Math.max(8, Math.min(rr.left + 150, window.innerWidth - tip.offsetWidth - 8)) + 'px';
+        var top = rr.bottom + 6; if (top + tip.offsetHeight > window.innerHeight - 8) top = Math.max(8, rr.top - tip.offsetHeight - 6);
+        tip.style.top = top + 'px';
+      });
+    });
+  }
+  // Janela do clique: motivo → usuários que cancelaram por ele; usuário → motivos que ele usou.
+  function detalheCancelHtml(nome, ehUsuario){
+    var d = cancDet, total = ehUsuario ? d.mUsu[nome] : d.mMot[nome], sm = (ehUsuario ? d.smUsu : d.smMot)[nome];
+    var h = '<div class="tip-h"><i style="background:'+(ehUsuario ? 'var(--accent-light)' : 'var(--accent)')+'"></i><b>'+esc(nome)+'</b></div>'+
+      (sm ? '<div class="tip-sub">Single '+fmt(sm.s)+' · Multi '+fmt(sm.m)+'</div>' : '')+
+      '<div class="tip-l tip-total"><span>Cancelamentos</span><b>'+fmt(total||0)+'</b></div>';
+    var itens = [];
+    if (ehUsuario) Object.keys(d.cruz).forEach(function(m){ if (d.cruz[m][nome]) itens.push([m, d.cruz[m][nome]]); });
+    else Object.keys(d.cruz[nome]||{}).forEach(function(u){ itens.push([u, d.cruz[nome][u]]); });
+    itens.sort(function(a,b){ return b[1]-a[1]; });
+    if (!itens.length) return h + '<div class="tip-sub" style="margin:6px 0 0">'+(d.temCruz ? 'Sem detalhe para este item no período.' : 'Reenvie o Controle de NF do período para ver o detalhe.')+'</div>';
+    var max = itens[0][1];
+    return h + '<div class="tip-sep"></div>' + itens.map(function(x){
+      return '<div class="tip-l"><span>'+esc(x[0])+'</span><b>'+fmt(x[1])+'</b></div><div class="tip-barra"><i style="width:'+Math.max(4, Math.round(x[1]/max*100))+'%"></i></div>';
+    }).join('');
   }
 
   function renderIntegracao(d){
