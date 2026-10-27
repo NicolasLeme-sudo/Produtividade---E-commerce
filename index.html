@@ -446,6 +446,15 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-limpar{font:inherit; font-size:.72rem; color:var(--accent); background:none; border:none; cursor:pointer; padding:3px 4px;}
 .comp-dica{color:var(--text-muted); font-size:.7rem; display:inline-flex; align-items:center; gap:6px;}
 .comp-tip{position:fixed; z-index:60; pointer-events:none; background:#0B111C; color:#E8EBF2; border-radius:8px; padding:8px 11px; font-size:.75rem; box-shadow:0 8px 22px rgba(0,0,0,.35); line-height:1.4; max-width:250px;}
+.comp-tip{min-width:190px; padding:10px 12px;}
+.comp-tip .tip-h{display:flex; align-items:center; gap:7px; font-size:.8rem;}
+.comp-tip i{display:inline-block; width:9px; height:9px; border-radius:50%; flex:none;}
+.comp-tip .tip-sub{color:#9BAAC4; font-size:.7rem; margin:1px 0 0 16px;}
+.comp-tip .tip-l{display:flex; justify-content:space-between; align-items:center; gap:18px; padding:3px 0; font-variant-numeric:tabular-nums;}
+.comp-tip .tip-l span{display:flex; align-items:center; gap:7px; color:#C5CEDD;}
+.comp-tip .tip-total{border-top:1px solid #253048; margin-top:7px; padding-top:7px; font-size:.82rem;}
+.comp-tip .tip-total span{color:#E8EBF2; font-weight:700;}
+.comp-tip .tip-sep{border-top:1px dashed #253048; margin:5px 0 2px;}
 .comp-tip[hidden]{display:none;}
 @media (max-width:1100px){ .comp-linha2{grid-template-columns:1fr;} .comp-pizza-corpo{flex-wrap:wrap; justify-content:center;} }
 .comp-adm-grid{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:14px;}
@@ -1867,12 +1876,15 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   }
 
   function pctComp(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'; }
-  // Texto do quadro fixo: total e a quebra Separação / Conferência, sem porcentagem.
-  function infoQuebraHtml(cor, titulo, total, sep, conf, c){
-    var partes = [];
-    if (c.grupos.indexOf('sep') !== -1) partes.push('Separação <b>'+fmt(sep)+'</b>');
-    if (c.grupos.indexOf('conf') !== -1) partes.push('Conferência <b>'+fmt(conf)+'</b>');
-    return '<span style="color:'+cor+'">●</span> <b>'+esc(titulo)+'</b> · Total <b>'+fmt(total)+'</b>'+(partes.length ? '<br>'+partes.join(' · ') : '');
+  // Tooltip em formato de lista: título (e hora), Total, a quebra Separação / Conferência e,
+  // se houver, os times um por linha. Sem porcentagem.
+  function infoQuebraHtml(cor, titulo, total, sep, conf, c, sub, times){
+    var h = '<div class="tip-h"><i style="background:'+cor+'"></i><b>'+esc(titulo)+'</b></div>'+(sub ? '<div class="tip-sub">'+esc(sub)+'</div>' : '');
+    h += '<div class="tip-l tip-total"><span>Total</span><b>'+fmt(total)+'</b></div>';
+    if (sep != null && c.grupos.indexOf('sep') !== -1) h += '<div class="tip-l"><span>Separação</span><b>'+fmt(sep)+'</b></div>';
+    if (conf != null && c.grupos.indexOf('conf') !== -1) h += '<div class="tip-l"><span>Conferência</span><b>'+fmt(conf)+'</b></div>';
+    if (times && times.length) h += '<div class="tip-sep"></div>' + times.map(function(t){ return '<div class="tip-l"><span><i style="background:'+t.cor+'"></i>'+esc(t.rot)+'</span><b>'+fmt(t.v)+'</b></div>'; }).join('');
+    return h;
   }
 
   // Pizza da participação dos times: % escrito nas fatias, legenda embaixo e, ao clicar na fatia ou na legenda,
@@ -1915,9 +1927,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       paths.forEach(function(p, k){ p.classList.toggle('ativa', k === i); p.style.transform = k === i ? 'translate('+(Math.cos(fatias[i].meio)*6)+'px,'+(Math.sin(fatias[i].meio)*6)+'px)' : ''; });
       legs.forEach(function(l, k){ l.classList.toggle('ativo', k === i); });
       var f = fatias[i];
-      tip.innerHTML = f.sep == null
-        ? '<span style="color:'+f.cor+'">●</span> <b>'+f.rot+'</b> · Total <b>'+fmt(f.valor)+'</b>'
-        : infoQuebraHtml(f.cor, f.rot, f.valor, f.sep, f.conf, c);
+      tip.innerHTML = infoQuebraHtml(f.cor, f.rot, f.valor, f.sep, f.conf, c);
       tip.hidden = false;
       // perto da fatia: no ponto do meio do arco, fora da pizza
       var r = box.querySelector('svg').getBoundingClientRect();
@@ -2053,11 +2063,12 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
         rot.innerHTML = '<rect x="'+(x-20)+'" y="'+(yy-22)+'" width="40" height="16" rx="4" fill="var(--bg-card)" stroke="var(--border)"/><text x="'+x+'" y="'+(yy-10)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle">'+fmt(v)+'</text>';
       }
       if (!comTip) return;
-      if (modo === 'todos') { var n = +col.dataset.time, tm = c.times[n-1]; tip.innerHTML = infoQuebraHtml('var('+tm.cor.c+')', 'Time 0'+n+' · '+faixa, v, d.sep[n][hh], d.conf[n][hh], c); }
+      if (modo === 'todos') { var n = +col.dataset.time, tm = c.times[n-1]; tip.innerHTML = infoQuebraHtml('var('+tm.cor.c+')', 'Time 0'+n, v, d.sep[n][hh], d.conf[n][hh], c, faixa); }
       else {
         var lista = modo === 'geral' ? times : sel;
-        tip.innerHTML = infoQuebraHtml(corGeral, (modo === 'geral' ? 'Todos os times' : lista.map(function(t){ return 'Time 0'+t.n; }).join(' + '))+' · '+faixa, v, somaGrupo(d.sep, lista, hh), somaGrupo(d.conf, lista, hh), c) +
-          (lista.length > 1 ? '<br>'+lista.slice().sort(function(a,b){ return (d.series[b.n][hh]||0) - (d.series[a.n][hh]||0); }).map(function(t){ return '<span style="color:var('+t.cor.c+')">●</span> 0'+t.n+' <b>'+fmt(d.series[t.n][hh]||0)+'</b>'; }).join(' · ') : '');
+        var titulo = modo === 'geral' ? 'Todos os times' : (lista.length === 1 ? 'Time 0'+lista[0].n : lista.length+' times marcados');
+        var porTime = lista.length > 1 ? lista.slice().sort(function(a,b){ return (d.series[b.n][hh]||0) - (d.series[a.n][hh]||0); }).map(function(t){ return { rot:'Time 0'+t.n, v:d.series[t.n][hh]||0, cor:'var('+t.cor.c+')' }; }) : null;
+        tip.innerHTML = infoQuebraHtml(corGeral, titulo, v, somaGrupo(d.sep, lista, hh), somaGrupo(d.conf, lista, hh), c, faixa, porTime);
       }
       tip.hidden = false;
       var r = col.getBoundingClientRect();
