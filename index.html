@@ -1865,7 +1865,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   function tipPizza(){
     if (!compTipPizza) {
       compTipPizza = document.createElement('div'); compTipPizza.className = 'comp-tip'; compTipPizza.hidden = true; document.body.appendChild(compTipPizza);
-      document.addEventListener('click', function(e){ if (!e.target.closest || (!e.target.closest('.comp-fatia') && !e.target.closest('.comp-leg'))) compTipPizza.hidden = true; });
+      document.addEventListener('click', function(e){ if (!e.target.closest || (!e.target.closest('.comp-fatia') && !e.target.closest('.comp-leg') && !e.target.closest('.comp-coluna'))) compTipPizza.hidden = true; });
       window.addEventListener('scroll', function(){ compTipPizza.hidden = true; }, true);
     }
     return compTipPizza;
@@ -1927,13 +1927,11 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // Colunas por hora em escadinha (a maior atrás), com rolagem horizontal; clique mostra total e quebra no quadro fixo.
   function desenharHorasComp(c, d){
-    var wrap = document.getElementById('comp-escada'), scroll = document.getElementById('comp-escada-scroll'), eixo = document.getElementById('comp-eixo'), legEl = document.getElementById('comp-leg-horas'), info = document.getElementById('comp-horas-info');
+    var wrap = document.getElementById('comp-escada'), scroll = document.getElementById('comp-escada-scroll'), eixo = document.getElementById('comp-eixo'), legEl = document.getElementById('comp-leg-horas'), tip = tipPizza();
     if (!wrap) return;
     var rolagem = scroll.scrollLeft || compEstado.rolagem || 0;
     var times = c.times.filter(function(t){ return t.lista.length; });
     var vis = times.filter(function(t){ return !compEstado.ocultos[t.n]; });
-    var DICA = 'Clique numa coluna para ver o total e a quebra';
-    info.textContent = DICA;
     legEl.innerHTML = janelaTimesHtml(times) + vis.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join('') +
       '<span class="comp-dica"><svg width="20" height="8" aria-hidden="true"><line x1="1" y1="4" x2="19" y2="4" stroke="var(--text-muted)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="0.1 4.5"/></svg> média por hora</span>';
     var btn = document.getElementById('comp-janela-btn'), pop = document.getElementById('comp-janela-pop');
@@ -1976,17 +1974,23 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var svg = wrap.querySelector('svg'), rot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     svg.appendChild(rot);
     scroll.scrollLeft = rolagem;
-    function mostrar(col){
+    function mostrar(col, comTip){
       var g = col.closest('.comp-grupo');
       wrap.querySelectorAll('.comp-grupo').forEach(function(x){ x.classList.remove('foco'); x.querySelectorAll('.comp-coluna').forEach(function(cc){ cc.classList.remove('ativa'); }); });
       g.classList.add('foco'); col.classList.add('ativa'); g.appendChild(col);
       var v = +col.dataset.v, x = +col.dataset.x, yy = +col.dataset.y, hh = +col.dataset.hora, n = +col.dataset.time;
       var tm = c.times[n-1];
       rot.innerHTML = '<rect x="'+(x-20)+'" y="'+(yy-22)+'" width="40" height="16" rx="4" fill="var(--bg-card)" stroke="var(--border)"/><text x="'+x+'" y="'+(yy-10)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle">'+fmt(v)+'</text>';
-      info.innerHTML = infoQuebraHtml('var('+tm.cor.c+')', 'Time 0'+n+' · '+String(hh).padStart(2,'0')+'h às '+String(hh+1).padStart(2,'0')+'h', v, d.sep[n][hh], d.conf[n][hh], c);
+      if (!comTip) return;
+      // Tooltip ao clicar, ao lado da coluna (mesmo estilo da pizza): total e quebra Separação / Conferência.
+      tip.innerHTML = infoQuebraHtml('var('+tm.cor.c+')', 'Time 0'+n+' · '+String(hh).padStart(2,'0')+'h às '+String(hh+1).padStart(2,'0')+'h', v, d.sep[n][hh], d.conf[n][hh], c);
+      tip.hidden = false;
+      var r = col.getBoundingClientRect();
+      tip.style.left = Math.max(8, Math.min(r.right + 8, window.innerWidth - tip.offsetWidth - 8)) + 'px';
+      tip.style.top = Math.max(8, r.top - tip.offsetHeight/2) + 'px';
     }
     function limpar(){
-      rot.innerHTML = ''; info.textContent = DICA;
+      rot.innerHTML = ''; tip.hidden = true;
       wrap.querySelectorAll('.comp-grupo').forEach(function(g){
         g.classList.remove('foco');
         var cols = Array.from(g.querySelectorAll('.comp-coluna')).sort(function(a,b){ return b.dataset.v - a.dataset.v; }), rotulo = g.querySelector('.comp-rot');
@@ -1994,11 +1998,14 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       });
     }
     wrap.querySelectorAll('.comp-coluna').forEach(function(col){
-      col.addEventListener('mouseenter', function(){ mostrar(col); });
-      col.addEventListener('focus', function(){ mostrar(col); });
-      col.addEventListener('click', function(){ mostrar(col); });
+      col.addEventListener('mouseenter', function(){ if (tip.hidden) mostrar(col); });
+      col.addEventListener('keydown', function(e){ if (e.key === 'Enter') mostrar(col, true); });
+      col.addEventListener('click', function(e){ e.stopPropagation(); mostrar(col, true); });
     });
-    wrap.onmouseleave = limpar;
+    wrap.onmouseleave = function(){ if (tip.hidden) limpar(); };
+    if (wrap._fechar) document.removeEventListener('click', wrap._fechar);   // o gráfico é redesenhado no mesmo lugar: um só ouvinte
+    wrap._fechar = function fechar(e){ if (!wrap.isConnected) { document.removeEventListener('click', fechar); return; } if (!wrap.contains(e.target)) limpar(); };
+    document.addEventListener('click', wrap._fechar);
   }
   // Fecha a janela "Times" ao clicar fora dela.
   document.addEventListener('click', function(){ var p = document.getElementById('comp-janela-pop'), b = document.getElementById('comp-janela-btn'); if (p && !p.hidden) { p.hidden = true; if (b) b.setAttribute('aria-expanded','false'); } });
@@ -2098,7 +2105,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var cardHora = '<div class="panel comp-card"><div class="panel-head"><div><p class="kicker">'+esc(kickHora)+'</p><h4>Produção por time ao longo do dia</h4></div></div>'+
       (dHora.aviso
         ? '<div class="comp-vazio">'+esc(dHora.aviso)+'</div>'
-        : '<div class="comp-pizza-info" id="comp-horas-info"></div><div class="comp-corpo"><div class="comp-escada-flex"><div class="comp-eixo" id="comp-eixo"></div><div class="comp-escada-scroll" id="comp-escada-scroll"><div id="comp-escada"></div></div></div></div><div class="comp-leg-horas" id="comp-leg-horas"></div>')+
+        : '<div class="comp-corpo"><div class="comp-escada-flex"><div class="comp-eixo" id="comp-eixo"></div><div class="comp-escada-scroll" id="comp-escada-scroll"><div id="comp-escada"></div></div></div></div><div class="comp-leg-horas" id="comp-leg-horas"></div>')+
       '</div>';
     var cardPizza = '<div class="panel comp-card"><div class="panel-head"><div><p class="kicker">'+esc(rotuloFiltrosComp())+' · '+esc(compEstado.turno)+'</p><h4>Participação dos times</h4></div></div>'+
       '<div class="comp-pizza-corpo" id="comp-pizza-corpo"><div id="comp-pizza"></div><div class="comp-leg-pizza" id="comp-leg-pizza"></div></div></div>';
