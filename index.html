@@ -1944,7 +1944,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   // Produção por hora: sem time marcado, colunas do total em azul escuro; com alguns times marcados,
   // a soma deles aparece colorida dentro da coluna do total (cinza); com todos marcados, uma coluna por time.
   // A linha tracejada é a meta por hora (meta do dia dos times considerados ÷ horas do gráfico).
-  function desenharHorasComp(c, d){
+  function desenharHorasComp(c, d, manterRolagem){
     var wrap = document.getElementById('comp-escada'), scroll = document.getElementById('comp-escada-scroll'), eixo = document.getElementById('comp-eixo'), legEl = document.getElementById('comp-leg-horas'), tip = tipGrafico('horas', '.comp-coluna');
     if (!wrap) return;
     var rolagem = scroll.scrollLeft || compEstado.rolagem || 0;
@@ -1953,7 +1953,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var modo = sel.length ? 'foco' : 'geral';   // com 1 ou mais times marcados, a soma deles aparece dentro da coluna do total
     var slot = document.getElementById('comp-janela-slot');
     slot.innerHTML = chipsTimesHtml(times);
-    function redesenhar(){ compEstado.rolagem = scroll.scrollLeft; desenharHorasComp(c, d); }
+    function redesenhar(){ compEstado.rolagem = scroll.scrollLeft; desenharHorasComp(c, d, true); }
     slot.querySelectorAll('[data-n]').forEach(function(b){ b.addEventListener('click', function(){ var n = b.getAttribute('data-n'); if (compEstado.selHoras[n]) delete compEstado.selHoras[n]; else compEstado.selHoras[n] = true; redesenhar(); }); });
     slot.querySelector('[data-todos]').addEventListener('click', function(){
       var todos = sel.length === times.length;
@@ -2025,7 +2025,13 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     wrap.innerHTML = s + '</svg>';
     var svg = wrap.querySelector('svg'), rot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     svg.appendChild(rot);
-    scroll.scrollLeft = rolagem;
+    if (manterRolagem) scroll.scrollLeft = rolagem;
+    else {
+      // Abre com a hora atual no centro (se ela não estiver no gráfico, a hora mais próxima).
+      var agora = new Date().getHours(), idx = 0;
+      HR.forEach(function(hh, i){ if (Math.abs(hh - agora) < Math.abs(HR[idx] - agora)) idx = i; });
+      scroll.scrollLeft = Math.max(0, rotX(idx) - scroll.clientWidth/2);
+    }
 
     var corGeral = modo === 'geral' ? 'var(--comp-geral)' : (sel.length === 1 ? 'var('+sel[0].cor.c+')' : 'var(--accent-light)');
     legEl.innerHTML = (modo === 'todos'
