@@ -1181,6 +1181,55 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       '<div class="delta centro corte-linha'+(c ? ' tem' : '')+'">'+fmt(c)+' Corte'+(c===1?'':'s')+' sinalizado'+(c===1?'':'s')+'</div>');
   }
 
+  // Colunas por hora (Checkout embaixo, Colmeia em cima) a partir da Separação Analítica do dia.
+  var sepHoraDados = null;
+  function separacaoPorHoraHtml(d, dia){
+    var reg = (d.analitico || []).filter(function(x){ return String(x.data).slice(0,10) === dia; })[0];
+    if (!reg) return estadoVazio('Sem detalhe por hora para '+fmtDataBR(dia), 'O detalhe por hora vem da Separação Analítica e fica guardado só para os últimos 31 dias.');
+    var ck = new Array(24).fill(0), cm = new Array(24).fill(0);
+    ['checkout','colmeia'].forEach(function(tp){ Object.keys(reg[tp]||{}).forEach(function(u){ (reg[tp][u]||[]).forEach(function(v,i){ (tp === 'checkout' ? ck : cm)[i] += v||0; }); }); });
+    var horas = []; for (var h = 0; h < 24; h++) if (ck[h] + cm[h] > 0) horas.push(h);
+    if (!horas.length) return estadoVazio('Sem separação por hora em '+fmtDataBR(dia), '');
+    var hs = []; for (var h2 = horas[0]; h2 <= horas[horas.length-1]; h2++) hs.push(h2);
+    sepHoraDados = { ck:ck, cm:cm };
+    var bloco = document.getElementById('bloco-separacao'), disp = (bloco && bloco.clientWidth ? bloco.clientWidth : 900) - 44;
+    var W = Math.max(disp, hs.length*70), H = 300, esq = 44, dir = 12, topo = 24, base = 262, g = (W-esq-dir)/hs.length, lc = Math.min(44, g*0.6);
+    var tot = hs.map(function(h){ return ck[h] + cm[h]; }), mx = Math.max.apply(null, tot);
+    var passo = mx > 1000 ? 500 : (mx > 200 ? 100 : 50), vm = Math.ceil(mx*1.1/passo)*passo, y = function(v){ return base - v/vm*(base-topo); };
+    var media = tot.reduce(function(a,b){ return a+b; },0) / hs.length;
+    var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="display:block" role="img" aria-label="Itens separados por hora">';
+    [0, vm/2, vm].forEach(function(v){ s += '<line x1="'+esq+'" x2="'+(W-dir)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--border)"'+(v?' stroke-dasharray="3 5"':'')+'/><text x="'+(esq-6)+'" y="'+(y(v)+4)+'" font-size="10" fill="var(--text-muted)" text-anchor="end">'+fmt(v)+'</text>'; });
+    hs.forEach(function(h, i){
+      var x = esq + g*i + (g-lc)/2, t = ck[h] + cm[h];
+      s += '<g class="sep-hora-col" data-h="'+h+'" tabindex="0" style="cursor:pointer"><rect x="'+x+'" y="'+topo+'" width="'+lc+'" height="'+(base-topo)+'" fill="transparent"/>'+
+        '<rect x="'+x+'" y="'+y(ck[h])+'" width="'+lc+'" height="'+(base-y(ck[h]))+'" fill="var(--accent)"/>'+
+        '<rect x="'+x+'" y="'+y(t)+'" width="'+lc+'" height="'+(y(ck[h])-y(t))+'" rx="3" fill="var(--olive)"/></g>'+
+        '<text x="'+(x+lc/2)+'" y="'+(y(t)-6)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle" pointer-events="none">'+fmt(t)+'</text>'+
+        '<text x="'+(x+lc/2)+'" y="'+(base+16)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(h).padStart(2,'0')+'h</text>';
+    });
+    s += '<line x1="'+esq+'" x2="'+(W-dir)+'" y1="'+y(media)+'" y2="'+y(media)+'" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="6 5" pointer-events="none"/>'+
+      '<text x="'+(W-dir)+'" y="'+(y(media)-6)+'" font-size="10.5" font-weight="700" fill="var(--amber)" text-anchor="end" pointer-events="none">Média/hora '+fmt(Math.round(media))+'</text>';
+    return '<div class="chart-scroll-x">'+s+'</svg></div>'+
+      '<div class="legend-line"><span><i class="sq" style="background:var(--accent)"></i>Checkout (SINGLE)</span><span><i class="sq" style="background:var(--olive)"></i>Colmeia (MULTI)</span><span><i style="background:var(--amber)"></i>Média por hora</span></div>';
+  }
+  function ligarSeparacaoPorHora(){
+    var tip = tipGrafico('sep-hora', '.sep-hora-col');
+    document.querySelectorAll('.sep-hora-col').forEach(function(col){
+      col.addEventListener('click', function(){
+        var h = +col.getAttribute('data-h'), d = sepHoraDados; if (!d) return;
+        tip.className = 'comp-tip';
+        tip.innerHTML = '<div class="tip-h"><i style="background:var(--accent-light)"></i><b>'+String(h).padStart(2,'0')+'h às '+String(h+1).padStart(2,'0')+'h</b></div>'+
+          '<div class="tip-l tip-total"><span>Total</span><b>'+fmt(d.ck[h]+d.cm[h])+'</b></div>'+
+          '<div class="tip-l"><span><i style="background:var(--accent)"></i>Checkout</span><b>'+fmt(d.ck[h])+'</b></div>'+
+          '<div class="tip-l"><span><i style="background:var(--olive)"></i>Colmeia</span><b>'+fmt(d.cm[h])+'</b></div>';
+        tip.hidden = false;
+        var r = col.getBoundingClientRect();
+        tip.style.left = Math.max(8, Math.min(r.right + 8, window.innerWidth - tip.offsetWidth - 8)) + 'px';
+        tip.style.top = Math.max(8, r.top + r.height/2 - tip.offsetHeight/2) + 'px';
+      });
+    });
+  }
+
   function renderSeparacao(d){
     if (!d) { document.getElementById('bloco-separacao').innerHTML = estadoVazio('Sem dados de Separação ainda', SEM_DADOS_TXT); return; }
     var k = d.kpis || {};
@@ -1190,9 +1239,14 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       kpiEmSeparacaoHtml(k)+
       kpiSeparadoresHtml(d)+
       '</div>';
-    var painelSerie = '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por dia</p></div></div>'+
-      barrasDiaHtml(serieFiltrada, [ {campo:'checkout', cor:'--accent', rotulo:'Checkout (SINGLE)'}, {campo:'colmeia', cor:'--olive', rotulo:'Colmeia (MULTI)'} ]) +
-      '</div>';
+    // Filtro "Dia": itens separados por hora daquele dia; com mais de um dia, uma coluna por dia.
+    var modoData = (filtrosData.outbound || {}).modo, baseDia = (serieFiltrada && serieFiltrada.length) ? serieFiltrada : filtrarSerieporGrupo(d.checkoutDia || d.analitico || [], 'outbound', 'data');
+    var diaSel = baseDia && baseDia.length ? String(baseDia[baseDia.length-1].data).slice(0,10) : null;
+    var painelSerie = (modoData === 'dia' && diaSel)
+      ? '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por hora · '+fmtDataBR(diaSel)+'</p></div></div>'+ separacaoPorHoraHtml(d, diaSel) +'</div>'
+      : '<div class="panel"><div class="panel-head"><div><p class="kicker">Itens separados por dia</p></div></div>'+
+        barrasDiaHtml(serieFiltrada, [ {campo:'checkout', cor:'--accent', rotulo:'Checkout (SINGLE)'}, {campo:'colmeia', cor:'--olive', rotulo:'Colmeia (MULTI)'} ]) +
+        '</div>';
     var ranking = (d.ranking && d.ranking.geral) || [];
     if ((d.colmeiaDia && d.colmeiaDia.length) || (d.checkoutDia && d.checkoutDia.length)) {
       var somaSep = {};
@@ -1202,6 +1256,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var painelRanking = '<div class="panel"><div class="panel-head"><div><p class="kicker">Ranking de separadores</p><h4>Produtividade por separador</h4></div></div>'+
       barListHtml(ranking, {clicavel:true}) + '</div>';
     document.getElementById('bloco-separacao').innerHTML = kpisHtml + painelSerie + painelRanking;
+    ligarSeparacaoPorHora();
     document.querySelectorAll('#bloco-separacao .bar-row.clic').forEach(function(r){
       r.addEventListener('click', function(ev){ ev.stopPropagation(); abrirHorasSeparador(r.getAttribute('data-nome'), r); });
     });
