@@ -340,10 +340,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-tk.ult{border-bottom:1px solid var(--border); border-radius:0 0 8px 8px;}
 .comp-tk.prim.ult{border-radius:8px;}
 .comp-largada{position:absolute; left:4%; top:0; bottom:0; border-left:2px dashed color-mix(in srgb, var(--text-muted) 60%, transparent);}
-/* faixa quadriculada: 2 colunas de 7px; a raia tem 42px (3 ciclos de 14px), então o xadrez continua igual de uma raia para a outra */
-.comp-chegada{position:absolute; left:92%; top:0; height:42px; width:14px; margin-left:-7px; z-index:1; background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/14px 14px;}
-.comp-rastro{position:absolute; left:4%; bottom:6px; height:5px; width:calc(var(--x) - 4%); border-radius:3px; background:linear-gradient(90deg, transparent, var(--c));}
-.comp-cavalo{position:absolute; left:var(--x); bottom:2px; width:96px; height:63px; margin-left:-48px; transform:scale(-.62,.62); transform-origin:50% 100%; background:var(--c); z-index:2;
+/* faixa quadriculada: um elemento só por pista (cobre todas as raias), sem emendas em qualquer zoom */
+.comp-chegada{position:absolute; left:97%; top:0; height:42px; width:14px; margin-left:-7px; z-index:1; background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/14px 14px;}
+.comp-rastro{position:absolute; left:4%; bottom:6px; height:5px; width:calc((93% - 62px) * var(--p) + 32px); border-radius:3px; background:linear-gradient(90deg, transparent, var(--c));}
+.comp-cavalo{position:absolute; left:calc(4% + 62px + (93% - 62px) * var(--p)); bottom:2px; width:96px; height:63px; margin-left:-78px; transform:scale(-.62,.62); transform-origin:50% 100%; background:var(--c); z-index:2;
   -webkit-mask:url(/cavalo-sprite.png) 0 0/1536px 63px no-repeat; mask:url(/cavalo-sprite.png) 0 0/1536px 63px no-repeat; animation:comp-galope var(--d,.8s) steps(16) infinite var(--dl,0s);}
 @keyframes comp-galope{from{-webkit-mask-position:0 0; mask-position:0 0;} to{-webkit-mask-position:-1536px 0; mask-position:-1536px 0;}}
 @media (prefers-reduced-motion:reduce){ .comp-cavalo{animation:none;} }
@@ -793,7 +793,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
         <div class="subsection" id="placar">
           <div class="sub-head">
-            <div><p class="kicker" id="comp-kicker">Competição</p><h3>Placar dos times</h3></div>
+            <div><h3>Placar dos times</h3></div>
             <div class="sub-head-tools"></div>
           </div>
           <div id="bloco-placar"></div>
@@ -2016,20 +2016,19 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     function raias(lista){
       lista = lista.slice().sort(function(a,b){ return b.total - a.total || a.n - b.n; });   // maior realizado em cima
       return lista.map(function(t, i){
-        var pct = t.meta ? Math.min(1, t.total/t.meta) : 0, x = (4 + pct*88).toFixed(1);   // 4% = largada, 92% = linha de chegada
+        var pct = t.meta ? Math.min(1, t.total/t.meta) : 0, x = pct.toFixed(4);   // 0 = largada, 1 = focinho na linha de chegada
         var fase = FASES_CAVALO[(t.n-1) % FASES_CAVALO.length];
         var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
         return '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
           '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
-            '<span class="comp-rastro" style="--c:var('+t.cor.c+'); --x:'+x+'%"></span>'+
-            '<span class="comp-cavalo" style="--c:var('+t.cor.c+'); --x:'+x+'%; --d:'+fase[0]+'; --dl:'+fase[1]+'" role="img" aria-label="Time 0'+t.n+': '+Math.round(pct*100)+'% da meta"></span></div><span class="comp-chegada"></span></div>'+
+            '<span class="comp-rastro" style="--c:var('+t.cor.c+'); --p:'+x+'"></span>'+
+            '<span class="comp-cavalo" style="--c:var('+t.cor.c+'); --p:'+x+'; --d:'+fase[0]+'; --dl:'+fase[1]+'" role="img" aria-label="Time 0'+t.n+': '+Math.round(pct*100)+'% da meta"></span></div>'+(i === 0 ? '<span class="comp-chegada" style="height:'+(lista.length*42)+'px"></span>' : '')+'</div>'+
           '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>';
       }).join('');
     }
     var piso = c.times.filter(function(t){ return !t.colmeia; }), col = c.times.filter(function(t){ return t.colmeia; });
     var totR = c.times.reduce(function(s,t){ return s + t.total; }, 0), totM = c.times.reduce(function(s,t){ return s + t.meta; }, 0);
-    var dias = c.datasPeriodo.length;
-    return '<div class="panel comp-pista"><div class="panel-head"><div><p class="kicker">'+esc(rotuloFiltrosComp())+' · '+esc(compEstado.turno)+(dias > 1 ? ' · '+dias+' dias' : '')+'</p><h4>Corrida das equipes</h4></div></div>'+
+    return '<div class="panel comp-pista"><div class="panel-head"><div><h4>Corrida das equipes</h4></div></div>'+
       '<div class="comp-pista-grade">'+
         '<div class="comp-pista-hd">Equipe</div><div class="comp-pista-hd" style="text-align:center">Andamento da produção</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div>'+
         '<div class="comp-pista-grupo">Equipes por piso</div>'+ raias(piso) +
@@ -2091,7 +2090,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var btnHora = document.querySelector('#comp-crit [data-crit="hora"]');
     if (btnHora) btnHora.disabled = !c.temHora;
     if (compEstado.crit === 'hora' && !c.temHora) { compEstado.crit = 'media'; crit = CRIT_COMP.media; document.querySelectorAll('#comp-crit .chip').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-crit') === 'media'); }); c = calcularCompeticao(); }
-    document.getElementById('comp-kicker').textContent = rotuloFiltrosComp()+' · '+compEstado.turno+' · '+crit.rot;
     var totalMembros = c.times.reduce(function(s,t){ return s+t.lista.length+t.lideres.length; },0);
     if (!totalMembros) {
       var msg = perfilAtual === 'admin' ? 'Monte os times em Admin > Abastecimento de base > Competição.' : 'Os times deste turno ainda não foram montados.';
@@ -2101,13 +2099,12 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     }
     var aviso = c.temDados ? '' : '<p class="fonte">Os relatórios destes filtros ainda não têm produção por dia no período. Reenvie-os em Admin &gt; Abastecimento de base.</p>';
     var dHora = horasDoDia(c);
-    var kickHora = 'Itens por hora' + (dHora.periodo ? ' · ' + dHora.periodo + (dHora.dias > 1 ? ' (' + dHora.dias + ' dias somados)' : '') : '') + ' · ' + compEstado.turno + (dHora.nota ? ' · ' + dHora.nota : '');
-    var cardHora = '<div class="panel comp-card"><div class="panel-head"><div><p class="kicker">'+esc(kickHora)+'</p><h4>Produção por time ao longo do dia</h4></div></div>'+
+    var cardHora = '<div class="panel comp-card"><div class="panel-head"><div><h4>Produção por time ao longo do dia</h4></div></div>'+
       (dHora.aviso
         ? '<div class="comp-vazio">'+esc(dHora.aviso)+'</div>'
         : '<div class="comp-corpo"><div class="comp-escada-flex"><div class="comp-eixo" id="comp-eixo"></div><div class="comp-escada-scroll" id="comp-escada-scroll"><div id="comp-escada"></div></div></div></div><div class="comp-leg-horas" id="comp-leg-horas"></div>')+
       '</div>';
-    var cardPizza = '<div class="panel comp-card"><div class="panel-head"><div><p class="kicker">'+esc(rotuloFiltrosComp())+' · '+esc(compEstado.turno)+'</p><h4>Participação dos times</h4></div></div>'+
+    var cardPizza = '<div class="panel comp-card"><div class="panel-head"><div><h4>Participação dos times</h4></div></div>'+
       '<div class="comp-pizza-corpo" id="comp-pizza-corpo"><div id="comp-pizza"></div><div class="comp-leg-pizza" id="comp-leg-pizza"></div></div></div>';
     var rolagemAtual = document.getElementById('comp-escada-scroll');
     if (rolagemAtual) compEstado.rolagem = rolagemAtual.scrollLeft;
