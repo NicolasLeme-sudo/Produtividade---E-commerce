@@ -363,7 +363,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 /* janela de times do gráfico por hora */
 .comp-janela{position:relative;}
 .comp-janela-btn{font:inherit; font-size:.74rem; color:var(--text); background:var(--bg-input); border:1px solid var(--border); border-radius:999px; padding:4px 12px; cursor:pointer;}
-.comp-janela-pop{position:absolute; bottom:calc(100% + 6px); left:0; z-index:30; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:8px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:2px; min-width:200px;}
+.comp-janela-pop{position:absolute; top:calc(100% + 6px); right:0; z-index:30; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:8px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:2px; min-width:200px;}
 .comp-janela-pop[hidden]{display:none;}
 .comp-janela-item{display:flex; align-items:center; gap:8px; font-size:.76rem; padding:5px 8px; border-radius:6px; cursor:pointer; color:var(--text);}
 .comp-janela-item:hover{background:var(--bg-input);}
@@ -411,7 +411,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-pizza-corpo.foco .comp-fatia.ativa{opacity:1;}
 .comp-leg-col{flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; align-self:stretch; justify-content:center;}
 .comp-pizza-info{min-height:44px; padding:8px 11px; border:1px solid var(--border); border-radius:8px; background:var(--bg-input); font-size:.76rem; line-height:1.45; color:var(--text-label);}
-.comp-leg-pizza{display:flex; flex-wrap:wrap; justify-content:center; gap:4px 6px;}
+.comp-leg-pizza{display:grid; grid-template-columns:repeat(4, auto); justify-content:center; gap:4px 6px;}   /* legenda em 2 linhas */
 .comp-leg{display:inline-flex; gap:7px; align-items:center; padding:5px 10px; border-radius:999px; font:inherit; font-size:.76rem; color:var(--text); background:none; border:1px solid transparent; cursor:pointer;}
 .comp-leg:hover{background:var(--bg-input);}
 .comp-leg i{width:10px; height:10px; border-radius:50%; background:var(--c);}
@@ -1867,14 +1867,16 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // Pizza da participação dos times: % escrito nas fatias, legenda embaixo e, ao clicar na fatia ou na legenda,
   // um tooltip com o total e a quebra Separação / Conferência.
-  var compTipPizza = null;
-  function tipPizza(){
-    if (!compTipPizza) {
-      compTipPizza = document.createElement('div'); compTipPizza.className = 'comp-tip'; compTipPizza.hidden = true; document.body.appendChild(compTipPizza);
-      document.addEventListener('click', function(e){ if (!e.target.closest || (!e.target.closest('.comp-fatia') && !e.target.closest('.comp-leg') && !e.target.closest('.comp-coluna'))) compTipPizza.hidden = true; });
-      window.addEventListener('scroll', function(){ compTipPizza.hidden = true; }, true);
+  // Um tooltip por gráfico; some ao clicar em qualquer lugar fora dos itens daquele gráfico.
+  var compTips = {};
+  function tipGrafico(chave, seletores){
+    if (!compTips[chave]) {
+      var t = document.createElement('div'); t.className = 'comp-tip'; t.hidden = true; document.body.appendChild(t);
+      document.addEventListener('click', function(e){ if (!e.target.closest || !e.target.closest(seletores)) t.hidden = true; });
+      window.addEventListener('scroll', function(){ t.hidden = true; }, true);
+      compTips[chave] = t;
     }
-    return compTipPizza;
+    return compTips[chave];
   }
   function desenharPizzaComp(c){
     var box = document.getElementById('comp-pizza'), leg = document.getElementById('comp-leg-pizza'), corpo = document.getElementById('comp-pizza-corpo');
@@ -1885,19 +1887,19 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     if (c.fora > 0) fatias.push({ rot:'Fora dos times', valor:c.fora, sep:null, conf:null, cor:'var(--gelo)' });
     var soma = fatias.reduce(function(a,f){ return a + f.valor; }, 0);
     if (!soma) { corpo.innerHTML = '<div class="comp-vazio">Sem produção no período para estes filtros.</div>'; return; }
-    var S = Math.max(260, Math.min(420, (corpo.clientWidth || 320) - 24)), C = S/2, R = C - 10, ang = -Math.PI/2;
+    var S = Math.max(220, Math.min(330, (corpo.clientWidth || 320) - 24)), C = S/2, R = C - 10, ang = -Math.PI/2;
     var s = '<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'" role="img" aria-label="Participação dos times">', rotulos = '';
     fatias.forEach(function(f, i){
       var a = f.valor/soma*Math.PI*2, a2 = ang + a;
       f.meio = ang + a/2; f.pct = f.valor/soma*100;
       if (fatias.length === 1) s += '<circle class="comp-fatia" data-i="0" cx="'+C+'" cy="'+C+'" r="'+R+'" fill="'+f.cor+'" tabindex="0"/>';
       else s += '<path class="comp-fatia" data-i="'+i+'" d="M'+C+','+C+' L'+(C+R*Math.cos(ang)).toFixed(2)+','+(C+R*Math.sin(ang)).toFixed(2)+' A'+R+','+R+' 0 '+(a>Math.PI?1:0)+' 1 '+(C+R*Math.cos(a2)).toFixed(2)+','+(C+R*Math.sin(a2)).toFixed(2)+' Z" fill="'+f.cor+'" stroke="var(--bg-card)" stroke-width="2" stroke-linejoin="round" tabindex="0"/>';
-      if (f.pct >= 4) rotulos += '<text x="'+(C+Math.cos(f.meio)*R*0.64).toFixed(1)+'" y="'+(C+Math.sin(f.meio)*R*0.64+5).toFixed(1)+'" font-size="13" font-weight="800" fill="#fff" text-anchor="middle" pointer-events="none" style="paint-order:stroke; stroke:rgba(0,0,0,.35); stroke-width:2px">'+pctComp(f.pct).replace(',0%','%')+'</text>';
+      if (f.pct >= 4) rotulos += '<text x="'+(C+Math.cos(f.meio)*R*0.64).toFixed(1)+'" y="'+(C+Math.sin(f.meio)*R*0.64+5).toFixed(1)+'" font-size="13" font-weight="800" fill="var(--bg-card)" text-anchor="middle" pointer-events="none">'+pctComp(f.pct).replace(',0%','%')+'</text>';
       ang = a2;
     });
     box.innerHTML = s + rotulos + '</svg>';
     leg.innerHTML = fatias.map(function(f, i){ return '<button type="button" class="comp-leg" data-i="'+i+'" style="--c:'+f.cor+'"><i></i><span>'+f.rot+'</span></button>'; }).join('');
-    var paths = box.querySelectorAll('.comp-fatia'), legs = leg.querySelectorAll('.comp-leg'), tip = tipPizza();
+    var paths = box.querySelectorAll('.comp-fatia'), legs = leg.querySelectorAll('.comp-leg'), tip = tipGrafico('pizza', '.comp-fatia, .comp-leg');
     function foco(i, ev){
       corpo.classList.add('foco');
       paths.forEach(function(p, k){ p.classList.toggle('ativa', k === i); p.style.transform = k === i ? 'translate('+(Math.cos(fatias[i].meio)*6)+'px,'+(Math.sin(fatias[i].meio)*6)+'px)' : ''; });
@@ -1915,10 +1917,10 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       tip.style.top = Math.max(8, py - tip.offsetHeight/2) + 'px';
     }
     function limpar(){ corpo.classList.remove('foco'); paths.forEach(function(p){ p.classList.remove('ativa'); p.style.transform = ''; }); legs.forEach(function(l){ l.classList.remove('ativo'); }); tip.hidden = true; }
-    paths.forEach(function(p, i){ p.addEventListener('click', function(e){ e.stopPropagation(); foco(i, e); }); p.addEventListener('keydown', function(e){ if (e.key === 'Enter') foco(i); }); });
-    legs.forEach(function(l, i){ l.addEventListener('click', function(e){ e.stopPropagation(); foco(i, e); }); });
+    paths.forEach(function(p, i){ p.addEventListener('click', function(e){ foco(i, e); }); p.addEventListener('keydown', function(e){ if (e.key === 'Enter') foco(i); }); });
+    legs.forEach(function(l, i){ l.addEventListener('click', function(e){ foco(i, e); }); });
     corpo.onmouseleave = function(){ if (tip.hidden) limpar(); };
-    document.addEventListener('click', function fechar(e){ if (!corpo.isConnected) { document.removeEventListener('click', fechar); return; } if (!corpo.contains(e.target)) limpar(); });
+    document.addEventListener('click', function fechar(e){ if (!corpo.isConnected) { document.removeEventListener('click', fechar); return; } if (!e.target.closest('.comp-fatia') && !e.target.closest('.comp-leg')) limpar(); });
   }
 
   // Janela "Times" do gráfico por hora: marca os times que aparecem, com "Marcar todos".
@@ -1933,12 +1935,13 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 
   // Colunas por hora em escadinha (a maior atrás), com rolagem horizontal; clique mostra total e quebra no quadro fixo.
   function desenharHorasComp(c, d){
-    var wrap = document.getElementById('comp-escada'), scroll = document.getElementById('comp-escada-scroll'), eixo = document.getElementById('comp-eixo'), legEl = document.getElementById('comp-leg-horas'), tip = tipPizza();
+    var wrap = document.getElementById('comp-escada'), scroll = document.getElementById('comp-escada-scroll'), eixo = document.getElementById('comp-eixo'), legEl = document.getElementById('comp-leg-horas'), tip = tipGrafico('horas', '.comp-coluna');
     if (!wrap) return;
     var rolagem = scroll.scrollLeft || compEstado.rolagem || 0;
     var times = c.times.filter(function(t){ return t.lista.length; });
     var vis = times.filter(function(t){ return !compEstado.ocultos[t.n]; });
-    legEl.innerHTML = janelaTimesHtml(times) + vis.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join('') +
+    document.getElementById('comp-janela-slot').innerHTML = janelaTimesHtml(times);
+    legEl.innerHTML = vis.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join('') +
       '<span class="comp-dica"><svg width="20" height="8" aria-hidden="true"><line x1="1" y1="4" x2="19" y2="4" stroke="var(--text-muted)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="0.1 4.5"/></svg> média por hora</span>';
     var btn = document.getElementById('comp-janela-btn'), pop = document.getElementById('comp-janela-pop');
     btn.addEventListener('click', function(e){ e.stopPropagation(); pop.hidden = !pop.hidden; btn.setAttribute('aria-expanded', String(!pop.hidden)); });
@@ -2006,11 +2009,11 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     wrap.querySelectorAll('.comp-coluna').forEach(function(col){
       col.addEventListener('mouseenter', function(){ if (tip.hidden) mostrar(col); });
       col.addEventListener('keydown', function(e){ if (e.key === 'Enter') mostrar(col, true); });
-      col.addEventListener('click', function(e){ e.stopPropagation(); mostrar(col, true); });
+      col.addEventListener('click', function(){ mostrar(col, true); });
     });
     wrap.onmouseleave = function(){ if (tip.hidden) limpar(); };
     if (wrap._fechar) document.removeEventListener('click', wrap._fechar);   // o gráfico é redesenhado no mesmo lugar: um só ouvinte
-    wrap._fechar = function fechar(e){ if (!wrap.isConnected) { document.removeEventListener('click', fechar); return; } if (!wrap.contains(e.target)) limpar(); };
+    wrap._fechar = function fechar(e){ if (!wrap.isConnected) { document.removeEventListener('click', fechar); return; } if (!e.target.closest('.comp-coluna')) limpar(); };
     document.addEventListener('click', wrap._fechar);
   }
   // Fecha a janela "Times" ao clicar fora dela.
@@ -2105,7 +2108,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     }
     var aviso = c.temDados ? '' : '<p class="fonte">Os relatórios destes filtros ainda não têm produção por dia no período. Reenvie-os em Admin &gt; Abastecimento de base.</p>';
     var dHora = horasDoDia(c);
-    var cardHora = '<div class="panel comp-card"><div class="panel-head"><div><h4>Produção por time ao longo do dia</h4></div></div>'+
+    var cardHora = '<div class="panel comp-card"><div class="panel-head"><div><h4>Produção por time ao longo do dia</h4></div>'+(dHora.aviso ? '' : '<div id="comp-janela-slot"></div>')+'</div>'+
       (dHora.aviso
         ? '<div class="comp-vazio">'+esc(dHora.aviso)+'</div>'
         : '<div class="comp-corpo"><div class="comp-escada-flex"><div class="comp-eixo" id="comp-eixo"></div><div class="comp-escada-scroll" id="comp-escada-scroll"><div id="comp-escada"></div></div></div></div><div class="comp-leg-horas" id="comp-leg-horas"></div>')+
