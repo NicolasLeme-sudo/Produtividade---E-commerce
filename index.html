@@ -1639,7 +1639,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   function grupoDoCadastro(r){ return /^sep/.test(r.atividade) ? 'sep' : 'conf'; }
   function obsColmeia(r){ return r.observacao === 'Colmeia' || r.atividade === 'conf_colmeia' || r.atividade === 'sep_colmeia'; }
   // Operações em que o cadastro produz: times da Colmeia e quem tem Observação "Colmeia" só na Colmeia.
-  function opsDoCadastro(r){ return (TIMES_COLMEIA[r.time] || obsColmeia(r)) ? ['colmeia'] : ['checkout','colmeia']; }
+  // Líder com produção (diaristas no usuário dela) conta as duas operações, mesmo num time da Colmeia.
+  function opsDoCadastro(r){ return (!r.lider && (TIMES_COLMEIA[r.time] || obsColmeia(r))) ? ['colmeia'] : ['checkout','colmeia']; }
   function opsSelecionadas(){ return ['checkout','colmeia'].filter(function(o){ return compEstado.ops[o]; }); }
   function gruposSelecionados(){ return compEstado.atv === 'ambos' ? ['sep','conf'] : [compEstado.atv]; }
   function rotuloFiltrosComp(){
@@ -1668,9 +1669,13 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
     var temHora = !(grupos.indexOf('conf') !== -1 && compEstado.ops.colmeia) && !!(prod.sep_geral.segundos || prod.conf_checkout.segundos);
     var usadas = {}; Object.keys(prod).forEach(function(f){ usadas[f] = new Set(); });
     var porCadastro = new Map();   // pessoa + grupo: vale o 1º cadastro
-    linhas.forEach(function(r){
+    // Líder de equipe vale para o time em qualquer turno; a produção dele só conta se houver
+    // (ex.: diaristas que usam o usuário da líder).
+    competicaoTimes.forEach(function(r){
       var t = times[r.time-1];
-      if (r.lider) { if (!t.lideres.some(function(x){ return x.usuario_wms === r.usuario_wms; })) t.lideres.push(r); return; }
+      if (t && r.lider && !t.lideres.some(function(x){ return x.usuario_wms === r.usuario_wms; })) t.lideres.push(r);
+    });
+    linhas.forEach(function(r){
       var k = r.usuario_wms+'|'+grupoDoCadastro(r);
       if (!porCadastro.has(k)) porCadastro.set(k, r);
     });
@@ -1689,6 +1694,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       // Tempo trabalhado: Separação usa o tempo geral quando conta as duas operações (sem somar horas sobrepostas).
       var fSeg = g === 'sep' ? (opsR.length === 2 ? 'sep_geral' : (opsR[0] ? 'sep_'+opsR[0] : null)) : (opsR.indexOf('checkout') !== -1 ? 'conf_checkout' : null);
       if (fSeg && prod[fSeg].segundos) { var ks = achar(r, prod[fSeg].segundos); if (ks) m[g === 'sep' ? 'segSep' : 'segConf'] += prod[fSeg].segundos.get(ks) || 0; }
+      if (r.lider && !t.membros.has(r.usuario_wms) && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
       t.linhasPessoa.push(r);
       t.membros.set(r.usuario_wms, m);
     });
