@@ -346,7 +346,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-cavalo{position:absolute; left:calc(4% + 62px + (93% - 62px) * var(--p)); bottom:2px; width:96px; height:63px; margin-left:-78px; transform:scale(-.62,.62); transform-origin:50% 100%; background:var(--c); z-index:2;
   -webkit-mask:url(/cavalo-sprite.png) 0 0/1536px 63px no-repeat; mask:url(/cavalo-sprite.png) 0 0/1536px 63px no-repeat; animation:comp-galope var(--d,.8s) steps(16) infinite var(--dl,0s);}
 @property --p{ syntax:'<number>'; inherits:false; initial-value:0; }
-.comp-cavalo,.comp-rastro{transition:--p 1.4s cubic-bezier(.25,.8,.3,1);}
+.comp-cavalo,.comp-rastro{transition:--p 2.6s cubic-bezier(.25,.8,.3,1);}
 @keyframes comp-galope{from{-webkit-mask-position:0 0; mask-position:0 0;} to{-webkit-mask-position:-1536px 0; mask-position:-1536px 0;}}
 @media (prefers-reduced-motion:reduce){ .comp-cavalo{animation:none;} .comp-cavalo,.comp-rastro{transition:none;} }
 .comp-raia-num{display:grid; grid-template-columns:1fr 1fr; text-align:right; font-variant-numeric:tabular-nums; font-size:.86rem; gap:8px;}
@@ -793,8 +793,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
           <div class="filter-group" id="comp-op">
             <label>Operação</label>
             <div class="chips">
-              <button class="chip on" data-op="checkout">Checkout</button>
-              <button class="chip on" data-op="colmeia">Colmeia</button>
+              <button class="chip" data-op="checkout">Checkout</button>
+              <button class="chip" data-op="colmeia">Colmeia</button>
+              <button class="chip on" data-op="ambos">Ambos</button>
             </div>
           </div>
           <div style="flex-basis:100%; height:0; margin-top:-12px;" aria-hidden="true"></div>
@@ -2247,13 +2248,12 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
       });
     }
     ligar('comp-turno','data-turno','turno'); ligar('comp-atv','data-atv','atv'); ligar('comp-crit','data-crit','crit');
-    // Operação: Checkout e Colmeia, uma ou as duas (sempre sobra uma marcada).
+    // Operação: Checkout, Colmeia ou Ambos (uma opção por vez, igual à Atividade).
     document.querySelectorAll('#comp-op .chip').forEach(function(b){
       b.addEventListener('click', function(){
         var k = b.getAttribute('data-op');
-        if (compEstado.ops[k] && opsSelecionadas().length === 1) return;
-        compEstado.ops[k] = !compEstado.ops[k];
-        b.classList.toggle('on', compEstado.ops[k]);
+        compEstado.ops = { checkout: k !== 'colmeia', colmeia: k !== 'checkout' };
+        document.querySelectorAll('#comp-op .chip').forEach(function(x){ x.classList.toggle('on', x === b); });
         compEstado.rolagem = 0; renderCompeticao();
       });
     });
