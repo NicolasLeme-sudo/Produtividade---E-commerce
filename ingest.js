@@ -1215,7 +1215,7 @@ async function salvarMetaInventario() {
 // =========================================================================
 var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
 var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"]];
-var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Laranja", "--t5"], 6: ["Roxo", "--t6"] };
+var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Rosa", "--t5"], 6: ["Roxo", "--t6"] };
 var COMP_NUM_TIMES = [1, 2, 3, 4, 5, 6];
 var compAdm = { turno: "1º Turno", time: 1, editando: null, linhas: [], indice: null };
 
