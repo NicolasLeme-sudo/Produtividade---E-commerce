@@ -2102,10 +2102,14 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     else totalHora.forEach(function(v){ if (v > max) max = v; });
     var passoY = max > 500 ? 500 : 50, vMax = Math.max(50, Math.ceil(max*1.08/passoY)*passoY), y = function(v){ return base - v/vMax*(base-topo); };
     var ax = '<svg width="38" height="'+H+'" viewBox="0 0 38 '+H+'" aria-hidden="true">';
-    [0, vMax/2, vMax].forEach(function(v){ ax += '<text x="32" y="'+(y(v)+3)+'" font-size="9.5" fill="var(--text-muted)" text-anchor="end">'+fmt(v)+'</text>'; });
+    var yM = y(mediaHora);
+    [0, vMax/2, vMax].forEach(function(v){ if (Math.abs(y(v) - yM) > 9) ax += '<text x="32" y="'+(y(v)+3)+'" font-size="9.5" fill="var(--text-muted)" text-anchor="end">'+fmt(v)+'</text>'; });
+    ax += '<text x="34" y="'+(yM+3.5)+'" font-size="10" font-weight="800" fill="var(--amber)" text-anchor="end">'+fmt(Math.round(mediaHora))+'</text>';
     eixo.innerHTML = ax + '</svg>';
     var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="display:block" role="img" aria-label="Itens por hora">';
     [0, vMax/2, vMax].forEach(function(v){ s += '<line x1="0" y1="'+y(v)+'" x2="'+W+'" y2="'+y(v)+'" stroke="var(--border)"'+(v?' stroke-dasharray="3 5"':'')+'/>'; });
+    // linha da média por hora: atrás das colunas e dos números
+    s += '<line x1="0" x2="'+W+'" y1="'+yM+'" y2="'+yM+'" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5" pointer-events="none"/>';
     var rotX = function(i){ return 4 + i*GRUPO + GRUPO/2; };
     if (modo === 'todos') {
       var larg = Math.min(30, (GRUPO*0.78) / (1 + 0.42*Math.max(0, times.length-1))), passo = larg*0.42, pilha = larg + passo*Math.max(0, times.length-1);
@@ -2137,18 +2141,13 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         }
         s += '</g>';
         // rótulo do total da hora em cima da coluna escura; a soma dos times marcados fica em cima da parte colorida
-        if (modo === 'foco' && parte !== tot) s += '<text x="'+rotX(i)+'" y="'+(y(tot)-6)+'" font-size="10.5" font-weight="700" fill="var(--text-muted)" text-anchor="middle" pointer-events="none">'+fmt(tot)+'</text>';
+        var halo = ' stroke="var(--bg-card)" stroke-width="4" stroke-linejoin="round" paint-order="stroke"';
+        if (modo === 'foco' && parte !== tot) s += '<text x="'+rotX(i)+'" y="'+(y(tot)-6)+'" font-size="10.5" font-weight="700" fill="var(--text-muted)" text-anchor="middle" pointer-events="none"'+halo+'>'+fmt(tot)+'</text>';
         var yParte = (modo === 'foco' && parte !== tot) ? Math.max(y(parte)-6, y(tot)+15) : y(parte)-6;   // nunca encosta no rótulo do total
-        if (yParte < base - 4) s += '<text x="'+rotX(i)+'" y="'+yParte+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle" pointer-events="none">'+fmt(parte)+'</text>';
+        if (yParte < base - 4) s += '<text x="'+rotX(i)+'" y="'+yParte+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle" pointer-events="none"'+(modo === 'foco' && parte !== tot ? '' : halo)+'>'+fmt(parte)+'</text>';
         s += '<text class="comp-rot" x="'+rotX(i)+'" y="'+(base+17)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(hh).padStart(2,'0')+'h</text></g>';
       });
     }
-    // linha da média por hora
-    var yM = y(mediaHora);
-    s += '<line x1="0" x2="'+W+'" y1="'+yM+'" y2="'+yM+'" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5" pointer-events="none"/>';
-    var txtMedia = 'Média/hora '+fmt(Math.round(mediaHora)), largMedia = txtMedia.length*6.2 + 12;
-    s += '<rect x="2" y="'+(yM-19)+'" width="'+largMedia+'" height="16" rx="4" fill="var(--bg-card)" stroke="var(--amber)" stroke-width="1" pointer-events="none"/>';
-    s += '<text x="8" y="'+(yM-7)+'" font-size="10.5" font-weight="700" fill="var(--amber)" pointer-events="none">'+txtMedia+'</text>';
     wrap.innerHTML = s + '</svg>';
     var svg = wrap.querySelector('svg'), rot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     svg.appendChild(rot);
@@ -2161,7 +2160,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         : modo === 'geral'
           ? '<span class="comp-leg-cor" style="--c:var(--comp-geral)"><i></i>Todos os times</span>'
           : '<span class="comp-leg-cor" style="--c:var(--comp-fundo)"><i></i>Total da hora</span>' + sel.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join(''))
-      + '<span class="comp-dica"><svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5"/></svg> média por hora</span>';
+      + '<span class="comp-dica"><svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5"/></svg> Média/hora <b style="color:var(--amber)">'+fmt(Math.round(mediaHora))+'</b></span>';
 
     function somaGrupo(arrs, lista, hh){ return lista.reduce(function(a, t){ return a + (arrs[t.n][hh] || 0); }, 0); }
     function mostrar(col, comTip){
