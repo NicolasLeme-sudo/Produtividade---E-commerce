@@ -1705,6 +1705,12 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   // Ordem dos cards e blocos na tela.
   var ORDEM_CARDS = [1,2,3,4,5,6];
   function timesEmOrdem(c){ return ORDEM_CARDS.map(function(n){ return c.times[n-1]; }); }
+  // Mesma ordem da pista: equipes por piso e depois Colmeia, cada grupo do maior realizado para o menor.
+  function timesOrdemPista(c){
+    function ord(a,b){ return b.total - a.total || a.n - b.n; }
+    var piso = c.times.filter(function(t){ return !t.colmeia; }).sort(ord), col = c.times.filter(function(t){ return t.colmeia; }).sort(ord);
+    return piso.concat(col);
+  }
   var META_DIA_TIME = { 1:2000, 2:2000, 3:2000, 4:2000, 5:1200, 6:1200 };
   var ROT_ATV = { sep:'Separação', conf:'Conferência', ambos:'Separação + Conferência' };
   var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque' };
@@ -2260,10 +2266,10 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     });
   }
 
-  // Cards dos 6 times em ordem fixa (Vermelho, Azul, Verde, Amarelo, Rosa, Roxo).
+  // Cards dos 6 times na mesma ordem da pista (piso e depois Colmeia, do maior realizado para o menor).
   function placarHtml(c, crit){
     function vf(v){ return crit.pct ? Math.round(v)+'%' : fmt(Math.round(v)); }
-    return '<div class="comp-placar">'+timesEmOrdem(c).map(function(t){
+    return '<div class="comp-placar">'+timesOrdemPista(c).map(function(t){
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var cab = '<div class="comp-top"><span class="comp-nome"><span class="comp-dot"></span><span class="comp-nome-txt">Time 0'+t.n+' · '+t.cor.nome+'</span></span>'+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>';
       if (!t.lista.length) return '<div class="comp-time" '+st+'>'+cab+'<div class="comp-sub">Sem membros neste turno e atividade.</div></div>';
