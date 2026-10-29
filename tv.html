@@ -99,6 +99,8 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .comp-raia-num{font-size:21px;gap:10px}.comp-pista-hd.comp-raia-num{font-size:12px}
 .comp-raia-num.comp-pista-total{font-size:25px}
 .comp-placar{margin-top:14px}
+.comp-pista-hd{padding-bottom:8px}
+.comp-pista-g1{text-align:left;letter-spacing:.08em}
 .comp-un{font-size:15px;font-weight:600;color:var(--text-muted);margin-left:6px}
 .vazio{flex:1;display:grid;place-items:center;color:var(--text-muted);font-size:22px;text-align:center}
 
@@ -149,9 +151,9 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Placar dos times</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
   <div class="main">
-    <section class="tela on" id="telaA" data-titulo="Placar dos times"><div class="vazio">Carregando a competição…</div></section>
+    <section class="tela on" id="telaA" data-titulo="Corrida Maluca"><div class="vazio">Carregando a competição…</div></section>
   </div>
   <div class="loopbar"><i class="giro" id="barra" hidden></i><div class="loop" id="loop"></div></div>
   <div class="mold" id="mold">
@@ -266,9 +268,10 @@ function pistaHtml(c){
   }
   var piso = c.times.filter(function(t){ return !t.colmeia; }), col = c.times.filter(function(t){ return t.colmeia; });
   var totR = c.times.reduce(function(s,t){ return s+t.total; },0), totM = c.times.reduce(function(s,t){ return s+t.meta; },0);
-  return '<div class="panel comp-pista"><div class="panel-head"><div><h4>Corrida Maluca das Equipes</h4></div></div><div class="comp-pista-grade">'+
-    '<div class="comp-pista-hd"></div><div class="comp-pista-hd" style="text-align:center">Progresso da Corrida</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div>'+
-    '<div class="comp-pista-grupo">Equipes por piso</div>'+raias(piso)+'<div class="comp-pista-grupo">Colmeia</div>'+raias(col)+
+  // Cabeçalho numa linha só, no topo do card: grupo · progresso · realizado/meta
+  return '<div class="panel comp-pista"><div class="comp-pista-grade">'+
+    '<div class="comp-pista-hd comp-pista-g1">Equipes por piso</div><div class="comp-pista-hd" style="text-align:center">Progresso das Equipes</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div>'+
+    raias(piso)+'<div class="comp-pista-grupo">Colmeia</div>'+raias(col)+
     '<div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div></div></div>';
 }
 function ordemPista(c){ function o(a,b){ return b.total - a.total || a.n - b.n; } return c.times.filter(function(t){ return !t.colmeia; }).sort(o).concat(c.times.filter(function(t){ return t.colmeia; }).sort(o)); }
