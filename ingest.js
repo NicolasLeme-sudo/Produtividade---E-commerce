@@ -1001,6 +1001,112 @@ function processarAcompanhamentoOp(rows, pedidosComCorte) {
   return { emSeparacao: emSeparacao, aguardandoOnda: aguardandoOnda };
 }
 
+// ---- 15) Operação agora, em ITENS (Tela C do telão) ----
+// Acompanhamento_Op diz a etapa e os itens de cada pedido; Itens de NF de
+// Saída diz a marca. Fica no snapshot "operacao": os pedidos e as marcas
+// (para recalcular quando só um dos dois relatórios chega) + o resumo que o
+// telão lê. Etapas iguais às do Report E-commerce (calcularStatus de lá).
+var ETAPAS_OPERACAO = ["01 - Gerar", "02 - Em Separação", "03 - Separado - Aguardando NF", "04 - Separado - Conferir", "05 - Conferido - Despachar"];
+
+// "dd/mm/aaaa HH:mm:ss", Date ou serial do Excel -> milissegundos (null se vazio).
+function dataHoraParaMs(valor) {
+  if (valor === null || valor === undefined || valor === "") return null;
+  if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor.getTime();
+  if (typeof valor === "number") return excelSerialParaData(valor).getTime();
+  var m = String(valor).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
+}
+
+// Índice em ETAPAS_OPERACAO, ou -1 (cancelado, despachado ou status desconhecido).
+function etapaDoPedido(row) {
+  var cancelado = normalizarTexto(obterCampo(row, ["Cancelado Pelo ERP"]));
+  if (cancelado === "SIM" || cancelado === "S" || cancelado === "TRUE" || cancelado === "1") return -1;
+  var status = normalizarTexto(obterCampo(row, ["Status da Nota Fiscal"]));
+  var tem = function (col) { var v = obterCampo(row, [col]); return v !== undefined && v !== null && String(v).trim() !== ""; };
+  if (STATUS_AGUARDANDO_ONDA.indexOf(status) !== -1) return 0;
+  if (STATUS_EM_SEPARACAO.indexOf(status) !== -1) return 1;
+  if (status === "ENVIADO PARA FATURAMENTO" && !tem("Faturado em")) return 2;
+  if ((status === "ENVIADO PARA FATURAMENTO" || status === "FATURADO") && !tem("Conferido em")) return 3;
+  return tem("Processado em") ? -1 : 4;   // conferido, aguardando coleta (processado = despachado, sai)
+}
+
+// Pedido -> [etapa, itens, importado em (ms)]
+function processarOperacaoOp(rows) {
+  var pedidos = {};
+  rows.forEach(function (row) {
+    var pedido = String(obterCampo(row, ["Pedido de Venda"]) || "").trim();
+    var etapa = etapaDoPedido(row);
+    if (!pedido || etapa < 0) return;
+    pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"]))];
+  });
+  return pedidos;
+}
+
+// Mesma regra do Report E-commerce: palavra-chave na descrição; sem nenhuma, Olympikus.
+function marcaPorDescricao(descricao) {
+  var d = normalizarTexto(descricao);
+  if (/MIZUNO|\bMIZ\b/.test(d)) return "Mizuno";
+  if (/UNDER ARMOUR|\bUA\b|UNDERARMOUR/.test(d)) return "Under Armour";
+  if (/OLYMPIKUS|\bOLY\b|\bOLK\b/.test(d)) return "Olympikus";
+  if (/OPANKA/.test(d)) return "Opanka";
+  return "Olympikus";
+}
+
+// Pedido -> marca com mais peças no pedido.
+function processarMarcasItensNf(rows) {
+  var somas = {};
+  rows.forEach(function (row) {
+    var pedido = String(obterCampo(row, ["Pedido de Venda"]) || "").trim();
+    if (!pedido) return;
+    var marca = marcaPorDescricao(obterCampo(row, ["Produto"]));
+    var s = somas[pedido] || (somas[pedido] = {});
+    s[marca] = (s[marca] || 0) + (numero(obterCampo(row, ["Quantidade"])) || 1);
+  });
+  var marcas = {};
+  Object.keys(somas).forEach(function (p) {
+    var s = somas[p];
+    marcas[p] = Object.keys(s).sort(function (a, b) { return s[b] - s[a]; })[0];
+  });
+  return marcas;
+}
+
+function resumoOperacao(op) {
+  var pedidos = op.pedidos || {}, marcas = op.marcas || {};
+  var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, marcas: {},
+    etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, marcas: {} }; }),
+    idade: [{ label: "Hoje", itens: 0 }, { label: "Ontem", itens: 0 }, { label: "2 dias", itens: 0 }, { label: "3+ dias", itens: 0 }],
+    opEm: op.opEm || null, nfEm: op.nfEm || null };
+  var ref = new Date(op.opEm || Date.now()); ref.setHours(0, 0, 0, 0);
+  Object.keys(pedidos).forEach(function (p) {
+    var e = pedidos[p], etapa = r.etapas[e[0]], itens = e[1], imp = e[2], marca = marcas[p] || "Sem marca";
+    r.itens += itens; r.pedidos++;
+    etapa.itens += itens; etapa.pedidos++;
+    etapa.marcas[marca] = (etapa.marcas[marca] || 0) + itens;
+    r.marcas[marca] = (r.marcas[marca] || 0) + itens;
+    if (!marcas[p]) r.semMarca += itens;
+    if (imp) {
+      if (r.maisAntigo === null || imp < r.maisAntigo) { r.maisAntigo = imp; r.maisAntigoPedido = p; }
+      var d = new Date(imp); d.setHours(0, 0, 0, 0);
+      r.idade[Math.max(0, Math.min(3, Math.round((ref - d) / 86400000)))].itens += itens;
+    }
+  });
+  return r;
+}
+
+// Junta o que chegou (pedidos do OP ou marcas do Itens de NF) e regrava o resumo.
+async function atualizarOperacao(novo) {
+  var op = Object.assign(await lerSnapshot("operacao"), novo);
+  if (novo.marcas && op.pedidos) {   // guarda só as marcas dos pedidos em operação (snapshot pequeno)
+    var m = {};
+    Object.keys(op.pedidos).forEach(function (p) { if (novo.marcas[p]) m[p] = novo.marcas[p]; });
+    op.marcas = m;
+  }
+  op.resumo = resumoOperacao(op);
+  await salvarSnapshot("operacao", op);
+  return op.resumo;
+}
+
 // =========================================================================
 // 5) MONTAGEM DOS PAYLOADS (Map -> array ordenado, formato que index.html espera)
 // =========================================================================
@@ -1522,6 +1628,7 @@ async function renderAbastecimento() {
     ]) +
     grupoAbastecimento("Outbound", [
       caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
+      caixaUpload("up-itens-nf-saida", "Itens de NF de Saída", "Alimenta as <strong>marcas</strong> da tela <strong>Operação agora</strong> do telão (junto com o Acompanhamento_Op). Data inicial = pedido mais antigo em tela."),
       caixaUpload("up-separacao-analitica", "Separação Analítica", "Alimenta <strong>Separação Checkout e Colmeia</strong> (ranking, gráfico por dia, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Uma linha por tarefa, com Data/Hora Início. Substitui a Produtividade de Separação."),
       caixaUpload("up-conferencia-analitica", "Conferência Analítica", "Alimenta <strong>Conferência Checkout</strong> (ranking, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Substitui a Conferência Checkout/Etiqueta."),
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
@@ -1792,7 +1899,19 @@ async function processar(id) {
       // DEPOIS deste Acompanhamento_Op, ele recalcula comCorte usando esta lista.
       atualAcOp.separacao.pedidosEmSeparacao = rAcOp.emSeparacao.pedidos;
       await salvarSnapshot("outbound", atualAcOp);
-      definirStatus(id, "✓ Acompanhamento_Op processado (Itens em separação + Aguardando geração de onda).", "ok");
+      // Operação agora (telão) é um extra: se falhar, os KPIs acima já estão gravados.
+      var textoOp;
+      try {
+        var resOp = await atualizarOperacao({ pedidos: processarOperacaoOp(rowsAcOp), opEm: Date.now() });
+        textoOp = "Operação agora: " + resOp.itens.toLocaleString("pt-BR") + " itens em " + resOp.pedidos + " pedidos";
+      } catch (eOp) { console.error(eOp); textoOp = "Operação agora NÃO gravada: " + eOp.message; }
+      definirStatus(id, "✓ Acompanhamento_Op processado (Itens em separação + Aguardando geração de onda · " + textoOp + ").", "ok");
+    }
+
+    else if (id === "up-itens-nf-saida") {
+      var rowsNf = await parseArquivoGenerico(input.files[0]);
+      var resNf = await atualizarOperacao({ marcas: processarMarcasItensNf(rowsNf), nfEm: Date.now() });
+      definirStatus(id, "✓ Itens de NF de Saída processado (marcas da Operação agora; " + resNf.semMarca.toLocaleString("pt-BR") + " itens ainda sem marca).", "ok");
     }
 
     else if (id === "up-gerenciador-or-geral") {

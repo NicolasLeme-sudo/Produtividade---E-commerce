@@ -52,11 +52,10 @@ const RELATORIOS = [
   { id: "up-conf-colmeia",          nome: "Conferência Colmeia",   todas: ["Operador", "Qtde Unitária Montada", "Qtde Volumes"] },
   { id: "up-kardex-geral",          nome: "Kardex",                todas: ["Local", "Tipo do Local", "Complementar", "Estoque Antes", "Usuário"] },
   { id: "up-acompanhamento-op",     nome: "Acompanhamento OP",     todas: ["Pedido de Venda", "Status da Nota Fiscal", "Classificação Tipo Pedido", "Cancelado Pelo ERP", "Qtde. Total de Produto"] },
+  { id: "up-itens-nf-saida",        nome: "Itens de NF de Saída",  todas: ["Chave Acesso NF-e", "Pedido de Venda", "Produto", "Barra", "Qtde. Faturada"] },
 ];
-// Relatórios que o robô conhece mas ainda não envia (vão para o Report E-commerce na fase 2).
-const IGNORADOS = [
-  { nome: "Itens de NF de Saída", todas: ["Chave Acesso NF-e", "Barra", "Qtde. Faturada"] },
-];
+// Relatórios que o robô conhece mas ainda não envia (nenhum por enquanto).
+const IGNORADOS = [];
 
 function normCol(s) { return String(s || "").replace(/^\uFEFF/, "").trim(); }
 function cabecalhoDoArquivo(arq) {

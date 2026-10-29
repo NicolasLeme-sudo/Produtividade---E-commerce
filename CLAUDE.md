@@ -22,7 +22,10 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 
 ## Telão (tv.html)
 - Login `@vulcabras.com`; usuário do telão com perfil `gestao` (sessão persistente, `storageKey: telao-produtividade`).
-- Telas em rodízio (pula tela sem dado): A Corrida Maluca 120 s · B Separação e Conferência 90 s · D Armazenagem por hora 60 s. **Tela C (Operação agora, em itens) ainda não existe.**
+- Telas em rodízio (pula tela sem dado): A Corrida Maluca 120 s · B Separação e Conferência 90 s · C Operação agora 90 s · D Armazenagem por hora 60 s.
+- Troca de tela com transição (sai esmaecendo 0,35 s, entra deslizando 0,7 s); barra do giro contínua (requestAnimationFrame).
+- Pista: largada 4 %, chegada 93 %; meta batida põe o carro em `P_META_BATIDA` = 1,06 (passa um pouco da linha).
+- Tela C: lê só `dados->resumo` do snapshot `operacao` (gravado pelo ingest.js com Acompanhamento OP + Itens de NF de Saída). Itens por etapa × marca (etapas iguais ao `calcularStatus` do Report), pizza por marca, mais antigo em tela, importados há 2+ dias. Marca pela descrição do produto (mesma regra do Report; sem palavra-chave = Olympikus). Cores: Olympikus `#297ADF`, Mizuno `#DFBD41`, Under Armour `#C8102E`.
 - Dados a cada 60 s; recarrega a página a cada 6 h; wakeLock; setas trocam tela; botão Tela cheia some em tela cheia.
 - Selo de atualização: verde < 30 min, âmbar < 2 h, vermelho acima.
 - Parâmetros: `?giro=`, `?refresh=`, `?comemorar=N`.
@@ -41,7 +44,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 | Conferência Colmeia | up-conf-colmeia | Operador, Qtde Unitária Montada, Qtde Volumes |
 | Kardex | up-kardex-geral | Local, Tipo do Local, Complementar, Estoque Antes, Usuário |
 | Acompanhamento OP | up-acompanhamento-op | Pedido de Venda, Status da Nota Fiscal, Classificação Tipo Pedido |
-| Itens de NF de Saída | (fase 2) | Chave Acesso NF-e, Barra, Qtde. Faturada |
+| Itens de NF de Saída | up-itens-nf-saida | Chave Acesso NF-e, Pedido de Venda, Produto, Barra, Qtde. Faturada |
 
 - Comandos (na pasta robo): `npm.cmd install` · `npm.cmd run teste -- arquivo.tsv` (não grava) · `npm.cmd start` · `npm.cmd run gravar` (grava cliques no WMS em gravacao.js; a gravação começa sozinha ao abrir).
 - Playwright usa o Google Chrome instalado (`channel: 'chrome'`), sem baixar Chromium.
@@ -51,7 +54,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 
 ## Pendências (ordem)
 1. ~~Gravar os cliques no WMS~~ ✅ 29/10: `robo/gravacao.js` (fora do Git) tem login + 6 exportações .tsv. Achados: login sem captcha/2FA; download imediato (sem fila); botão `#ExportGridPlugin_exportButton` → link "Separado por Tabulações .tsv". Relatórios no menu: Produtividade de Separação, Produtividade de Packing Analítico (= Conferência), Produtividade Montagem de (Colmeia), Kardex de Endereço (depositante VULCABRAS AZALEIA - SP + aba Período), Acompanhamento Saida por Nota Fiscal (Período 30 dias, Todas), Itens de NF de Saida. IDs `#x-auto-NNN` mudam a cada sessão: trocar por texto/role no baixar.js.
-2. **Fase B:** `baixar.js` (Playwright, Google Chrome; visível na tela se `.env` `MOSTRAR_NAVEGADOR=sim`, escondido com `nao` no dia da Black) exporta a cada 5–10 min (Separação, Conferência, OP a cada 5; Colmeia, Kardex, Itens NF a cada 10) e entrega ao envio. Senha do WMS só no .env; ideal um usuário de WMS próprio do robô. Ver se o login tem captcha/2FA e se a exportação é imediata ou em fila.
+2. **Fase B:** `baixar.js` (Playwright, Google Chrome; visível na tela se `.env` `MOSTRAR_NAVEGADOR=sim`, escondido com `nao` no dia da Black) exporta a cada 5–10 min (Separação, Conferência, OP a cada 5; Colmeia, Kardex, Itens NF a cada 10) e entrega ao envio. Senha do WMS só no .env; ideal um usuário de WMS próprio do robô. Conferência = "Produtividade de Packing Analítico". Itens de NF: data inicial = Importado em do pedido mais antigo do Acompanhamento OP baixado antes (data final = hoje). Datas: `fill()` já substitui o texto; se o campo do WMS não aceitar, usar `click({ clickCount: 3 })` antes (os vários cliques da gravação eram só para selecionar).
 3. Agendador de Tarefas do Windows rodando `iniciar.bat` no logon; desligar suspensão do notebook; telão em tela cheia no mesmo notebook.
-4. **Fase 2 / Tela C:** Acompanhamento OP × Itens de NF × `dim_embalas` (Report E-commerce), em ITENS: em tela, por etapa, por marca, mais antigo; pizza itens por marca. Resumo compacto gravado no banco do Produtividade.
+4. **Tela C** ✅ feita em 29/10 (tv.html + ingest.js + robô). **Falta liberar no banco** a página `operacao` em `dashboard_snapshots` (CHECK `dashboard_snapshots_pagina_check` só aceita outbound/inbound/estoque/reversa): `alter table public.dashboard_snapshots drop constraint dashboard_snapshots_pagina_check; alter table public.dashboard_snapshots add constraint dashboard_snapshots_pagina_check check (pagina = any (array['outbound','inbound','estoque','reversa','operacao']));`. Até lá a Tela C fica fora do giro e o OP grava o resto normalmente.
 5. Metas oficiais por time; teste na TV 75"; trocar senhas expostas após a Black.
