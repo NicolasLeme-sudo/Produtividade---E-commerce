@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telão · Produtividade E-commerce</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<!--
+  TELÃO DA OPERAÇÃO (Black Friday) — página só de exibição, sem clique.
+  - Lê o MESMO banco e faz a MESMA conta da Competição do index.html
+    (calcularCompeticao, filtro "Dia", turno "Todos", Separação + Conferência,
+    Checkout + Colmeia, critério "Produtividade geral"), para os números baterem.
+  - Busca dados a cada 1 min, gira as telas, mostra a comemoração quando um
+    time bate a meta do dia e a faixa de destaques em loop.
+  - Parâmetros na URL: ?giro=90 (segundos por tela) · ?refresh=60 (segundos
+    entre buscas) · ?comemorar=6 (dispara a comemoração do time 6, para teste)
+  - Não altera nada no banco: só lê.
+-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
+*{box-sizing:border-box}
+/* ---------- palco 1500×844 (16:9) escalado para qualquer TV ---------- */
+#palco{position:absolute;left:50%;top:50%;width:1500px;height:844px;transform-origin:50% 50%;display:flex;flex-direction:column;
+  --bg:#0F1623;--bg-card:#192032;--bg-input:#1E2A3D;--border:#253048;--text:#E8EBF2;--text-muted:#7C8BA8;--text-label:#9BAAC4;
+  --accent:#297ADF;--accent-light:#7FB2EC;--olive:#45C645;--amber:#F6BD00;--red:#E0334F;
+  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;
+  --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;
+  background:var(--bg);color:var(--text);font-size:16px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}
+
+/* ---------- CSS da pista e dos cards: copiado do index.html (Competição) ---------- */
+.comp-placar{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin-top:14px;}
+.comp-nome-txt{min-width:0; line-height:1.25;}
+.comp-placar .comp-top{align-items:flex-start;}
+.comp-placar .comp-nome{align-items:flex-start;} .comp-placar .comp-dot{margin-top:3px;}
+.comp-nome{min-width:0;}
+.comp-quebra{display:flex; flex-direction:column; gap:3px; border-top:1px dashed var(--border); padding-top:8px;}
+.comp-q{display:flex; justify-content:space-between; font-size:.75rem; color:var(--text-label);}
+.comp-q b{color:var(--text); font-variant-numeric:tabular-nums;}
+.comp-pista-grade{display:grid; grid-template-columns:130px minmax(0,1fr) 200px; column-gap:14px; align-items:center;}
+.comp-pista-hd{font-size:.62rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); padding-bottom:6px;}
+.comp-pista-grupo{grid-column:1 / -1; font-size:.62rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); padding:10px 0 5px;}
+.comp-raia-nome{display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:800; color:var(--c); height:42px;}
+.comp-raia-nome i{width:10px; height:10px; border-radius:50%; background:var(--c); flex:none;}
+.comp-raia{height:42px; position:relative;}
+.comp-tk{position:absolute; inset:0; background:color-mix(in srgb, var(--olive) 10%, var(--bg-input)); border-left:1px solid var(--border); border-right:1px solid var(--border); border-bottom:1px dashed var(--border); overflow:hidden;}
+.comp-tk.prim{border-top:1px solid var(--border); border-radius:8px 8px 0 0;}
+.comp-tk.ult{border-bottom:1px solid var(--border); border-radius:0 0 8px 8px;}
+.comp-tk.prim.ult{border-radius:8px;}
+.comp-largada{position:absolute; left:4%; top:0; bottom:0; border-left:2px dashed color-mix(in srgb, var(--text-muted) 60%, transparent);}
+.comp-chegada{position:absolute; left:97%; top:0; height:42px; width:14px; margin-left:-7px; z-index:1; background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/14px 14px;}
+.comp-rastro{position:absolute; left:4%; bottom:6px; height:5px; width:calc((93% - 100px) * var(--p) + 112px - var(--w)); border-radius:3px; background:linear-gradient(90deg, transparent, var(--c));}
+.comp-carro{position:absolute; left:calc(4% + 100px + (93% - 100px) * var(--p)); bottom:3px; width:var(--w); height:var(--h); margin-left:calc(var(--w) * -1); z-index:2;}
+.comp-carro img{display:block; width:100%; height:100%; transform:scaleX(-1); position:relative; z-index:2; animation:comp-treme .16s steps(2) infinite;}
+@keyframes comp-treme{50%{translate:0 -1px;}}
+.comp-fumaca{position:absolute; right:calc(100% - 8px); bottom:-1px; width:62px; height:26px; overflow:visible; z-index:1; pointer-events:none; transform-origin:100% 100%; animation:comp-pulsa var(--vel,1s) ease-in-out infinite alternate;}
+@keyframes comp-pulsa{0%{transform:scale(.94,.96);} 50%{transform:scale(1.03,1) skewX(-2deg);} 100%{transform:scale(1.08,1.03);}}
+@property --p{ syntax:'<number>'; inherits:false; initial-value:0; }
+.comp-carro,.comp-rastro{transition:--p 2.6s cubic-bezier(.25,.8,.3,1);}
+@media (prefers-reduced-motion:reduce){ .comp-carro img,.comp-fumaca{animation:none;} .comp-carro,.comp-rastro{transition:none;} }
+.comp-raia-num{display:grid; grid-template-columns:1fr 1fr; text-align:right; font-variant-numeric:tabular-nums; font-size:.86rem; gap:8px;}
+.comp-raia-num b{color:var(--accent-light);}
+.comp-raia-num span{color:var(--text); font-weight:600;}
+.comp-pista-hd.comp-raia-num{font-size:.62rem; letter-spacing:.08em; text-transform:uppercase;}
+.comp-pista-total{border-top:1px dashed var(--border); margin-top:10px; padding-top:10px; font-size:.62rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); align-self:stretch;}
+.comp-raia-num.comp-pista-total{font-size:1.05rem; letter-spacing:0; text-transform:none;}
+.comp-raia-num.comp-pista-total b,.comp-raia-num.comp-pista-total span{font-weight:800;}
+.comp-time{background:var(--bg-card); border:1px solid var(--border); border-top:4px solid var(--c); border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; min-width:0;}
+.comp-time.lider{box-shadow:0 0 0 1px var(--c) inset;}
+.comp-top{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+.comp-nome{font-weight:800; font-size:.88rem; display:flex; align-items:center; gap:8px;}
+.comp-dot{width:12px; height:12px; border-radius:50%; background:var(--c); flex-shrink:0;}
+.comp-pos{font-size:.7rem; font-weight:800; color:var(--c); background:var(--cs); padding:2px 8px; border-radius:999px;}
+.comp-big{font-size:1.6rem; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums;}
+.comp-sub{font-size:.72rem; color:var(--text-muted);}
+
+/* ---------- topo ---------- */
+.fh{display:flex;align-items:center;gap:24px;padding:8px 22px;border-bottom:1px solid var(--border);flex:none}
+.fh .lg{font-size:19px;font-weight:800;letter-spacing:.04em}.fh .lg small{color:var(--text-muted);font-weight:600;font-size:14px}
+.fh .tt{flex:1;font-size:22px;font-weight:700}
+.fh .lv{font-size:12px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:99px;padding:2px 10px}
+.fh .ck{text-align:right;font-size:12px;color:var(--text-muted)}.fh .ck div{font-size:24px;font-weight:700;color:var(--text)}
+.main{flex:1;min-height:0;padding:12px 22px 0;display:flex;flex-direction:column;position:relative}
+.tela{display:none;flex-direction:column;flex:1;min-height:0}.tela.on{display:flex}
+.panel{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px 18px}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}.panel-head h4{margin:0;font-size:14px}
+/* pista maior para a TV */
+.comp-pista-hd,.comp-pista-grupo,.comp-pista-total{font-size:12px}
+.comp-pista-hd{padding-bottom:2px}.comp-pista-grupo{padding:6px 0 3px}.comp-pista-total{margin-top:6px;padding-top:6px}
+.comp-raia-nome{font-size:17px;gap:7px;white-space:nowrap;letter-spacing:-.01em;height:60px}
+.comp-raia-nome i{width:11px;height:11px}
+.comp-raia{height:60px}
+.comp-chegada{height:60px}
+.comp-raia-num{font-size:21px;gap:10px}.comp-pista-hd.comp-raia-num{font-size:12px}
+.comp-raia-num.comp-pista-total{font-size:25px}
+.comp-placar{margin-top:14px}
+.comp-un{font-size:15px;font-weight:600;color:var(--text-muted);margin-left:6px}
+.vazio{flex:1;display:grid;place-items:center;color:var(--text-muted);font-size:22px;text-align:center}
+
+/* ---------- faixa de baixo em loop contínuo ---------- */
+.loopbar{overflow:hidden;background:#05080E;border-top:1px solid var(--border);height:42px;display:flex;align-items:center;flex:none}
+.loop{display:flex;width:max-content;animation:loopa var(--dur,55s) linear infinite}
+.loop .g{display:flex;align-items:center;flex:none}
+.ti{display:inline-flex;align-items:center;gap:8px;font-size:18px;white-space:nowrap;padding-right:34px;position:relative}
+.ti::after{content:"";position:absolute;right:15px;top:50%;width:4px;height:4px;border-radius:50%;background:var(--text-muted)}
+.ti i{width:11px;height:11px;border-radius:50%;background:var(--c)}
+.ti .v{color:var(--c,var(--accent-light));font-weight:800}
+.ti.ger b{color:var(--text-muted);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+@keyframes loopa{to{transform:translateX(-50%)}}
+
+/* ---------- rodapé ---------- */
+.ftk{display:flex;align-items:center;gap:18px;padding:5px 22px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted);flex:none}
+.ftk .dt{display:flex;gap:6px}.ftk .dt i{width:8px;height:8px;border-radius:50%;background:var(--border)}.ftk .dt i.on{background:var(--accent)}
+.ftk .pg{flex:1;height:4px;background:var(--border);border-radius:9px;overflow:hidden}.ftk .pg i{display:block;height:100%;width:0;background:var(--accent)}
+.selo{font-weight:700}.selo.ok{color:var(--olive)}.selo.atencao{color:var(--amber)}.selo.velho{color:var(--red)}
+
+/* ---------- comemoração (moldura + card) ---------- */
+.mold{position:absolute;inset:0;pointer-events:none;z-index:20;opacity:0;visibility:hidden}
+.mold.on{visibility:visible}
+.mold .m-dim{position:absolute;inset:0;background:rgba(6,10,18,.55)}
+.mold .m-frame{position:absolute;inset:0;width:100%;height:100%}
+.mold .m-mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;display:grid;justify-items:center;gap:16px;text-align:center;background:rgba(14,31,63,.86);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:4px solid var(--c);border-radius:28px;padding:30px 56px 34px;box-shadow:0 0 0 8px color-mix(in srgb,var(--c) 25%,transparent),0 24px 60px rgba(0,0,0,.6)}
+.mold .m-tit{font-size:104px;line-height:.95;font-weight:900;color:var(--c);text-shadow:0 4px 0 rgba(0,0,0,.45);white-space:nowrap}
+.mold .m-team{display:flex;align-items:center;gap:18px;background:var(--c);color:#fff;border-radius:999px;padding:12px 34px 12px 22px;font-size:46px;font-weight:900;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.mold .m-team.escuro{color:#14181F}
+.mold .m-team img{height:64px;transform:scaleX(-1)}
+.mold .m-num{font-size:30px;color:#9BAAC4}.mold .m-num b{font-size:52px;color:var(--c);margin-right:8px}
+.mold .m-car{position:absolute;left:0;top:0;height:84px;z-index:3;visibility:hidden;transform-origin:0 50%}
+.mold .m-car img{position:relative;display:block;height:84px;transform:scaleX(-1);z-index:2}
+.mold .m-smk{position:absolute;right:calc(100% - 14px);bottom:2px;width:62px;height:26px;transform:scale(1.9);transform-origin:100% 100%;z-index:1}
+.mold .m-smk .comp-fumaca{right:0;bottom:0}
+
+/* ---------- login e som ---------- */
+#login{position:fixed;inset:0;display:none;place-items:center;background:#0F1623;z-index:50;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#E8EBF2}
+#login.on{display:grid}
+#login form{display:grid;gap:12px;width:min(360px,90vw);background:#192032;border:1px solid #253048;border-radius:12px;padding:26px}
+#login h1{margin:0 0 6px;font-size:20px}#login p{margin:0;color:#7C8BA8;font-size:13px}
+#login input{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid #253048;background:#1E2A3D;color:#E8EBF2}
+#login button{font:inherit;font-weight:700;padding:10px;border-radius:8px;border:0;background:#297ADF;color:#fff;cursor:pointer}
+#loginErro{color:#E0334F;font-size:13px;min-height:1em}
+#somBtn{position:fixed;right:18px;bottom:18px;z-index:40;display:none;font:700 15px -apple-system,"Segoe UI",Arial,sans-serif;padding:10px 16px;border-radius:99px;border:2px solid #F6BD00;background:#192032;color:#F6BD00;cursor:pointer}
+#somBtn.on{display:block}
+@media (prefers-reduced-motion:reduce){.loop{animation:none}}
+</style>
+</head>
+<body>
+<div id="palco">
+  <div class="fh"><span class="lg">VULCABRAS <small>· E-COMMERCE</small></span><span class="tt" id="titulo">Placar dos times</span><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
+  <div class="main">
+    <section class="tela on" id="telaA" data-titulo="Placar dos times"><div class="vazio">Carregando a competição…</div></section>
+  </div>
+  <div class="loopbar"><div class="loop" id="loop"></div></div>
+  <div class="ftk"><span class="dt" id="dots"></span><span id="proxima"></span><span class="pg"><i id="barra"></i></span><span class="selo" id="selo">Conectando…</span></div>
+  <div class="mold" id="mold">
+    <div class="m-dim"></div>
+    <img class="m-frame" src="tv/moldura-meta-batida.webp" alt="">
+    <div class="m-car" id="moldCar"><span class="m-smk"><svg class="comp-fumaca" viewBox="72 26 128 54" aria-hidden="true"><g class="corpo"><clipPath id="fumaca-corte"><path d="M199.0 78 L199.0 73.0 A5.6 5.6 0 0 0 190.0 72.0 A5.6 5.6 0 0 0 181.0 71.0 A5.6 5.6 0 0 0 172.0 70.0 A5.6 5.6 0 0 0 163.0 69.0 A5.7 5.7 0 0 0 154.0 67.5 A5.1 5.1 0 0 0 146.0 65.5 A5.5 5.5 0 0 0 139.0 60.0 A6.4 6.4 0 0 0 134.0 51.0 A6.7 6.7 0 0 0 128.0 42.0 A6.6 6.6 0 0 0 120.0 35.0 A6.7 6.7 0 0 0 110.0 31.0 A6.8 6.8 0 0 0 99.0 31.0 A6.7 6.7 0 0 0 89.0 35.0 A6.1 6.1 0 0 0 82.0 42.0 A6.1 6.1 0 0 0 78.0 51.0 A6.2 6.2 0 0 0 78.0 61.0 A5.9 5.9 0 0 0 81.0 70.0 A4.8 4.8 0 0 0 86.0 76.0 A2.8 2.8 0 0 0 90.0 78.0 Z"/></clipPath><path d="M199.0 78 L199.0 73.0 A5.6 5.6 0 0 0 190.0 72.0 A5.6 5.6 0 0 0 181.0 71.0 A5.6 5.6 0 0 0 172.0 70.0 A5.6 5.6 0 0 0 163.0 69.0 A5.7 5.7 0 0 0 154.0 67.5 A5.1 5.1 0 0 0 146.0 65.5 A5.5 5.5 0 0 0 139.0 60.0 A6.4 6.4 0 0 0 134.0 51.0 A6.7 6.7 0 0 0 128.0 42.0 A6.6 6.6 0 0 0 120.0 35.0 A6.7 6.7 0 0 0 110.0 31.0 A6.8 6.8 0 0 0 99.0 31.0 A6.7 6.7 0 0 0 89.0 35.0 A6.1 6.1 0 0 0 82.0 42.0 A6.1 6.1 0 0 0 78.0 51.0 A6.2 6.2 0 0 0 78.0 61.0 A5.9 5.9 0 0 0 81.0 70.0 A4.8 4.8 0 0 0 86.0 76.0 A2.8 2.8 0 0 0 90.0 78.0 Z" fill="#cdd5df"/><g clip-path="url(#fumaca-corte)"><path d="M199.0 78 L199.0 73.0 A5.6 5.6 0 0 0 190.0 72.0 A5.6 5.6 0 0 0 181.0 71.0 A5.6 5.6 0 0 0 172.0 70.0 A5.6 5.6 0 0 0 163.0 69.0 A5.7 5.7 0 0 0 154.0 67.5 A5.1 5.1 0 0 0 146.0 65.5 A5.5 5.5 0 0 0 139.0 60.0 A6.4 6.4 0 0 0 134.0 51.0 A6.7 6.7 0 0 0 128.0 42.0 A6.6 6.6 0 0 0 120.0 35.0 A6.7 6.7 0 0 0 110.0 31.0 A6.8 6.8 0 0 0 99.0 31.0 A6.7 6.7 0 0 0 89.0 35.0 A6.1 6.1 0 0 0 82.0 42.0 A6.1 6.1 0 0 0 78.0 51.0 A6.2 6.2 0 0 0 78.0 61.0 A5.9 5.9 0 0 0 81.0 70.0 A4.8 4.8 0 0 0 86.0 76.0 A2.8 2.8 0 0 0 90.0 78.0 Z" fill="#fbfcfd" transform="translate(-5 -6)"/></g><path d="M199.0 78 L199.0 73.0 A5.6 5.6 0 0 0 190.0 72.0 A5.6 5.6 0 0 0 181.0 71.0 A5.6 5.6 0 0 0 172.0 70.0 A5.6 5.6 0 0 0 163.0 69.0 A5.7 5.7 0 0 0 154.0 67.5 A5.1 5.1 0 0 0 146.0 65.5 A5.5 5.5 0 0 0 139.0 60.0 A6.4 6.4 0 0 0 134.0 51.0 A6.7 6.7 0 0 0 128.0 42.0 A6.6 6.6 0 0 0 120.0 35.0 A6.7 6.7 0 0 0 110.0 31.0 A6.8 6.8 0 0 0 99.0 31.0 A6.7 6.7 0 0 0 89.0 35.0 A6.1 6.1 0 0 0 82.0 42.0 A6.1 6.1 0 0 0 78.0 51.0 A6.2 6.2 0 0 0 78.0 61.0 A5.9 5.9 0 0 0 81.0 70.0 A4.8 4.8 0 0 0 86.0 76.0 A2.8 2.8 0 0 0 90.0 78.0 Z" fill="none" stroke="#2c3340" stroke-width="2.4" stroke-linejoin="round"/><path d="M126.1 45.1 A4.1 4.1 0 0 1 131.0 50.7" fill="none" stroke="#2c3340" stroke-width="1.7" stroke-linecap="round"/><path d="M110.2 34.6 A4.1 4.1 0 0 1 117.3 36.4" fill="none" stroke="#2c3340" stroke-width="1.7" stroke-linecap="round"/><path d="M91.6 37.4 A4.1 4.1 0 0 1 98.1 33.9" fill="none" stroke="#2c3340" stroke-width="1.7" stroke-linecap="round"/><path d="M81.3 50.9 A3.7 3.7 0 0 1 83.2 44.5" fill="none" stroke="#2c3340" stroke-width="1.7" stroke-linecap="round"/><path d="M83.3 67.8 A3.6 3.6 0 0 1 80.5 62.0" fill="none" stroke="#2c3340" stroke-width="1.7" stroke-linecap="round"/></g><path d="M194 75.5 L112 75.5" stroke="#9aa4b1" stroke-width="1.4" stroke-linecap="round"/><path d="M180 72.5 L100 72.5" stroke="#9aa4b1" stroke-width="1.4" stroke-linecap="round"/><path d="M130 66 L92 66" stroke="#9aa4b1" stroke-width="1.4" stroke-linecap="round"/></svg></span><img id="moldCarImg" alt=""></div>
+    <div class="m-mid" id="moldCard"><div class="m-tit">META BATIDA!</div><div class="m-team" id="moldTeam"><img id="moldGif" alt=""><span id="moldNome"></span></div><div class="m-num"><b id="moldPecas"></b>peças</div></div>
+  </div>
+</div>
+<div id="login"><form id="loginForm"><h1>Telão · Produtividade</h1><p>Entre uma vez. A TV guarda o acesso.</p><input id="loginEmail" placeholder="Usuário ou e-mail" autocomplete="username" required><input id="loginSenha" type="password" placeholder="Senha" autocomplete="current-password" required><div id="loginErro"></div><button type="submit">Entrar</button></form></div>
+<button id="somBtn" type="button">🔊 Clique para ativar o som</button>
+
+<script>
+(function(){
+'use strict';
+/* ================= CONFIGURAÇÃO ================= */
+var Q = new URLSearchParams(location.search);
+var GIRO_S = +Q.get('giro') || 90;          // segundos por tela
+var REFRESH_S = +Q.get('refresh') || 60;    // segundos entre buscas no banco
+var RECARREGA_H = 6;                        // recarga completa da página (pega versão nova, libera memória)
+var COMEMORA_MS = 25000, PARADO_MS = 3000;  // comemoração inteira e tempo do carro parado na vaga
+var SUPABASE_URL = 'https://vehfchdfbukrbcedciiy.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlaGZjaGRmYnVrcmJjZWRjaWl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMDI5NjksImV4cCI6MjEwNTU3ODk2OX0.zuHswp3JIts2jeA_AOj7DIXo7no7Ql33BPNVX4oePL8';
+var DOMINIO_LOGIN = '@vulcabras.com';
+var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'telao-produtividade' } });
+
+/* ================= TIMES (mesmos do index.html) ================= */
+var TIMES_COR = { 1:{nome:'Vermelho',c:'--t1',s:'--t1-soft',hex:'#EF5B5B'}, 2:{nome:'Azul',c:'--t2',s:'--t2-soft',hex:'#4C95F0'}, 3:{nome:'Verde',c:'--t3',s:'--t3-soft',hex:'#45C665',escuro:true},
+                  4:{nome:'Amarelo',c:'--t4',s:'--t4-soft',hex:'#F6C400',escuro:true}, 5:{nome:'Rosa',c:'--t5',s:'--t5-soft',hex:'#EC4FA0'}, 6:{nome:'Roxo',c:'--t6',s:'--t6-soft',hex:'#A773EA'} };
+var NUM_TIMES = [1,2,3,4,5,6], TIMES_COLMEIA = { 5:true, 6:true };
+var META_DIA_TIME = { 1:2000, 2:2000, 3:2000, 4:2000, 5:1200, 6:1200 };
+var CARROS = { 1:{h:34, ar:2.33}, 2:{h:40, ar:1.30}, 3:{h:40, ar:1.06}, 4:{h:25, ar:3.82}, 5:{h:38, ar:1.59}, 6:{h:32, ar:2.58} };
+var CARRO_ESCALA = 1.18;   // carros um pouco maiores que no site, porque as raias da TV são mais altas
+var FUMACA_SVG = document.querySelector('.m-smk').innerHTML;
+
+/* ================= UTILITÁRIOS ================= */
+function fmt(n){ n = Number(n); return isFinite(n) ? n.toLocaleString('pt-BR') : '—'; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+var CONECTIVOS = ['DE','DA','DO','DAS','DOS','E'];
+function nomeCurto(n){ var t = String(n||'').trim().split(/\s+/).filter(function(x){ return x && CONECTIVOS.indexOf(x.toUpperCase()) === -1; }); return t.length <= 1 ? n : t[0]+' '+t[t.length-1]; }
+function nomeBonito(u){ return String(u||'').split(/[.\s]+/).filter(Boolean).map(function(x){ return x.charAt(0).toUpperCase()+x.slice(1).toLowerCase(); }).join(' '); }
+function chaveUsuario(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/,/g,'.').trim().toUpperCase(); }
+function chavesDoMembro(r){
+  var ks = [chaveUsuario(r.usuario_wms), chaveUsuario(r.nome)];
+  var t = chaveUsuario(r.nome).split(/\s+/).filter(function(x){ return x && CONECTIVOS.indexOf(x) === -1; });
+  if (t.length > 1) { t.slice(1).reverse().forEach(function(x){ ks.push(t[0]+'.'+x); }); if (t.length > 2) ks.push(t[0]+'.'+t[1].charAt(0)+'.'+t[t.length-1]); }
+  return ks.filter(function(k, i){ return k && ks.indexOf(k) === i; });
+}
+
+/* ================= CONTA DA COMPETIÇÃO (cópia do index.html, filtros fixos do padrão) ================= */
+// Filtro "Dia": de cada série, só o último dia que existe nela (igual ao filtrarSerieporGrupo do site).
+function ultimoDia(serie){ if (!serie || !serie.length) return []; var o = serie.slice().sort(function(a,b){ return String(a.data).localeCompare(String(b.data)); }); return o.slice(-1); }
+function producaoDaFonte(snap, fonte){
+  var o = snap || {}, sep = o.separacao || {}, conf = o.conferencia || {};
+  var f = { sep_checkout:{v:sep.checkoutDia}, sep_colmeia:{v:sep.colmeiaDia}, conf_checkout:{v:conf.confCheckoutDia}, conf_colmeia:{v:conf.confColmeiaUnitDia} }[fonte];
+  var m = new Map(); m.datas = [];
+  ultimoDia(f.v).forEach(function(d){ m.datas.push(String(d.data).slice(0,10)); Object.keys(d.itens||{}).forEach(function(n){ var k = chaveUsuario(n); m.set(k, (m.get(k)||0) + (d.itens[n]||0)); }); });
+  return { valores:m, datas:m.datas, temDados: !!(f.v && f.v.length) };
+}
+function grupoDoCadastro(r){ return /^sep/.test(r.atividade) ? 'sep' : 'conf'; }
+function obsColmeia(r){ return r.observacao === 'Colmeia' || r.atividade === 'conf_colmeia' || r.atividade === 'sep_colmeia'; }
+function opsDoCadastro(r){ return (!r.lider && (TIMES_COLMEIA[r.time] || obsColmeia(r))) ? ['colmeia'] : ['checkout','colmeia']; }
+function calcularCompeticao(snap, cadastro){
+  var ops = ['checkout','colmeia'], grupos = ['sep','conf'], prod = {};
+  ['sep_checkout','sep_colmeia','conf_checkout','conf_colmeia'].forEach(function(f){ prod[f] = producaoDaFonte(snap, f); });
+  var times = NUM_TIMES.map(function(n){ return { n:n, cor:TIMES_COR[n], colmeia:!!TIMES_COLMEIA[n], membros:new Map() }; });
+  var linhas = cadastro.filter(function(r){ return times[r.time-1]; });
+  var exatos = {}; linhas.forEach(function(r){ exatos[chaveUsuario(r.usuario_wms)] = r.usuario_wms; });
+  function achar(r, mapa){ var achada = null; chavesDoMembro(r).some(function(k, i){ if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false; if (mapa.has(k)) { achada = k; return true; } return false; }); return achada; }
+  var porCadastro = new Map();
+  linhas.forEach(function(r){ var k = r.usuario_wms+'|'+grupoDoCadastro(r); if (!porCadastro.has(k)) porCadastro.set(k, r); });
+  porCadastro.forEach(function(r){
+    var t = times[r.time-1], g = grupoDoCadastro(r);
+    var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, grupos:{} };
+    m.grupos[g] = true;
+    opsDoCadastro(r).forEach(function(o){ var f = g+'_'+o, k = achar(r, prod[f].valores); if (k) m[g] += prod[f].valores.get(k) || 0; });
+    if (r.lider && !t.membros.has(r.usuario_wms) && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
+    t.membros.set(r.usuario_wms, m);
+  });
+  var datas = {};
+  times.forEach(function(t){
+    t.lista = Array.from(t.membros.values()).filter(function(m){ return m.grupos.sep || m.grupos.conf; }).map(function(m){ m.valor = m.sep + m.conf; return m; }).sort(function(a,b){ return b.valor - a.valor; });
+    t.sep = t.lista.reduce(function(s,m){ return s+m.sep; },0); t.conf = t.lista.reduce(function(s,m){ return s+m.conf; },0); t.total = t.sep + t.conf;
+  });
+  grupos.forEach(function(g){ ops.forEach(function(o){ prod[g+'_'+o].datas.forEach(function(d){ datas[d] = 1; }); }); });
+  [times.filter(function(t){ return !t.colmeia; }), times.filter(function(t){ return t.colmeia; })].forEach(function(gr){
+    gr.slice().sort(function(a,b){ return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.total - a.total; }).forEach(function(t, i){ t.pos = t.lista.length ? i+1 : null; });
+  });
+  var dias = Math.max(1, Object.keys(datas).length);
+  times.forEach(function(t){ t.meta = META_DIA_TIME[t.n] * dias; });
+  var dia = Object.keys(datas).sort().pop() || null;
+  var temDados = grupos.some(function(g){ return ops.some(function(o){ return prod[g+'_'+o].temDados; }); });
+  return { times:times, dia:dia, temDados:temDados };
+}
+
+/* ================= TELA A · PLACAR DOS TIMES ================= */
+var pAnterior = {};
+function pistaHtml(c){
+  function raias(lista){
+    lista = lista.slice().sort(function(a,b){ return b.total - a.total || a.n - b.n; });
+    return lista.map(function(t, i){
+      var pct = t.meta ? Math.min(1, t.total/t.meta) : 0, x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0;
+      var car = CARROS[t.n], h = Math.round(car.h*CARRO_ESCALA), w = Math.round(car.h*car.ar*CARRO_ESCALA), vel = (.9 - pct*.45).toFixed(2)+'s';
+      var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
+      return '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
+        '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
+          '<span class="comp-rastro" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --p:'+ant+'"></span>'+
+          '<span class="comp-carro" data-n="'+t.n+'" data-p="'+x+'" style="--w:'+w+'px; --h:'+h+'px; --p:'+ant+'; --vel:'+vel+'">'+FUMACA_SVG+'<img src="corrida/t'+t.n+'.gif?v=2" alt=""></span></div>'+
+          (i === 0 ? '<span class="comp-chegada" style="height:'+(lista.length*60)+'px"></span>' : '')+'</div>'+
+        '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>';
+    }).join('');
+  }
+  var piso = c.times.filter(function(t){ return !t.colmeia; }), col = c.times.filter(function(t){ return t.colmeia; });
+  var totR = c.times.reduce(function(s,t){ return s+t.total; },0), totM = c.times.reduce(function(s,t){ return s+t.meta; },0);
+  return '<div class="panel comp-pista"><div class="panel-head"><div><h4>Corrida Maluca das Equipes</h4></div></div><div class="comp-pista-grade">'+
+    '<div class="comp-pista-hd"></div><div class="comp-pista-hd" style="text-align:center">Progresso da Corrida</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div>'+
+    '<div class="comp-pista-grupo">Equipes por piso</div>'+raias(piso)+'<div class="comp-pista-grupo">Colmeia</div>'+raias(col)+
+    '<div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div></div></div>';
+}
+function ordemPista(c){ function o(a,b){ return b.total - a.total || a.n - b.n; } return c.times.filter(function(t){ return !t.colmeia; }).sort(o).concat(c.times.filter(function(t){ return t.colmeia; }).sort(o)); }
+function cardsHtml(c){
+  return '<div class="comp-placar">'+ordemPista(c).map(function(t){
+    var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
+    return '<div class="comp-time'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="comp-top"><span class="comp-nome"><span class="comp-dot"></span><span class="comp-nome-txt">Time 0'+t.n+' · '+t.cor.nome+'</span></span>'+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
+      '<div class="comp-big">'+fmt(t.total)+'<small class="comp-un">peças</small></div>'+
+      '<div class="comp-quebra"><div class="comp-q"><span>Separação</span><b>'+fmt(t.sep)+'</b></div><div class="comp-q"><span>Conferência</span><b>'+fmt(t.conf)+'</b></div></div></div>';
+  }).join('')+'</div>';
+}
+function renderTelaA(c){
+  var el = document.getElementById('telaA');
+  if (!c.temDados) { el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência ainda.<br>Abasteça a base no site do Produtividade.</div>'; return; }
+  el.innerHTML = pistaHtml(c) + cardsHtml(c);
+  // os carros andam da posição anterior até a nova, como no site
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    el.querySelectorAll('.comp-carro[data-p], .comp-rastro[data-p]').forEach(function(e){ e.style.setProperty('--p', e.getAttribute('data-p')); });
+  }); });
+  c.times.forEach(function(t){ pAnterior[t.n] = t.meta ? Math.min(1, t.total/t.meta) : 0; });
+}
+
+/* ================= FAIXA DE BAIXO (loop contínuo) ================= */
+var faixaAtual = '';
+function renderFaixa(c, snap){
+  var itens = [];
+  ordemPista(c).forEach(function(t){
+    var m = t.lista[0];
+    if (m && m.valor) itens.push('<span class="ti" style="--c:var('+t.cor.c+')"><i></i><b>Time 0'+t.n+' · '+t.cor.nome+'</b> destaque: '+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+' <span class="v">'+fmt(m.valor)+'</span> peças</span>');
+  });
+  var sep = 0, conf = 0;
+  ['checkoutDia','colmeiaDia'].forEach(function(k){ ultimoDia(((snap||{}).separacao||{})[k]).forEach(function(d){ Object.keys(d.itens||{}).forEach(function(n){ sep += d.itens[n]||0; }); }); });
+  ['confCheckoutDia','confColmeiaUnitDia'].forEach(function(k){ ultimoDia(((snap||{}).conferencia||{})[k]).forEach(function(d){ Object.keys(d.itens||{}).forEach(function(n){ conf += d.itens[n]||0; }); }); });
+  itens.push('<span class="ti ger"><b>Separado no dia</b> <span class="v">'+fmt(sep)+'</span> peças</span>');
+  itens.push('<span class="ti ger"><b>Conferido no dia</b> <span class="v">'+fmt(conf)+'</span> peças</span>');
+  var g = '<div class="g">'+itens.join('')+'</div>';
+  if (g === faixaAtual) return;               // mesmo conteúdo: não reinicia a animação
+  faixaAtual = g;
+  var loop = document.getElementById('loop');
+  loop.innerHTML = g + g;                      // dois blocos iguais emendados = loop sem pausa
+  // repete o bloco até ele passar da largura do palco, para nunca sobrar espaço vazio
+  var bloco = loop.firstChild;
+  while (bloco.offsetWidth && bloco.offsetWidth < 1600) { bloco.innerHTML += bloco.innerHTML; loop.lastChild.innerHTML = bloco.innerHTML; }
+  loop.style.setProperty('--dur', Math.max(20, Math.round(bloco.offsetWidth / 60)) + 's');   // ~60 px por segundo
+}
+
+/* ================= COMEMORAÇÃO ================= */
+var audio = new Audio('tv/comemoracao.mp3'); audio.preload = 'auto'; audio.volume = 1;
+var fila = [], comemorando = false, mold = document.getElementById('mold');
+function chaveComemoracao(dia, n){ return 'telao_comemorou_'+dia+'_'+n; }
+function jaComemorou(dia, n){ try { return !!localStorage.getItem(chaveComemoracao(dia, n)); } catch(e){ return false; } }
+function marcaComemorou(dia, n){ try { localStorage.setItem(chaveComemoracao(dia, n), '1'); } catch(e){} }
+function verificaMetas(c){
+  if (!c.dia) return;
+  c.times.forEach(function(t){
+    if (t.meta && t.total >= t.meta && !jaComemorou(c.dia, t.n)) { marcaComemorou(c.dia, t.n); fila.push({ n:t.n, pecas:t.total }); }
+  });
+  proximaComemoracao();
+}
+function proximaComemoracao(){ if (comemorando || !fila.length) return; comemora(fila.shift()); }
+function tocaAudio(){
+  try { audio.currentTime = 0; } catch(e){}
+  var p = audio.play();
+  if (p && p.catch) p.catch(function(){ document.getElementById('somBtn').classList.add('on'); });   // navegador bloqueou: pede um clique
+}
+document.getElementById('somBtn').addEventListener('click', function(){
+  audio.play().then(function(){ if (!comemorando) audio.pause(); }).catch(function(){});
+  this.classList.remove('on');
+});
+function rel(el){ var f = document.getElementById('palco').getBoundingClientRect(), r = el.getBoundingClientRect(), k = f.width/1500; return { x:(r.left-f.left)/k, y:(r.top-f.top)/k, w:r.width/k, h:r.height/k }; }
+function comemora(item){
+  comemorando = true;
+  var cor = TIMES_COR[item.n], card = document.getElementById('moldCard'), car = document.getElementById('moldCar'), carImg = document.getElementById('moldCarImg'), slot = document.getElementById('moldGif');
+  mold.style.setProperty('--c', cor.hex);
+  document.getElementById('moldNome').textContent = 'Time ' + cor.nome;
+  document.getElementById('moldPecas').textContent = fmt(item.pecas);
+  document.getElementById('moldTeam').classList.toggle('escuro', !!cor.escuro);
+  slot.src = carImg.src = 'corrida/t'+item.n+'.gif?v=2';
+  mold.classList.add('on');
+  var anims = [], timers = [], t0 = Date.now();
+  function depois(ms, fn){ timers.push(setTimeout(fn, ms)); }
+  anims.push(mold.animate([{opacity:0},{opacity:1}], { duration:400, fill:'forwards' }));
+  tocaAudio();
+  var reduz = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function medidas(){ var cr = rel(card), sl = rel(slot), ch = 84, cw = Math.round(ch*((slot.naturalWidth/slot.naturalHeight) || (CARROS[item.n].ar))); car.style.width = cw+'px'; carImg.style.width = cw+'px'; var esc = sl.h/ch; return { cr:cr, sl:sl, ch:ch, cw:cw, yS:sl.y+sl.h/2-ch/2, xS:sl.x+sl.w/2-cw*esc/2, esc:esc }; }   // o carro encolhe a partir da borda esquerda
+  function estaciona(M, ini, dur, cb){
+    car.style.visibility = 'visible'; slot.style.visibility = 'hidden';
+    var a = car.animate([{transform:'translate('+ini+'px,'+M.yS+'px) scale(1)'},{transform:'translate('+M.xS+'px,'+M.yS+'px) scale('+M.esc+')'}], { duration:dur, easing:'cubic-bezier(.15,.8,.3,1)', fill:'forwards' });
+    anims.push(a); a.onfinish = function(){ slot.style.visibility = 'visible'; car.style.visibility = 'hidden'; if (cb) cb(); };
+  }
+  function volta(M){   // sai da vaga pela direita e volta para ela, até a comemoração acabar
+    if (Date.now()-t0 + PARADO_MS + 2200 > COMEMORA_MS - 700) return;
+    depois(PARADO_MS, function(){
+      car.style.visibility = 'visible'; slot.style.visibility = 'hidden';
+      var s1 = car.animate([{transform:'translate('+M.xS+'px,'+M.yS+'px) scale('+M.esc+')'},{transform:'translate(1620px,'+M.yS+'px) scale(1)'}], { duration:900, easing:'cubic-bezier(.6,0,1,1)', fill:'forwards' });
+      anims.push(s1); s1.onfinish = function(){ estaciona(M, -260, 1200, function(){ volta(M); }); };
+    });
+  }
+  function inicia(){
+    if (reduz || !card.animate) return;
+    var M = medidas(), yCar = M.cr.y + M.cr.h/2 - M.ch/2, xFrente = M.cr.x + M.cr.w + 12;
+    slot.style.visibility = 'hidden'; car.style.visibility = 'visible';
+    anims.push(card.animate([{translate:(-1500-M.cr.w)+'px 0'},{translate:'0 0'}], { duration:1300, easing:'cubic-bezier(.2,.7,.3,1)', fill:'both' }));
+    var a1 = car.animate([{transform:'translate('+(xFrente-1500-M.cr.w)+'px,'+yCar+'px)',offset:0},{transform:'translate('+xFrente+'px,'+yCar+'px)',offset:.62,easing:'cubic-bezier(.5,0,1,1)'},{transform:'translate(1620px,'+yCar+'px)',offset:1}], { duration:2100, easing:'cubic-bezier(.2,.7,.3,1)', fill:'forwards' });
+    anims.push(a1); a1.onfinish = function(){ depois(250, function(){ estaciona(M, -260, 1100, function(){ volta(M); }); }); };
+  }
+  if (slot.complete && slot.naturalWidth) inicia(); else { slot.onload = function(){ slot.onload = null; inicia(); }; }
+  depois(COMEMORA_MS - 600, function(){ anims.push(mold.animate([{opacity:1},{opacity:0}], { duration:600, fill:'forwards' })); });
+  depois(COMEMORA_MS, function(){
+    anims.forEach(function(a){ a.cancel(); }); timers.forEach(clearTimeout);
+    mold.classList.remove('on'); mold.style.opacity = 0; car.style.visibility = 'hidden'; slot.style.visibility = 'visible';
+    try { audio.pause(); } catch(e){}
+    comemorando = false; proximaComemoracao();
+  });
+}
+
+/* ================= GIRO DAS TELAS ================= */
+var telas = Array.prototype.slice.call(document.querySelectorAll('.tela')), atual = 0, inicioTela = Date.now();
+function mostraTela(i){
+  atual = i; inicioTela = Date.now();
+  telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
+  document.getElementById('titulo').textContent = telas[i].getAttribute('data-titulo');
+  document.getElementById('dots').innerHTML = telas.map(function(t, k){ return '<i'+(k === i ? ' class="on"' : '')+'></i>'; }).join('');
+  var prox = telas[(i+1) % telas.length];
+  document.getElementById('proxima').textContent = 'Tela '+(i+1)+' de '+telas.length + (telas.length > 1 ? ' · próxima: '+prox.getAttribute('data-titulo') : '');
+}
+setInterval(function(){
+  var dec = (Date.now() - inicioTela) / (GIRO_S*1000);
+  document.getElementById('barra').style.width = (telas.length > 1 ? Math.min(100, dec*100) : 100) + '%';
+  if (telas.length > 1 && dec >= 1 && !comemorando) mostraTela((atual+1) % telas.length);
+}, 500);
+document.addEventListener('keydown', function(e){   // para quem estiver ao lado da TV
+  if (e.key === 'ArrowRight') mostraTela((atual+1) % telas.length);
+  if (e.key === 'ArrowLeft') mostraTela((atual-1+telas.length) % telas.length);
+});
+
+/* ================= RELÓGIO, SELO E ESCALA ================= */
+var ultimoDado = null, falhou = false;
+function relogio(){
+  var d = new Date();
+  document.getElementById('hora').textContent = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  document.getElementById('data').textContent = d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
+  var s = document.getElementById('selo');
+  if (!ultimoDado) return;
+  var min = (Date.now() - ultimoDado.getTime()) / 60000, hh = ultimoDado.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  var dd = ultimoDado.toDateString() === d.toDateString() ? '' : ' de ' + ultimoDado.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+  s.textContent = '● Dado de ' + hh + dd + (falhou ? ' · sem conexão' : '');
+  s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 30 ? 'atencao' : 'ok');
+}
+setInterval(relogio, 15000); relogio();
+function escala(){ var k = Math.min(innerWidth/1500, innerHeight/844); document.getElementById('palco').style.transform = 'translate(-50%,-50%) scale('+k+')'; }
+addEventListener('resize', escala); escala();
+setTimeout(function(){ location.reload(); }, RECARREGA_H*3600*1000);
+if (navigator.wakeLock) { var pedeWake = function(){ navigator.wakeLock.request('screen').catch(function(){}); }; pedeWake(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) pedeWake(); }); }
+
+/* ================= DADOS ================= */
+async function carregar(){
+  try {
+    var r = await Promise.all([
+      sb.from('dashboard_snapshots').select('pagina, dados, atualizado_em').in('pagina', ['outbound']),
+      sb.from('competicao_times').select('*')
+    ]);
+    if (r[0].error || r[1].error) throw (r[0].error || r[1].error);
+    var linha = (r[0].data || [])[0] || {}, snap = linha.dados || {};
+    ultimoDado = linha.atualizado_em ? new Date(linha.atualizado_em) : null; falhou = false;
+    var c = calcularCompeticao(snap, r[1].data || []);
+    renderTelaA(c); renderFaixa(c, snap); verificaMetas(c);
+  } catch(e) {
+    console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho
+  }
+  relogio();
+}
+
+/* ================= LOGIN (uma vez; a TV guarda a sessão) ================= */
+async function temPerfil(session){
+  var r = await sb.from('perfis_acesso').select('role').eq('user_id', session.user.id).single();
+  return !r.error && r.data;
+}
+async function iniciar(){
+  var s = (await sb.auth.getSession()).data.session;
+  if (!s || !(await temPerfil(s))) { document.getElementById('login').classList.add('on'); return; }
+  document.getElementById('login').classList.remove('on');
+  mostraTela(0);
+  await carregar();
+  setInterval(carregar, REFRESH_S*1000);
+  var teste = +Q.get('comemorar');
+  if (TIMES_COR[teste]) { fila.push({ n:teste, pecas:META_DIA_TIME[teste] }); proximaComemoracao(); }
+}
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var u = document.getElementById('loginEmail').value.trim().toLowerCase(), erro = document.getElementById('loginErro');
+  erro.textContent = '';
+  var r = await sb.auth.signInWithPassword({ email: u.indexOf('@') !== -1 ? u : u + DOMINIO_LOGIN, password: document.getElementById('loginSenha').value });
+  if (r.error) { erro.textContent = 'Usuário ou senha inválidos.'; return; }
+  if (!(await temPerfil(r.data.session))) { erro.textContent = 'Usuário sem perfil de acesso. Fale com o admin.'; await sb.auth.signOut(); return; }
+  iniciar();
+});
+iniciar();
+})();
+</script>
+</body>
+</html>
