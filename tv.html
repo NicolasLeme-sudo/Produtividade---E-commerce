@@ -76,7 +76,8 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 
 /* ---------- topo ---------- */
 .fh{display:flex;align-items:center;gap:24px;padding:8px 22px;border-bottom:1px solid var(--border);flex:none}
-.fh .lg{font-size:19px;font-weight:800;letter-spacing:.04em}.fh .lg small{color:var(--text-muted);font-weight:600;font-size:14px}
+.fh .lg{display:flex;align-items:center;gap:14px}.fh .lg img{height:46px;width:auto;display:block}.fh .lg small{color:var(--text-muted);font-weight:700;font-size:13px;letter-spacing:.12em;border-left:1px solid var(--border);padding-left:14px}
+.fh .selo{font-size:13px}
 .fh .tt{flex:1;font-size:22px;font-weight:700}
 .fsb{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
 .fsb:hover{background:rgba(127,140,170,.26)}
@@ -91,10 +92,10 @@ body.ocioso,body.ocioso *{cursor:none!important}
 /* pista maior para a TV */
 .comp-pista-hd,.comp-pista-grupo,.comp-pista-total{font-size:12px}
 .comp-pista-hd{padding-bottom:2px}.comp-pista-grupo{padding:6px 0 3px}.comp-pista-total{margin-top:6px;padding-top:6px}
-.comp-raia-nome{font-size:17px;gap:7px;white-space:nowrap;letter-spacing:-.01em;height:60px}
+.comp-raia-nome{font-size:17px;gap:7px;white-space:nowrap;letter-spacing:-.01em;height:var(--raia,60px)}
 .comp-raia-nome i{width:11px;height:11px}
-.comp-raia{height:60px}
-.comp-chegada{height:60px}
+.comp-raia{height:var(--raia,60px)}
+.comp-chegada{height:var(--raia,60px)}
 .comp-raia-num{font-size:21px;gap:10px}.comp-pista-hd.comp-raia-num{font-size:12px}
 .comp-raia-num.comp-pista-total{font-size:25px}
 .comp-placar{margin-top:14px}
@@ -102,7 +103,9 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .vazio{flex:1;display:grid;place-items:center;color:var(--text-muted);font-size:22px;text-align:center}
 
 /* ---------- faixa de baixo em loop contínuo ---------- */
-.loopbar{overflow:hidden;background:#05080E;border-top:1px solid var(--border);height:42px;display:flex;align-items:center;flex:none}
+.loopbar{position:relative;overflow:hidden;background:#05080E;border-top:1px solid var(--border);height:46px;display:flex;align-items:center;flex:none;margin-top:12px}
+.loopbar .giro{position:absolute;left:0;top:0;height:3px;width:0;background:var(--accent);z-index:1}
+.loopbar .giro[hidden]{display:none}
 .loop{display:flex;width:max-content;animation:loopa var(--dur,55s) linear infinite}
 .loop .g{display:flex;align-items:center;flex:none}
 .ti{display:inline-flex;align-items:center;gap:8px;font-size:18px;white-space:nowrap;padding-right:34px;position:relative}
@@ -113,9 +116,6 @@ body.ocioso,body.ocioso *{cursor:none!important}
 @keyframes loopa{to{transform:translateX(-50%)}}
 
 /* ---------- rodapé ---------- */
-.ftk{display:flex;align-items:center;gap:18px;padding:5px 22px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted);flex:none}
-.ftk .dt{display:flex;gap:6px}.ftk .dt i{width:8px;height:8px;border-radius:50%;background:var(--border)}.ftk .dt i.on{background:var(--accent)}
-.ftk .pg{flex:1;height:4px;background:var(--border);border-radius:9px;overflow:hidden}.ftk .pg i{display:block;height:100%;width:0;background:var(--accent)}
 .selo{font-weight:700}.selo.ok{color:var(--olive)}.selo.atencao{color:var(--amber)}.selo.velho{color:var(--red)}
 
 /* ---------- comemoração (moldura + card) ---------- */
@@ -149,12 +149,11 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg">VULCABRAS <small>· E-COMMERCE</small></span><span class="tt" id="titulo">Placar dos times</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Placar dos times</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
   <div class="main">
     <section class="tela on" id="telaA" data-titulo="Placar dos times"><div class="vazio">Carregando a competição…</div></section>
   </div>
-  <div class="loopbar"><div class="loop" id="loop"></div></div>
-  <div class="ftk"><span class="dt" id="dots"></span><span id="proxima"></span><span class="pg"><i id="barra"></i></span><span class="selo" id="selo">Conectando…</span></div>
+  <div class="loopbar"><i class="giro" id="barra" hidden></i><div class="loop" id="loop"></div></div>
   <div class="mold" id="mold">
     <div class="m-dim"></div>
     <img class="m-frame" src="tv/moldura-meta-batida.webp" alt="">
@@ -249,19 +248,19 @@ function calcularCompeticao(snap, cadastro){
 }
 
 /* ================= TELA A · PLACAR DOS TIMES ================= */
-var pAnterior = {};
+var pAnterior = {}, RAIA = 60, ultimoC = null;   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
 function pistaHtml(c){
   function raias(lista){
     lista = lista.slice().sort(function(a,b){ return b.total - a.total || a.n - b.n; });
     return lista.map(function(t, i){
       var pct = t.meta ? Math.min(1, t.total/t.meta) : 0, x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0;
-      var car = CARROS[t.n], h = Math.round(car.h*CARRO_ESCALA), w = Math.round(car.h*car.ar*CARRO_ESCALA), vel = (.9 - pct*.45).toFixed(2)+'s';
+      var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = CARROS[t.n], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - pct*.45).toFixed(2)+'s';
       var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
       return '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
         '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
           '<span class="comp-rastro" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --p:'+ant+'"></span>'+
           '<span class="comp-carro" data-n="'+t.n+'" data-p="'+x+'" style="--w:'+w+'px; --h:'+h+'px; --p:'+ant+'; --vel:'+vel+'">'+FUMACA_SVG+'<img src="corrida/t'+t.n+'.gif?v=2" alt=""></span></div>'+
-          (i === 0 ? '<span class="comp-chegada" style="height:'+(lista.length*60)+'px"></span>' : '')+'</div>'+
+          (i === 0 ? '<span class="comp-chegada" style="height:'+(lista.length*RAIA)+'px"></span>' : '')+'</div>'+
         '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>';
     }).join('');
   }
@@ -290,6 +289,18 @@ function renderTelaA(c){
     el.querySelectorAll('.comp-carro[data-p], .comp-rastro[data-p]').forEach(function(e){ e.style.setProperty('--p', e.getAttribute('data-p')); });
   }); });
   c.times.forEach(function(t){ pAnterior[t.n] = t.meta ? Math.min(1, t.total/t.meta) : 0; });
+  ultimoC = c; requestAnimationFrame(ajustaAltura);
+}
+// Distribui a altura que sobra na tela: a maior parte vai para as raias (6 raias) e o resto fica de respiro.
+function ajustaAltura(){
+  var tela = document.getElementById('telaA'), main = tela.parentNode;
+  if (!ultimoC || !tela.children.length) return;
+  var usado = 0; Array.prototype.forEach.call(tela.children, function(e){ var cs = getComputedStyle(e); usado += e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom); });
+  var cs = getComputedStyle(main), livre = main.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - usado;
+  var nova = Math.max(48, Math.min(110, Math.floor(RAIA + livre*0.9/6)));
+  if (Math.abs(nova - RAIA) < 2) return;
+  RAIA = nova; document.getElementById('palco').style.setProperty('--raia', RAIA+'px');
+  renderTelaA(ultimoC);
 }
 
 /* ================= FAIXA DE BAIXO (loop contínuo) ================= */
@@ -406,13 +417,11 @@ function mostraTela(i){
   atual = i; inicioTela = Date.now();
   telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
   document.getElementById('titulo').textContent = telas[i].getAttribute('data-titulo');
-  document.getElementById('dots').innerHTML = telas.map(function(t, k){ return '<i'+(k === i ? ' class="on"' : '')+'></i>'; }).join('');
-  var prox = telas[(i+1) % telas.length];
-  document.getElementById('proxima').textContent = 'Tela '+(i+1)+' de '+telas.length + (telas.length > 1 ? ' · próxima: '+prox.getAttribute('data-titulo') : '');
+  document.getElementById('barra').hidden = telas.length < 2;   // com uma tela só não há o que girar
 }
 setInterval(function(){
   var dec = (Date.now() - inicioTela) / (GIRO_S*1000);
-  document.getElementById('barra').style.width = (telas.length > 1 ? Math.min(100, dec*100) : 100) + '%';
+  document.getElementById('barra').style.width = Math.min(100, dec*100) + '%';
   if (telas.length > 1 && dec >= 1 && !comemorando) mostraTela((atual+1) % telas.length);
 }, 500);
 document.addEventListener('keydown', function(e){   // para quem estiver ao lado da TV
@@ -459,7 +468,7 @@ atualizaBotaoTC();
 var ocioso = null;
 function mexeu(){ document.body.classList.remove('ocioso'); clearTimeout(ocioso); ocioso = setTimeout(function(){ document.body.classList.add('ocioso'); }, 3000); }
 document.addEventListener('mousemove', mexeu); mexeu();
-addEventListener('resize', escala); escala();
+addEventListener('resize', function(){ escala(); requestAnimationFrame(ajustaAltura); }); escala();
 setTimeout(function(){ location.reload(); }, RECARREGA_H*3600*1000);
 if (navigator.wakeLock) { var pedeWake = function(){ navigator.wakeLock.request('screen').catch(function(){}); }; pedeWake(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) pedeWake(); }); }
 
