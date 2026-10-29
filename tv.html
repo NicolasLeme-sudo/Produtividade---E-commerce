@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Telão · Produtividade E-commerce</title>
-<link rel="icon" type="image/png" href="favicon.png">
+<link rel="icon" href="/logo-mark.png" type="image/png">
 <!--
   TELÃO DA OPERAÇÃO (Black Friday) — página só de exibição, sem clique.
   - Lê o MESMO banco e faz a MESMA conta da Competição do index.html
@@ -318,10 +318,19 @@ var fila = [], comemorando = false, mold = document.getElementById('mold');
 function chaveComemoracao(dia, n){ return 'telao_comemorou_'+dia+'_'+n; }
 function jaComemorou(dia, n){ try { return !!localStorage.getItem(chaveComemoracao(dia, n)); } catch(e){ return false; } }
 function marcaComemorou(dia, n){ try { localStorage.setItem(chaveComemoracao(dia, n), '1'); } catch(e){} }
+function hojeISO(){ var d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+var primeiraLeitura = true;
+// Comemora só a meta batida HOJE e só quando a TV vê o time passar da meta.
+// Na primeira leitura (TV ligando ou recarregando), quem já tinha batido a meta
+// é marcado como comemorado, sem festa, para não abrir uma fila de comemorações.
 function verificaMetas(c){
-  if (!c.dia) return;
+  var primeira = primeiraLeitura; primeiraLeitura = false;
+  if (!c.dia || c.dia !== hojeISO()) return;
   c.times.forEach(function(t){
-    if (t.meta && t.total >= t.meta && !jaComemorou(c.dia, t.n)) { marcaComemorou(c.dia, t.n); fila.push({ n:t.n, pecas:t.total }); }
+    if (t.meta && t.total >= t.meta && !jaComemorou(c.dia, t.n)) {
+      marcaComemorou(c.dia, t.n);
+      if (!primeira) fila.push({ n:t.n, pecas:t.total });
+    }
   });
   proximaComemoracao();
 }
@@ -374,13 +383,17 @@ function comemora(item){
   }
   if (slot.complete && slot.naturalWidth) inicia(); else { slot.onload = function(){ slot.onload = null; inicia(); }; }
   depois(COMEMORA_MS - 600, function(){ anims.push(mold.animate([{opacity:1},{opacity:0}], { duration:600, fill:'forwards' })); });
-  depois(COMEMORA_MS, function(){
+  function fim(){
     anims.forEach(function(a){ a.cancel(); }); timers.forEach(clearTimeout);
     mold.classList.remove('on'); mold.style.opacity = 0; car.style.visibility = 'hidden'; slot.style.visibility = 'visible';
     try { audio.pause(); } catch(e){}
-    comemorando = false; proximaComemoracao();
-  });
+    encerraComemoracao = function(){}; comemorando = false; proximaComemoracao();
+  }
+  encerraComemoracao = fim;
+  depois(COMEMORA_MS, fim);
 }
+var encerraComemoracao = function(){};
+document.addEventListener('click', function(e){ if (comemorando && e.target.id !== 'somBtn') encerraComemoracao(); });
 
 /* ================= GIRO DAS TELAS ================= */
 var telas = Array.prototype.slice.call(document.querySelectorAll('.tela')), atual = 0, inicioTela = Date.now();
@@ -398,6 +411,7 @@ setInterval(function(){
   if (telas.length > 1 && dec >= 1 && !comemorando) mostraTela((atual+1) % telas.length);
 }, 500);
 document.addEventListener('keydown', function(e){   // para quem estiver ao lado da TV
+  if (comemorando) { encerraComemoracao(); return; }   // qualquer tecla encerra a comemoração
   if (e.key === 'ArrowRight') mostraTela((atual+1) % telas.length);
   if (e.key === 'ArrowLeft') mostraTela((atual-1+telas.length) % telas.length);
 });
