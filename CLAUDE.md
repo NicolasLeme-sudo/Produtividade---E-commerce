@@ -43,14 +43,15 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 | Acompanhamento OP | up-acompanhamento-op | Pedido de Venda, Status da Nota Fiscal, Classificação Tipo Pedido |
 | Itens de NF de Saída | (fase 2) | Chave Acesso NF-e, Barra, Qtde. Faturada |
 
-- Comandos (na pasta robo): `npm.cmd install` · `npm.cmd run teste -- arquivo.tsv` (não grava) · `npm.cmd start` · `npm.cmd run navegador` · `npm.cmd run gravar` (grava cliques no WMS em gravacao.js).
+- Comandos (na pasta robo): `npm.cmd install` · `npm.cmd run teste -- arquivo.tsv` (não grava) · `npm.cmd start` · `npm.cmd run gravar` (grava cliques no WMS em gravacao.js; a gravação começa sozinha ao abrir).
+- Playwright usa o Google Chrome instalado (`channel: 'chrome'`), sem baixar Chromium.
 - `iniciar.bat`: git pull + npm install + liga; o robô reinicia a cada 6 h para pegar atualização.
-- `.env` (nunca no Git): PROD_EMAIL, PROD_SENHA, PASTA (Downloads), MOVER_ENVIADOS. Enviados vão para `Downloads\telao-enviados`; log `robo.log`.
+- `.env` (nunca no Git): PROD_EMAIL, PROD_SENHA, PASTA (Downloads), MOVER_ENVIADOS, MOSTRAR_NAVEGADOR. Enviados vão para `Downloads\telao-enviados`; log `robo.log`.
 - Testado com arquivos reais de 26–29/10: 5 relatórios OK.
 
 ## Pendências (ordem)
 1. Nicolas grava os cliques no WMS (`npm.cmd run gravar`) e troca a senha por `SENHA` no gravacao.js.
-2. **Fase B:** `baixar.js` (Playwright, Chrome invisível) exporta a cada 5–10 min (Separação, Conferência, OP a cada 5; Colmeia, Kardex, Itens NF a cada 10) e entrega ao envio. Senha do WMS só no .env; ideal um usuário de WMS próprio do robô. Ver se o login tem captcha/2FA e se a exportação é imediata ou em fila.
+2. **Fase B:** `baixar.js` (Playwright, Google Chrome; visível na tela se `.env` `MOSTRAR_NAVEGADOR=sim`, escondido com `nao` no dia da Black) exporta a cada 5–10 min (Separação, Conferência, OP a cada 5; Colmeia, Kardex, Itens NF a cada 10) e entrega ao envio. Senha do WMS só no .env; ideal um usuário de WMS próprio do robô. Ver se o login tem captcha/2FA e se a exportação é imediata ou em fila.
 3. Agendador de Tarefas do Windows rodando `iniciar.bat` no logon; desligar suspensão do notebook; telão em tela cheia no mesmo notebook.
 4. **Fase 2 / Tela C:** Acompanhamento OP × Itens de NF × `dim_embalas` (Report E-commerce), em ITENS: em tela, por etapa, por marca, mais antigo; pizza itens por marca. Resumo compacto gravado no banco do Produtividade.
 5. Metas oficiais por time; teste na TV 75"; trocar senhas expostas após a Black.
