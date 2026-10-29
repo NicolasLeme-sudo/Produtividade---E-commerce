@@ -6,11 +6,16 @@
   "main": "robo.js",
   "scripts": {
     "start": "node robo.js",
-    "teste": "node robo.js --teste"
+    "teste": "node robo.js --teste",
+    "gravar": "playwright codegen --target javascript -o gravacao.js https://vulcaprd.seniorcloud.com.br/siltwms/",
+    "navegador": "playwright install chromium"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@supabase/supabase-js": "2.45.4",
-    "xlsx": "0.18.5"
+    "xlsx": "0.18.5",
+    "playwright": "1.48.2"
   }
 }

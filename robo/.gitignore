@@ -2,3 +2,6 @@
 node_modules/
 robo.log
 estado.json
+package-lock.json
+gravacao*.js
+robo-saida.log

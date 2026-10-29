@@ -186,6 +186,8 @@ async function vigiar(cfg) {
   const mover = String(cfg.MOVER_ENVIADOS || "sim").toLowerCase() !== "nao";
   const inicio = Date.now(), tamanhos = {}, estado = lerEstado();
   let ocupado = false;
+  // Reinicia a cada 6 h: o iniciar.bat baixa a versão nova do GitHub e liga de novo.
+  setTimeout(function () { log("Reinício programado (6 h) para buscar atualização."); process.exit(0); }, 6 * 3600 * 1000);
   log("Vigiando " + pasta + " · baixe os relatórios do WMS normalmente. Ctrl+C para parar.");
   await prepararIngest(cfg);
   setInterval(async function () {
