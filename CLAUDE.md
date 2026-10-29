@@ -50,7 +50,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 - Testado com arquivos reais de 26–29/10: 5 relatórios OK.
 
 ## Pendências (ordem)
-1. Nicolas grava os cliques no WMS (`npm.cmd run gravar`) e troca a senha por `SENHA` no gravacao.js.
+1. ~~Gravar os cliques no WMS~~ ✅ 29/10: `robo/gravacao.js` (fora do Git) tem login + 6 exportações .tsv. Achados: login sem captcha/2FA; download imediato (sem fila); botão `#ExportGridPlugin_exportButton` → link "Separado por Tabulações .tsv". Relatórios no menu: Produtividade de Separação, Produtividade de Packing Analítico (= Conferência), Produtividade Montagem de (Colmeia), Kardex de Endereço (depositante VULCABRAS AZALEIA - SP + aba Período), Acompanhamento Saida por Nota Fiscal (Período 30 dias, Todas), Itens de NF de Saida. IDs `#x-auto-NNN` mudam a cada sessão: trocar por texto/role no baixar.js.
 2. **Fase B:** `baixar.js` (Playwright, Google Chrome; visível na tela se `.env` `MOSTRAR_NAVEGADOR=sim`, escondido com `nao` no dia da Black) exporta a cada 5–10 min (Separação, Conferência, OP a cada 5; Colmeia, Kardex, Itens NF a cada 10) e entrega ao envio. Senha do WMS só no .env; ideal um usuário de WMS próprio do robô. Ver se o login tem captcha/2FA e se a exportação é imediata ou em fila.
 3. Agendador de Tarefas do Windows rodando `iniciar.bat` no logon; desligar suspensão do notebook; telão em tela cheia no mesmo notebook.
 4. **Fase 2 / Tela C:** Acompanhamento OP × Itens de NF × `dim_embalas` (Report E-commerce), em ITENS: em tela, por etapa, por marca, mais antigo; pizza itens por marca. Resumo compacto gravado no banco do Produtividade.
