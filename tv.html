@@ -324,7 +324,7 @@ function renderFaixa(c, snap){
   // repete o bloco até ele passar da largura do palco, para nunca sobrar espaço vazio
   var bloco = loop.firstChild;
   while (bloco.offsetWidth && bloco.offsetWidth < 1600) { bloco.innerHTML += bloco.innerHTML; loop.lastChild.innerHTML = bloco.innerHTML; }
-  loop.style.setProperty('--dur', Math.max(20, Math.round(bloco.offsetWidth / 60)) + 's');   // ~60 px por segundo
+  loop.style.setProperty('--dur', Math.max(10, Math.round(bloco.offsetWidth / 110)) + 's');   // ~110 px por segundo
 }
 
 /* ================= COMEMORAÇÃO ================= */
