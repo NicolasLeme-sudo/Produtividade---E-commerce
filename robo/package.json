@@ -1,0 +1,16 @@
+{
+  "name": "robo-envio-produtividade",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vigia a pasta de downloads e envia os relatórios do WMS direto ao banco do Produtividade, com as mesmas regras do site (ingest.js).",
+  "main": "robo.js",
+  "scripts": {
+    "start": "node robo.js",
+    "teste": "node robo.js --teste"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@supabase/supabase-js": "2.45.4",
+    "xlsx": "0.18.5"
+  }
+}
