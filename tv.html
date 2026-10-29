@@ -104,6 +104,31 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .comp-un{font-size:15px;font-weight:600;color:var(--text-muted);margin-left:6px}
 .vazio{flex:1;display:grid;place-items:center;color:var(--text-muted);font-size:22px;text-align:center}
 
+/* ---------- telas B e D: KPIs, gráfico por hora e top 5 ---------- */
+.kpis{display:grid;gap:14px;margin-bottom:14px}
+.kpis.c4{grid-template-columns:repeat(4,1fr)}.kpis.c3{grid-template-columns:repeat(3,1fr)}
+.kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;gap:4px;border-top:4px solid var(--kc,var(--border))}
+.kpi .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
+.kpi .v{font-size:46px;font-weight:800;line-height:1;color:var(--vc,var(--text))}
+.kpi .s{font-size:15px;color:var(--text-muted)}
+.linhas{flex:1;min-height:0;display:grid;gap:14px}
+.linha{display:grid;grid-template-columns:3fr 1fr;gap:14px;min-height:0}
+.painel{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
+.painel .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--pc,var(--text-muted))}
+.grafico{display:grid;grid-template-rows:1fr auto;gap:6px;min-height:0}
+.colunas{position:relative;display:flex;align-items:flex-end;gap:10px;min-height:0}
+.colunas span{flex:1;position:relative;background:var(--cor);border-radius:5px 5px 0 0;min-height:2px}
+.colunas span.agora{background:var(--cor2)}
+.colunas em{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:4px;font-style:normal;font-weight:800;font-size:16px;white-space:nowrap;background:var(--bg-card);padding:0 5px;border-radius:4px;z-index:2}
+.horas{display:flex;gap:10px}.horas i{flex:1;text-align:center;font-style:normal;font-size:14px;color:var(--text-muted)}
+.media{position:absolute;left:0;right:0;border-top:2px dashed var(--amber);z-index:1}
+.media small{position:absolute;left:0;top:-22px;font-size:14px;color:var(--amber);background:var(--bg-card);padding:0 5px;border-radius:4px}
+.semhora{display:grid;place-items:center;color:var(--text-muted);font-size:18px;text-align:center}
+.top5{display:grid;align-content:start;gap:6px}
+.top5 div{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;font-size:18px;border-bottom:1px solid var(--border);padding-bottom:6px}
+.top5 .p{font-weight:800;color:var(--text-muted)}.top5 b{font-size:20px}
+.top5 .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* ---------- faixa de baixo em loop contínuo ---------- */
 .loopbar{position:relative;overflow:hidden;background:#05080E;border-top:1px solid var(--border);height:46px;display:flex;align-items:center;flex:none;margin-top:12px}
 .loopbar .giro{position:absolute;left:0;top:0;height:3px;width:0;background:var(--accent);z-index:1}
@@ -153,7 +178,9 @@ body.ocioso,body.ocioso *{cursor:none!important}
 <div id="palco">
   <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
   <div class="main">
-    <section class="tela on" id="telaA" data-titulo="Corrida Maluca"><div class="vazio">Carregando a competição…</div></section>
+    <section class="tela on" id="telaA" data-titulo="Corrida Maluca" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
+    <section class="tela" id="telaB" data-titulo="Separação e Conferência" data-giro="90" data-fonte="outbound"></section>
+    <section class="tela" id="telaD" data-titulo="Armazenagem" data-giro="60" data-fonte="inbound"></section>
   </div>
   <div class="loopbar"><i class="giro" id="barra" hidden></i><div class="loop" id="loop"></div></div>
   <div class="mold" id="mold">
@@ -297,13 +324,81 @@ function renderTelaA(c){
 // Distribui a altura que sobra na tela: a maior parte vai para as raias (6 raias) e o resto fica de respiro.
 function ajustaAltura(){
   var tela = document.getElementById('telaA'), main = tela.parentNode;
-  if (!ultimoC || !tela.children.length) return;
+  if (!ultimoC || !tela.children.length || !tela.classList.contains('on')) return;
   var usado = 0; Array.prototype.forEach.call(tela.children, function(e){ var cs = getComputedStyle(e); usado += e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom); });
   var cs = getComputedStyle(main), livre = main.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - usado;
   var nova = Math.max(48, Math.min(110, Math.floor(RAIA + livre*0.9/6)));
   if (Math.abs(nova - RAIA) < 2) return;
   RAIA = nova; document.getElementById('palco').style.setProperty('--raia', RAIA+'px');
   renderTelaA(ultimoC);
+}
+
+/* ================= TELAS B (SEPARAÇÃO E CONFERÊNCIA) E D (ARMAZENAGEM) ================= */
+// Último dia presente em várias séries ({data, itens}) e a soma de cada série nesse dia.
+function diaMaisRecente(series){ var d = null; series.forEach(function(sr){ (sr||[]).forEach(function(x){ var k = String(x.data).slice(0,10); if (!d || k > d) d = k; }); }); return d; }
+function itensDoDia(serie, dia){ var m = {}; (serie||[]).forEach(function(x){ if (String(x.data).slice(0,10) === dia) Object.keys(x.itens||{}).forEach(function(n){ m[n] = (m[n]||0) + (x.itens[n]||0); }); }); return m; }
+function somaObj(o){ return Object.keys(o).reduce(function(s,k){ return s + (o[k]||0); }, 0); }
+function juntaObj(a, b){ var m = {}; [a,b].forEach(function(o){ Object.keys(o).forEach(function(k){ m[k] = (m[k]||0) + o[k]; }); }); return m; }
+function horasDoAnalitico(serie, dia, tipos){ var h = new Array(24).fill(0); (serie||[]).forEach(function(x){ if (String(x.data).slice(0,10) !== dia) return; tipos.forEach(function(t){ Object.keys(x[t]||{}).forEach(function(u){ (x[t][u]||[]).forEach(function(v,i){ h[i] += v||0; }); }); }); }); return h; }
+function hoje(){ return hojeISO(); }
+function kpiHtml(rot, valor, sub, kc, vc){ return '<div class="kpi" style="'+(kc?'--kc:'+kc+';':'')+(vc?'--vc:'+vc:'')+'"><span class="k">'+rot+'</span><span class="v">'+valor+'</span><span class="s">'+sub+'</span></div>'; }
+// Gráfico de colunas por hora, com rótulo em cada coluna e a média das horas completas.
+function graficoHoras(horas, dia, cor, cor2, rotMedia){
+  var ini = horas.findIndex(function(v){ return v > 0; }), fim = 23 - horas.slice().reverse().findIndex(function(v){ return v > 0; });
+  if (ini < 0) return null;
+  var faixa = horas.slice(ini, fim+1), agora = new Date().getHours(), emAndamento = dia === hoje() && fim === agora;
+  var completas = emAndamento ? faixa.slice(0, -1) : faixa, media = completas.length ? Math.round(completas.reduce(function(a,b){ return a+b; },0) / completas.length) : 0;
+  var mx = Math.max.apply(null, faixa.concat([media])) * 1.18 || 1;
+  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%"><em>'+fmt(v)+'</em></span>'; }).join('');
+  var hrs = faixa.map(function(v, i){ return '<i>'+String(ini+i).padStart(2,'0')+'h</i>'; }).join('');
+  var ml = media ? '<div class="media" style="bottom:'+(media/mx*100).toFixed(1)+'%"><small>média '+fmt(media)+'/h</small></div>' : '';
+  return { html:'<div class="grafico" style="--cor:'+cor+';--cor2:'+cor2+'"><div class="colunas">'+cols+ml+'</div><div class="horas">'+hrs+'</div></div>', ultima:{ hora:ini+faixa.length-1, valor:faixa[faixa.length-1], completa: emAndamento ? (faixa.length > 1 ? { hora:ini+faixa.length-2, valor:faixa[faixa.length-2] } : null) : { hora:fim, valor:faixa[faixa.length-1] } }, media:media };
+}
+function top5Html(obj, nomeDe){ var l = Object.keys(obj).map(function(n){ return { n:n, v:obj[n] }; }).filter(function(x){ return x.v > 0; }).sort(function(a,b){ return b.v - a.v; }).slice(0,5);
+  if (!l.length) return '<div class="semhora">Sem registros no dia</div>';
+  return '<div class="top5">'+l.map(function(x, i){ return '<div><span class="p">'+(i+1)+'</span><span class="nm">'+esc(nomeDe(x.n))+'</span><b>'+fmt(x.v)+'</b></div>'; }).join('')+'</div>'; }
+function nomeWms(u){ return nomeCurto(nomeBonito(u)); }
+var COR_SEP = '#297ADF', COR_SEP2 = '#7DB8FF', COR_CONF = '#2EC4B6', COR_CONF2 = '#8CEBDF', COR_ARM = '#297ADF', COR_ARM2 = '#45C645';
+
+function renderTelaB(snap){
+  var el = document.getElementById('telaB'), sep = (snap||{}).separacao || {}, conf = (snap||{}).conferencia || {};
+  var dia = diaMaisRecente([sep.checkoutDia, sep.colmeiaDia, conf.confCheckoutDia, conf.confColmeiaUnitDia]);
+  if (!dia) { el.dataset.vazia = '1'; el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência.</div>'; return; }
+  el.dataset.vazia = '';
+  var sc = itensDoDia(sep.checkoutDia, dia), sm = itensDoDia(sep.colmeiaDia, dia), cc = itensDoDia(conf.confCheckoutDia, dia), cm = itensDoDia(conf.confColmeiaUnitDia, dia);
+  var tSep = somaObj(sc) + somaObj(sm), tConf = somaObj(cc) + somaObj(cm);
+  var gS = graficoHoras(horasDoAnalitico(sep.analitico, dia, ['checkout','colmeia']), dia, COR_SEP, COR_SEP2);
+  var gC = graficoHoras(horasDoAnalitico(conf.analitico, dia, ['checkout']), dia, COR_CONF, COR_CONF2);
+  var rS = gS && gS.ultima.completa, rC = gC && gC.ultima.completa;
+  el.innerHTML = '<div class="kpis c4">'+
+    kpiHtml('Separado'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tSep), 'peças · Checkout '+fmt(somaObj(sc))+' · Colmeia '+fmt(somaObj(sm)), COR_SEP, COR_SEP2)+
+    kpiHtml('Conferido'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tConf), 'peças · Checkout '+fmt(somaObj(cc))+' · Colmeia '+fmt(somaObj(cm)), COR_CONF, COR_CONF)+
+    kpiHtml('Ritmo na última hora', rS ? fmt(rS.valor) : '—', rS ? 'separadas às '+String(rS.hora).padStart(2,'0')+'h'+(rC ? ' · conferidas '+fmt(rC.valor) : '') : 'sem hora completa ainda', null, 'var(--olive)')+
+    kpiHtml('Separado sem conferir', fmt(Math.max(0, tSep - tConf)), 'peças aguardando conferência', null, 'var(--amber)')+
+  '</div><div class="linhas" style="grid-template-rows:1fr 1fr">'+
+    '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">Abasteça a Separação Analítica para ver por hora</div>')+'</div>'+
+      '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms)+'</div></div>'+
+    '<div class="linha"><div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Conferência Checkout · peças por hora</span>'+(gC ? gC.html : '<div class="semhora">Abasteça a Conferência Analítica para ver por hora</div>')+'</div>'+
+      '<div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Top 5 conferentes</span>'+top5Html(juntaObj(cc, cm), nomeWms)+'</div></div>'+
+  '</div>';
+}
+
+function renderTelaD(snapIn){
+  var el = document.getElementById('telaD'), arm = (snapIn||{}).armazenagem || {};
+  var dia = diaMaisRecente([arm.normalDia]);
+  if (!dia) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // sem armazenagem: a tela sai do giro
+  el.dataset.vazia = '';
+  var pessoas = itensDoDia(arm.normalDia, dia), rev = itensDoDia(arm.reversaDia, dia), total = somaObj(pessoas);
+  var hd = (arm.normalHoraDia||[]).filter(function(x){ return String(x.data).slice(0,10) === dia; })[0];
+  var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_ARM2) : null, r = g && g.ultima.completa;
+  el.innerHTML = '<div class="kpis c3">'+
+    kpiHtml('Peças armazenadas'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(total), 'peças · reversa '+fmt(somaObj(rev)), COR_ARM, null)+
+    kpiHtml('Armazenadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', null, null)+
+    kpiHtml('Ritmo na última hora', r ? fmt(r.valor) : '—', r ? 'peças às '+String(r.hora).padStart(2,'0')+'h' : 'por hora a partir do próximo envio do Kardex', null, 'var(--olive)')+
+  '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
+    '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">O gráfico por hora aparece no próximo envio do Kardex de Endereço</div>')+'</div>'+
+    '<div class="painel"><span class="k">Top 5 armazenadores</span>'+top5Html(pessoas, function(n){ return nomeCurto(nomeBonito(n)); })+'</div>'+
+  '</div></div>';
 }
 
 /* ================= FAIXA DE BAIXO (loop contínuo) ================= */
@@ -416,30 +511,36 @@ document.addEventListener('click', function(e){ if (comemorando && e.target.id !
 
 /* ================= GIRO DAS TELAS ================= */
 var telas = Array.prototype.slice.call(document.querySelectorAll('.tela')), atual = 0, inicioTela = Date.now();
+function telasAtivas(){ return telas.filter(function(t){ return !t.dataset.vazia; }); }
+function proximaTela(passo){ var n = telas.length; for (var k = 1; k <= n; k++){ var j = (atual + passo*k + n*k) % n; if (!telas[j].dataset.vazia) return j; } return atual; }
+function giroDe(i){ return (Q.get('giro') ? GIRO_S : (+telas[i].getAttribute('data-giro') || GIRO_S)) * 1000; }
 function mostraTela(i){
   atual = i; inicioTela = Date.now();
   telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
   document.getElementById('titulo').textContent = telas[i].getAttribute('data-titulo');
-  document.getElementById('barra').hidden = telas.length < 2;   // com uma tela só não há o que girar
+  document.getElementById('barra').hidden = telasAtivas().length < 2;   // com uma tela só não há o que girar
+  relogio();
+  if (telas[i].id === 'telaA') requestAnimationFrame(ajustaAltura);
 }
 setInterval(function(){
-  var dec = (Date.now() - inicioTela) / (GIRO_S*1000);
+  var dec = (Date.now() - inicioTela) / giroDe(atual);
   document.getElementById('barra').style.width = Math.min(100, dec*100) + '%';
-  if (telas.length > 1 && dec >= 1 && !comemorando) mostraTela((atual+1) % telas.length);
+  if (telasAtivas().length > 1 && dec >= 1 && !comemorando) mostraTela(proximaTela(1));
 }, 500);
 document.addEventListener('keydown', function(e){   // para quem estiver ao lado da TV
   if (comemorando) { encerraComemoracao(); return; }   // qualquer tecla encerra a comemoração
-  if (e.key === 'ArrowRight') mostraTela((atual+1) % telas.length);
-  if (e.key === 'ArrowLeft') mostraTela((atual-1+telas.length) % telas.length);
+  if (e.key === 'ArrowRight') mostraTela(proximaTela(1));
+  if (e.key === 'ArrowLeft') mostraTela(proximaTela(-1));
 });
 
 /* ================= RELÓGIO, SELO E ESCALA ================= */
-var ultimoDado = null, falhou = false;
+var atualizadoEm = {}, falhou = false;   // data de atualização de cada snapshot (outbound, inbound)
 function relogio(){
   var d = new Date();
   document.getElementById('hora').textContent = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
   document.getElementById('data').textContent = d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
   var s = document.getElementById('selo');
+  var ultimoDado = atualizadoEm[telas[atual] ? telas[atual].getAttribute('data-fonte') : 'outbound'];
   if (!ultimoDado) return;
   var min = (Date.now() - ultimoDado.getTime()) / 60000, hh = ultimoDado.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
   var dd = ultimoDado.toDateString() === d.toDateString() ? '' : ' de ' + ultimoDado.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
@@ -479,14 +580,16 @@ if (navigator.wakeLock) { var pedeWake = function(){ navigator.wakeLock.request(
 async function carregar(){
   try {
     var r = await Promise.all([
-      sb.from('dashboard_snapshots').select('pagina, dados, atualizado_em').in('pagina', ['outbound']),
+      sb.from('dashboard_snapshots').select('pagina, dados, atualizado_em').in('pagina', ['outbound','inbound']),
       sb.from('competicao_times').select('*')
     ]);
     if (r[0].error || r[1].error) throw (r[0].error || r[1].error);
-    var linha = (r[0].data || [])[0] || {}, snap = linha.dados || {};
-    ultimoDado = linha.atualizado_em ? new Date(linha.atualizado_em) : null; falhou = false;
+    var pg = {}; (r[0].data || []).forEach(function(l){ pg[l.pagina] = l; if (l.atualizado_em) atualizadoEm[l.pagina] = new Date(l.atualizado_em); });
+    var snap = (pg.outbound || {}).dados || {}, snapIn = (pg.inbound || {}).dados || {};
+    falhou = false;
     var c = calcularCompeticao(snap, r[1].data || []);
-    renderTelaA(c); renderFaixa(c, snap); verificaMetas(c);
+    renderTelaA(c); renderTelaB(snap); renderTelaD(snapIn); renderFaixa(c, snap); verificaMetas(c);
+    if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho
   }

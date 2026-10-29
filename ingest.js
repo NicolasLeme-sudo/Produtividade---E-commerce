@@ -437,14 +437,26 @@ function processarKardexMovimentacoes(rows, indiceBaseAtivos) {
 // ---- 7) Kardex de Endereço -> Armazenagem ----
 // Estoque Antes − Estoque Após, onde Local começa com H/I/J (normal) ou S
 // (reversa) — mesma regra do report-ecommerce, agora quebrada por Usuário.
+// Hora (0-23) da coluna Data do Kardex: "dd/mm/yyyy HH:mm:ss", serial do Excel ou Date.
+// Retorna null quando o valor não traz hora — nunca inventa uma hora.
+function horaDoValor(valor) {
+  if (valor === null || valor === undefined || valor === "") return null;
+  if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor.getHours();
+  if (typeof valor === "number") { var fr = valor - Math.floor(valor); return fr > 0 ? Math.min(23, Math.floor(fr * 24 + 1e-6)) : null; }
+  var m = String(valor).match(/\s(\d{1,2}):\d{2}/);
+  return m ? Math.min(23, Number(m[1])) : null;
+}
+
 function processarKardexEndereco(rows, indiceBaseAtivos) {
   var porUsuarioNormal = new Map();
   var porUsuarioReversa = new Map();
   var totalNormal = 0, totalReversa = 0;
   var normalDia = new Map(), reversaDia = new Map();
+  var normalHora = new Map();   // data -> [24] peças armazenadas por hora (só armazenagem normal)
 
   rows.forEach(function (row) {
-    var dataISO = paraDataISO(obterCampo(row, ["Data"]));
+    var dataBruta = obterCampo(row, ["Data"]);
+    var dataISO = paraDataISO(dataBruta);
     var local = String(obterCampo(row, ["Local"]) || "").trim();
     if (!local) return;
     // Armazenagem = saída do pulmão/stage de origem: Complementar "ESTOQUE
@@ -465,6 +477,12 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
       porUsuarioNormal.set(colaborador.nome, (porUsuarioNormal.get(colaborador.nome) || 0) + delta);
       totalNormal += delta;
       somarNoDia(normalDia, dataISO, colaborador.nome, delta);
+      var hora = horaDoValor(dataBruta);
+      if (dataISO && hora !== null) {
+        var horas = normalHora.get(dataISO) || new Array(24).fill(0);
+        horas[hora] += delta;
+        normalHora.set(dataISO, horas);
+      }
     } else if (prefixo === "S") {
       porUsuarioReversa.set(colaborador.nome, (porUsuarioReversa.get(colaborador.nome) || 0) + delta);
       totalReversa += delta;
@@ -472,7 +490,7 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
     }
   });
 
-  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia };
+  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora };
 }
 
 // ---- 5) Conferência Colmeia ----
@@ -1675,6 +1693,8 @@ async function processar(id) {
         totalNormal: r5.totalNormal, totalReversa: r5.totalReversa,
         normalDia: mesclarDias(armAnterior.normalDia, diaMapParaArray(r5.normalDia)),
         reversaDia: mesclarDias(armAnterior.reversaDia, diaMapParaArray(r5.reversaDia)),
+        // Hora a hora da armazenagem normal (telão): os dias do arquivo substituem os salvos, guarda até 31 dias.
+        normalHoraDia: mesclarDias(armAnterior.normalHoraDia, Array.from(r5.normalHora.entries()).map(function (e) { return { data: e[0], horas: e[1] }; })).slice(-31),
       };
       atual5.recebimento = atual5.recebimento || {};
       atual5.recebimento.normal = Object.assign({}, atual5.recebimento.normal, { itensArmazenados: r5.totalNormal });
