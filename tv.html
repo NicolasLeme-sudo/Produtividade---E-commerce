@@ -78,10 +78,14 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .fh{display:flex;align-items:center;gap:24px;padding:8px 22px;border-bottom:1px solid var(--border);flex:none}
 .fh .lg{font-size:19px;font-weight:800;letter-spacing:.04em}.fh .lg small{color:var(--text-muted);font-weight:600;font-size:14px}
 .fh .tt{flex:1;font-size:22px;font-weight:700}
+.fsb{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
+.fsb:hover{background:rgba(127,140,170,.26)}
+.fsb[hidden]{display:none}
+body.ocioso,body.ocioso *{cursor:none!important}
 .fh .lv{font-size:12px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:99px;padding:2px 10px}
 .fh .ck{text-align:right;font-size:12px;color:var(--text-muted)}.fh .ck div{font-size:24px;font-weight:700;color:var(--text)}
 .main{flex:1;min-height:0;padding:12px 22px 0;display:flex;flex-direction:column;position:relative}
-.tela{display:none;flex-direction:column;flex:1;min-height:0}.tela.on{display:flex}
+.tela{display:none;flex-direction:column;flex:1;min-height:0;justify-content:center}.tela.on{display:flex}
 .panel{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px 18px}
 .panel-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}.panel-head h4{margin:0;font-size:14px}
 /* pista maior para a TV */
@@ -145,7 +149,7 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg">VULCABRAS <small>· E-COMMERCE</small></span><span class="tt" id="titulo">Placar dos times</span><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
+  <div class="fh"><span class="lg">VULCABRAS <small>· E-COMMERCE</small></span><span class="tt" id="titulo">Placar dos times</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
   <div class="main">
     <section class="tela on" id="telaA" data-titulo="Placar dos times"><div class="vazio">Carregando a competição…</div></section>
   </div>
@@ -344,7 +348,7 @@ document.getElementById('somBtn').addEventListener('click', function(){
   audio.play().then(function(){ if (!comemorando) audio.pause(); }).catch(function(){});
   this.classList.remove('on');
 });
-function rel(el){ var f = document.getElementById('palco').getBoundingClientRect(), r = el.getBoundingClientRect(), k = f.width/1500; return { x:(r.left-f.left)/k, y:(r.top-f.top)/k, w:r.width/k, h:r.height/k }; }
+function rel(el){ var pc = document.getElementById('palco'), f = pc.getBoundingClientRect(), r = el.getBoundingClientRect(), k = f.width/pc.offsetWidth; return { x:(r.left-f.left)/k, y:(r.top-f.top)/k, w:r.width/k, h:r.height/k }; }
 function comemora(item){
   comemorando = true;
   var cor = TIMES_COR[item.n], card = document.getElementById('moldCard'), car = document.getElementById('moldCar'), carImg = document.getElementById('moldCarImg'), slot = document.getElementById('moldGif');
@@ -369,7 +373,7 @@ function comemora(item){
     if (Date.now()-t0 + PARADO_MS + 2200 > COMEMORA_MS - 700) return;
     depois(PARADO_MS, function(){
       car.style.visibility = 'visible'; slot.style.visibility = 'hidden';
-      var s1 = car.animate([{transform:'translate('+M.xS+'px,'+M.yS+'px) scale('+M.esc+')'},{transform:'translate(1620px,'+M.yS+'px) scale(1)'}], { duration:900, easing:'cubic-bezier(.6,0,1,1)', fill:'forwards' });
+      var s1 = car.animate([{transform:'translate('+M.xS+'px,'+M.yS+'px) scale('+M.esc+')'},{transform:'translate('+(document.getElementById('palco').offsetWidth+120)+'px,'+M.yS+'px) scale(1)'}], { duration:900, easing:'cubic-bezier(.6,0,1,1)', fill:'forwards' });
       anims.push(s1); s1.onfinish = function(){ estaciona(M, -260, 1200, function(){ volta(M); }); };
     });
   }
@@ -377,8 +381,9 @@ function comemora(item){
     if (reduz || !card.animate) return;
     var M = medidas(), yCar = M.cr.y + M.cr.h/2 - M.ch/2, xFrente = M.cr.x + M.cr.w + 12;
     slot.style.visibility = 'hidden'; car.style.visibility = 'visible';
-    anims.push(card.animate([{translate:(-1500-M.cr.w)+'px 0'},{translate:'0 0'}], { duration:1300, easing:'cubic-bezier(.2,.7,.3,1)', fill:'both' }));
-    var a1 = car.animate([{transform:'translate('+(xFrente-1500-M.cr.w)+'px,'+yCar+'px)',offset:0},{transform:'translate('+xFrente+'px,'+yCar+'px)',offset:.62,easing:'cubic-bezier(.5,0,1,1)'},{transform:'translate(1620px,'+yCar+'px)',offset:1}], { duration:2100, easing:'cubic-bezier(.2,.7,.3,1)', fill:'forwards' });
+    var LW = document.getElementById('palco').offsetWidth;
+    anims.push(card.animate([{translate:(-LW-M.cr.w)+'px 0'},{translate:'0 0'}], { duration:1300, easing:'cubic-bezier(.2,.7,.3,1)', fill:'both' }));
+    var a1 = car.animate([{transform:'translate('+(xFrente-LW-M.cr.w)+'px,'+yCar+'px)',offset:0},{transform:'translate('+xFrente+'px,'+yCar+'px)',offset:.62,easing:'cubic-bezier(.5,0,1,1)'},{transform:'translate('+(LW+120)+'px,'+yCar+'px)',offset:1}], { duration:2100, easing:'cubic-bezier(.2,.7,.3,1)', fill:'forwards' });
     anims.push(a1); a1.onfinish = function(){ depois(250, function(){ estaciona(M, -260, 1100, function(){ volta(M); }); }); };
   }
   if (slot.complete && slot.naturalWidth) inicia(); else { slot.onload = function(){ slot.onload = null; inicia(); }; }
@@ -430,7 +435,30 @@ function relogio(){
   s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 30 ? 'atencao' : 'ok');
 }
 setInterval(relogio, 15000); relogio();
-function escala(){ var k = Math.min(innerWidth/1500, innerHeight/844); document.getElementById('palco').style.transform = 'translate(-50%,-50%) scale('+k+')'; }
+// O palco tem 1500 px de base e estica na outra direção até preencher a janela inteira,
+// seja qual for a proporção (TV 16:9, navegador com barra de endereço, monitor ultrawide).
+function escala(){
+  var k = Math.min(innerWidth/1500, innerHeight/844), palco = document.getElementById('palco');
+  palco.style.width = (innerWidth/k)+'px'; palco.style.height = (innerHeight/k)+'px';
+  palco.style.transform = 'translate(-50%,-50%) scale('+k+')';
+}
+/* ---------- tela cheia e cursor escondido ---------- */
+function telaCheiaAtiva(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function atualizaBotaoTC(){
+  var b = document.getElementById('btnTelaCheia');
+  if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) { b.hidden = true; return; }
+  b.hidden = telaCheiaAtiva();                     // em tela cheia o botão some, para a TV ficar limpa (Esc sai)
+}
+document.getElementById('btnTelaCheia').addEventListener('click', function(e){
+  e.stopPropagation();
+  var el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (f) { var p = f.call(el); if (p && p.catch) p.catch(function(){}); }
+});
+document.addEventListener('fullscreenchange', atualizaBotaoTC); document.addEventListener('webkitfullscreenchange', atualizaBotaoTC);
+atualizaBotaoTC();
+var ocioso = null;
+function mexeu(){ document.body.classList.remove('ocioso'); clearTimeout(ocioso); ocioso = setTimeout(function(){ document.body.classList.add('ocioso'); }, 3000); }
+document.addEventListener('mousemove', mexeu); mexeu();
 addEventListener('resize', escala); escala();
 setTimeout(function(){ location.reload(); }, RECARREGA_H*3600*1000);
 if (navigator.wakeLock) { var pedeWake = function(){ navigator.wakeLock.request('screen').catch(function(){}); }; pedeWake(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) pedeWake(); }); }
