@@ -35,7 +35,7 @@ h1{margin:6px 0 0;font-size:52px;font-weight:900;letter-spacing:-.015em;line-hei
 .regua{height:3px;width:96px;background:var(--accent-gold);border:0;margin:20px 0 0}
 .sub{font-size:24px;color:var(--text-secondary);margin:22px 0 0;max-width:1100px}
 .corpo{flex:1;min-height:0;display:flex;flex-direction:column;gap:22px}
-.grade{display:grid;gap:18px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.grade{display:grid;gap:18px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g5{grid-template-columns:repeat(5,1fr)}
 .card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:22px 24px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 2px rgba(0,0,0,.3)}
 .card h3{margin:0;font-size:22px;font-weight:700}
 .card p,.card li{margin:0;font-size:19px;color:var(--text-secondary);line-height:1.45}
@@ -100,6 +100,15 @@ var slides = [
     '<div class="card"><h3>Piso · 4 times por turno</h3><p>2 conferentes + separadores por time, um time por piso. Piso disputa com piso.</p><div style="display:flex;gap:10px;flex-wrap:wrap">'+CORES.slice(0,4).map(function(c){ return '<span class="chip" style="--c:var('+c[1]+')"><i></i>'+c[0]+'</span>'; }).join('')+'</div></div>'+
     '<div class="card"><h3>Colmeia · 2 times por turno</h3><p>Mesma divisão, 2 líderes. Colmeia disputa com colmeia; meta e pontos fixos proporcionais (×'+String(R.FATOR_COLMEIA).replace('.',',')+').</p><div style="display:flex;gap:10px;flex-wrap:wrap">'+CORES.slice(4).map(function(c){ return '<span class="chip" style="--c:var('+c[1]+')"><i></i>'+c[0]+'</span>'; }).join('')+'</div></div>'+
   '</div><div class="insight">A escalação é uma planilha com <b>uma aba por cor</b> e a presença dos 3 dias na mesma linha de cada pessoa — exporta, edita e reenvia.</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>4</span></div></section>',
+  // calendário (cronograma da Black)
+  '<section class="slide">'+cab('A campanha','Calendário: antes, durante e depois')+'<div class="corpo"><div class="grade g5">'+
+    [['20/11 · Pré-Black','Lançamento',['Entrega das camisetas','Apresentação da gamificação e das regras','Folha de regras colada nos pisos']],
+     ['27/11 · Sex','Largada Black',['Café de abertura','Fala do diretor e do gerente','Vídeo motivacional','Quiz relâmpago, grito da equipe, missão surpresa']],
+     ['28/11 · Sáb','Superação',['Apuração e premiação do 1º dia','Golden Ticket, desafio relâmpago, espírito de equipe','Pastel e refrigerante']],
+     ['29/11 · Dom','Grande Final',['Apuração e premiação do 2º dia','Quiz final, desafio surpresa, equipe mais engajada','Kit energia']],
+     ['30/11 · Seg','Encerramento',['Apuração do 3º dia','Time campeão da gincana','Fala do diretor e do gerente','Coffee de encerramento']]
+    ].map(function(d){ return '<div class="card"><span class="rot">'+d[0]+'</span><h3>'+d[1]+'</h3><ul>'+d[2].map(function(x){ return '<li>'+x+'</li>'; }).join('')+'</ul></div>'; }).join('')+
+  '</div><div class="insight">DJ nos quatro dias de evento. O placar do telão roda o tempo todo; a apuração oficial de cada dia sai na manhã seguinte.</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span></span></div></section>',
   // 5 seção
   '<section class="slide secao"><p class="kicker">Seção 02</p><h1>Pontuação</h1><hr class="regua"><p class="sub">Cada peça conta; presença, desafios e organização pesam o suficiente para virar o jogo.</p></section>',
   // 6 arquitetura
@@ -128,7 +137,7 @@ var slides = [
     R.DIAS.map(function(d){ return '<div class="card"><span class="rot">'+d[1]+' · '+d[2]+'</span><ul>'+(R.DESAFIOS[d[0]]||[]).map(function(x){ return '<li>'+x+' — '+fmt(R.PONTOS_DESAFIO)+' pts</li>'; }).join('')+'</ul></div>'; }).join('')+
   '</div><div class="grade g2">'+
     '<div class="card"><span class="rot">Hora que vale ouro</span><span class="num" style="color:var(--accent-gold)">2×</span><p>Agendada em segredo no sistema. Na hora, o telão mostra uma faixa dourada com contagem regressiva e a meta da hora; quem bater tem as peças da hora em dobro.</p></div>'+
-    '<div class="card"><span class="rot">Ideias extras de gincana</span><ul><li>Golden Ticket no pedido: pedidos sorteados no WMS</li><li>Caça ao erro 5S em 10 min</li><li>Hora zero erro sorteada</li><li>Quiz de segurança por QR code no intervalo</li></ul></div>'+
+    '<div class="card"><span class="rot">Banco de gincanas entre pisos</span><ul style="columns:2;column-gap:28px"><li>Acerte o alvo</li><li>Corrida do palete</li><li>Montagem relâmpago (caixas em 1 min)</li><li>Quebra-cabeça da Black</li><li>Quem canta ganha</li><li>Corrida de entregas</li><li>Desafio dos líderes</li><li>TikTok dos líderes</li><li>Grito de guerra do piso</li></ul><p>Prêmio do dia para o piso vencedor: energético, picolé, refrigerante ou chocolate.</p></div>'+
   '</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>9</span></div></section>',
   // 10 vistoria
   '<section class="slide">'+cab('Pontuação','Vistoria: segurança, qualidade e 5S')+'<div class="corpo"><div class="grade g4">'+
@@ -169,7 +178,7 @@ var slides = [
   '</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>17</span></div></section>',
   // 18 próximos passos
   '<section class="slide">'+cab('Próximos passos','O que precisamos da liderança')+'<div class="corpo"><div class="grade g2">'+
-    '<div class="card"><span class="rot">Decisões</span><ul><li>Aprovar os pesos da pontuação</li><li>Metas oficiais por time (hoje provisórias: 2.000 piso · 1.200 colmeia)</li><li>Confirmar turno ADM e T03</li><li>Orçamento da premiação</li></ul></div>'+
+    '<div class="card"><span class="rot">Decisões</span><ul><li>Aprovar os pesos da pontuação</li><li>Metas oficiais por time (hoje provisórias: 2.000 piso · 1.200 colmeia)</li><li>Confirmar turno ADM e T03</li></ul></div>'+
     '<div class="card"><span class="rot">Preparação</span><ul><li>Escalação dos times com presença (planilha por cor)</li><li>Definir vistoriadores e agenda das horas de ouro</li><li>Teste no telão de 75" e ensaio no dia anterior</li><li>Imprimir e colar a folha de regras nos pisos</li></ul></div>'+
   '</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>18</span></div></section>'
 ];
@@ -177,6 +186,7 @@ var slides = [
 var palco = document.getElementById('palco'), atual = 0;
 palco.innerHTML = slides.join('');
 var els = palco.querySelectorAll('.slide');
+els.forEach(function(s, k){ var r = s.querySelector('.rodape span:last-child'); if (r) r.textContent = k + 1; });
 function mostra(i){ atual = Math.max(0, Math.min(els.length - 1, i)); els.forEach(function(s, k){ s.classList.toggle('on', k === atual); }); document.getElementById('ctrl').textContent = (atual + 1) + ' / ' + els.length; try { history.replaceState(null, '', '#' + (atual + 1)); } catch(e){} }
 function escala(){ var k = Math.min(innerWidth / 1600, innerHeight / 900); palco.style.transform = 'translate(-50%,-50%) scale(' + k + ')'; }
 addEventListener('resize', escala); escala();
