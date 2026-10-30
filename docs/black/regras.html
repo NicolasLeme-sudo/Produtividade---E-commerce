@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regras da Missão Black</title>
+<link rel="icon" href="../../logo-mark.png" type="image/png">
+<!--
+  Regras da Missão Black Friday 2026 — folha A4 para os pisos (página 1) + regulamento completo.
+  Os valores NÃO são digitados aqui: vêm de regras-black.js (o mesmo arquivo do telão e do lançamento).
+  Imprimir: Ctrl+P, A4, margens padrão, "gráficos de fundo" ligado.
+-->
+<script src="../../regras-black.js"></script>
+<style>
+:root{
+  /* Padrão Vulcabras — tema claro (impressão), cap. 3.2 */
+  --bg:#F4F6F9;--bg-deep:#031F44;--card-bg:#FFFFFF;--card-border:#D5DCE3;--text-primary:#1A3A6B;--text-secondary:#5B6B7C;
+  --accent-gold:#C9960A;--gold-forte:#F6BD00;--positive:#2E9E2E;--negative:#C0392B;--laranja:#C26A00;--chip-bg:#EEF2F7;
+  --fonte:"Segoe UI","Segoe UI Semibold",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text-primary);font-family:var(--fonte);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.folha{width:210mm;min-height:297mm;margin:16px auto;background:var(--card-bg);box-shadow:0 1px 2px rgba(0,0,0,.3);display:flex;flex-direction:column}
+.topo{background:var(--bg-deep);color:#fff;padding:22px 28px 20px;display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+.topo img{width:52px;height:52px}
+.kicker{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-forte);margin:0 0 6px}
+.topo h1{margin:0;font-size:30px;font-weight:900;letter-spacing:-.015em;line-height:1.1}
+.regua{height:2px;width:72px;background:var(--gold-forte);border:0;margin:10px 0 0}
+.corpo{padding:22px 28px 26px;display:flex;flex-direction:column;gap:18px;flex:1}
+h2{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+h2 small{font-size:12px;color:var(--text-secondary);font-weight:600;margin-left:8px}
+p{margin:0}
+.apoio{color:var(--text-secondary);font-size:13.5px}
+.duas{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.caixa{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.caixa h3{margin:0;font-size:15.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.ganha h3{color:var(--positive)}.perde h3{color:var(--negative)}
+.lista{display:flex;flex-direction:column;gap:7px;margin:0;padding:0;list-style:none}
+.lista li{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:baseline;font-size:14.5px;border-bottom:1px dashed var(--card-border);padding-bottom:6px}
+.lista li:last-child{border-bottom:0}
+.lista b{font-variant-numeric:tabular-nums;font-size:16px;white-space:nowrap}
+.ganha .lista b{color:var(--positive)}.perde .lista b{color:var(--negative)}
+.ouro{background:var(--bg-deep);color:#fff;border-radius:8px;padding:16px 18px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+.ouro .sel{font-size:30px;font-weight:900;color:var(--gold-forte);line-height:1}
+.ouro p{font-size:14px;color:#C9D4E3}
+.ouro strong{color:#fff}
+.rodape{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--text-secondary);border-top:1px solid var(--card-border);padding:10px 28px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:7px 9px;border:1px solid var(--card-border);text-align:left;font-variant-numeric:tabular-nums;vertical-align:top}
+thead th{background:var(--chip-bg);color:var(--text-secondary);font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+td.num,th.num{text-align:right;white-space:nowrap}
+tr.total td{border-top:2px solid #1A6FC4;background:var(--chip-bg);font-weight:700}
+.neg{color:var(--negative)}.pos{color:var(--positive)}
+.secao{display:flex;flex-direction:column;gap:8px}
+.nota{font-size:12.5px;color:var(--text-secondary)}
+@media print{
+  body{background:#fff}
+  .folha{margin:0;box-shadow:none;page-break-after:always;break-after:page;min-height:auto;height:297mm}
+  .folha:last-child{page-break-after:auto;break-after:auto}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@page{size:A4;margin:0}
+@media (max-width:820px){.folha{width:auto;margin:0}.duas{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+var R = window.RegrasBlack, P = R.P;
+function fmt(n){ return Number(n).toLocaleString('pt-BR'); }
+function sinal(n){ return (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n)); }
+function col(n){ return Math.round(n * R.FATOR_COLMEIA); }
+function topo(kicker, titulo){
+  return '<div class="topo"><img src="../../logo-mark.png" alt="Vulcabras"><div><p class="kicker">'+kicker+'</p><h1>'+titulo+'</h1><hr class="regua"></div></div>';
+}
+function rodape(pg){ return '<div class="rodape"><span>Missão Black Friday 2026 · 27, 28 e 29 de novembro · E-commerce Vulcabras</span><span>'+pg+'</span></div>'; }
+var gravs = R.GRAVIDADES;
+
+// ---------- Página 1: folha para colar nos pisos ----------
+var ganha = [
+  ['Cada peça separada ou conferida', sinal(P.porPeca)+' ponto'],
+  ['Time bate a meta do dia', sinal(P.metaBatida)],
+  ['Cada hora inteira de antecedência na meta', sinal(P.antecipadaHora)+' (até '+fmt(P.antecipadaMax)+')'],
+  ['Presença de todo o time', 'até '+fmt(P.assiduidadeMax)],
+  ['Desafios e gincanas do dia', 'até '+fmt(P.desafiosMax)],
+  ['Vistoria sem nenhum apontamento', sinal(P.vistoriaLimpa)],
+  ['Top separador ou top conferente do turno', sinal(P.destaque)+' cada'],
+  ['100% de presença nos 3 dias (Trinca Perfeita)', sinal(P.trincaPerfeita)]
+];
+var perde = [
+  ['Falta (atestado também conta)', 'perde a parte da pessoa'],
+  ['Atraso', sinal(P.atraso)+' por pessoa'],
+  [gravs.leve.rot+': lixo no chão, carrinho fora da vaga, etiqueta solta', sinal(gravs.leve.pts)],
+  [gravs.media.rot+': caixa aberta no picking, endereço bagunçado, volume no corredor', sinal(gravs.media.pts)],
+  [gravs.grave.rot+': rota de fuga ou extintor obstruído, sem EPI obrigatório', sinal(gravs.grave.pts)],
+  [gravs.gravissima.rot+': subir em estante, correr com carrinho, ignorar a segurança', sinal(gravs.gravissima.pts)]
+];
+function lista(itens){ return '<ul class="lista">'+itens.map(function(i){ return '<li><span>'+i[0]+'</span><b>'+i[1]+'</b></li>'; }).join('')+'</ul>'; }
+var pg1 = '<section class="folha">'+topo('Missão Black Friday 2026 · 27, 28 e 29/11', 'Como o seu time pontua')+
+  '<div class="corpo">'+
+    '<p class="apoio">Cada piso tem um time por turno. Produtividade, presença, desafios e organização valem pontos. O placar aparece ao vivo no telão.</p>'+
+    '<div class="duas"><div class="caixa ganha"><h3>Seu time ganha</h3>'+lista(ganha)+'</div><div class="caixa perde"><h3>Seu time perde</h3>'+lista(perde)+'</div></div>'+
+    '<div class="ouro"><span class="sel">2×</span><div><p class="kicker" style="margin-bottom:2px">Hora que vale ouro</p><p>Anunciada de surpresa no telão. Se o time bater a meta daquela hora, <strong>todas as peças da hora valem o dobro</strong>. Só vale com qualidade e segurança.</p></div></div>'+
+    '<p class="nota">Colmeia: os valores fixos valem '+fmt(R.FATOR_COLMEIA*100)+'% (a meta da colmeia é menor). A vistoria passa em horários aleatórios e o desconto entra no placar na hora. Todo ponto lançado fica registrado com horário, motivo e quem lançou; dúvidas, fale com o líder do turno.</p>'+
+  '</div>'+rodape('1')+'</section>';
+
+// ---------- Página 2: regulamento ----------
+var turnos = Object.keys(R.TURNOS).map(function(k){ return R.TURNOS[k].rot; }).join(' · ');
+var tabPontos = '<table><thead><tr><th>Bloco</th><th>Como conta</th><th class="num">Piso</th><th class="num">Colmeia</th></tr></thead><tbody>'+
+  [['Produtividade','Cada peça separada ou conferida pelos membros do time no dia', P.porPeca+'/peça', P.porPeca+'/peça'],
+   ['Meta do dia','Total do time ≥ meta (piso 2.000 · colmeia 1.200 peças)', sinal(P.metaBatida), sinal(col(P.metaBatida))],
+   ['Meta antecipada','Por hora inteira entre a batida da meta e o fim do turno', sinal(P.antecipadaHora)+' (máx. '+fmt(P.antecipadaMax)+')', sinal(col(P.antecipadaHora))+' (máx. '+fmt(col(P.antecipadaMax))+')'],
+   ['Hora que vale ouro','Peças da hora contam em dobro se o time bater a meta da hora','2× peças','2× peças'],
+   ['Assiduidade','Máximo × presentes ÷ escalados do dia; atestado = falta', 'até '+fmt(P.assiduidadeMax), 'até '+fmt(col(P.assiduidadeMax))],
+   ['Atraso','Por pessoa atrasada', sinal(P.atraso), sinal(col(P.atraso))],
+   ['Desafios','Soma dos desafios do dia ('+fmt(R.PONTOS_DESAFIO)+' cada)', 'até '+fmt(P.desafiosMax), 'até '+fmt(col(P.desafiosMax))],
+   ['Vistoria','Checklist (próxima página); sem apontamento', sinal(P.vistoriaLimpa)+' / descontos', sinal(col(P.vistoriaLimpa))+' / descontos'],
+   ['Destaques','Time do top separador e do top conferente do turno', sinal(P.destaque)+' cada', sinal(col(P.destaque))+' cada'],
+   ['Trinca Perfeita','100% de presença nos 3 dias (no placar final)', sinal(P.trincaPerfeita), sinal(col(P.trincaPerfeita))]
+  ].map(function(r){ return '<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td class="num">'+r[2]+'</td><td class="num">'+r[3]+'</td></tr>'; }).join('')+'</tbody></table>';
+var cal = '<table><thead><tr><th>Dia</th><th>Tema</th><th>Desafios ('+fmt(R.PONTOS_DESAFIO)+' pts cada no piso)</th></tr></thead><tbody>'+
+  R.DIAS.map(function(d){ return '<tr><td><b>'+d[1]+'</b></td><td>'+d[2]+'</td><td>'+(R.DESAFIOS[d[0]]||[]).join(' · ')+'</td></tr>'; }).join('')+'</tbody></table>';
+var pg2 = '<section class="folha">'+topo('Regulamento · Missão Black Friday 2026', 'Pontuação dos times')+
+  '<div class="corpo">'+
+    '<div class="secao"><h2>Times e turnos</h2><p class="apoio">Um time por piso em cada turno (2 conferentes + separadores); colmeia com a mesma divisão e 2 líderes. Piso disputa com piso, colmeia com colmeia. Turnos: '+turnos+'. O T02 que passa da meia-noite conta no dia em que começou.</p></div>'+
+    '<div class="secao"><h2>Blocos de pontos</h2>'+tabPontos+'</div>'+
+    '<div class="secao"><h2>Calendário de desafios</h2>'+cal+'</div>'+
+    '<div class="secao"><h2>Assiduidade, na prática</h2><p class="apoio">Escalados são as pessoas do time na planilha de escalação para o dia. Ex.: 10 escalados, 9 vieram (1 deles atrasado) → '+fmt(P.assiduidadeMax)+' × 9 ÷ 10 = '+fmt(P.assiduidadeMax*0.9)+', menos '+fmt(-P.atraso)+' do atraso = <b>'+fmt(P.assiduidadeMax*0.9+P.atraso)+'</b>.</p></div>'+
+  '</div>'+rodape('2')+'</section>';
+
+// ---------- Página 3: vistoria, exemplo e auditoria ----------
+var porGrav = {};
+R.CHECKLIST.forEach(function(c){ (porGrav[c.grav] = porGrav[c.grav] || []).push(c.item); });
+var tabVis = '<table><thead><tr><th>Gravidade</th><th>Itens observados</th><th class="num">Piso</th><th class="num">Colmeia</th></tr></thead><tbody>'+
+  Object.keys(gravs).map(function(g){ return '<tr><td><b>'+gravs[g].rot+'</b></td><td>'+(porGrav[g]||[]).join('<br>')+'</td><td class="num neg">'+sinal(gravs[g].pts)+'</td><td class="num neg">'+sinal(col(gravs[g].pts))+'</td></tr>'; }).join('')+
+  '<tr><td><b>Sem apontamento</b></td><td>Vistoria do dia sem nenhum item marcado</td><td class="num pos">'+sinal(P.vistoriaLimpa)+'</td><td class="num pos">'+sinal(col(P.vistoriaLimpa))+'</td></tr></tbody></table>';
+var ex = [['Produtividade','2.200 peças',2200],['Assiduidade','9 de 10 presentes, 1 atraso',430],['Desafios','Grito da equipe',100],['Vistoria','1 caixa aberta no picking',-50],
+  ['Meta do dia','bateu às 11h',200],['Meta antecipada','3 h antes do fim do T01',150],['Hora de ouro','450 peças na hora (meta 400)',450],['Destaques','top separador e top conferente',100]];
+var tabEx = '<table><thead><tr><th>Bloco</th><th>O que aconteceu</th><th class="num">Pontos</th></tr></thead><tbody>'+
+  ex.map(function(r){ return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td class="num '+(r[2]<0?'neg':'')+'">'+sinal(r[2])+'</td></tr>'; }).join('')+
+  '<tr class="total"><td>Total do dia</td><td>Time Vermelho · T01</td><td class="num">'+fmt(ex.reduce(function(a,r){ return a+r[2]; },0))+'</td></tr></tbody></table>';
+var pg3 = '<section class="folha">'+topo('Regulamento · Missão Black Friday 2026', 'Vistoria, exemplo e auditoria')+
+  '<div class="corpo">'+
+    '<div class="secao"><h2>Checklist da vistoria <small>horário aleatório, por piso e time</small></h2>'+tabVis+'<p class="nota">Cada item marcado desconta na hora do lançamento; o mesmo item pode ser marcado mais de uma vez.</p></div>'+
+    '<div class="secao"><h2>Exemplo de um dia</h2>'+tabEx+'</div>'+
+    '<div class="secao"><h2>Auditoria e contestação</h2><p class="apoio">Peças vêm direto do WMS (Separação e Conferência Analítica). Presença vem da escalação do dia. Vistoria, desafios e ajustes são lançados por admin no sistema, com horário, motivo e quem lançou; nada é apagado: correção é feita por estorno, que também fica registrado. Contestação com o líder do turno até o início do turno seguinte.</p></div>'+
+  '</div>'+rodape('3')+'</section>';
+
+document.getElementById('app').innerHTML = pg1 + pg2 + pg3;
+})();
+</script>
+</body>
+</html>

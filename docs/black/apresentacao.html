@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Missão Black · Liderança</title>
+<link rel="icon" href="../../logo-mark.png" type="image/png">
+<!--
+  Apresentação para a liderança (05/11/2026) — padrão Vulcabras, cap. 10 (16:9, fundo 142032, capa 031F44,
+  kicker e régua dourados, "V" no canto, Segoe UI, cards sem barra decorativa).
+  Navegação: setas ← →, espaço, PageUp/PageDown, clique. F = tela cheia. Valores de pontos vêm de regras-black.js.
+-->
+<script src="../../regras-black.js"></script>
+<style>
+:root{
+  --bg:#142032;--bg-deep:#031F44;--card-bg:#2C3E52;--card-bg-soft:#263748;--card-border:#44576C;--text-primary:#FFFFFF;--text-secondary:#93A5B8;
+  --accent-gold:#F6BD00;--positive:#45C645;--negative:#C8102E;--laranja:#E8830D;--rail:#3A4D63;--chip-bg:#1B2A3D;
+  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;
+  --fonte:"Segoe UI","Segoe UI Semibold",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(--fonte);color:var(--text-primary);-webkit-font-smoothing:antialiased}
+#palco{position:absolute;left:50%;top:50%;width:1600px;height:900px;transform-origin:50% 50%}
+.slide{position:absolute;inset:0;background:var(--bg);padding:64px 80px 56px;display:none;flex-direction:column;gap:28px}
+.slide.on{display:flex;animation:entra .45s ease both}
+@keyframes entra{from{opacity:0;transform:translateX(18px)}}
+@media (prefers-reduced-motion:reduce){.slide.on{animation:none}}
+.slide.capa,.slide.secao{background:var(--bg-deep);justify-content:center}
+.v{position:absolute;top:44px;right:64px;width:44px;height:44px}
+.capa .v{position:static;width:110px;height:110px;margin-bottom:28px}
+.kicker{font-size:15px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-gold);margin:0}
+h1{margin:6px 0 0;font-size:52px;font-weight:900;letter-spacing:-.015em;line-height:1.08;max-width:1300px;text-wrap:balance}
+.capa h1{font-size:76px}.secao h1{font-size:68px}
+.regua{height:3px;width:96px;background:var(--accent-gold);border:0;margin:20px 0 0}
+.sub{font-size:24px;color:var(--text-secondary);margin:22px 0 0;max-width:1100px}
+.corpo{flex:1;min-height:0;display:flex;flex-direction:column;gap:22px}
+.grade{display:grid;gap:18px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:22px 24px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.card h3{margin:0;font-size:22px;font-weight:700}
+.card p,.card li{margin:0;font-size:19px;color:var(--text-secondary);line-height:1.45}
+.card ul{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.card .num{font-size:52px;font-weight:300;line-height:1;font-variant-numeric:tabular-nums}
+.rot{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-secondary);font-weight:600}
+.insight{background:var(--chip-bg);border:1px solid color-mix(in srgb,var(--accent-gold) 45%,transparent);border-radius:8px;padding:16px 22px;font-size:21px;line-height:1.4}
+.insight b{color:var(--accent-gold)}
+table{border-collapse:collapse;width:100%;font-size:19px}
+th,td{padding:11px 14px;border:1px solid var(--card-border);text-align:left;font-variant-numeric:tabular-nums}
+thead th{background:var(--chip-bg);color:var(--text-secondary);font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.total td{border-top:2px solid #297ADF;background:var(--chip-bg);font-weight:700}
+.pos{color:var(--positive)}.neg{color:#FF6B6B}
+.chip{display:inline-flex;align-items:center;gap:8px;font-size:16px;font-weight:600;padding:5px 14px;border-radius:999px;background:var(--chip-bg);border:1px solid var(--card-border)}
+.chip i{width:12px;height:12px;border-radius:50%;background:var(--c)}
+.prints{display:grid;gap:18px;flex:1;min-height:0}
+.prints figure{margin:0;display:flex;flex-direction:column;gap:8px;min-height:0}
+.prints{align-items:start}.prints img{width:100%;height:auto;max-height:600px;object-fit:contain;object-position:top left;border:1px solid var(--card-border);border-radius:8px;background:#0F1623}
+.prints figcaption{font-size:16px;color:var(--text-secondary)}
+.fluxo{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch}
+.fluxo .card{position:relative}
+.fluxo .card .etapa{font-size:40px;font-weight:300;color:var(--accent-gold);line-height:1}
+.rodape{position:absolute;left:80px;right:80px;bottom:22px;display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)}
+.rodape span:last-child{display:none}
+.capa .rodape,.secao .rodape{display:none}
+#ctrl{position:fixed;right:16px;bottom:12px;font:600 13px var(--fonte);color:#93A5B8;opacity:.5}
+</style>
+</head>
+<body>
+<div id="palco"></div>
+<div id="ctrl"></div>
+<script>
+(function(){
+'use strict';
+var R = window.RegrasBlack, P = R.P, V = '<img class="v" src="../../logo-mark.png" alt="">';
+function fmt(n){ return Number(n).toLocaleString('pt-BR'); }
+function sinal(n){ return (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n)); }
+function col(n){ return Math.round(n * R.FATOR_COLMEIA); }
+function cab(k, t){ return V + '<div><p class="kicker">'+k+'</p><h1>'+t+'</h1><hr class="regua"></div>'; }
+var CORES = [['Vermelho','--t1'],['Azul','--t2'],['Verde','--t3'],['Amarelo','--t4'],['Rosa','--t5'],['Roxo','--t6']];
+
+var ex = [['Produtividade','2.200 peças',2200],['Assiduidade','9 de 10 presentes, 1 atraso',430],['Desafios','Grito da equipe',100],['Vistoria','1 caixa aberta no picking',-50],
+  ['Meta do dia','bateu às 11h',200],['Meta antecipada','3 h antes do fim do T01',150],['Hora de ouro','450 peças na hora (meta 400)',450],['Destaques','top separador e top conferente',100]];
+var exTot = ex.reduce(function(a, r){ return a + r[2]; }, 0);
+
+var slides = [
+  // 1 capa
+  '<section class="slide capa"><img class="v" src="../../logo-mark.png" alt=""><p class="kicker">Missão Black Friday 2026 · E-commerce</p><h1>Produtividade, pontuação e telão da Black</h1><hr class="regua"><p class="sub">Apresentação à liderança · 05/11/2026 · campanha de 27, 28 e 29 de novembro</p></section>',
+  // 2 seção
+  '<section class="slide secao"><p class="kicker">Seção 01</p><h1>A campanha</h1><hr class="regua"><p class="sub">Três dias críticos, times por piso e turno, placar visível o tempo todo.</p></section>',
+  // 3 como funciona
+  '<section class="slide">'+cab('A campanha','Três dias para mobilizar o CD inteiro')+'<div class="corpo"><div class="grade g3">'+
+    '<div class="card"><span class="rot">Período</span><span class="num">3 dias</span><p>27, 28 e 29/11 — Largada Black, Superação e Grande Final.</p></div>'+
+    '<div class="card"><span class="rot">Objetivo</span><h3>Presença, produtividade, segurança e qualidade</h3><p>Manter o time inteiro nos dias de pico e a operação organizada.</p></div>'+
+    '<div class="card"><span class="rot">Mecânica</span><h3>Times competindo por pontos</h3><p>Placar ao vivo no telão, desafios rápidos que não param a operação.</p></div>'+
+  '</div><div class="insight">Produtividade e presença decidem o campeão; desafios, vistoria e bônus mantêm a disputa viva até o fim de cada turno.</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>3</span></div></section>',
+  // 4 times e turnos
+  '<section class="slide">'+cab('A campanha','Um time de cada cor, por piso, em cada turno')+'<div class="corpo"><div class="grade g3">'+
+    Object.keys(R.TURNOS).map(function(k){ var t = R.TURNOS[k].rot.split(' · '); return '<div class="card"><span class="rot">'+t[0]+(k === 'ADM' ? ' · a validar' : '')+'</span><span class="num">'+t[1]+'</span></div>'; }).join('')+
+  '</div><div class="grade g2">'+
+    '<div class="card"><h3>Piso · 4 times por turno</h3><p>2 conferentes + separadores por time, um time por piso. Piso disputa com piso.</p><div style="display:flex;gap:10px;flex-wrap:wrap">'+CORES.slice(0,4).map(function(c){ return '<span class="chip" style="--c:var('+c[1]+')"><i></i>'+c[0]+'</span>'; }).join('')+'</div></div>'+
+    '<div class="card"><h3>Colmeia · 2 times por turno</h3><p>Mesma divisão, 2 líderes. Colmeia disputa com colmeia; meta e pontos fixos proporcionais (×'+String(R.FATOR_COLMEIA).replace('.',',')+').</p><div style="display:flex;gap:10px;flex-wrap:wrap">'+CORES.slice(4).map(function(c){ return '<span class="chip" style="--c:var('+c[1]+')"><i></i>'+c[0]+'</span>'; }).join('')+'</div></div>'+
+  '</div><div class="insight">A escalação é uma planilha com <b>uma aba por cor</b> e a presença dos 3 dias na mesma linha de cada pessoa — exporta, edita e reenvia.</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>4</span></div></section>',
+  // 5 seção
+  '<section class="slide secao"><p class="kicker">Seção 02</p><h1>Pontuação</h1><hr class="regua"><p class="sub">Cada peça conta; presença, desafios e organização pesam o suficiente para virar o jogo.</p></section>',
+  // 6 arquitetura
+  '<section class="slide">'+cab('Pontuação','Arquitetura de pontos por time, por dia')+'<div class="corpo"><table><thead><tr><th>Bloco</th><th>Como conta</th><th class="n">Piso</th><th class="n">Colmeia</th></tr></thead><tbody>'+
+    [['Produtividade','cada peça separada ou conferida','1/peça','1/peça'],['Meta do dia','total ≥ meta (2.000 · 1.200)',sinal(P.metaBatida),sinal(col(P.metaBatida))],
+     ['Meta antecipada','por hora antes do fim do turno',sinal(P.antecipadaHora)+' (máx. '+fmt(P.antecipadaMax)+')',sinal(col(P.antecipadaHora))+' (máx. '+fmt(col(P.antecipadaMax))+')'],
+     ['Hora que vale ouro','peças da hora em dobro se bater a meta da hora','2×','2×'],['Assiduidade','máximo × presentes ÷ escalados','até '+fmt(P.assiduidadeMax),'até '+fmt(col(P.assiduidadeMax))],
+     ['Desafios','3 por dia, '+fmt(R.PONTOS_DESAFIO)+' cada','até '+fmt(P.desafiosMax),'até '+fmt(col(P.desafiosMax))],['Vistoria (Seg. + Qual. + 5S)','checklist estilo autoescola','+100 / descontos','+60 / descontos'],
+     ['Destaques','top separador e top conferente do turno',sinal(P.destaque)+' cada',sinal(col(P.destaque))+' cada'],['Trinca Perfeita','100% de presença nos 3 dias',sinal(P.trincaPerfeita),sinal(col(P.trincaPerfeita))]
+    ].map(function(r){ return '<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td class="n">'+r[2]+'</td><td class="n">'+r[3]+'</td></tr>'; }).join('')+
+  '</tbody></table></div><div class="rodape"><span>Missão Black Friday 2026</span><span>6</span></div></section>',
+  // 7 por que 1 ponto por peça
+  '<section class="slide">'+cab('Pontuação','Por que cada peça vale 1 ponto')+'<div class="corpo"><div class="grade g2">'+
+    '<div class="card"><span class="rot">Proposta inicial da gerência</span><h3>Produtividade 500 · Assiduidade 300 · Desafios 150 · Seg./Qual. 50</h3><p>Teto de 1.000 por dia. Um time que faz 2.000 ou 2.600 peças recebe o mesmo máximo: o esforço acima da meta não aparece no placar.</p></div>'+
+    '<div class="card"><span class="rot">Proposta ajustada</span><h3>1 ponto por peça + blocos fixos dimensionados pela meta</h3><p>Nada é jogado fora. Os fixos (presença até 500, desafios até 300, bônus e vistoria) foram calculados para pesar diante de ~2.000 peças/dia.</p></div>'+
+  '</div><div class="grade g4">'+
+    [['Produtividade',Math.round(2200/exTot*100)],['Presença',Math.round(430/exTot*100)],['Bônus',Math.round(900/exTot*100)],['Desafios + vistoria',Math.round(50/exTot*100)]].map(function(x){ return '<div class="card"><span class="rot">'+x[0]+'</span><span class="num">'+x[1]+'%</span></div>'; }).join('')+
+  '</div><div class="insight">No dia de exemplo, <b>produtividade + presença = '+Math.round(2630/exTot*100)+'%</b> do total — a mesma mensagem da gerência (80% = produtividade + assiduidade), sem descartar peças.</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>7</span></div></section>',
+  // 8 assiduidade
+  '<section class="slide">'+cab('Pontuação','Assiduidade: linear em vez de faixas')+'<div class="corpo"><div class="grade g2">'+
+    '<div class="card"><span class="rot">Faixas (100% · 98% · 96% · 94%)</span><h3>Time de 10 pessoas, 1 falta = 90%</h3><span class="num neg">0 pts</span><p>As faixas de 94% a 99,99% só existem em times com mais de 17 pessoas. Na prática vira tudo ou nada.</p></div>'+
+    '<div class="card"><span class="rot">Linear</span><h3>Máximo × presentes ÷ escalados</h3><span class="num pos">'+fmt(P.assiduidadeMax*0.9)+' pts</span><p>Cada falta custa só a parte daquela pessoa. Atestado conta como falta; atraso '+sinal(P.atraso)+'. Trinca Perfeita '+sinal(P.trincaPerfeita)+' no final.</p></div>'+
+  '</div><div class="insight">Escalados = pessoas do time na planilha do dia. A presença é lançada na mesma planilha da escalação (P, F ou A por dia).</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>8</span></div></section>',
+  // 9 desafios e hora de ouro
+  '<section class="slide">'+cab('Pontuação','Desafios do dia e a hora que vale ouro')+'<div class="corpo"><div class="grade g3">'+
+    R.DIAS.map(function(d){ return '<div class="card"><span class="rot">'+d[1]+' · '+d[2]+'</span><ul>'+(R.DESAFIOS[d[0]]||[]).map(function(x){ return '<li>'+x+' — '+fmt(R.PONTOS_DESAFIO)+' pts</li>'; }).join('')+'</ul></div>'; }).join('')+
+  '</div><div class="grade g2">'+
+    '<div class="card"><span class="rot">Hora que vale ouro</span><span class="num" style="color:var(--accent-gold)">2×</span><p>Agendada em segredo no sistema. Na hora, o telão mostra uma faixa dourada com contagem regressiva e a meta da hora; quem bater tem as peças da hora em dobro.</p></div>'+
+    '<div class="card"><span class="rot">Ideias extras de gincana</span><ul><li>Golden Ticket no pedido: pedidos sorteados no WMS</li><li>Caça ao erro 5S em 10 min</li><li>Hora zero erro sorteada</li><li>Quiz de segurança por QR code no intervalo</li></ul></div>'+
+  '</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>9</span></div></section>',
+  // 10 vistoria
+  '<section class="slide">'+cab('Pontuação','Vistoria: segurança, qualidade e 5S')+'<div class="corpo"><div class="grade g4">'+
+    Object.keys(R.GRAVIDADES).map(function(g){ var its = R.CHECKLIST.filter(function(c){ return c.grav === g; }); return '<div class="card"><span class="rot">'+R.GRAVIDADES[g].rot+'</span><span class="num neg">'+sinal(R.GRAVIDADES[g].pts)+'</span><ul>'+its.map(function(c){ return '<li>'+c.item+'</li>'; }).join('')+'</ul></div>'; }).join('')+
+  '</div><div class="insight">Vistoria em horário aleatório, por piso e time. O vistoriador marca o checklist no sistema e <b>o desconto entra no placar na hora</b>. Vistoria sem apontamento vale '+sinal(P.vistoriaLimpa)+'.</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>10</span></div></section>',
+  // 11 exemplo
+  '<section class="slide">'+cab('Pontuação','Um dia do time Vermelho, do início ao fim')+'<div class="corpo"><table><thead><tr><th>Bloco</th><th>O que aconteceu</th><th class="n">Pontos</th></tr></thead><tbody>'+
+    ex.map(function(r){ return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td class="n '+(r[2] < 0 ? 'neg' : '')+'">'+sinal(r[2])+'</td></tr>'; }).join('')+
+    '<tr class="total"><td>Total do dia</td><td>Time Vermelho · T01</td><td class="n">'+fmt(exTot)+'</td></tr></tbody></table></div><div class="rodape"><span>Missão Black Friday 2026</span><span>11</span></div></section>',
+  // 12 seção telão
+  '<section class="slide secao"><p class="kicker">Seção 03</p><h1>Telão e sistema</h1><hr class="regua"><p class="sub">Dados do WMS a cada 5–10 minutos, sem ninguém abrir planilha.</p></section>',
+  // 13 telão
+  '<section class="slide">'+cab('Telão e sistema','O que roda no telão de 75"')+'<div class="corpo"><div class="prints" style="grid-template-columns:1fr 1fr">'+
+    '<figure><img src="img/tela-a-corrida.png" alt="Corrida Maluca"><figcaption>Corrida Maluca — times do turno, comemoração quando bate a meta</figcaption></figure>'+
+    '<figure><img src="img/tela-p-placar.png" alt="Placar"><figcaption>Placar da Black — todos os blocos de pontos, por time (exemplo)</figcaption></figure>'+
+  '</div><div style="display:flex;gap:10px;flex-wrap:wrap">'+['A · Corrida Maluca','B · Separação e Conferência','C · Operação agora','D · Armazenagem','P · Placar','Faixa dourada da hora de ouro'].map(function(x){ return '<span class="chip">'+x+'</span>'; }).join('')+'</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>13</span></div></section>',
+  // 14 operação agora
+  '<section class="slide">'+cab('Telão e sistema','Operação agora: o backlog em itens, ao vivo')+'<div class="corpo"><div class="prints" style="grid-template-columns:1fr"><figure><img src="img/tela-c-operacao.png" alt="Operação agora"><figcaption>Itens por etapa, pedido mais antigo em tela e itens por marca — Acompanhamento OP + Itens de NF</figcaption></figure></div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>14</span></div></section>',
+  // 15 fluxo de dados
+  '<section class="slide">'+cab('Telão e sistema','De onde vem cada ponto')+'<div class="corpo"><div class="fluxo">'+
+    [['1','Robô baixa do WMS','Separação, Conferência, Colmeia, Kardex, Acompanhamento OP e Itens de NF, a cada 5–10 min.'],
+     ['2','Banco calcula','As mesmas regras do site: produtividade por pessoa e por time, operação em itens.'],
+     ['3','Lançamentos manuais','Vistoria, desafios e ajustes por admin, com horário, motivo e quem lançou.'],
+     ['4','Telão mostra','Atualiza a cada 60 s: corrida, placar, comemoração e hora de ouro.']].map(function(x){ return '<div class="card"><span class="etapa">'+x[0]+'</span><h3>'+x[1]+'</h3><p>'+x[2]+'</p></div>'; }).join('')+
+  '</div><div class="insight"><b>Auditável:</b> nenhum ponto é apagado. Correção é estorno, que também fica registrado — qualquer questionamento tem resposta com data, hora e responsável.</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>15</span></div></section>',
+  // 16 folha de regras
+  '<section class="slide">'+cab('Telão e sistema','Folha de regras nos pisos')+'<div class="corpo" style="flex-direction:row;gap:28px"><div class="prints" style="flex:0 0 520px"><figure><img src="img/folha-pisos.png" alt="Folha de regras"></figure></div>'+
+    '<div style="display:flex;flex-direction:column;gap:18px;flex:1"><div class="card"><h3>"Se eu fizer isso, meu time ganha"</h3><p>Cada linha com o valor exato, igual ao sistema: a folha é gerada do mesmo arquivo de regras do telão.</p></div><div class="card"><h3>"Se eu não seguir isso, meu time perde"</h3><p>Faltas, atrasos e o checklist da vistoria por gravidade.</p></div><div class="card"><h3>Regulamento completo</h3><p>3 páginas A4: blocos, calendário, checklist, exemplo de um dia e auditoria.</p></div></div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>16</span></div></section>',
+  // 17 premiação
+  '<section class="slide">'+cab('Reconhecimento','Premiação')+'<div class="corpo"><div class="grade g3">'+
+    '<div class="card"><span class="rot">Campeão Black Friday</span><h3>Maior pontuação acumulada</h3><p>Piso e colmeia, nos três dias, por turno.</p></div>'+
+    '<div class="card"><span class="rot">Time Performance</span><h3>Maior produtividade acumulada</h3><p>Soma das peças no período.</p></div>'+
+    '<div class="card"><span class="rot">Time 100%</span><h3>Trinca Perfeita</h3><p>100% de presença nos 3 dias.</p></div>'+
+  '</div><div class="grade g3">'+
+    '<div class="card"><span class="rot">Novo · Destaque do turno</span><p>Top separador e top conferente de cada dia, com nome no telão.</p></div>'+
+    '<div class="card"><span class="rot">Novo · Vistoria nota 10</span><p>Time com mais vistorias sem apontamento.</p></div>'+
+    '<div class="card"><span class="rot">Prêmios instantâneos</span><p>Brindes e Golden Tickets durante os três dias para quem está fora da liderança.</p></div>'+
+  '</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>17</span></div></section>',
+  // 18 próximos passos
+  '<section class="slide">'+cab('Próximos passos','O que precisamos da liderança')+'<div class="corpo"><div class="grade g2">'+
+    '<div class="card"><span class="rot">Decisões</span><ul><li>Aprovar os pesos da pontuação</li><li>Metas oficiais por time (hoje provisórias: 2.000 piso · 1.200 colmeia)</li><li>Confirmar turno ADM e T03</li><li>Orçamento da premiação</li></ul></div>'+
+    '<div class="card"><span class="rot">Preparação</span><ul><li>Escalação dos times com presença (planilha por cor)</li><li>Definir vistoriadores e agenda das horas de ouro</li><li>Teste no telão de 75" e ensaio no dia anterior</li><li>Imprimir e colar a folha de regras nos pisos</li></ul></div>'+
+  '</div></div><div class="rodape"><span>Missão Black Friday 2026</span><span>18</span></div></section>'
+];
+
+var palco = document.getElementById('palco'), atual = 0;
+palco.innerHTML = slides.join('');
+var els = palco.querySelectorAll('.slide');
+function mostra(i){ atual = Math.max(0, Math.min(els.length - 1, i)); els.forEach(function(s, k){ s.classList.toggle('on', k === atual); }); document.getElementById('ctrl').textContent = (atual + 1) + ' / ' + els.length; try { history.replaceState(null, '', '#' + (atual + 1)); } catch(e){} }
+function escala(){ var k = Math.min(innerWidth / 1600, innerHeight / 900); palco.style.transform = 'translate(-50%,-50%) scale(' + k + ')'; }
+addEventListener('resize', escala); escala();
+document.addEventListener('keydown', function(e){
+  if (['ArrowRight','PageDown',' ','Enter'].indexOf(e.key) !== -1) { e.preventDefault(); mostra(atual + 1); }
+  if (['ArrowLeft','PageUp','Backspace'].indexOf(e.key) !== -1) { e.preventDefault(); mostra(atual - 1); }
+  if (e.key === 'Home') mostra(0); if (e.key === 'End') mostra(els.length - 1);
+  if (e.key === 'f' || e.key === 'F') { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function(){}); else document.exitFullscreen(); }
+});
+document.addEventListener('click', function(e){ mostra(atual + (e.clientX < innerWidth / 3 ? -1 : 1)); });
+mostra((parseInt(location.hash.slice(1), 10) || 1) - 1);
+})();
+</script>
+</body>
+</html>
