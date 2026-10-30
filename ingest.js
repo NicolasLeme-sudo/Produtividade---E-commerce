@@ -1075,7 +1075,7 @@ function resumoOperacao(op) {
   var pedidos = op.pedidos || {}, marcas = op.marcas || {};
   var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, marcas: {},
     etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, marcas: {} }; }),
-    idade: [{ label: "Hoje", itens: 0 }, { label: "Ontem", itens: 0 }, { label: "2 dias", itens: 0 }, { label: "3+ dias", itens: 0 }],
+    idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0 }; }),
     opEm: op.opEm || null, nfEm: op.nfEm || null };
   var ref = new Date(op.opEm || Date.now()); ref.setHours(0, 0, 0, 0);
   Object.keys(pedidos).forEach(function (p) {
@@ -1088,7 +1088,8 @@ function resumoOperacao(op) {
     if (imp) {
       if (r.maisAntigo === null || imp < r.maisAntigo) { r.maisAntigo = imp; r.maisAntigoPedido = p; }
       var d = new Date(imp); d.setHours(0, 0, 0, 0);
-      r.idade[Math.max(0, Math.min(3, Math.round((ref - d) / 86400000)))].itens += itens;
+      var faixa = r.idade[Math.max(0, Math.min(3, Math.round((ref - d) / 86400000)))];
+      faixa.itens += itens; faixa.pedidos++;
     }
   });
   return r;

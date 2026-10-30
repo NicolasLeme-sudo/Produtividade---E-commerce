@@ -135,13 +135,12 @@ body.ocioso,body.ocioso *{cursor:none!important}
 
 /* ---------- tela C: operação agora (itens por etapa e marca) ---------- */
 .etapas{display:grid;align-content:space-around;gap:10px;min-height:0}
-.etapa{display:grid;grid-template-columns:190px 1fr 150px;gap:16px;align-items:center}
-.etapa .nm{font-size:20px;font-weight:700;white-space:nowrap}.etapa .nm small{display:block;font-size:13px;color:var(--text-muted);font-weight:600}
+.etapa{display:grid;grid-template-columns:190px 1fr 130px 130px;gap:16px;align-items:center}
+.etapa .nm{font-size:20px;font-weight:700;white-space:nowrap}
 .etapa .trilho{height:46px;background:var(--bg-input);border-radius:8px;overflow:hidden}
-.etapa .barra{display:flex;height:100%}
-.etapa .barra span{background:var(--m);display:grid;place-items:center;color:#fff;font-weight:800;font-size:17px;overflow:hidden;white-space:nowrap;box-shadow:inset -2px 0 0 rgba(0,0,0,.25)}
-.etapa .barra span.esc{color:#14181F}
+.etapa .barra{height:100%;background:var(--accent);border-radius:8px}
 .etapa .tot{text-align:right;font-size:30px;font-weight:800}.etapa .tot small{display:block;font-size:13px;color:var(--text-muted);font-weight:600}
+.etapa .tot.ped{color:var(--text-label)}
 .pizza{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px;justify-items:center;min-height:0}
 .pizza svg{height:100%;max-height:300px;min-height:0;aspect-ratio:1}
 .pizza .leg{display:grid;gap:8px;width:100%}
@@ -396,8 +395,8 @@ function renderTelaB(snap){
   el.innerHTML = '<div class="kpis c4">'+
     kpiHtml('Separado'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tSep), 'peças · Checkout '+fmt(somaObj(sc))+' · Colmeia '+fmt(somaObj(sm)), COR_SEP, COR_SEP2)+
     kpiHtml('Conferido'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tConf), 'peças · Checkout '+fmt(somaObj(cc))+' · Colmeia '+fmt(somaObj(cm)), COR_CONF, COR_CONF)+
-    kpiHtml('Ritmo na última hora', rS ? fmt(rS.valor) : '—', rS ? 'separadas às '+String(rS.hora).padStart(2,'0')+'h'+(rC ? ' · conferidas '+fmt(rC.valor) : '') : 'sem hora completa ainda', null, 'var(--olive)')+
-    kpiHtml('Separado sem conferir', fmt(Math.max(0, tSep - tConf)), 'peças aguardando conferência', null, 'var(--amber)')+
+    kpiHtml('Ritmo na última hora', rS ? fmt(rS.valor) : '—', rS ? 'separadas às '+String(rS.hora).padStart(2,'0')+'h'+(rC ? ' · conferidas '+fmt(rC.valor) : '') : 'sem hora completa ainda', 'var(--olive)', 'var(--olive)')+
+    kpiHtml('Separado sem conferir', fmt(Math.max(0, tSep - tConf)), 'peças aguardando conferência', 'var(--amber)', 'var(--amber)')+
   '</div><div class="linhas" style="grid-template-rows:1fr 1fr">'+
     '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">Abasteça a Separação Analítica para ver por hora</div>')+'</div>'+
       '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms)+'</div></div>'+
@@ -417,7 +416,7 @@ function renderTelaD(snapIn){
   el.innerHTML = '<div class="kpis c3">'+
     kpiHtml('Peças armazenadas'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(total), 'peças · reversa '+fmt(somaObj(rev)), COR_ARM, null)+
     kpiHtml('Armazenadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', null, null)+
-    kpiHtml('Ritmo na última hora', r ? fmt(r.valor) : '—', r ? 'peças às '+String(r.hora).padStart(2,'0')+'h' : 'por hora a partir do próximo envio do Kardex', null, 'var(--olive)')+
+    kpiHtml('Ritmo na última hora', r ? fmt(r.valor) : '—', r ? 'peças às '+String(r.hora).padStart(2,'0')+'h' : 'por hora a partir do próximo envio do Kardex', 'var(--olive)', 'var(--olive)')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
     '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">O gráfico por hora aparece no próximo envio do Kardex de Endereço</div>')+'</div>'+
     '<div class="painel"><span class="k">Top 5 armazenadores</span>'+top5Html(pessoas, function(n){ return nomeCurto(nomeBonito(n)); })+'</div>'+
@@ -427,7 +426,6 @@ function renderTelaD(snapIn){
 /* ================= TELA C · OPERAÇÃO AGORA (itens) ================= */
 // Resumo pronto do ingest.js (snapshot "operacao"): só formata.
 var COR_MARCA = { 'Olympikus':'#297ADF', 'Mizuno':'#DFBD41', 'Under Armour':'#C8102E', 'Opanka':'#2EC4B6', 'Sem marca':'#5B6578' };
-var MARCA_ESCURA = { 'Mizuno':1 };   // texto escuro sobre a cor clara
 var NOME_ETAPA = ['Gerar onda', 'Em separação', 'Aguardando NF', 'Conferir', 'Despachar'];
 function marcasDe(obj){
   var ordem = Object.keys(COR_MARCA);
@@ -457,23 +455,23 @@ function renderTelaC(res){
   var maxE = Math.max.apply(null, res.etapas.map(function(e){ return e.itens; }).concat(1));
   var velhos = res.idade[2].itens + res.idade[3].itens;
   var hAnt = res.maisAntigo ? (Date.now() - res.maisAntigo) / 3600000 : 0, dAnt = res.maisAntigo ? new Date(res.maisAntigo) : null;
+  // Linha: ETAPA | BARRA | ITENS | PEDIDOS (barra de uma cor só)
   var etapas = res.etapas.map(function(e, i){
-    var segs = marcasDe(e.marcas).map(function(m){
-      var w = e.itens ? e.marcas[m]/e.itens*100 : 0;   // largura dentro da barra da etapa
-      return '<span class="'+(MARCA_ESCURA[m]?'esc':'')+'" style="--m:'+(COR_MARCA[m]||'#8E9BB5')+';width:'+w.toFixed(2)+'%">'+(e.marcas[m]/maxE > .09 ? fmt(e.marcas[m]) : '')+'</span>';
-    }).join('');
-    return '<div class="etapa"><span class="nm">'+NOME_ETAPA[i]+'<small>'+fmt(e.pedidos)+' pedidos</small></span>'+
-      '<div class="trilho"><div class="barra" style="width:'+(e.itens/maxE*100).toFixed(2)+'%">'+segs+'</div></div>'+
-      '<span class="tot">'+fmt(e.itens)+'<small>itens</small></span></div>';
+    return '<div class="etapa"><span class="nm">'+NOME_ETAPA[i]+'</span>'+
+      '<div class="trilho"><div class="barra" style="width:'+(e.itens/maxE*100).toFixed(2)+'%"></div></div>'+
+      '<span class="tot">'+fmt(e.itens)+'<small>itens</small></span>'+
+      '<span class="tot ped">'+fmt(e.pedidos)+'<small>pedidos</small></span></div>';
   }).join('');
+  // Pedidos importados há 2+ dias: vem do ingest a partir do próximo envio do Acompanhamento OP
+  var velhosPed = res.idade[2].pedidos == null ? null : res.idade[2].pedidos + res.idade[3].pedidos;
   el.innerHTML = '<div class="kpis c4">'+
     kpiHtml('Itens em operação', fmt(res.itens), 'itens · '+fmt(res.pedidos)+' pedidos', 'var(--accent)', null)+
-    kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), 'itens · '+fmt(res.etapas[0].pedidos)+' pedidos a gerar', null, null)+
+    kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), 'itens · '+fmt(res.etapas[0].pedidos)+' pedidos a gerar', 'var(--amber)', null)+
     kpiHtml('Mais antigo em tela', dAnt ? dAnt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dAnt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—',
       dAnt ? idadeTexto(res.maisAntigo)+' · pedido '+esc(res.maisAntigoPedido) : 'sem data de importação', null, hAnt >= 48 ? 'var(--red)' : hAnt >= 24 ? 'var(--amber)' : 'var(--olive)')+
-    kpiHtml('Importados há 2+ dias', fmt(velhos), 'itens · hoje '+fmt(res.idade[0].itens)+' · ontem '+fmt(res.idade[1].itens), null, velhos ? 'var(--red)' : 'var(--olive)')+
+    kpiHtml('Importados há 2+ dias', fmt(velhos), velhosPed == null ? 'itens' : fmt(velhosPed)+' pedidos', null, velhos ? 'var(--red)' : 'var(--olive)')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
-    '<div class="painel"><span class="k">Itens por etapa e marca</span><div class="etapas">'+etapas+'</div></div>'+
+    '<div class="painel"><span class="k">Itens por etapa</span><div class="etapas">'+etapas+'</div></div>'+
     '<div class="painel"><span class="k">Itens por marca</span>'+pizzaHtml(res.marcas, res.itens)+'</div>'+
   '</div></div>';
 }
