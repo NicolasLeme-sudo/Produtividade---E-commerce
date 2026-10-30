@@ -205,18 +205,16 @@ S.push(slide('Exemplo', 'Um dia do time Vermelho: <em>' + fmt(exTot) + ' pontos<
     '<tr class="tot"><td>Total do dia</td><td style="text-align:left">Time Vermelho · T01</td><td class="hl">' + fmt(exTot) + '</td></tr></table>',
   'Exemplo ilustrativo com os valores do regulamento · conferido à mão contra o cálculo do telão'));
 
-// telão
+// telão (sem prints: a versão final será mostrada ao vivo)
 S.push(slide('Telão e sistema', 'O que roda no telão de 75"',
   '<div class="grid2">' +
-    '<div class="shot"><img src="img/tela-a-corrida.png" alt="Corrida Maluca"><span>Corrida Maluca: times do turno, comemoração quando bate a meta</span></div>' +
-    '<div class="shot"><img src="img/tela-p-placar.png" alt="Placar da Black"><span>Placar da Black: todos os blocos de pontos, por time</span></div>' +
-  '</div>' + chips([['A · Corrida Maluca','--t4'],['B · Separação e Conferência','--t2'],['C · Operação agora','--t3'],['D · Armazenagem','--t6'],['P · Placar','--t1'],['Faixa da hora de ouro','--t4']]),
+    [['A','Corrida Maluca','Times do turno correndo até a meta do dia; quando um time bate, o telão comemora com som e moldura.'],
+     ['B','Separação e Conferência','Peças por hora e Top 5 de separadores e conferentes.'],
+     ['C','Operação agora','Itens por etapa, pedido mais antigo em tela e itens por marca.'],
+     ['P','Placar da Black','Todos os blocos de pontos por time e os destaques do turno.']
+    ].map(function(x){ return '<div class="lev"><div class="n">' + x[0] + '</div><div><h3>' + x[1] + '</h3><p>' + x[2] + '</p></div></div>'; }).join('') +
+  '</div><p class="lead">Também mostra a armazenagem por hora e, na hora de ouro, uma <b>faixa dourada com contagem regressiva</b>.</p>',
   'Telas em rodízio · dados do WMS a cada 5–10 minutos · telão atualiza a cada 60 s'));
-
-// operação agora
-S.push(slide('Telão e sistema', 'Operação agora: <em>o backlog em itens, ao vivo</em>',
-  '<div class="shot"><img src="img/tela-c-operacao.png" alt="Operação agora" style="max-height:640px"><span>Itens por etapa, pedido mais antigo em tela e itens por marca</span></div>',
-  'Fonte: Acompanhamento Saída por Nota Fiscal + Itens de NF de Saída (WMS)'));
 
 // fluxo
 S.push(slide('Auditoria', 'De onde vem cada ponto, <em>e quem lançou</em>',
