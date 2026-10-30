@@ -17,6 +17,7 @@
   - Não altera nada no banco: só lê.
 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="regras-black.js"></script>
 <style>
 html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 *{box-sizing:border-box}
@@ -148,6 +149,23 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .pizza .leg div{display:grid;grid-template-columns:14px 1fr auto auto;gap:10px;align-items:center;font-size:18px}
 .pizza .leg i{width:14px;height:14px;border-radius:4px;background:var(--m)}.pizza .leg b{font-size:20px}.pizza .leg em{font-style:normal;color:var(--text-muted);width:48px;text-align:right}
 
+/* ---------- placar da Black ---------- */
+.placar{display:grid;gap:14px;align-content:start;min-height:0}
+.placar table{width:100%;border-collapse:separate;border-spacing:0 6px;font-variant-numeric:tabular-nums;table-layout:fixed}
+.placar th:first-child{width:70px}.placar th:nth-child(2){width:210px}
+.placar th{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700;text-align:right;padding:0 14px}
+.placar th:nth-child(-n+2){text-align:left}
+.placar td{background:var(--bg-card);padding:10px 14px;text-align:right;font-size:24px;font-weight:700;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.placar td:first-child{border-left:1px solid var(--border);border-radius:8px 0 0 8px;text-align:center;color:var(--text-muted);width:60px}
+.placar td:last-child{border-right:1px solid var(--border);border-radius:0 8px 8px 0}
+.placar td.tm{text-align:left;color:var(--c);font-weight:800}.placar td.tm i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--c);margin-right:10px}
+.placar td.tot{font-size:30px;font-weight:900;color:var(--accent-light)}
+.placar td.neg{color:var(--red)}.placar td small{display:block;font-size:12px;color:var(--text-muted);font-weight:600}
+.placar .grp{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
+.placar .dest{font-size:17px;color:var(--text-label)}.placar .dest b{color:var(--amber)}
+.ouro{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:15;display:flex;gap:18px;align-items:center;padding:8px 24px;border-radius:999px;background:#F6BD00;color:#14181F;font-size:20px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.ouro[hidden]{display:none}.ouro #ouroRel{font-size:26px;font-variant-numeric:tabular-nums}
+
 /* ---------- faixa de baixo em loop contínuo ---------- */
 .loopbar{position:relative;overflow:hidden;background:#05080E;border-top:1px solid var(--border);height:46px;display:flex;align-items:center;flex:none;margin-top:12px}
 .loopbar .giro{position:absolute;left:0;top:0;height:3px;width:100%;transform:scaleX(0);transform-origin:0 50%;background:var(--accent);z-index:1;will-change:transform}
@@ -196,11 +214,13 @@ body.ocioso,body.ocioso *{cursor:none!important}
 <body>
 <div id="palco">
   <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
+  <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaA" data-titulo="Corrida Maluca" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
     <section class="tela" id="telaB" data-titulo="Separação e Conferência" data-giro="90" data-fonte="outbound"></section>
     <section class="tela" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
     <section class="tela" id="telaD" data-titulo="Armazenagem" data-giro="60" data-fonte="inbound"></section>
+    <section class="tela" id="telaP" data-titulo="Placar da Black" data-giro="60" data-fonte="outbound"></section>
   </div>
   <div class="loopbar"><i class="giro" id="barra" hidden></i><div class="loop" id="loop"></div></div>
   <div class="mold" id="mold">
@@ -253,19 +273,20 @@ function chavesDoMembro(r){
 /* ================= CONTA DA COMPETIÇÃO (cópia do index.html, filtros fixos do padrão) ================= */
 // Filtro "Dia": de cada série, só o último dia que existe nela (igual ao filtrarSerieporGrupo do site).
 function ultimoDia(serie){ if (!serie || !serie.length) return []; var o = serie.slice().sort(function(a,b){ return String(a.data).localeCompare(String(b.data)); }); return o.slice(-1); }
-function producaoDaFonte(snap, fonte){
+function producaoDaFonte(snap, fonte, diaAlvo){
   var o = snap || {}, sep = o.separacao || {}, conf = o.conferencia || {};
   var f = { sep_checkout:{v:sep.checkoutDia}, sep_colmeia:{v:sep.colmeiaDia}, conf_checkout:{v:conf.confCheckoutDia}, conf_colmeia:{v:conf.confColmeiaUnitDia} }[fonte];
   var m = new Map(); m.datas = [];
-  ultimoDia(f.v).forEach(function(d){ m.datas.push(String(d.data).slice(0,10)); Object.keys(d.itens||{}).forEach(function(n){ var k = chaveUsuario(n); m.set(k, (m.get(k)||0) + (d.itens[n]||0)); }); });
+  var serie = diaAlvo ? (f.v||[]).filter(function(d){ return String(d.data).slice(0,10) === diaAlvo; }) : ultimoDia(f.v);
+  serie.forEach(function(d){ m.datas.push(String(d.data).slice(0,10)); Object.keys(d.itens||{}).forEach(function(n){ var k = chaveUsuario(n); m.set(k, (m.get(k)||0) + (d.itens[n]||0)); }); });
   return { valores:m, datas:m.datas, temDados: !!(f.v && f.v.length) };
 }
 function grupoDoCadastro(r){ return /^sep/.test(r.atividade) ? 'sep' : 'conf'; }
 function obsColmeia(r){ return r.observacao === 'Colmeia' || r.atividade === 'conf_colmeia' || r.atividade === 'sep_colmeia'; }
 function opsDoCadastro(r){ return (!r.lider && (TIMES_COLMEIA[r.time] || obsColmeia(r))) ? ['colmeia'] : ['checkout','colmeia']; }
-function calcularCompeticao(snap, cadastro){
+function calcularCompeticao(snap, cadastro, diaAlvo){
   var ops = ['checkout','colmeia'], grupos = ['sep','conf'], prod = {};
-  ['sep_checkout','sep_colmeia','conf_checkout','conf_colmeia'].forEach(function(f){ prod[f] = producaoDaFonte(snap, f); });
+  ['sep_checkout','sep_colmeia','conf_checkout','conf_colmeia'].forEach(function(f){ prod[f] = producaoDaFonte(snap, f, diaAlvo); });
   var times = NUM_TIMES.map(function(n){ return { n:n, cor:TIMES_COR[n], colmeia:!!TIMES_COLMEIA[n], membros:new Map() }; });
   var linhas = cadastro.filter(function(r){ return times[r.time-1]; });
   var exatos = {}; linhas.forEach(function(r){ exatos[chaveUsuario(r.usuario_wms)] = r.usuario_wms; });
@@ -274,9 +295,9 @@ function calcularCompeticao(snap, cadastro){
   linhas.forEach(function(r){ var k = r.usuario_wms+'|'+grupoDoCadastro(r); if (!porCadastro.has(k)) porCadastro.set(k, r); });
   porCadastro.forEach(function(r){
     var t = times[r.time-1], g = grupoDoCadastro(r);
-    var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, grupos:{} };
+    var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, grupos:{}, chaves:{} };
     m.grupos[g] = true;
-    opsDoCadastro(r).forEach(function(o){ var f = g+'_'+o, k = achar(r, prod[f].valores); if (k) m[g] += prod[f].valores.get(k) || 0; });
+    opsDoCadastro(r).forEach(function(o){ var f = g+'_'+o, k = achar(r, prod[f].valores); if (k) { m[g] += prod[f].valores.get(k) || 0; m.chaves[f] = k; } });
     if (r.lider && !t.membros.has(r.usuario_wms) && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
     t.membros.set(r.usuario_wms, m);
   });
@@ -480,6 +501,50 @@ function renderTelaC(res){
   '</div></div>';
 }
 
+/* ================= PLACAR DA BLACK (regras em regras-black.js) ================= */
+var turnoTela = null;   // turno mostrado no telão (null = escalação sem turno do horário: mostra todos)
+function renderTelaP(placares, acum, previa){
+  var el = document.getElementById('telaP');
+  var hojeP = placares[placares.length-1];
+  if (!hojeP || !hojeP.linhas.some(function(r){ return r.total; })) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }
+  el.dataset.vazia = '';
+  var multi = placares.length > 1;
+  function tabela(linhas, titulo){
+    if (!linhas.length) return '';
+    linhas = linhas.slice().sort(function(a,b){ return (multi ? acum[b.n].total - acum[a.n].total : 0) || b.total - a.total || a.n - b.n; });
+    return '<div class="grp">'+titulo+'</div><table><thead><tr><th>#</th><th>Time</th><th>Produtividade</th><th>Assiduidade</th><th>Desafios</th><th>Seg./Qual.</th><th>Bônus</th><th>Total do dia</th>'+(multi ? '<th>Acumulado</th>' : '')+'</tr></thead><tbody>'+
+      linhas.map(function(r, i){
+        return '<tr style="--c:var('+r.cor.c+')"><td>'+(i+1)+'º</td><td class="tm"><i></i>'+r.cor.nome+'</td>'+
+          '<td>'+fmt(r.produtividade)+'<small>'+fmt(r.pecas)+' peças</small></td>'+
+          '<td>'+fmt(r.assiduidade)+'<small>'+(r.escalados ? r.presentes+'/'+r.escalados+' presentes' : 'sem lançamento')+'</small></td>'+
+          '<td>'+fmt(r.desafios)+'</td>'+
+          '<td class="'+(r.segQual < 0 ? 'neg' : '')+'">'+fmt(r.segQual)+'</td>'+
+          '<td>'+fmt(r.bonus)+'<small>'+[r.metaBatida ? 'meta' : '', r.antecipada ? 'antecipada' : '', r.ouro ? 'ouro' : '', r.destaque ? 'destaque' : ''].filter(Boolean).join(' · ')+'</small></td>'+
+          '<td class="tot">'+fmt(r.total)+'</td>'+(multi ? '<td class="tot">'+fmt(acum[r.n].total)+(acum[r.n].trinca ? '<small>+trinca</small>' : '')+'</td>' : '')+'</tr>';
+      }).join('')+'</tbody></table>';
+  }
+  var dest = [];
+  hojeP.linhas.forEach(function(r){ r.destaques.forEach(function(d){ dest.push(d.funcao+': <b>'+esc(nomeCurto(nomeBonito(d.nome)))+'</b> ('+r.cor.nome+', '+fmt(d.pecas)+' peças)'); }); });
+  el.innerHTML = '<div class="placar">'+
+    tabela(hojeP.linhas.filter(function(r){ return !r.colmeia; }), 'Piso'+(previa ? ' · prévia com dados de '+hojeP.dia.slice(8,10)+'/'+hojeP.dia.slice(5,7) : ''))+
+    tabela(hojeP.linhas.filter(function(r){ return r.colmeia; }), 'Colmeia')+
+    (dest.length ? '<div class="dest">Destaques do turno · '+dest.join(' · ')+'</div>' : '')+
+  '</div>';
+}
+// Faixa dourada no topo durante a hora de ouro agendada (dia + turno + hora).
+var ouroAtivo = null;
+function atualizaOuro(){
+  var b = document.getElementById('ouro');
+  if (!ouroAtivo) { b.hidden = true; return; }
+  var agora = new Date(), fim = new Date(agora); fim.setHours(ouroAtivo.hora + 1, 0, 0, 0);
+  var s = Math.max(0, Math.round((fim - agora) / 1000));
+  if (!s || agora.getHours() !== ouroAtivo.hora) { b.hidden = true; return; }
+  b.hidden = false;
+  document.getElementById('ouroTxt').textContent = 'peças valem 2× · meta da hora: piso '+fmt(ouroAtivo.meta_piso)+' · colmeia '+fmt(ouroAtivo.meta_colmeia);
+  document.getElementById('ouroRel').textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+setInterval(atualizaOuro, 1000);
+
 /* ================= FAIXA DE BAIXO (loop contínuo) ================= */
 var faixaAtual = '';
 function renderFaixa(c, snap){
@@ -507,7 +572,7 @@ function renderFaixa(c, snap){
 /* ================= COMEMORAÇÃO ================= */
 var audio = new Audio('tv/comemoracao.mp3'); audio.preload = 'auto'; audio.volume = 1;
 var fila = [], comemorando = false, mold = document.getElementById('mold');
-function chaveComemoracao(dia, n){ return 'telao_comemorou_'+dia+'_'+n; }
+function chaveComemoracao(dia, n){ return 'telao_comemorou_'+dia+'_'+(turnoTela ? turnoTela.replace(/\W/g,'')+'_' : '')+n; }
 function jaComemorou(dia, n){ try { return !!localStorage.getItem(chaveComemoracao(dia, n)); } catch(e){ return false; } }
 function marcaComemorou(dia, n){ try { localStorage.setItem(chaveComemoracao(dia, n), '1'); } catch(e){} }
 function hojeISO(){ var d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -676,16 +741,38 @@ async function carregar(){
     var r = await Promise.all([
       sb.from('dashboard_snapshots').select('pagina, dados, atualizado_em').in('pagina', ['outbound','inbound']),
       sb.from('competicao_times').select('*'),
-      sb.from('dashboard_snapshots').select('resumo:dados->resumo, atualizado_em').eq('pagina', 'operacao').maybeSingle()
+      sb.from('dashboard_snapshots').select('resumo:dados->resumo, atualizado_em').eq('pagina', 'operacao').maybeSingle(),
+      sb.from('competicao_pontos').select('dia, turno, time, categoria, item, pontos, motivo, criado_em'),
+      sb.from('competicao_hora_ouro').select('dia, turno, hora, meta_piso, meta_colmeia')
     ]);
     if (r[0].error || r[1].error) throw (r[0].error || r[1].error);
     var pg = {}; (r[0].data || []).forEach(function(l){ pg[l.pagina] = l; if (l.atualizado_em) atualizadoEm[l.pagina] = new Date(l.atualizado_em); });
     var snap = (pg.outbound || {}).dados || {}, snapIn = (pg.inbound || {}).dados || {};
     falhou = false;
-    var c = calcularCompeticao(snap, r[1].data || []);
+    // Times por turno: mostra o turno do horário; se ninguém estiver escalado nele, mostra a escalação inteira.
+    var cadAll = r[1].data || [], ta = RegrasBlack.turnoAtual(new Date());
+    var cadT = cadAll.filter(function(x){ return x.turno === ta.turno; });
+    if (!cadT.length) cadT = cadAll;
+    turnoTela = cadT === cadAll ? null : ta.turno;
+    var rotTurno = turnoTela ? ' · ' + RegrasBlack.TURNOS[turnoTela].rot.split(' · ')[0] : '';
+    document.getElementById('telaA').setAttribute('data-titulo', 'Corrida Maluca' + rotTurno);
+    document.getElementById('telaP').setAttribute('data-titulo', 'Placar da Black' + rotTurno);
+    var c = calcularCompeticao(snap, cadT);
+    // Placar: dias da Black até hoje; antes da Black, prévia com o último dia que tem dado.
+    var lanc = r[3].error ? [] : (r[3].data || []), ouros = r[4].error ? [] : (r[4].data || []);
+    var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
+    var diasP = RegrasBlack.DIAS.map(function(d){ return d[0]; }).filter(function(d){ return d <= ta.dia; });
+    var previa = !diasP.length && !!c.dia;
+    if (previa) diasP = [c.dia];
+    var placares = diasP.map(function(d){
+      return RegrasBlack.placarDoDia({ c: calcularCompeticao(snap, cadT, d), snap: snap, cadastro: cadT, dia: d, turno: turnoTela || '1º Turno', agora: new Date(),
+        lanc: lanc.filter(function(x){ return x.dia === d && doTurno(x); }), ouro: ouros.filter(function(x){ return x.dia === d && doTurno(x); }) });
+    });
+    ouroAtivo = ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
+    atualizaOuro();
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
-    renderTelaA(c); renderTelaB(snap); renderTelaC(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap); verificaMetas(c);
+    renderTelaA(c); renderTelaB(snap); renderTelaC(op && op.resumo); renderTelaD(snapIn); renderTelaP(placares, RegrasBlack.acumulado(placares), previa); renderFaixa(c, snap); verificaMetas(c);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho

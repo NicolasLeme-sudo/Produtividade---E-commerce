@@ -1491,7 +1491,8 @@ async function renderCompeticaoAdmin(recarregarBase) {
       '<div class="upload-box"><p>Uma aba por time, com o <strong>nome da cor</strong> (Vermelho, Azul, Verde, Amarelo, Rosa, Roxo). Colunas: <strong>Nome, Usuário WMS, Atividade, Turno, Piso, Observação, Líder, 27/11, 28/11, 29/11</strong> (presença: P, F ou A). Use "Exportar times atuais" como base.</p>' +
       '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button><button class="btn ghost" id="comp-btn-exportar">Exportar times atuais</button>' +
       '<div class="upload-status" id="comp-planilha-status"></div></div>' +
-      tabelaClassificacoesCompeticao() + "</div></div>";
+      tabelaClassificacoesCompeticao() + "</div>" +
+    '<div id="bloco-pontos-black"></div></div>';
 
   var avisoMembro = function (t, classe) { var a = document.getElementById("comp-membro-status"); if (a) { a.textContent = t; a.className = "upload-status" + (classe ? " " + classe : ""); } };
   var recarregar = async function () { await renderCompeticaoAdmin(false); if (window.recarregarCompeticao) window.recarregarCompeticao(); };
@@ -1587,6 +1588,118 @@ async function renderCompeticaoAdmin(recarregarBase) {
     } catch (e) { console.error(e); definirStatus("comp-planilha", "Erro: " + e.message, "erro"); }
   });
   restaurarStatusAbastecimento();
+  renderPontosBlack();
+}
+
+// =========================================================================
+// MISSÃO BLACK — lançamento de pontos (vistoria, desafios, ajustes) e horas de ouro.
+// Valores em regras-black.js. Nada é editado ou apagado: correção = estorno (lançamento inverso).
+// =========================================================================
+var pb = { dia: null, turno: null, time: 1 };
+async function renderPontosBlack() {
+  var el = document.getElementById("bloco-pontos-black");
+  var RB = window.RegrasBlack;
+  if (!el || !RB) return;
+  var ta = RB.turnoAtual(new Date());
+  if (!pb.dia) { pb.dia = ta.dia; pb.turno = ta.turno; }
+  var dias = RB.DIAS.map(function (d) { return [d[0], d[1] + " · " + d[2]]; });
+  if (!RB.DIAS.some(function (d) { return d[0] === pb.dia; })) dias.unshift([pb.dia, fmtDataBRIngest(pb.dia) + " (teste)"]);
+  var times = COMP_NUM_TIMES.map(function (n) { return [n, COMP_TIMES[n][0] + (n >= 5 ? " (colmeia)" : "")]; });
+  var f = function (v) { return RB.pts(v, pb.time); };
+
+  var rL = await supabaseClient.from("competicao_pontos").select("*").eq("dia", pb.dia).eq("turno", pb.turno).order("criado_em", { ascending: false });
+  var rO = await supabaseClient.from("competicao_hora_ouro").select("*").eq("dia", pb.dia).eq("turno", pb.turno).order("hora");
+  var semTabela = (rL.error && /competicao_pontos/.test(rL.error.message)) || (rO.error && /competicao_hora_ouro/.test(rO.error.message));
+  var lanc = rL.data || [], ouros = rO.data || [];
+
+  var porGrav = {};
+  RB.CHECKLIST.forEach(function (c, i) { (porGrav[c.grav] = porGrav[c.grav] || []).push('<label class="pb-item"><input type="number" min="0" max="9" value="0" data-i="' + i + '"> ' + htmlSeguro(c.item) + '</label>'); });
+  var checklist = Object.keys(RB.GRAVIDADES).map(function (g) {
+    return '<div class="pb-grav"><b>' + RB.GRAVIDADES[g].rot + ' · ' + f(RB.GRAVIDADES[g].pts) + ' pts cada</b>' + (porGrav[g] || []).join("") + "</div>";
+  }).join("");
+  var desafios = (RB.DESAFIOS[pb.dia] || []).concat(["Outro desafio"]);
+  var hoje = lanc.map(function (l) {
+    var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return "<tr><td>" + hr + "</td><td>" + COMP_TIMES[l.time][0] + "</td><td>" + htmlSeguro(l.categoria) + "</td><td>" + htmlSeguro(l.item || "") + '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos +
+      "</td><td>" + htmlSeguro(l.motivo || "") + "</td><td>" + htmlSeguro((l.registrado_email || "").replace(/@.*/, "")) + '</td><td><button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></td></tr>';
+  }).join("");
+  var T = RB.TURNOS[pb.turno] || RB.TURNOS["1º Turno"], horas = [];
+  for (var h = Math.floor(T.ini / 60); h < Math.ceil(T.fim / 60); h++) horas.push([h % 24, String(h % 24).padStart(2, "0") + "h00–" + String((h + 1) % 24).padStart(2, "0") + "h00"]);
+
+  el.innerHTML = '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:12px">' +
+    '<div class="panel-head"><div><p class="kicker">Missão Black</p><h4>Pontos da Black · vistoria, desafios e ajustes</h4></div></div>' +
+    (semTabela ? '<div class="upload-status erro">As tabelas de pontos ainda não existem no banco: rode o arquivo sql/black_pontos.sql no Supabase.</div>' : "") +
+    '<div class="comp-add"><select id="pb-dia">' + opcoes(dias, pb.dia) + '</select><select id="pb-turno">' + opcoes(COMP_TURNOS, pb.turno) + '</select><select id="pb-time">' + opcoes(times, pb.time) + "</select></div>" +
+    '<div class="pb-col"><div><p class="kicker">Vistoria (desconta na hora)</p><div class="pb-check">' + checklist + "</div>" +
+      '<label class="pb-item"><input type="checkbox" id="pb-limpa"> Vistoria sem apontamento (+' + f(RB.P.vistoriaLimpa) + ")</label>" +
+      '<div class="comp-add"><input id="pb-vis-obs" placeholder="Observação (local, corredor, quem viu)"><button class="btn" id="pb-btn-vistoria">Lançar vistoria</button></div></div>' +
+    '<div><p class="kicker">Desafio / gincana</p><div class="comp-add"><select id="pb-desafio">' + opcoes(desafios, desafios[0]) + '</select><input id="pb-des-pts" type="number" value="' + f(RB.PONTOS_DESAFIO) + '" aria-label="Pontos"><button class="btn" id="pb-btn-desafio">Lançar desafio</button></div>' +
+      '<p class="kicker" style="margin-top:14px">Ajuste manual</p><div class="comp-add"><input id="pb-aj-pts" type="number" placeholder="Pontos (ex.: -30 ou 50)"><input id="pb-aj-motivo" placeholder="Motivo (obrigatório)"><button class="btn" id="pb-btn-ajuste">Lançar ajuste</button></div>' +
+      '<p class="kicker" style="margin-top:14px">Horas de ouro agendadas (' + htmlSeguro(pb.turno) + ")</p>" +
+      '<div class="comp-add"><select id="pb-ouro-hora">' + opcoes(horas, horas[0] && horas[0][0]) + '</select><input id="pb-ouro-piso" type="number" placeholder="Meta piso/h" value="260"><input id="pb-ouro-col" type="number" placeholder="Meta colmeia/h" value="160"><button class="btn" id="pb-btn-ouro">Agendar</button></div>' +
+      (ouros.length ? '<div class="pb-ouros">' + ouros.map(function (o) { return '<span>' + String(o.hora).padStart(2, "0") + 'h · piso ' + o.meta_piso + ' · colmeia ' + o.meta_colmeia + ' <button class="btn ghost pb-ouro-del" data-id="' + o.id + '">Remover</button></span>'; }).join("") + "</div>" : '<p class="pb-vazio">Nenhuma hora de ouro neste dia e turno (o telão só mostra quando a hora chega).</p>') +
+    "</div></div>" +
+    '<div class="upload-status" id="pb-status"></div>' +
+    '<p class="kicker">Lançamentos de ' + fmtDataBRIngest(pb.dia) + " · " + htmlSeguro(pb.turno) + " (" + lanc.length + ")</p>" +
+    (lanc.length ? '<div class="tbl-wrap"><table class="comp-classif"><thead><tr><th>Hora</th><th>Time</th><th>Categoria</th><th>Item</th><th>Pontos</th><th>Motivo</th><th>Por</th><th></th></tr></thead><tbody>' + hoje + "</tbody></table></div>" : '<p class="pb-vazio">Nenhum lançamento ainda.</p>') +
+  "</div>";
+
+  var aviso = function (t, c) { var a = document.getElementById("pb-status"); if (a) { a.textContent = t; a.className = "upload-status" + (c ? " " + c : ""); } };
+  var sel = function (id, k, num) { document.getElementById(id).addEventListener("change", function () { pb[k] = num ? Number(this.value) : this.value; renderPontosBlack(); }); };
+  sel("pb-dia", "dia"); sel("pb-turno", "turno"); sel("pb-time", "time", true);
+  var email = async function () { var r = await supabaseClient.auth.getSession(); return r.data && r.data.session ? r.data.session.user.email : null; };
+  var gravar = async function (linhas, ok) {
+    var em = await email();
+    linhas.forEach(function (l) { l.dia = pb.dia; l.turno = pb.turno; l.registrado_email = em; if (!l.time) l.time = pb.time; });
+    var r = await supabaseClient.from("competicao_pontos").insert(linhas);
+    if (r.error) { aviso("Erro: " + r.error.message, "erro"); return; }
+    await renderPontosBlack(); aviso(ok, "ok");
+  };
+  document.getElementById("pb-btn-vistoria").addEventListener("click", function () {
+    var obs = document.getElementById("pb-vis-obs").value.trim(), linhas = [];
+    el.querySelectorAll(".pb-check input[data-i]").forEach(function (inp) {
+      var q = Math.max(0, Math.min(9, parseInt(inp.value, 10) || 0)), c = RB.CHECKLIST[Number(inp.getAttribute("data-i"))];
+      if (q) linhas.push({ categoria: "vistoria", item: RB.GRAVIDADES[c.grav].rot + ": " + c.item + (q > 1 ? " (×" + q + ")" : ""), pontos: f(c.pts) * q, motivo: obs || null });
+    });
+    var limpa = document.getElementById("pb-limpa").checked;
+    if (limpa && linhas.length) { aviso("Marque itens OU vistoria sem apontamento, não os dois.", "pendente"); return; }
+    if (limpa) linhas.push({ categoria: "vistoria", item: "Vistoria sem apontamento", pontos: f(RB.P.vistoriaLimpa), motivo: obs || null });
+    if (!linhas.length) { aviso("Marque pelo menos um item (ou vistoria sem apontamento).", "pendente"); return; }
+    var tot = linhas.reduce(function (a, l) { return a + l.pontos; }, 0);
+    if (!confirm("Lançar vistoria do time " + COMP_TIMES[pb.time][0] + ": " + (tot > 0 ? "+" : "") + tot + " pontos?")) return;
+    gravar(linhas, "✓ Vistoria lançada: " + (tot > 0 ? "+" : "") + tot + " pontos para o " + COMP_TIMES[pb.time][0] + ".");
+  });
+  document.getElementById("pb-btn-desafio").addEventListener("click", function () {
+    var nome = document.getElementById("pb-desafio").value, v = parseInt(document.getElementById("pb-des-pts").value, 10);
+    if (!v) { aviso("Informe os pontos do desafio.", "pendente"); return; }
+    gravar([{ categoria: "desafio", item: nome, pontos: v, motivo: null }], "✓ Desafio lançado: " + v + " pontos para o " + COMP_TIMES[pb.time][0] + ".");
+  });
+  document.getElementById("pb-btn-ajuste").addEventListener("click", function () {
+    var v = parseInt(document.getElementById("pb-aj-pts").value, 10), m = document.getElementById("pb-aj-motivo").value.trim();
+    if (!v || !m) { aviso("Ajuste precisa de pontos e motivo.", "pendente"); return; }
+    gravar([{ categoria: "ajuste", item: "Ajuste manual", pontos: v, motivo: m }], "✓ Ajuste lançado.");
+  });
+  el.querySelectorAll(".pb-estorno").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var l = lanc.filter(function (x) { return x.id === b.getAttribute("data-id"); })[0];
+      if (!l || !confirm("Estornar " + l.pontos + " pontos do " + COMP_TIMES[l.time][0] + " (" + (l.item || l.categoria) + ")?")) return;
+      gravar([{ time: l.time, categoria: l.categoria, item: "Estorno: " + (l.item || ""), pontos: -l.pontos, motivo: "Estorno do lançamento das " + new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }], "✓ Estorno lançado.");
+    });
+  });
+  document.getElementById("pb-btn-ouro").addEventListener("click", async function () {
+    var r = await supabaseClient.from("competicao_hora_ouro").insert({ dia: pb.dia, turno: pb.turno, hora: Number(document.getElementById("pb-ouro-hora").value),
+      meta_piso: parseInt(document.getElementById("pb-ouro-piso").value, 10) || 0, meta_colmeia: parseInt(document.getElementById("pb-ouro-col").value, 10) || 0 });
+    if (r.error) { aviso("Erro: " + r.error.message, "erro"); return; }
+    await renderPontosBlack(); aviso("✓ Hora de ouro agendada.", "ok");
+  });
+  el.querySelectorAll(".pb-ouro-del").forEach(function (b) {
+    b.addEventListener("click", async function () {
+      if (!confirm("Remover esta hora de ouro?")) return;
+      var r = await supabaseClient.from("competicao_hora_ouro").delete().eq("id", b.getAttribute("data-id"));
+      if (r.error) { aviso("Erro: " + r.error.message, "erro"); return; }
+      await renderPontosBlack(); aviso("✓ Hora de ouro removida.", "ok");
+    });
+  });
 }
 
 // A planilha substitui a escalação inteira dos turnos que ela traz (todas as atividades); os outros turnos ficam como estão.

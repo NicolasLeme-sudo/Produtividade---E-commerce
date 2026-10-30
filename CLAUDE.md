@@ -20,9 +20,15 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 - Cards abaixo da pista seguem a mesma ordem das posições (`timesOrdemPista`), também no index.html.
 - Membros em `competicao_times` (usuario_wms, atividade, turno, time, presenca jsonb). Planilha de escalação: **uma aba por time com o nome da cor** (Vermelho…Roxo, + aba Legenda ignorada); colunas Nome, Usuário WMS, Atividade, Turno, Piso, Observação, Líder, 27/11, 28/11, 29/11 (P/F/A; atestado = F). Formato antigo (1 aba com coluna Time) ainda é aceito. "Exportar times atuais" gera o arquivo no formato novo.
 
+## Missão Black (27–29/11) — pontuação
+- **Valores só em `regras-black.js`** (`window.RegrasBlack`): 1 pt/peça; meta batida +200; antecipada +50/h antes do fim do turno (máx. 200); hora de ouro = peças da hora 2× se bater a meta da hora; assiduidade 500 × presentes ÷ escalados (atestado = falta, atraso −20); desafios até 300/dia (100 cada); vistoria checklist leve −20 / média −50 / grave −100 / gravíssima −200, sem apontamento +100; destaque +50 (top sep. e top conf. do turno, por grupo); Trinca Perfeita +200 no acumulado. Colmeia: fixos ×0,6.
+- Turnos: T01 05h00–14h48 · T02 14h48–00h16 (depois da meia-noite ainda é o dia anterior) · ADM 07h55–17h33 (a validar). Times por turno: a escalação filtra pelo turno.
+- Tabelas: `competicao_pontos` (vistoria/desafio/ajuste, só insert; correção = estorno) e `competicao_hora_ouro` (agendada; telão mostra faixa dourada com contagem só durante a hora). SQL em `sql/black_pontos.sql`. Só admin lança.
+- Lançamento: Abastecimento > Competição > "Pontos da Black" (ingest.js `renderPontosBlack`). Telão: Tela P "Placar da Black" (antes da Black mostra prévia com o último dia).
+
 ## Telão (tv.html)
 - Login `@vulcabras.com`; usuário do telão com perfil `gestao` (sessão persistente, `storageKey: telao-produtividade`).
-- Telas em rodízio (pula tela sem dado): A Corrida Maluca 120 s · B Separação e Conferência 90 s · C Operação agora 90 s · D Armazenagem por hora 60 s.
+- Telas em rodízio (pula tela sem dado): A Corrida Maluca 120 s (times do turno do horário) · B Separação e Conferência 90 s · C Operação agora 90 s · D Armazenagem por hora 60 s · P Placar da Black 60 s.
 - Troca de tela com transição (sai esmaecendo 0,35 s, entra deslizando 0,7 s); barra do giro contínua (requestAnimationFrame).
 - Pista: largada 4 %, chegada 93 %; meta batida põe o carro em `P_META_BATIDA` = 1,06 (passa um pouco da linha).
 - Tela C: lê só `dados->resumo` do snapshot `operacao` (gravado pelo ingest.js com Acompanhamento OP + Itens de NF de Saída). Itens por etapa × marca (etapas iguais ao `calcularStatus` do Report), pizza por marca, mais antigo em tela, importados há 2+ dias. Marca pela descrição do produto (mesma regra do Report; sem palavra-chave = Olympikus). Cores: Olympikus `#297ADF`, Mizuno `#DFBD41`, Under Armour `#C8102E`.
