@@ -23,7 +23,7 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 /* ---------- palco 1500×844 (16:9) escalado para qualquer TV ---------- */
 #palco{position:absolute;left:50%;top:50%;width:1500px;height:844px;transform-origin:50% 50%;display:flex;flex-direction:column;
   --bg:#0F1623;--bg-card:#192032;--bg-input:#1E2A3D;--border:#253048;--text:#E8EBF2;--text-muted:#7C8BA8;--text-label:#9BAAC4;
-  --accent:#297ADF;--accent-light:#7FB2EC;--olive:#45C645;--amber:#F6BD00;--red:#E0334F;
+  --accent:#297ADF;--accent-light:#7FB2EC;--olive:#45C645;--amber:#F6BD00;--orange:#F5A524;--red:#E0334F;
   --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;
   --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;
   background:var(--bg);color:var(--text);font-size:16px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}
@@ -114,6 +114,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;gap:4px;border-top:4px solid var(--kc,var(--border))}
 .kpi .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
 .kpi .v{font-size:46px;font-weight:800;line-height:1;color:var(--vc,var(--text))}
+.kpi .v small{font-size:20px;font-weight:700;color:var(--text-muted);margin-left:8px}
 .kpi .s{font-size:15px;color:var(--text-muted)}
 .linhas{flex:1;min-height:0;display:grid;gap:14px}
 .linha{display:grid;grid-template-columns:3fr 1fr;gap:14px;min-height:0}
@@ -363,7 +364,8 @@ function somaObj(o){ return Object.keys(o).reduce(function(s,k){ return s + (o[k
 function juntaObj(a, b){ var m = {}; [a,b].forEach(function(o){ Object.keys(o).forEach(function(k){ m[k] = (m[k]||0) + o[k]; }); }); return m; }
 function horasDoAnalitico(serie, dia, tipos){ var h = new Array(24).fill(0); (serie||[]).forEach(function(x){ if (String(x.data).slice(0,10) !== dia) return; tipos.forEach(function(t){ Object.keys(x[t]||{}).forEach(function(u){ (x[t][u]||[]).forEach(function(v,i){ h[i] += v||0; }); }); }); }); return h; }
 function hoje(){ return hojeISO(); }
-function kpiHtml(rot, valor, sub, kc, vc){ return '<div class="kpi" style="'+(kc?'--kc:'+kc+';':'')+(vc?'--vc:'+vc:'')+'"><span class="k">'+rot+'</span><span class="v">'+valor+'</span><span class="s">'+sub+'</span></div>'; }
+// O número segue a cor da barra de destaque (kc) quando não vem cor própria (vc). un = unidade ao lado do número.
+function kpiHtml(rot, valor, sub, kc, vc, un){ vc = vc || kc; return '<div class="kpi" style="'+(kc?'--kc:'+kc+';':'')+(vc?'--vc:'+vc:'')+'"><span class="k">'+rot+'</span><span class="v">'+valor+(un?'<small>'+un+'</small>':'')+'</span><span class="s">'+sub+'</span></div>'; }
 // Gráfico de colunas por hora, com rótulo em cada coluna e a média das horas completas.
 function graficoHoras(horas, dia, cor, cor2, rotMedia){
   var ini = horas.findIndex(function(v){ return v > 0; }), fim = 23 - horas.slice().reverse().findIndex(function(v){ return v > 0; });
@@ -414,8 +416,8 @@ function renderTelaD(snapIn){
   var hd = (arm.normalHoraDia||[]).filter(function(x){ return String(x.data).slice(0,10) === dia; })[0];
   var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_ARM2) : null, r = g && g.ultima.completa;
   el.innerHTML = '<div class="kpis c3">'+
-    kpiHtml('Peças armazenadas'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(total), 'peças · reversa '+fmt(somaObj(rev)), COR_ARM, null)+
-    kpiHtml('Armazenadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', null, null)+
+    kpiHtml('Peças armazenadas'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(total), fmt(somaObj(rev))+' itens de reversa', COR_ARM, null, 'peças')+
+    kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', 'var(--orange)', null)+
     kpiHtml('Ritmo na última hora', r ? fmt(r.valor) : '—', r ? 'peças às '+String(r.hora).padStart(2,'0')+'h' : 'por hora a partir do próximo envio do Kardex', 'var(--olive)', 'var(--olive)')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
     '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">O gráfico por hora aparece no próximo envio do Kardex de Endereço</div>')+'</div>'+
@@ -464,12 +466,14 @@ function renderTelaC(res){
   }).join('');
   // Pedidos importados há 2+ dias: vem do ingest a partir do próximo envio do Acompanhamento OP
   var velhosPed = res.idade[2].pedidos == null ? null : res.idade[2].pedidos + res.idade[3].pedidos;
+  // vermelho quando há atraso (barra e número juntos); âmbar/verde quando está em dia
+  var corAnt = hAnt >= 48 ? 'var(--red)' : hAnt >= 24 ? 'var(--amber)' : 'var(--olive)', corVelhos = velhos ? 'var(--red)' : 'var(--olive)';
   el.innerHTML = '<div class="kpis c4">'+
-    kpiHtml('Itens em operação', fmt(res.itens), 'itens · '+fmt(res.pedidos)+' pedidos', 'var(--accent)', null)+
-    kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), 'itens · '+fmt(res.etapas[0].pedidos)+' pedidos a gerar', 'var(--amber)', null)+
+    kpiHtml('Itens em operação', fmt(res.itens), fmt(res.pedidos)+' pedidos', 'var(--accent)', null, 'itens')+
+    kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), fmt(res.etapas[0].pedidos)+' pedidos', 'var(--amber)', null, 'itens')+
     kpiHtml('Mais antigo em tela', dAnt ? dAnt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dAnt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—',
-      dAnt ? idadeTexto(res.maisAntigo)+' · pedido '+esc(res.maisAntigoPedido) : 'sem data de importação', null, hAnt >= 48 ? 'var(--red)' : hAnt >= 24 ? 'var(--amber)' : 'var(--olive)')+
-    kpiHtml('Importados há 2+ dias', fmt(velhos), velhosPed == null ? 'itens' : fmt(velhosPed)+' pedidos', null, velhos ? 'var(--red)' : 'var(--olive)')+
+      dAnt ? idadeTexto(res.maisAntigo)+' · pedido '+esc(res.maisAntigoPedido) : 'sem data de importação', corAnt, corAnt)+
+    kpiHtml('Importados há 2+ dias', fmt(velhos), velhosPed == null ? '' : fmt(velhosPed)+' pedidos', corVelhos, corVelhos, 'itens')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
     '<div class="painel"><span class="k">Itens por etapa</span><div class="etapas">'+etapas+'</div></div>'+
     '<div class="painel"><span class="k">Itens por marca</span>'+pizzaHtml(res.marcas, res.itens)+'</div>'+
