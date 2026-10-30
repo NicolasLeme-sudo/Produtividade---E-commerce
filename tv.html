@@ -395,10 +395,10 @@ function renderTelaB(snap){
   var gC = graficoHoras(horasDoAnalitico(conf.analitico, dia, ['checkout']), dia, COR_CONF, COR_CONF2);
   var rS = gS && gS.ultima.completa, rC = gC && gC.ultima.completa;
   el.innerHTML = '<div class="kpis c4">'+
-    kpiHtml('Separado'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tSep), 'peças · Checkout '+fmt(somaObj(sc))+' · Colmeia '+fmt(somaObj(sm)), COR_SEP, COR_SEP2)+
-    kpiHtml('Conferido'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tConf), 'peças · Checkout '+fmt(somaObj(cc))+' · Colmeia '+fmt(somaObj(cm)), COR_CONF, COR_CONF)+
-    kpiHtml('Ritmo na última hora', rS ? fmt(rS.valor) : '—', rS ? 'separadas às '+String(rS.hora).padStart(2,'0')+'h'+(rC ? ' · conferidas '+fmt(rC.valor) : '') : 'sem hora completa ainda', 'var(--olive)', 'var(--olive)')+
-    kpiHtml('Separado sem conferir', fmt(Math.max(0, tSep - tConf)), 'peças aguardando conferência', 'var(--amber)', 'var(--amber)')+
+    kpiHtml('Separado'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tSep), 'Checkout '+fmt(somaObj(sc))+' · Colmeia '+fmt(somaObj(sm)), COR_SEP, COR_SEP2, 'peças')+
+    kpiHtml('Conferido'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tConf), 'Checkout '+fmt(somaObj(cc))+' · Colmeia '+fmt(somaObj(cm)), COR_CONF, COR_CONF, 'peças')+
+    kpiHtml('Ritmo na última hora', rS ? fmt(rS.valor) : '—', rS ? (rC ? 'conferidas '+fmt(rC.valor) : '') : 'sem hora completa ainda', 'var(--olive)', 'var(--olive)', rS ? 'separadas às '+String(rS.hora).padStart(2,'0')+'h' : '')+
+    kpiHtml('Separado sem conferir', fmt(Math.max(0, tSep - tConf)), 'aguardando conferência', 'var(--amber)', 'var(--amber)', 'peças')+
   '</div><div class="linhas" style="grid-template-rows:1fr 1fr">'+
     '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">Abasteça a Separação Analítica para ver por hora</div>')+'</div>'+
       '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms)+'</div></div>'+
