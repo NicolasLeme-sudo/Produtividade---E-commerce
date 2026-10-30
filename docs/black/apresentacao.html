@@ -104,8 +104,8 @@ function pct(n){ return Math.round(n / exTot * 100) + '%'; }
 var S = [];
 // capa
 S.push('<section class="slide capa"><img class="logo" src="img/logo-vulcabras.png" alt="Vulcabras"><div class="eyebrow">Missão Black Friday 2026 · E-commerce</div>' +
-  '<h1>Produtividade, pontuação e telão da Black</h1><div class="rule"></div>' +
-  '<p class="sub">Como os times vão competir nos dias 27, 28 e 29 de novembro: regras, placar ao vivo e roteiro de atividades.</p>' +
+  '<h1>Regras, pontuação e roteiro da Black</h1><div class="rule"></div>' +
+  '<p class="sub">Como os times vão competir nos dias 27, 28 e 29 de novembro: regras, pontuação e roteiro de atividades.</p>' +
   '<div class="tag">Apresentação à liderança · 05/11/2026</div><div class="big">BLACK</div></section>');
 
 // campanha
@@ -114,7 +114,7 @@ S.push(slide('A campanha', 'Três dias para <em>mobilizar o CD inteiro</em>',
     '<div class="card gold"><div class="k">Período</div><div class="v">3 dias</div><div class="d">27, 28 e 29/11 · Largada Black, Superação e Grande Final</div></div>' +
     '<div class="card"><div class="k">Times</div><div class="v">6 cores</div><div class="d">um por piso em cada turno · 4 no piso e 2 na colmeia</div></div>' +
     '<div class="card"><div class="k">Pontuação</div><div class="v">1/peça</div><div class="d">mais blocos de presença, desafios, vistoria e bônus</div></div>' +
-    '<div class="card green"><div class="k">Placar</div><div class="v">60 s</div><div class="d">telão atualizado direto do WMS, sem planilha</div></div>' +
+    '<div class="card green"><div class="k">Presença</div><div class="v">até ' + fmt(P.assiduidadeMax) + '</div><div class="d">pontos por time, por dia · Trinca Perfeita ' + sinal(P.trincaPerfeita) + '</div></div>' +
   '</div><p class="lead">Produtividade e presença decidem o campeão; <b>desafios, vistoria e bônus</b> mantêm a disputa viva até o fim de cada turno.</p>',
   RODAPE));
 
@@ -138,7 +138,7 @@ S.push(slide('Roteiro de atividades', 'Antes, durante e depois da Black',
      ['30/11 · seg','Encerramento',['Apuração do 3º dia','Time campeão da gincana','Fala do diretor e do gerente','Coffee de encerramento']]
     ].map(function(d){ return '<div><p class="dia">' + d[0] + '</p><h3>' + d[1] + '</h3>' + li(d[2]) + '</div>'; }).join('') +
   '</div>',
-  'DJ nos quatro dias de evento · o placar roda o tempo todo; a apuração oficial de cada dia sai na manhã seguinte'));
+  'DJ nos quatro dias de evento · apuração oficial de cada dia na manhã seguinte'));
 
 // arquitetura
 S.push(slide('Pontuação', 'Arquitetura de pontos <em>por time, por dia</em>',
@@ -150,7 +150,7 @@ S.push(slide('Pontuação', 'Arquitetura de pontos <em>por time, por dia</em>',
      ['Destaques','top separador e top conferente do turno',sinal(P.destaque)+' cada',sinal(col(P.destaque))+' cada'],['Trinca Perfeita','100% de presença nos 3 dias',sinal(P.trincaPerfeita),sinal(col(P.trincaPerfeita))]
     ].map(function(r){ return '<tr><td><b>'+r[0]+'</b></td><td style="text-align:left;color:var(--muted)">'+r[1]+'</td><td class="hl">'+r[2]+'</td><td>'+r[3]+'</td></tr>'; }).join('') +
   '</table>',
-  'Colmeia: pontos fixos ×' + String(R.FATOR_COLMEIA).replace('.',',') + ', proporcional à meta · todos os valores saem do mesmo arquivo de regras do telão'));
+  'Colmeia: pontos fixos ×' + String(R.FATOR_COLMEIA).replace('.',',') + ', proporcional à meta · todos os valores saem do mesmo arquivo de regras do sistema'));
 
 // por que 1 ponto por peça
 S.push(slide('Pontuação', 'Cada peça vale 1 ponto: <em>nada do esforço é jogado fora</em>',
@@ -188,7 +188,7 @@ S.push(slide('Bônus', 'Bater a meta cedo e <em>a hora que vale ouro</em>',
     '<div class="card gold"><div class="k">Meta antecipada</div><div class="v">' + sinal(P.antecipadaHora) + '</div><div class="d">por hora inteira antes do fim do turno · máximo ' + fmt(P.antecipadaMax) + '</div></div>' +
     '<div class="card gold"><div class="k">Hora que vale ouro</div><div class="v">2×</div><div class="d">agendada em segredo; quem bater a meta da hora tem as peças dela em dobro</div></div>' +
     '<div class="card gold"><div class="k">Destaques</div><div class="v">' + sinal(P.destaque) + '</div><div class="d">ao time do top separador e do top conferente de cada turno</div></div>' +
-  '</div><p class="lead">Na hora de ouro o telão mostra uma <b>faixa dourada com contagem regressiva</b> e a meta da hora.</p>',
+  '</div><p class="lead">A hora de ouro é <b>anunciada de surpresa</b>, com a meta daquela hora.</p>',
   'Bônus calculados automaticamente a partir dos relatórios do WMS'));
 
 // vistoria
@@ -203,18 +203,7 @@ S.push(slide('Exemplo', 'Um dia do time Vermelho: <em>' + fmt(exTot) + ' pontos<
   '<table class="cmp"><tr><th>Bloco</th><th style="text-align:left">O que aconteceu</th><th>Pontos</th></tr>' +
     ex.map(function(r){ return '<tr><td>' + r[0] + '</td><td style="text-align:left;color:var(--muted)">' + r[1] + '</td><td' + (r[2] < 0 ? ' class="neg"' : '') + '>' + sinal(r[2]) + '</td></tr>'; }).join('') +
     '<tr class="tot"><td>Total do dia</td><td style="text-align:left">Time Vermelho · T01</td><td class="hl">' + fmt(exTot) + '</td></tr></table>',
-  'Exemplo ilustrativo com os valores do regulamento · conferido à mão contra o cálculo do telão'));
-
-// telão (sem prints: a versão final será mostrada ao vivo)
-S.push(slide('Telão e sistema', 'O que roda no telão de 75"',
-  '<div class="grid2">' +
-    [['A','Corrida Maluca','Times do turno correndo até a meta do dia; quando um time bate, o telão comemora com som e moldura.'],
-     ['B','Separação e Conferência','Peças por hora e Top 5 de separadores e conferentes.'],
-     ['C','Operação agora','Itens por etapa, pedido mais antigo em tela e itens por marca.'],
-     ['P','Placar da Black','Todos os blocos de pontos por time e os destaques do turno.']
-    ].map(function(x){ return '<div class="lev"><div class="n">' + x[0] + '</div><div><h3>' + x[1] + '</h3><p>' + x[2] + '</p></div></div>'; }).join('') +
-  '</div><p class="lead">Também mostra a armazenagem por hora e, na hora de ouro, uma <b>faixa dourada com contagem regressiva</b>.</p>',
-  'Telas em rodízio · dados do WMS a cada 5–10 minutos · telão atualiza a cada 60 s'));
+  'Exemplo ilustrativo com os valores do regulamento · conferido à mão'));
 
 // fluxo
 S.push(slide('Auditoria', 'De onde vem cada ponto, <em>e quem lançou</em>',
@@ -222,7 +211,7 @@ S.push(slide('Auditoria', 'De onde vem cada ponto, <em>e quem lançou</em>',
     [['Robô baixa do WMS','Separação, Conferência, Colmeia, Kardex, Acompanhamento OP e Itens de NF, a cada 5–10 min.'],
      ['Banco calcula','As mesmas regras do site: produtividade por pessoa e por time, operação em itens.'],
      ['Lançamentos manuais','Vistoria, desafios e ajustes só por admin, com horário, motivo e quem lançou.'],
-     ['Telão mostra','Atualiza a cada 60 s: corrida, placar, comemoração e hora de ouro.']
+     ['Apuração do dia','Placar fechado na manhã seguinte, com o detalhe de cada ponto.']
     ].map(function(x, i){ return '<div class="lev"><div class="n">' + (i + 1) + '</div><div><h3>' + x[0] + '</h3><p>' + x[1] + '</p></div></div>'; }).join('') +
   '</div><p class="lead"><b>Nenhum ponto é apagado.</b> Correção é estorno, que também fica registrado: qualquer questionamento tem resposta com data, hora e responsável.</p>',
   'Contestação com o líder até o início do turno seguinte'));
@@ -236,7 +225,7 @@ S.push(slide('Comunicação', 'Folha de regras <em>colada nos pisos</em>',
       '<div class="lev"><div class="n">−</div><div><h3>"Se eu não seguir isso, meu time perde"</h3><p>Faltas, atrasos e o checklist da vistoria por gravidade.</p></div></div>' +
       '<div class="lev"><div class="n">3</div><div><h3>Regulamento completo</h3><p>3 páginas A4: blocos, calendário, checklist, exemplo de um dia e auditoria.</p></div></div>' +
     '</div></div>',
-  'A folha é gerada do mesmo arquivo de regras do telão: os números nunca divergem'));
+  'A folha é gerada do mesmo arquivo de regras do sistema: os números nunca divergem'));
 
 // premiação
 S.push(slide('Reconhecimento', 'Premiação',
@@ -244,7 +233,7 @@ S.push(slide('Reconhecimento', 'Premiação',
     '<div><h3>Campeão Black Friday</h3><p>Maior pontuação acumulada nos três dias, piso e colmeia, por turno.</p></div>' +
     '<div><h3>Time Performance</h3><p>Maior produtividade acumulada: soma das peças no período.</p></div>' +
     '<div><h3>Time 100%</h3><p>Trinca Perfeita: 100% de presença nos 3 dias.</p></div>' +
-    '<div><h3>Destaque do turno</h3><p>Top separador e top conferente de cada dia, com nome no telão.</p></div>' +
+    '<div><h3>Destaque do turno</h3><p>Top separador e top conferente de cada dia, com nome no placar.</p></div>' +
     '<div><h3>Vistoria nota 10</h3><p>Time com mais vistorias sem apontamento.</p></div>' +
     '<div><h3>Prêmios instantâneos</h3><p>Brindes e Golden Tickets durante os três dias para quem está fora da liderança.</p></div>' +
   '</div>',
@@ -254,7 +243,7 @@ S.push(slide('Reconhecimento', 'Premiação',
 S.push(slide('Próximos passos', 'O que precisamos <em>da liderança</em>',
   '<div class="grid2">' +
     '<div class="lev"><div class="n">1</div><div><h3>Decisões</h3>' + li(['Aprovar os pesos da pontuação','Metas oficiais por time (hoje provisórias: 2.000 piso · 1.200 colmeia)','Confirmar turno ADM e T03']) + '</div></div>' +
-    '<div class="lev"><div class="n">2</div><div><h3>Preparação</h3>' + li(['Escalação dos times com presença (planilha por cor)','Definir vistoriadores e agenda das horas de ouro','Teste no telão de 75" e ensaio no dia anterior','Imprimir e colar a folha de regras nos pisos']) + '</div></div>' +
+    '<div class="lev"><div class="n">2</div><div><h3>Preparação</h3>' + li(['Escalação dos times com presença (planilha por cor)','Definir vistoriadores e agenda das horas de ouro','Ensaio no dia anterior','Imprimir e colar a folha de regras nos pisos']) + '</div></div>' +
   '</div>',
   RODAPE));
 
