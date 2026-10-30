@@ -1342,6 +1342,47 @@ var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
 var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"]];
 var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Rosa", "--t5"], 6: ["Roxo", "--t6"] };
 var COMP_NUM_TIMES = [1, 2, 3, 4, 5, 6];
+// Black Friday: presença de cada pessoa por dia, na mesma planilha dos times (uma coluna por dia).
+// P = presente · F = falta (atestado também conta como falta) · A = atraso.
+var COMP_DIAS_BLACK = [["2026-11-27", "27/11"], ["2026-11-28", "28/11"], ["2026-11-29", "29/11"]];
+var COMP_CAB_ABA = ["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Observação", "Líder"].concat(COMP_DIAS_BLACK.map(function (d) { return d[1]; }));
+function presencaDeTexto(t) {
+  var n = normalizarTexto(t);
+  if (!n) return null;
+  if (/^(P|PRESENTE|OK|X)$/.test(n)) return "P";
+  if (/^(A|ATRASO|ATRASADO)$/.test(n)) return "A";
+  if (/^(F|FALTA|FALTOU|AUSENTE|ATESTADO|AT|J|JUSTIFICADA)$/.test(n)) return "F";
+  return null;
+}
+// Nome da aba = cor do time (Vermelho, Azul...). Devolve 1–6 ou null.
+function timeDaAba(nome) {
+  var n = normalizarTexto(nome);
+  for (var k = 1; k <= 6; k++) if (normalizarTexto(COMP_TIMES[k][0]) === n) return k;
+  return null;
+}
+function linhaAbaTime(l) {
+  var obs = l.observacao || (/colmeia$/.test(l.atividade) ? "Colmeia" : "");
+  return [l.nome || "", l.usuario_wms, rotuloAtividade(l.atividade), l.turno, l.piso || "", obs, l.lider ? "S" : "N"]
+    .concat(COMP_DIAS_BLACK.map(function (d) { return (l.presenca || {})[d[0]] || ""; }));
+}
+// Uma aba por cor (todas as cores, mesmo vazias) + aba Legenda, que o envio ignora.
+function planilhaPorCores(linhasPorTime) {
+  var wb = XLSX.utils.book_new();
+  COMP_NUM_TIMES.forEach(function (n) {
+    var ws = XLSX.utils.aoa_to_sheet([COMP_CAB_ABA].concat((linhasPorTime[n] || []).map(linhaAbaTime)));
+    ws["!cols"] = [{ wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 10 }, { wch: 6 }, { wch: 12 }, { wch: 6 }, { wch: 7 }, { wch: 7 }, { wch: 7 }];
+    XLSX.utils.book_append_sheet(wb, ws, COMP_TIMES[n][0]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ["Como preencher"],
+    ["Cada aba é um time: o nome da aba é a cor do time (não renomeie)."],
+    ["Atividade: " + COMP_ATIVS.map(function (a) { return a[1]; }).join(", ")],
+    ["Turno: " + COMP_TURNOS.join(", ")],
+    ["Piso: 1 a 4 (vazio na colmeia) · Observação: vazio ou Colmeia · Líder: S ou N"],
+    ["Presença (27/11, 28/11, 29/11): P = presente · F = falta (atestado conta como falta) · A = atraso · vazio = ainda não lançado"],
+  ]), "Legenda");
+  return wb;
+}
 var compAdm = { turno: "1º Turno", time: 1, editando: null, linhas: [], indice: null };
 
 function htmlSeguro(t) {
@@ -1447,7 +1488,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     "</div>" +
     '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
       '<div class="panel-head"><div><p class="kicker">Upload</p><h4>Planilha de escalação dos times <span class="badge-feito" id="comp-planilha-badge" hidden>✓ Feito</span></h4></div></div>' +
-      '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Atividade, Turno, Piso, Time, Observação, Líder</strong>.</p>' +
+      '<div class="upload-box"><p>Uma aba por time, com o <strong>nome da cor</strong> (Vermelho, Azul, Verde, Amarelo, Rosa, Roxo). Colunas: <strong>Nome, Usuário WMS, Atividade, Turno, Piso, Observação, Líder, 27/11, 28/11, 29/11</strong> (presença: P, F ou A). Use "Exportar times atuais" como base.</p>' +
       '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button><button class="btn ghost" id="comp-btn-exportar">Exportar times atuais</button>' +
       '<div class="upload-status" id="comp-planilha-status"></div></div>' +
       tabelaClassificacoesCompeticao() + "</div></div>";
@@ -1508,38 +1549,31 @@ async function renderCompeticaoAdmin(recarregarBase) {
     });
   });
 
-  // Modelo com uma linha de exemplo para cada combinação de Atividade × Observação × Líder.
+  // Modelo: mesmas abas por cor, com uma linha de exemplo para cada combinação de Atividade × Observação × Líder.
   document.getElementById("comp-btn-modelo").addEventListener("click", function () {
-    var aoa = [["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Time", "Observação", "Líder"]];
-    var k = 0;
+    var porTime = {}, k = 0;
     COMP_ATIVS.forEach(function (a) {
       var obsPossiveis = (a[0] === "sep" || a[0] === "conf") ? ["", "Colmeia"] : [""];
       obsPossiveis.forEach(function (obs) {
         ["S", "N"].forEach(function (lid) {
           var time = obs ? (k % 2 ? 6 : 5) : (k % 4) + 1;
-          aoa.push(["Colaborador " + (k + 1), "NOME.SOBRENOME" + (k + 1), a[1], COMP_TURNOS[k % COMP_TURNOS.length], obs ? "" : (time <= 4 ? time : ""), "0" + time, obs, lid]);
+          (porTime[time] = porTime[time] || []).push({ nome: "Colaborador " + (k + 1), usuario_wms: "NOME.SOBRENOME" + (k + 1), atividade: a[0], turno: COMP_TURNOS[k % COMP_TURNOS.length],
+            piso: obs ? "" : time, observacao: obs || null, lider: lid === "S", presenca: k % 3 ? { "2026-11-27": "P" } : { "2026-11-27": "F" } });
           k++;
         });
       });
     });
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
-    XLSX.writeFile(wb, "modelo_competicao_times.xlsx");
+    XLSX.writeFile(planilhaPorCores(porTime), "modelo_competicao_times.xlsx");
   });
-  // Exporta a escalação atual (todos os turnos) no mesmo formato da planilha de abastecimento.
+  // Exporta a escalação atual (todos os turnos), uma aba por cor, pronta para editar e reenviar.
   document.getElementById("comp-btn-exportar").addEventListener("click", function () {
     var ordemTurno = function (x) { return COMP_TURNOS.indexOf(x); };
-    var linhas = compAdm.linhas.slice().sort(function (a, b) {
-      return ordemTurno(a.turno) - ordemTurno(b.turno) || a.time - b.time || (b.lider ? 1 : 0) - (a.lider ? 1 : 0) || rotuloAtividade(a.atividade).localeCompare(rotuloAtividade(b.atividade)) || a.usuario_wms.localeCompare(b.usuario_wms);
-    });
-    var aoa = [["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Time", "Observação", "Líder"]].concat(linhas.map(function (l) {
-      var obs = l.observacao || (/colmeia$/.test(l.atividade) ? "Colmeia" : "");
-      return [l.nome || "", l.usuario_wms, rotuloAtividade(l.atividade), l.turno, l.piso || "", "0" + l.time, obs, l.lider ? "S" : "N"];
-    }));
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
+    var porTime = {};
+    compAdm.linhas.slice().sort(function (a, b) {
+      return ordemTurno(a.turno) - ordemTurno(b.turno) || (b.lider ? 1 : 0) - (a.lider ? 1 : 0) || rotuloAtividade(a.atividade).localeCompare(rotuloAtividade(b.atividade)) || a.usuario_wms.localeCompare(b.usuario_wms);
+    }).forEach(function (l) { (porTime[l.time] = porTime[l.time] || []).push(l); });
     var hoje = new Date();
-    XLSX.writeFile(wb, "times_competicao_" + hoje.getFullYear() + String(hoje.getMonth() + 1).padStart(2, "0") + String(hoje.getDate()).padStart(2, "0") + ".xlsx");
+    XLSX.writeFile(planilhaPorCores(porTime), "times_competicao_" + hoje.getFullYear() + String(hoje.getMonth() + 1).padStart(2, "0") + String(hoje.getDate()).padStart(2, "0") + ".xlsx");
   });
   document.getElementById("comp-btn-planilha").addEventListener("click", async function () {
     var input = document.getElementById("comp-planilha");
@@ -1556,11 +1590,21 @@ async function renderCompeticaoAdmin(recarregarBase) {
 }
 
 // A planilha substitui a escalação inteira dos turnos que ela traz (todas as atividades); os outros turnos ficam como estão.
+// Abas da planilha de times: as que têm nome de cor viram o time; sem nenhuma, vale a 1ª aba (formato antigo, coluna Time).
+async function lerAbasCompeticao(file) {
+  var nome = file.name.toLowerCase();
+  if (nome.endsWith(".tsv") || nome.endsWith(".txt")) return [{ aba: null, time: null, rows: await parseArquivoGenerico(file) }];
+  var wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  var abasCor = wb.SheetNames.filter(function (n) { return timeDaAba(n); });
+  if (!abasCor.length) return [{ aba: null, time: null, rows: XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" }) }];
+  return abasCor.map(function (n) { return { aba: n, time: timeDaAba(n), rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: "", raw: false }) }; });
+}
+
 async function processarPlanilhaCompeticao(file, idx) {
-  var rows = await parseArquivoGenerico(file);
+  var abas = await lerAbasCompeticao(file);
   var validos = new Map(), erros = [], foraBase = 0;
-  rows.forEach(function (row, i) {
-    var linha = i + 2;
+  abas.forEach(function (aba) { aba.rows.forEach(function (row, i) {
+    var linha = (aba.aba ? aba.aba + " " : "") + (i + 2);
     var usuarioRaw = String(obterCampo(row, ["Usuário WMS", "Usuario WMS", "Usuário", "Usuario"]) || "").trim();
     if (!usuarioRaw && !String(obterCampo(row, ["Nome"]) || "").trim()) return; // linha vazia
     var base = usuarioRaw ? idx.get(normalizarUsuarioWMS(usuarioRaw)) : null;
@@ -1568,7 +1612,7 @@ async function processarPlanilhaCompeticao(file, idx) {
     var atividade = atividadeDeTexto(textoAtv);
     var turno = turnoDeTexto(obterCampo(row, ["Turno"]) || (base && base.turno) || "");
     var piso = inteiroDe(obterCampo(row, ["Piso", "Andar"]), 1, 4);
-    var time = inteiroDe(obterCampo(row, ["Time"]), 1, 6);
+    var time = aba.time || inteiroDe(obterCampo(row, ["Time"]), 1, 6);
     var obsTxt = normalizarTexto(obterCampo(row, ["Observação", "Observacao", "Obs"]));
     var observacao = (obsTxt.indexOf("COLMEIA") !== -1 || normalizarTexto(textoAtv).indexOf("COLMEIA") !== -1) ? "Colmeia" : null;
     var lider = /^(S|SIM|X|TRUE|1)$/.test(normalizarTexto(obterCampo(row, ["Líder", "Lider"])));
@@ -1576,16 +1620,16 @@ async function processarPlanilhaCompeticao(file, idx) {
     if (!usuarioRaw) falta.push("usuário WMS");
     if (!atividade) falta.push("atividade");
     if (!turno) falta.push("turno");
-    if (!time) falta.push("time (01 a 06)");
+    if (!time) falta.push("time (aba com o nome da cor)");
     if (falta.length) { erros.push("linha " + linha + " (" + (usuarioRaw || "sem usuário") + "): " + falta.join(", ")); return; }
     if (!base) foraBase++;
     var usuario = normalizarUsuarioWMS(usuarioRaw); // o da planilha, não o palpite da Base de Ativos
     validos.set(usuario + "|" + atividade + "|" + turno, {
       usuario_wms: usuario, nome: base ? base.nome : (String(obterCampo(row, ["Nome"]) || "").trim() || null),
       turno: turno, atividade: atividade, setor: null, piso: piso || null, time: time,
-      observacao: observacao, lider: lider, atualizado_em: new Date().toISOString(),
+      observacao: observacao, lider: lider, presenca: presencaDaLinha(row), atualizado_em: new Date().toISOString(),
     });
-  });
+  }); });
   var registros = Array.from(validos.values());
   if (!registros.length) throw new Error(erros.length ? "Nenhuma linha válida. " + erros.slice(0, 3).join(" · ") : "A planilha não tem linhas.");
   var turnos = Array.from(new Set(registros.map(function (r) { return r.turno; })));
@@ -1596,10 +1640,18 @@ async function processarPlanilhaCompeticao(file, idx) {
     if (ins.error) throw new Error("Falha ao gravar os times: " + ins.error.message);
   }
   var lideres = registros.filter(function (r) { return r.lider; }).length;
-  var resumo = "✓ " + registros.length + " membro(s) gravado(s) em " + turnos.length + " turno(s) · " + lideres + " líder(es)";
+  var comPresenca = registros.filter(function (r) { return Object.keys(r.presenca).length; }).length;
+  var resumo = "✓ " + registros.length + " membro(s) gravado(s) em " + turnos.length + " turno(s) · " + lideres + " líder(es)" + (abas[0].aba ? " · " + abas.length + " aba(s) de time" : "") + (comPresenca ? " · presença de " + comPresenca + " pessoa(s)" : "");
   if (foraBase) resumo += " · " + foraBase + " fora da Base de Ativos";
   if (erros.length) resumo += " · " + erros.length + " linha(s) ignorada(s): " + erros.slice(0, 3).join("; ");
   return { texto: resumo, classe: erros.length ? "pendente" : "ok" };
+}
+
+// Colunas 27/11, 28/11, 29/11 -> {"2026-11-27":"P", ...} (só os dias preenchidos).
+function presencaDaLinha(row) {
+  var p = {};
+  COMP_DIAS_BLACK.forEach(function (d) { var v = presencaDeTexto(obterCampo(row, [d[1]])); if (v) p[d[0]] = v; });
+  return p;
 }
 
 function fmtDataBRIngest(iso) { var p = String(iso).slice(0, 10).split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : iso; }

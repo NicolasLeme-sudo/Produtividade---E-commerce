@@ -18,7 +18,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 - Times: 1 Vermelho `#EF5B5B`, 2 Azul `#4C95F0`, 3 Verde `#45C665`, 4 Amarelo `#F6C400`, 5 Rosa `#EC4FA0`, 6 Roxo `#A773EA`. Times 5 e 6 = colmeia.
 - Meta/dia (provisória, falta a oficial): times 1–4 = 2000 peças, 5–6 = 1200. Constante `META_DIA_TIME`.
 - Cards abaixo da pista seguem a mesma ordem das posições (`timesOrdemPista`), também no index.html.
-- Membros em `competicao_times` (usuario_wms, atividade, turno, time).
+- Membros em `competicao_times` (usuario_wms, atividade, turno, time, presenca jsonb). Planilha de escalação: **uma aba por time com o nome da cor** (Vermelho…Roxo, + aba Legenda ignorada); colunas Nome, Usuário WMS, Atividade, Turno, Piso, Observação, Líder, 27/11, 28/11, 29/11 (P/F/A; atestado = F). Formato antigo (1 aba com coluna Time) ainda é aceito. "Exportar times atuais" gera o arquivo no formato novo.
 
 ## Telão (tv.html)
 - Login `@vulcabras.com`; usuário do telão com perfil `gestao` (sessão persistente, `storageKey: telao-produtividade`).
