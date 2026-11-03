@@ -1185,6 +1185,15 @@ function podarMinutos(lista) {
     var c = Object.assign({}, d); delete c.checkoutMin; delete c.colmeiaMin; return c;
   });
 }
+// Por hora (analítico): o arquivo só substitui os dias que são dele pela coluna Data. Tarefas que
+// começaram num dia anterior (poucas peças) não apagam o hora a hora completo desse dia já salvo.
+function mesclarHoras(anterior, novos, diasDoArquivo) {
+  var salvos = new Set((anterior || []).map(function (d) { return d.data; }));
+  return mesclarDias(anterior, (novos || []).filter(function (d) { return diasDoArquivo.has(d.data) || !salvos.has(d.data); }));
+}
+function diasDasPecas(pecas) {
+  var s = new Set(); ["checkout", "colmeia"].forEach(function (t) { (pecas[t] || new Map()).forEach(function (m, dia) { s.add(dia); }); }); return s;
+}
 function mesclarDias(anterior, novoArray) {
   var mapa = new Map((anterior || []).map(function (d) { return [d.data, d]; }));
   (novoArray || []).forEach(function (d) { mapa.set(d.data, d); });
@@ -2260,7 +2269,7 @@ async function processar(id) {
       atualSA.separacao = atualSA.separacao || {};
       var sepA = atualSA.separacao;
       // Os dias do arquivo substituem os já salvos; os demais ficam (guarda até 31 dias de hora a hora).
-      sepA.analitico = podarMinutos(mesclarDias(sepA.analitico, diasS).slice(-31));
+      sepA.analitico = podarMinutos(mesclarHoras(sepA.analitico, diasS, diasDasPecas(acS.pecas)).slice(-31));
       sepA.checkoutDia = mesclarDias(sepA.checkoutDia, diaMapParaArray(acS.pecas.checkout));
       sepA.colmeiaDia = mesclarDias(sepA.colmeiaDia, diaMapParaArray(acS.pecas.colmeia));
       sepA.checkoutSegDia = mesclarDias(sepA.checkoutSegDia, diaMapParaArray(acS.seg.checkout));
@@ -2295,7 +2304,7 @@ async function processar(id) {
       var atualCA = await lerSnapshot("outbound");
       atualCA.conferencia = atualCA.conferencia || {};
       var confA = atualCA.conferencia;
-      confA.analitico = podarMinutos(mesclarDias(confA.analitico, diasC).slice(-31));
+      confA.analitico = podarMinutos(mesclarHoras(confA.analitico, diasC, diasDasPecas(acC.pecas)).slice(-31));
       confA.confCheckoutDia = mesclarDias(confA.confCheckoutDia, diaMapParaArray(acC.pecas.checkout));
       confA.confCheckoutSegDia = mesclarDias(confA.confCheckoutSegDia, diaMapParaArray(acC.seg.checkout));
       confA.confCheckout = mapParaRanking(acC.totais.checkout);
