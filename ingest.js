@@ -1362,21 +1362,21 @@ function timeDaAba(nome) {
 }
 function linhaAbaTime(l) {
   var obs = l.observacao || (/colmeia$/.test(l.atividade) ? "Colmeia" : "");
-  return [l.nome || "", l.usuario_wms, rotuloAtividade(l.atividade), l.turno, l.piso || "", obs, l.lider ? "S" : "N"]
+  return [l.nome || "", l.usuario_wms, l.sigla || siglaAtividade(l.atividade), l.turno, l.piso || "", obs, l.lider ? "S" : "N"]
     .concat(COMP_DIAS_BLACK.map(function (d) { return (l.presenca || {})[d[0]] || ""; }));
 }
 // Uma aba por cor (todas as cores, mesmo vazias) + aba Legenda, que o envio ignora.
 function planilhaPorCores(linhasPorTime) {
   var wb = XLSX.utils.book_new();
   COMP_NUM_TIMES.forEach(function (n) {
-    var ws = XLSX.utils.aoa_to_sheet([COMP_CAB_ABA].concat((linhasPorTime[n] || []).map(linhaAbaTime)));
-    ws["!cols"] = [{ wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 10 }, { wch: 6 }, { wch: 12 }, { wch: 6 }, { wch: 7 }, { wch: 7 }, { wch: 7 }];
+    var ws = XLSX.utils.aoa_to_sheet([COMP_CAB_ABA].concat(juntarAtividades(linhasPorTime[n] || []).map(linhaAbaTime)));
+    ws["!cols"] = [{ wch: 28 }, { wch: 22 }, { wch: 9 }, { wch: 10 }, { wch: 6 }, { wch: 12 }, { wch: 6 }, { wch: 7 }, { wch: 7 }, { wch: 7 }];
     XLSX.utils.book_append_sheet(wb, ws, COMP_TIMES[n][0]);
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
     ["Como preencher"],
     ["Cada aba é um time: o nome da aba é a cor do time (não renomeie)."],
-    ["Atividade: " + COMP_ATIVS.map(function (a) { return a[1]; }).join(", ")],
+    ["Atividade: S = Separação · C = Conferência · C/S = faz as duas (uma linha só por pessoa). Também aceita Embalagem e Embarque."],
     ["Turno: " + COMP_TURNOS.join(", ")],
     ["Piso: 1 a 4 (vazio na colmeia) · Observação: vazio ou Colmeia · Líder: S ou N"],
     ["Presença (27/11, 28/11, 29/11): P = presente · F = falta (atestado conta como falta) · A = atraso · vazio = ainda não lançado"],
@@ -1392,6 +1392,34 @@ function rotuloAtividade(a) {
   var base = String(a || "").replace(/_.*/, "");
   var r = COMP_ATIVS.filter(function (x) { return x[0] === base; })[0];
   return r ? r[1] : a;
+}
+// Sigla da planilha de times: S = Separação, C = Conferência (as outras atividades vão por extenso).
+function siglaAtividade(a) {
+  var base = String(a || "").replace(/_.*/, "");
+  return base === "sep" ? "S" : base === "conf" ? "C" : rotuloAtividade(a);
+}
+// Mesma pessoa, turno e time com Separação e Conferência = uma linha "C/S" na planilha.
+function juntarAtividades(linhas) {
+  var porChave = new Map(), saida = [];
+  linhas.forEach(function (l) {
+    var k = l.usuario_wms + "|" + l.turno + "|" + l.time, s = siglaAtividade(l.atividade);
+    var j = porChave.get(k);
+    if (j && (s === "C" || s === "S") && (j.sigla === "C" || j.sigla === "S") && j.sigla !== s) { j.sigla = "C/S"; return; }
+    if (j && j.sigla === s) return;
+    var nova = Object.assign({}, l, { sigla: s });
+    if (s === "C" || s === "S") porChave.set(k, nova);
+    saida.push(nova);
+  });
+  return saida;
+}
+// Atividades de uma célula: "S", "C", "C/S" (ou S/C, CS, Ambas) e os nomes por extenso.
+function atividadesDeTexto(t) {
+  var n = normalizarTexto(t).replace(/\s+/g, "");
+  if (/^(C\/S|S\/C|CS|SC|C\+S|S\+C|CES|SEC|AMBAS|AMBOS|AS2|ASDUAS)$/.test(n) || (n.indexOf("SEPARA") !== -1 && n.indexOf("CONFER") !== -1)) return ["sep", "conf"];
+  if (n === "S") return ["sep"];
+  if (n === "C") return ["conf"];
+  var a = atividadeDeTexto(t);
+  return a ? [a] : [];
 }
 // Atividade genérica da planilha. "Conferência Colmeia" (formato antigo) vira Conferência + Observação Colmeia.
 function atividadeDeTexto(t) {
@@ -1480,7 +1508,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
       '<div class="panel" style="display:flex; flex-direction:column; gap:10px">' +
         '<div class="panel-head"><div><p class="kicker">' + htmlSeguro(compAdm.turno) + '</p><h4>Time 0' + compAdm.time + " · " + COMP_TIMES[compAdm.time][0] + "</h4></div></div>" +
         '<div class="comp-add"><input id="comp-novo-usuario" placeholder="Usuário WMS (ex.: NOME.SOBRENOME)" aria-label="Usuário WMS">' +
-          '<select id="comp-novo-atv" aria-label="Atividade">' + opcoes(COMP_ATIVS, "sep") + '</select><select id="comp-novo-piso" aria-label="Piso">' + opcoes(OPC_PISO, "") + "</select>" +
+          '<select id="comp-novo-atv" aria-label="Atividade">' + opcoes([["sep+conf", "C/S (as duas)"]].concat(COMP_ATIVS), "sep") + '</select><select id="comp-novo-piso" aria-label="Piso">' + opcoes(OPC_PISO, "") + "</select>" +
           '<select id="comp-novo-obs" aria-label="Observação">' + opcoes(OPC_OBS, "") + '</select><select id="comp-novo-lider" aria-label="Líder">' + opcoes(OPC_LIDER, "false") + "</select>" +
           '<button class="btn" id="comp-btn-add">Adicionar</button></div>' +
         '<div class="upload-status" id="comp-membro-status"></div>' + '<div class="comp-lista-membros">' + htmlMembros + "</div>" +
@@ -1488,7 +1516,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     "</div>" +
     '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
       '<div class="panel-head"><div><p class="kicker">Upload</p><h4>Planilha de escalação dos times <span class="badge-feito" id="comp-planilha-badge" hidden>✓ Feito</span></h4></div></div>' +
-      '<div class="upload-box"><p>Uma aba por time, com o <strong>nome da cor</strong> (Vermelho, Azul, Verde, Amarelo, Rosa, Roxo). Colunas: <strong>Nome, Usuário WMS, Atividade, Turno, Piso, Observação, Líder, 27/11, 28/11, 29/11</strong> (presença: P, F ou A). Use "Exportar times atuais" como base.</p>' +
+      '<div class="upload-box"><p>Uma aba por time, com o <strong>nome da cor</strong> (Vermelho, Azul, Verde, Amarelo, Rosa, Roxo). Colunas: <strong>Nome, Usuário WMS, Atividade (S, C ou C/S), Turno, Piso, Observação, Líder, 27/11, 28/11, 29/11</strong> (presença: P, F ou A). Use "Exportar times atuais" como base.</p>' +
       '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button><button class="btn ghost" id="comp-btn-exportar">Exportar times atuais</button>' +
       '<div class="upload-status" id="comp-planilha-status"></div></div>' +
       tabelaClassificacoesCompeticao() + "</div>" +
@@ -1509,16 +1537,20 @@ async function renderCompeticaoAdmin(recarregarBase) {
     if (!digitado) { avisoMembro("Informe o usuário do WMS.", "pendente"); return; }
     var base = idx.get(normalizarUsuarioWMS(digitado));
     var piso = document.getElementById("comp-novo-piso").value;
+    var atvSel = document.getElementById("comp-novo-atv").value;
     var registro = {
       // Grava o usuário digitado: o usuario_wms da Base de Ativos é um palpite (1º + 2º nome) e costuma diferir do WMS.
       usuario_wms: normalizarUsuarioWMS(digitado), nome: base ? base.nome : null,
-      turno: compAdm.turno, atividade: document.getElementById("comp-novo-atv").value, time: compAdm.time,
+      turno: compAdm.turno, atividade: atvSel, time: compAdm.time,
       piso: piso ? Number(piso) : null, setor: null,
       observacao: document.getElementById("comp-novo-obs").value || null,
       lider: document.getElementById("comp-novo-lider").value === "true",
       atualizado_em: new Date().toISOString(),
     };
-    var { error } = await supabaseClient.from("competicao_times").upsert(registro, { onConflict: "usuario_wms,atividade,turno" });
+    var registros = atvSel === "sep+conf"
+      ? ["sep", "conf"].map(function (a) { return Object.assign({}, registro, { atividade: a }); })
+      : [registro];
+    var { error } = await supabaseClient.from("competicao_times").upsert(registros, { onConflict: "usuario_wms,atividade,turno" });
     if (error) { avisoMembro("Erro: " + error.message, "erro"); return; }
     await recarregar();
     avisoMembro(base ? "Membro adicionado." : "Adicionado, mas este usuário não está na Base de Ativos — confira o nome.", base ? "ok" : "pendente");
@@ -1563,6 +1595,9 @@ async function renderCompeticaoAdmin(recarregarBase) {
           k++;
         });
       });
+    });
+    ["sep", "conf"].forEach(function (a) {   // exemplo de quem faz as duas: vira uma linha "C/S"
+      (porTime[1] = porTime[1] || []).push({ nome: "Colaborador C/S", usuario_wms: "NOME.AMBAS", atividade: a, turno: "1º Turno", piso: 1, observacao: null, lider: false, presenca: { "2026-11-27": "P" } });
     });
     XLSX.writeFile(planilhaPorCores(porTime), "modelo_competicao_times.xlsx");
   });
@@ -1627,7 +1662,8 @@ async function renderPontosBlack() {
   for (var h = Math.floor(T.ini / 60); h < Math.ceil(T.fim / 60); h++) horas.push([h % 24, String(h % 24).padStart(2, "0") + "h00–" + String((h + 1) % 24).padStart(2, "0") + "h00"]);
 
   el.innerHTML = '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:12px">' +
-    '<div class="panel-head"><div><p class="kicker">Missão Black</p><h4>Pontos da Black · vistoria, desafios e ajustes</h4></div></div>' +
+    '<div class="panel-head"><div><p class="kicker">Missão Black</p><h4>Pontos da Black · vistoria, desafios e ajustes</h4></div>' +
+      '<button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições de Pontos por Time</button></div>' +
     (semTabela ? '<div class="upload-status erro">As tabelas de pontos ainda não existem no banco: rode o arquivo sql/black_pontos.sql no Supabase.</div>' : "") +
     '<div class="comp-add"><select id="pb-dia">' + opcoes(dias, pb.dia) + '</select><select id="pb-turno">' + opcoes(COMP_TURNOS, pb.turno) + '</select><select id="pb-time">' + opcoes(times, pb.time) + "</select></div>" +
     '<div class="pb-col"><div><p class="kicker">Vistoria (desconta na hora)</p><div class="pb-check">' + checklist + "</div>" +
@@ -1647,6 +1683,10 @@ async function renderPontosBlack() {
   var aviso = function (t, c) { var a = document.getElementById("pb-status"); if (a) { a.textContent = t; a.className = "upload-status" + (c ? " " + c : ""); } };
   var sel = function (id, k, num) { document.getElementById(id).addEventListener("change", function () { pb[k] = num ? Number(this.value) : this.value; renderPontosBlack(); }); };
   sel("pb-dia", "dia"); sel("pb-turno", "turno"); sel("pb-time", "time", true);
+  document.getElementById("pb-btn-extrair").addEventListener("click", async function () {
+    aviso("Montando a planilha…", "pendente");
+    try { aviso(await extrairPontosBlack(), "ok"); } catch (e) { console.error(e); aviso("Erro ao extrair: " + e.message, "erro"); }
+  });
   var email = async function () { var r = await supabaseClient.auth.getSession(); return r.data && r.data.session ? r.data.session.user.email : null; };
   var gravar = async function (linhas, ok) {
     var em = await email();
@@ -1702,6 +1742,84 @@ async function renderPontosBlack() {
   });
 }
 
+// Planilha "Descontos e Adições de Pontos por Time": mesma conta do placar (RegrasBlack.placarDoDia).
+// Dias da Black já passados × turnos com escalação; antes da Black, o dia e o turno escolhidos (prévia).
+async function extrairPontosBlack() {
+  var RB = window.RegrasBlack;
+  var r = await Promise.all([
+    supabaseClient.from("dashboard_snapshots").select("dados").eq("pagina", "outbound").maybeSingle(),
+    supabaseClient.from("competicao_times").select("*"),
+    supabaseClient.from("competicao_pontos").select("*").order("criado_em"),
+    supabaseClient.from("competicao_hora_ouro").select("*").order("dia").order("hora"),
+  ]);
+  r.forEach(function (x) { if (x.error) throw new Error(x.error.message); });
+  var snap = (r[0].data && r[0].data.dados) || {}, cad = r[1].data || [], lanc = r[2].data || [], ouros = r[3].data || [];
+  var hoje = RB.turnoAtual(new Date()).dia;
+  var dias = RB.DIAS.map(function (d) { return d[0]; }).filter(function (d) { return d <= hoje; });
+  var pares = [];
+  if (!dias.length) pares.push([pb.dia, pb.turno]);
+  else dias.forEach(function (d) { COMP_TURNOS.forEach(function (t) { if (cad.some(function (x) { return x.turno === t; })) pares.push([d, t]); }); });
+
+  var nomeTime = function (n) { return COMP_TIMES[n] ? COMP_TIMES[n][0] : "Time " + n; };
+  var abaTimes = [["Dia", "Turno", "Time", "Grupo", "Peças", "Meta do dia", "Produtividade", "Escalados", "Presentes", "Atrasos", "Assiduidade",
+    "Desafios", "Vistoria", "Meta batida", "Antecipada", "Hora de ouro", "Destaque", "Ajustes", "Total do dia"]];
+  var abaPessoas = [["Dia", "Turno", "Time", "Nome", "Usuário WMS", "Atividade", "Peças separação", "Peças conferência", "Peças total", "Presença", "Destaque", "Pontos de destaque"]];
+  var abaOuro = [["Dia", "Turno", "Hora", "Time", "Meta da hora", "Peças na hora", "Hora terminou", "Bateu", "Bônus (peças em dobro)"]];
+  var porTurno = {};
+  pares.forEach(function (par) {
+    var dia = par[0], turno = par[1], cadT = cad.filter(function (x) { return x.turno === turno; });
+    var c = RB.calcularCompeticao(snap, cadT, dia);
+    var pl = RB.placarDoDia({ c: c, snap: snap, cadastro: cadT, dia: dia, turno: turno, agora: new Date(),
+      lanc: lanc.filter(function (l) { return l.dia === dia && l.turno === turno; }),
+      ouro: ouros.filter(function (o) { return o.dia === dia && o.turno === turno; }) });
+    (porTurno[turno] = porTurno[turno] || []).push(pl);
+    var dBR = fmtDataBRIngest(dia);
+    pl.linhas.forEach(function (x) {
+      abaTimes.push([dBR, turno, nomeTime(x.n), x.colmeia ? "Colmeia" : "Piso", x.pecas, x.meta, x.produtividade, x.escalados, x.presentes, x.atrasos, x.assiduidade,
+        x.desafios, x.segQual, x.metaBatida, x.antecipada, x.ouro, x.destaque, x.ajustes, x.total]);
+      x.ouroDetalhe.forEach(function (o) {
+        abaOuro.push([dBR, turno, String(o.hora).padStart(2, "0") + "h00", nomeTime(x.n), o.meta, o.feitas, o.terminou ? "Sim" : "Não", o.bateu ? "Sim" : "Não", o.bateu ? o.feitas : 0]);
+      });
+      // Colaboradores: quem produziu (lista da corrida) + quem está escalado e não produziu.
+      var t = c.times[x.n - 1], vistos = {};
+      var linhasCad = juntarAtividades(cadT.filter(function (l) { return l.time === x.n; }));
+      var cadDe = function (u) { return linhasCad.filter(function (l) { return l.usuario_wms === u; }); };
+      var linhaPessoa = function (usuario, nome, sep, conf) {
+        var lc = cadDe(usuario), pres = "";
+        lc.forEach(function (l) { if (l.presenca && l.presenca[dia]) pres = l.presenca[dia]; });
+        var dest = x.destaques.filter(function (d) { return d.nome === (nome || usuario) && ((d.funcao === "Separação" && d.pecas === sep) || (d.funcao === "Conferência" && d.pecas === conf)); });
+        abaPessoas.push([dBR, turno, nomeTime(x.n), nome || "", usuario, lc.map(function (l) { return l.sigla; }).join(", "), sep, conf, sep + conf, pres,
+          dest.map(function (d) { return d.funcao; }).join(" e "), dest.length * RB.pts(RB.P.destaque, x.n)]);
+      };
+      t.lista.forEach(function (m) { vistos[m.usuario] = 1; linhaPessoa(m.usuario, m.nome, m.sep, m.conf); });
+      linhasCad.forEach(function (l) { if (!vistos[l.usuario_wms]) { vistos[l.usuario_wms] = 1; linhaPessoa(l.usuario_wms, l.nome, 0, 0); } });
+    });
+  });
+  var abaAcum = [["Turno", "Time", "Dias", "Dias com 100% de presença", "Trinca Perfeita", "Total acumulado"]];
+  Object.keys(porTurno).forEach(function (turno) {
+    var ac = RB.acumulado(porTurno[turno]);
+    Object.keys(ac).sort(function (a, b) { return ac[b].total - ac[a].total; }).forEach(function (n) {
+      abaAcum.push([turno, nomeTime(Number(n)), ac[n].dias, ac[n].dias100, ac[n].trinca, ac[n].total]);
+    });
+  });
+  var abaLanc = [["Dia", "Turno", "Time", "Categoria", "Item", "Pontos", "Motivo", "Lançado por", "Lançado em"]];
+  lanc.forEach(function (l) {
+    abaLanc.push([fmtDataBRIngest(l.dia), l.turno, nomeTime(l.time), l.categoria, l.item || "", l.pontos, l.motivo || "",
+      (l.registrado_email || "").replace(/@.*/, ""), new Date(l.criado_em).toLocaleString("pt-BR")]);
+  });
+
+  var wb = XLSX.utils.book_new();
+  [["Times", abaTimes, 14], ["Acumulado", abaAcum, 16], ["Colaboradores", abaPessoas, 16], ["Lançamentos", abaLanc, 16], ["Horas de ouro", abaOuro, 14]].forEach(function (a) {
+    var ws = XLSX.utils.aoa_to_sheet(a[1]);
+    ws["!cols"] = a[1][0].map(function (h) { return { wch: Math.max(a[2], String(h).length + 2) }; });
+    XLSX.utils.book_append_sheet(wb, ws, a[0]);
+  });
+  var agora = new Date(), carimbo = agora.getFullYear() + String(agora.getMonth() + 1).padStart(2, "0") + String(agora.getDate()).padStart(2, "0") + "_" + String(agora.getHours()).padStart(2, "0") + String(agora.getMinutes()).padStart(2, "0");
+  XLSX.writeFile(wb, "pontos_black_" + carimbo + ".xlsx");
+  return "✓ Planilha gerada: " + pares.length + " dia(s)/turno(s)" + (dias.length ? "" : " (prévia de " + fmtDataBRIngest(pb.dia) + " · " + pb.turno + ")") +
+    " · " + (abaPessoas.length - 1) + " linha(s) de colaborador · " + lanc.length + " lançamento(s).";
+}
+
 // A planilha substitui a escalação inteira dos turnos que ela traz (todas as atividades); os outros turnos ficam como estão.
 // Abas da planilha de times: as que têm nome de cor viram o time; sem nenhuma, vale a 1ª aba (formato antigo, coluna Time).
 async function lerAbasCompeticao(file) {
@@ -1722,7 +1840,7 @@ async function processarPlanilhaCompeticao(file, idx) {
     if (!usuarioRaw && !String(obterCampo(row, ["Nome"]) || "").trim()) return; // linha vazia
     var base = usuarioRaw ? idx.get(normalizarUsuarioWMS(usuarioRaw)) : null;
     var textoAtv = obterCampo(row, ["Atividade"]);
-    var atividade = atividadeDeTexto(textoAtv);
+    var atividades = atividadesDeTexto(textoAtv);
     var turno = turnoDeTexto(obterCampo(row, ["Turno"]) || (base && base.turno) || "");
     var piso = inteiroDe(obterCampo(row, ["Piso", "Andar"]), 1, 4);
     var time = aba.time || inteiroDe(obterCampo(row, ["Time"]), 1, 6);
@@ -1731,16 +1849,19 @@ async function processarPlanilhaCompeticao(file, idx) {
     var lider = /^(S|SIM|X|TRUE|1)$/.test(normalizarTexto(obterCampo(row, ["Líder", "Lider"])));
     var falta = [];
     if (!usuarioRaw) falta.push("usuário WMS");
-    if (!atividade) falta.push("atividade");
+    if (!atividades.length) falta.push("atividade (S, C ou C/S)");
     if (!turno) falta.push("turno");
     if (!time) falta.push("time (aba com o nome da cor)");
     if (falta.length) { erros.push("linha " + linha + " (" + (usuarioRaw || "sem usuário") + "): " + falta.join(", ")); return; }
     if (!base) foraBase++;
     var usuario = normalizarUsuarioWMS(usuarioRaw); // o da planilha, não o palpite da Base de Ativos
-    validos.set(usuario + "|" + atividade + "|" + turno, {
-      usuario_wms: usuario, nome: base ? base.nome : (String(obterCampo(row, ["Nome"]) || "").trim() || null),
-      turno: turno, atividade: atividade, setor: null, piso: piso || null, time: time,
-      observacao: observacao, lider: lider, presenca: presencaDaLinha(row), atualizado_em: new Date().toISOString(),
+    var presenca = presencaDaLinha(row), nome = base ? base.nome : (String(obterCampo(row, ["Nome"]) || "").trim() || null);
+    atividades.forEach(function (atividade) {   // C/S = um registro de Separação e outro de Conferência
+      validos.set(usuario + "|" + atividade + "|" + turno, {
+        usuario_wms: usuario, nome: nome,
+        turno: turno, atividade: atividade, setor: null, piso: piso || null, time: time,
+        observacao: observacao, lider: lider, presenca: presenca, atualizado_em: new Date().toISOString(),
+      });
     });
   }); });
   var registros = Array.from(validos.values());
@@ -2247,6 +2368,12 @@ window.ProdutividadeIngest = {
   lancarPallet: lancarPallet,
   alternarCicloInventario: alternarCicloInventario,
   salvarMetaInventario: salvarMetaInventario,
+  // Robô: "Importado em" (ms) do pedido em aberto mais antigo de um Acompanhamento OP.
+  maisAntigoOp: async function (file) {
+    var p = processarOperacaoOp(await parseArquivoGenerico(file)), m = null;
+    Object.keys(p).forEach(function (k) { var t = p[k][2]; if (t && (m === null || t < m)) m = t; });
+    return m;
+  },
 };
 
 })();

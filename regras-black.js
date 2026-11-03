@@ -1,7 +1,8 @@
 /* =========================================================================
    REGRAS-BLACK.JS — Missão Black Friday 2026 (27, 28 e 29/11)
-   Único lugar com os valores da pontuação. Usado pelo telão (placar), pela
-   tela de lançamento (ingest.js) e pelo documento de regras dos pisos.
+   Único lugar com os valores da pontuação e com a conta da competição usada
+   pelo telão (Corrida) e pela planilha de pontos da tela de lançamento
+   (ingest.js). Também alimenta o documento de regras dos pisos.
    Mudou um valor aqui, muda em todos.
    ========================================================================= */
 (function (global) {
@@ -91,6 +92,65 @@ function horasDoMembro(snap, dia, chaves) {
   return h;
 }
 function chaveUsu(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/,/g, '.').trim().toUpperCase(); }
+
+/* ---------- Conta da competição (filtros fixos: separação + conferência, checkout + colmeia) ----------
+   Usada pelo telão (Corrida) e pela planilha "Extrair descontos e adições" (ingest.js).
+   O index.html tem a versão dele, com os filtros da tela. */
+var NUM_TIMES = [1, 2, 3, 4, 5, 6], TIMES_COLMEIA = { 5: true, 6: true };
+var META_DIA_TIME = { 1: 2000, 2: 2000, 3: 2000, 4: 2000, 5: 1200, 6: 1200 };   // provisória
+var CONECTIVOS = ['DE', 'DA', 'DO', 'DAS', 'DOS', 'E'];
+function chavesDoMembro(r) {
+  var ks = [chaveUsu(r.usuario_wms), chaveUsu(r.nome)];
+  var t = chaveUsu(r.nome).split(/\s+/).filter(function (x) { return x && CONECTIVOS.indexOf(x) === -1; });
+  if (t.length > 1) { t.slice(1).reverse().forEach(function (x) { ks.push(t[0] + '.' + x); }); if (t.length > 2) ks.push(t[0] + '.' + t[1].charAt(0) + '.' + t[t.length - 1]); }
+  return ks.filter(function (k, i) { return k && ks.indexOf(k) === i; });
+}
+// Filtro "Dia": de cada série, só o último dia que existe nela.
+function ultimoDia(serie) { if (!serie || !serie.length) return []; var o = serie.slice().sort(function (a, b) { return String(a.data).localeCompare(String(b.data)); }); return o.slice(-1); }
+function producaoDaFonte(snap, fonte, diaAlvo) {
+  var o = snap || {}, sep = o.separacao || {}, conf = o.conferencia || {};
+  var f = { sep_checkout: { v: sep.checkoutDia }, sep_colmeia: { v: sep.colmeiaDia }, conf_checkout: { v: conf.confCheckoutDia }, conf_colmeia: { v: conf.confColmeiaUnitDia } }[fonte];
+  var m = new Map(), datas = [];
+  var serie = diaAlvo ? (f.v || []).filter(function (d) { return String(d.data).slice(0, 10) === diaAlvo; }) : ultimoDia(f.v);
+  serie.forEach(function (d) { datas.push(String(d.data).slice(0, 10)); Object.keys(d.itens || {}).forEach(function (n) { var k = chaveUsu(n); m.set(k, (m.get(k) || 0) + (d.itens[n] || 0)); }); });
+  return { valores: m, datas: datas, temDados: !!(f.v && f.v.length) };
+}
+function grupoDoCadastro(r) { return /^sep/.test(r.atividade) ? 'sep' : 'conf'; }
+function obsColmeia(r) { return r.observacao === 'Colmeia' || r.atividade === 'conf_colmeia' || r.atividade === 'sep_colmeia'; }
+function opsDoCadastro(r) { return (!r.lider && (TIMES_COLMEIA[r.time] || obsColmeia(r))) ? ['colmeia'] : ['checkout', 'colmeia']; }
+// snap = dados do snapshot outbound · cadastro = linhas de competicao_times · diaAlvo = 'aaaa-mm-dd' (vazio = último dia)
+function calcularCompeticao(snap, cadastro, diaAlvo) {
+  var ops = ['checkout', 'colmeia'], grupos = ['sep', 'conf'], prod = {};
+  ['sep_checkout', 'sep_colmeia', 'conf_checkout', 'conf_colmeia'].forEach(function (f) { prod[f] = producaoDaFonte(snap, f, diaAlvo); });
+  var times = NUM_TIMES.map(function (n) { return { n: n, colmeia: !!TIMES_COLMEIA[n], membros: new Map() }; });
+  var linhas = (cadastro || []).filter(function (r) { return times[r.time - 1]; });
+  var exatos = {}; linhas.forEach(function (r) { exatos[chaveUsu(r.usuario_wms)] = r.usuario_wms; });
+  function achar(r, mapa) { var achada = null; chavesDoMembro(r).some(function (k, i) { if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false; if (mapa.has(k)) { achada = k; return true; } return false; }); return achada; }
+  var porCadastro = new Map();
+  linhas.forEach(function (r) { var k = r.usuario_wms + '|' + grupoDoCadastro(r); if (!porCadastro.has(k)) porCadastro.set(k, r); });
+  porCadastro.forEach(function (r) {
+    var t = times[r.time - 1], g = grupoDoCadastro(r);
+    var m = t.membros.get(r.usuario_wms) || { usuario: r.usuario_wms, nome: r.nome, sep: 0, conf: 0, grupos: {}, chaves: {} };
+    m.grupos[g] = true;
+    opsDoCadastro(r).forEach(function (o) { var f = g + '_' + o, k = achar(r, prod[f].valores); if (k) { m[g] += prod[f].valores.get(k) || 0; m.chaves[f] = k; } });
+    if (r.lider && !t.membros.has(r.usuario_wms) && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
+    t.membros.set(r.usuario_wms, m);
+  });
+  var datas = {};
+  times.forEach(function (t) {
+    t.lista = Array.from(t.membros.values()).filter(function (m) { return m.grupos.sep || m.grupos.conf; }).map(function (m) { m.valor = m.sep + m.conf; return m; }).sort(function (a, b) { return b.valor - a.valor; });
+    t.sep = t.lista.reduce(function (s, m) { return s + m.sep; }, 0); t.conf = t.lista.reduce(function (s, m) { return s + m.conf; }, 0); t.total = t.sep + t.conf;
+  });
+  grupos.forEach(function (g) { ops.forEach(function (o) { prod[g + '_' + o].datas.forEach(function (d) { datas[d] = 1; }); }); });
+  [times.filter(function (t) { return !t.colmeia; }), times.filter(function (t) { return t.colmeia; })].forEach(function (gr) {
+    gr.slice().sort(function (a, b) { return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.total - a.total; }).forEach(function (t, i) { t.pos = t.lista.length ? i + 1 : null; });
+  });
+  var dias = Math.max(1, Object.keys(datas).length);
+  times.forEach(function (t) { t.meta = META_DIA_TIME[t.n] * dias; });
+  var dia = Object.keys(datas).sort().pop() || null;
+  var temDados = grupos.some(function (g) { return ops.some(function (o) { return prod[g + '_' + o].temDados; }); });
+  return { times: times, dia: dia, temDados: temDados };
+}
 
 // Placar de UM dia de UM turno.
 //   c         = resultado de calcularCompeticao(snap, cadastroDoTurno, dia) — times com total, meta, lista (membros com sep/conf/chaves)
@@ -194,6 +254,7 @@ function acumulado(placares) {
 global.RegrasBlack = {
   DIAS: DIAS, TURNOS: TURNOS, P: P, FATOR_COLMEIA: FATOR_COLMEIA, GRAVIDADES: GRAVIDADES, CHECKLIST: CHECKLIST,
   DESAFIOS: DESAFIOS, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
-  placarDoDia: placarDoDia, acumulado: acumulado, isoLocal: isoLocal
+  placarDoDia: placarDoDia, acumulado: acumulado, isoLocal: isoLocal,
+  META_DIA_TIME: META_DIA_TIME, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu
 };
 })(typeof window !== 'undefined' ? window : globalThis);

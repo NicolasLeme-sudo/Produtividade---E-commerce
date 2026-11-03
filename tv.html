@@ -149,20 +149,6 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .pizza .leg div{display:grid;grid-template-columns:14px 1fr auto auto;gap:10px;align-items:center;font-size:18px}
 .pizza .leg i{width:14px;height:14px;border-radius:4px;background:var(--m)}.pizza .leg b{font-size:20px}.pizza .leg em{font-style:normal;color:var(--text-muted);width:48px;text-align:right}
 
-/* ---------- placar da Black ---------- */
-.placar{display:grid;gap:14px;align-content:start;min-height:0}
-.placar table{width:100%;border-collapse:separate;border-spacing:0 6px;font-variant-numeric:tabular-nums;table-layout:fixed}
-.placar th:first-child{width:70px}.placar th:nth-child(2){width:210px}
-.placar th{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700;text-align:right;padding:0 14px}
-.placar th:nth-child(-n+2){text-align:left}
-.placar td{background:var(--bg-card);padding:10px 14px;text-align:right;font-size:24px;font-weight:700;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-.placar td:first-child{border-left:1px solid var(--border);border-radius:8px 0 0 8px;text-align:center;color:var(--text-muted);width:60px}
-.placar td:last-child{border-right:1px solid var(--border);border-radius:0 8px 8px 0}
-.placar td.tm{text-align:left;color:var(--c);font-weight:800}.placar td.tm i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--c);margin-right:10px}
-.placar td.tot{font-size:30px;font-weight:900;color:var(--accent-light)}
-.placar td.neg{color:var(--red)}.placar td small{display:block;font-size:12px;color:var(--text-muted);font-weight:600}
-.placar .grp{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
-.placar .dest{font-size:17px;color:var(--text-label)}.placar .dest b{color:var(--amber)}
 .ouro{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:15;display:flex;gap:18px;align-items:center;padding:8px 24px;border-radius:999px;background:#F6BD00;color:#14181F;font-size:20px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .ouro[hidden]{display:none}.ouro #ouroRel{font-size:26px;font-variant-numeric:tabular-nums}
 
@@ -220,7 +206,6 @@ body.ocioso,body.ocioso *{cursor:none!important}
     <section class="tela" id="telaB" data-titulo="Separação e Conferência" data-giro="90" data-fonte="outbound"></section>
     <section class="tela" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
     <section class="tela" id="telaD" data-titulo="Armazenagem" data-giro="60" data-fonte="inbound"></section>
-    <section class="tela" id="telaP" data-titulo="Placar da Black" data-giro="60" data-fonte="outbound"></section>
   </div>
   <div class="loopbar"><i class="giro" id="barra" hidden></i><div class="loop" id="loop"></div></div>
   <div class="mold" id="mold">
@@ -250,8 +235,7 @@ var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: {
 /* ================= TIMES (mesmos do index.html) ================= */
 var TIMES_COR = { 1:{nome:'Vermelho',c:'--t1',s:'--t1-soft',hex:'#EF5B5B'}, 2:{nome:'Azul',c:'--t2',s:'--t2-soft',hex:'#4C95F0'}, 3:{nome:'Verde',c:'--t3',s:'--t3-soft',hex:'#45C665',escuro:true},
                   4:{nome:'Amarelo',c:'--t4',s:'--t4-soft',hex:'#F6C400',escuro:true}, 5:{nome:'Rosa',c:'--t5',s:'--t5-soft',hex:'#EC4FA0'}, 6:{nome:'Roxo',c:'--t6',s:'--t6-soft',hex:'#A773EA'} };
-var NUM_TIMES = [1,2,3,4,5,6], TIMES_COLMEIA = { 5:true, 6:true };
-var META_DIA_TIME = { 1:2000, 2:2000, 3:2000, 4:2000, 5:1200, 6:1200 };
+var META_DIA_TIME = RegrasBlack.META_DIA_TIME;   // provisória (regras-black.js)
 var CARROS = { 1:{h:34, ar:2.33}, 2:{h:40, ar:1.30}, 3:{h:40, ar:1.06}, 4:{h:25, ar:3.82}, 5:{h:38, ar:1.59}, 6:{h:32, ar:2.58} };
 var CARRO_ESCALA = 1.18;   // carros um pouco maiores que no site, porque as raias da TV são mais altas
 var FUMACA_SVG = document.querySelector('.m-smk').innerHTML;
@@ -262,59 +246,12 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ re
 var CONECTIVOS = ['DE','DA','DO','DAS','DOS','E'];
 function nomeCurto(n){ var t = String(n||'').trim().split(/\s+/).filter(function(x){ return x && CONECTIVOS.indexOf(x.toUpperCase()) === -1; }); return t.length <= 1 ? n : t[0]+' '+t[t.length-1]; }
 function nomeBonito(u){ return String(u||'').split(/[.\s]+/).filter(Boolean).map(function(x){ return x.charAt(0).toUpperCase()+x.slice(1).toLowerCase(); }).join(' '); }
-function chaveUsuario(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/,/g,'.').trim().toUpperCase(); }
-function chavesDoMembro(r){
-  var ks = [chaveUsuario(r.usuario_wms), chaveUsuario(r.nome)];
-  var t = chaveUsuario(r.nome).split(/\s+/).filter(function(x){ return x && CONECTIVOS.indexOf(x) === -1; });
-  if (t.length > 1) { t.slice(1).reverse().forEach(function(x){ ks.push(t[0]+'.'+x); }); if (t.length > 2) ks.push(t[0]+'.'+t[1].charAt(0)+'.'+t[t.length-1]); }
-  return ks.filter(function(k, i){ return k && ks.indexOf(k) === i; });
-}
-
-/* ================= CONTA DA COMPETIÇÃO (cópia do index.html, filtros fixos do padrão) ================= */
-// Filtro "Dia": de cada série, só o último dia que existe nela (igual ao filtrarSerieporGrupo do site).
-function ultimoDia(serie){ if (!serie || !serie.length) return []; var o = serie.slice().sort(function(a,b){ return String(a.data).localeCompare(String(b.data)); }); return o.slice(-1); }
-function producaoDaFonte(snap, fonte, diaAlvo){
-  var o = snap || {}, sep = o.separacao || {}, conf = o.conferencia || {};
-  var f = { sep_checkout:{v:sep.checkoutDia}, sep_colmeia:{v:sep.colmeiaDia}, conf_checkout:{v:conf.confCheckoutDia}, conf_colmeia:{v:conf.confColmeiaUnitDia} }[fonte];
-  var m = new Map(); m.datas = [];
-  var serie = diaAlvo ? (f.v||[]).filter(function(d){ return String(d.data).slice(0,10) === diaAlvo; }) : ultimoDia(f.v);
-  serie.forEach(function(d){ m.datas.push(String(d.data).slice(0,10)); Object.keys(d.itens||{}).forEach(function(n){ var k = chaveUsuario(n); m.set(k, (m.get(k)||0) + (d.itens[n]||0)); }); });
-  return { valores:m, datas:m.datas, temDados: !!(f.v && f.v.length) };
-}
-function grupoDoCadastro(r){ return /^sep/.test(r.atividade) ? 'sep' : 'conf'; }
-function obsColmeia(r){ return r.observacao === 'Colmeia' || r.atividade === 'conf_colmeia' || r.atividade === 'sep_colmeia'; }
-function opsDoCadastro(r){ return (!r.lider && (TIMES_COLMEIA[r.time] || obsColmeia(r))) ? ['colmeia'] : ['checkout','colmeia']; }
+/* ================= CONTA DA COMPETIÇÃO (regras-black.js, filtros fixos do padrão) ================= */
+var ultimoDia = RegrasBlack.ultimoDia;
 function calcularCompeticao(snap, cadastro, diaAlvo){
-  var ops = ['checkout','colmeia'], grupos = ['sep','conf'], prod = {};
-  ['sep_checkout','sep_colmeia','conf_checkout','conf_colmeia'].forEach(function(f){ prod[f] = producaoDaFonte(snap, f, diaAlvo); });
-  var times = NUM_TIMES.map(function(n){ return { n:n, cor:TIMES_COR[n], colmeia:!!TIMES_COLMEIA[n], membros:new Map() }; });
-  var linhas = cadastro.filter(function(r){ return times[r.time-1]; });
-  var exatos = {}; linhas.forEach(function(r){ exatos[chaveUsuario(r.usuario_wms)] = r.usuario_wms; });
-  function achar(r, mapa){ var achada = null; chavesDoMembro(r).some(function(k, i){ if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false; if (mapa.has(k)) { achada = k; return true; } return false; }); return achada; }
-  var porCadastro = new Map();
-  linhas.forEach(function(r){ var k = r.usuario_wms+'|'+grupoDoCadastro(r); if (!porCadastro.has(k)) porCadastro.set(k, r); });
-  porCadastro.forEach(function(r){
-    var t = times[r.time-1], g = grupoDoCadastro(r);
-    var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, grupos:{}, chaves:{} };
-    m.grupos[g] = true;
-    opsDoCadastro(r).forEach(function(o){ var f = g+'_'+o, k = achar(r, prod[f].valores); if (k) { m[g] += prod[f].valores.get(k) || 0; m.chaves[f] = k; } });
-    if (r.lider && !t.membros.has(r.usuario_wms) && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
-    t.membros.set(r.usuario_wms, m);
-  });
-  var datas = {};
-  times.forEach(function(t){
-    t.lista = Array.from(t.membros.values()).filter(function(m){ return m.grupos.sep || m.grupos.conf; }).map(function(m){ m.valor = m.sep + m.conf; return m; }).sort(function(a,b){ return b.valor - a.valor; });
-    t.sep = t.lista.reduce(function(s,m){ return s+m.sep; },0); t.conf = t.lista.reduce(function(s,m){ return s+m.conf; },0); t.total = t.sep + t.conf;
-  });
-  grupos.forEach(function(g){ ops.forEach(function(o){ prod[g+'_'+o].datas.forEach(function(d){ datas[d] = 1; }); }); });
-  [times.filter(function(t){ return !t.colmeia; }), times.filter(function(t){ return t.colmeia; })].forEach(function(gr){
-    gr.slice().sort(function(a,b){ return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.total - a.total; }).forEach(function(t, i){ t.pos = t.lista.length ? i+1 : null; });
-  });
-  var dias = Math.max(1, Object.keys(datas).length);
-  times.forEach(function(t){ t.meta = META_DIA_TIME[t.n] * dias; });
-  var dia = Object.keys(datas).sort().pop() || null;
-  var temDados = grupos.some(function(g){ return ops.some(function(o){ return prod[g+'_'+o].temDados; }); });
-  return { times:times, dia:dia, temDados:temDados };
+  var c = RegrasBlack.calcularCompeticao(snap, cadastro, diaAlvo);
+  c.times.forEach(function(t){ t.cor = TIMES_COR[t.n]; });
+  return c;
 }
 
 /* ================= TELA A · PLACAR DOS TIMES ================= */
@@ -501,36 +438,8 @@ function renderTelaC(res){
   '</div></div>';
 }
 
-/* ================= PLACAR DA BLACK (regras em regras-black.js) ================= */
+/* ================= HORA DE OURO (agendada no Abastecimento > Pontos da Black) ================= */
 var turnoTela = null;   // turno mostrado no telão (null = escalação sem turno do horário: mostra todos)
-function renderTelaP(placares, acum, previa){
-  var el = document.getElementById('telaP');
-  var hojeP = placares[placares.length-1];
-  if (!hojeP || !hojeP.linhas.some(function(r){ return r.total; })) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }
-  el.dataset.vazia = '';
-  var multi = placares.length > 1;
-  function tabela(linhas, titulo){
-    if (!linhas.length) return '';
-    linhas = linhas.slice().sort(function(a,b){ return (multi ? acum[b.n].total - acum[a.n].total : 0) || b.total - a.total || a.n - b.n; });
-    return '<div class="grp">'+titulo+'</div><table><thead><tr><th>#</th><th>Time</th><th>Produtividade</th><th>Assiduidade</th><th>Desafios</th><th>Seg./Qual.</th><th>Bônus</th><th>Total do dia</th>'+(multi ? '<th>Acumulado</th>' : '')+'</tr></thead><tbody>'+
-      linhas.map(function(r, i){
-        return '<tr style="--c:var('+r.cor.c+')"><td>'+(i+1)+'º</td><td class="tm"><i></i>'+r.cor.nome+'</td>'+
-          '<td>'+fmt(r.produtividade)+'<small>'+fmt(r.pecas)+' peças</small></td>'+
-          '<td>'+fmt(r.assiduidade)+'<small>'+(r.escalados ? r.presentes+'/'+r.escalados+' presentes' : 'sem lançamento')+'</small></td>'+
-          '<td>'+fmt(r.desafios)+'</td>'+
-          '<td class="'+(r.segQual < 0 ? 'neg' : '')+'">'+fmt(r.segQual)+'</td>'+
-          '<td>'+fmt(r.bonus)+'<small>'+[r.metaBatida ? 'meta' : '', r.antecipada ? 'antecipada' : '', r.ouro ? 'ouro' : '', r.destaque ? 'destaque' : ''].filter(Boolean).join(' · ')+'</small></td>'+
-          '<td class="tot">'+fmt(r.total)+'</td>'+(multi ? '<td class="tot">'+fmt(acum[r.n].total)+(acum[r.n].trinca ? '<small>+trinca</small>' : '')+'</td>' : '')+'</tr>';
-      }).join('')+'</tbody></table>';
-  }
-  var dest = [];
-  hojeP.linhas.forEach(function(r){ r.destaques.forEach(function(d){ dest.push(d.funcao+': <b>'+esc(nomeCurto(nomeBonito(d.nome)))+'</b> ('+r.cor.nome+', '+fmt(d.pecas)+' peças)'); }); });
-  el.innerHTML = '<div class="placar">'+
-    tabela(hojeP.linhas.filter(function(r){ return !r.colmeia; }), 'Piso'+(previa ? ' · prévia com dados de '+hojeP.dia.slice(8,10)+'/'+hojeP.dia.slice(5,7) : ''))+
-    tabela(hojeP.linhas.filter(function(r){ return r.colmeia; }), 'Colmeia')+
-    (dest.length ? '<div class="dest">Destaques do turno · '+dest.join(' · ')+'</div>' : '')+
-  '</div>';
-}
 // Faixa dourada no topo durante a hora de ouro agendada (dia + turno + hora).
 var ouroAtivo = null;
 function atualizaOuro(){
@@ -742,7 +651,6 @@ async function carregar(){
       sb.from('dashboard_snapshots').select('pagina, dados, atualizado_em').in('pagina', ['outbound','inbound']),
       sb.from('competicao_times').select('*'),
       sb.from('dashboard_snapshots').select('resumo:dados->resumo, atualizado_em').eq('pagina', 'operacao').maybeSingle(),
-      sb.from('competicao_pontos').select('dia, turno, time, categoria, item, pontos, motivo, criado_em'),
       sb.from('competicao_hora_ouro').select('dia, turno, hora, meta_piso, meta_colmeia')
     ]);
     if (r[0].error || r[1].error) throw (r[0].error || r[1].error);
@@ -756,23 +664,14 @@ async function carregar(){
     turnoTela = cadT === cadAll ? null : ta.turno;
     var rotTurno = turnoTela ? ' · ' + RegrasBlack.TURNOS[turnoTela].rot.split(' · ')[0] : '';
     document.getElementById('telaA').setAttribute('data-titulo', 'Corrida Maluca' + rotTurno);
-    document.getElementById('telaP').setAttribute('data-titulo', 'Placar da Black' + rotTurno);
     var c = calcularCompeticao(snap, cadT);
-    // Placar: dias da Black até hoje; antes da Black, prévia com o último dia que tem dado.
-    var lanc = r[3].error ? [] : (r[3].data || []), ouros = r[4].error ? [] : (r[4].data || []);
+    var ouros = r[3].error ? [] : (r[3].data || []);
     var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
-    var diasP = RegrasBlack.DIAS.map(function(d){ return d[0]; }).filter(function(d){ return d <= ta.dia; });
-    var previa = !diasP.length && !!c.dia;
-    if (previa) diasP = [c.dia];
-    var placares = diasP.map(function(d){
-      return RegrasBlack.placarDoDia({ c: calcularCompeticao(snap, cadT, d), snap: snap, cadastro: cadT, dia: d, turno: turnoTela || '1º Turno', agora: new Date(),
-        lanc: lanc.filter(function(x){ return x.dia === d && doTurno(x); }), ouro: ouros.filter(function(x){ return x.dia === d && doTurno(x); }) });
-    });
     ouroAtivo = ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
     atualizaOuro();
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
-    renderTelaA(c); renderTelaB(snap); renderTelaC(op && op.resumo); renderTelaD(snapIn); renderTelaP(placares, RegrasBlack.acumulado(placares), previa); renderFaixa(c, snap); verificaMetas(c);
+    renderTelaA(c); renderTelaB(snap); renderTelaC(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap); verificaMetas(c);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho

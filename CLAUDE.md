@@ -14,21 +14,21 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 | `robo/` | Robô que envia os relatórios do WMS ao banco sem abrir o site |
 
 ## Competição / Corrida Maluca
-- Conta em `calcularCompeticao` (index.html), copiada para tv.html. Filtros fixos no telão: último dia, turno Todos, separação+conferência, checkout+colmeia.
+- Conta em `calcularCompeticao` (index.html, com os filtros da tela). Versão de filtros fixos em `RegrasBlack.calcularCompeticao` (regras-black.js), usada pelo telão e pela planilha de pontos. Filtros fixos: último dia, turno Todos, separação+conferência, checkout+colmeia.
 - Times: 1 Vermelho `#EF5B5B`, 2 Azul `#4C95F0`, 3 Verde `#45C665`, 4 Amarelo `#F6C400`, 5 Rosa `#EC4FA0`, 6 Roxo `#A773EA`. Times 5 e 6 = colmeia.
 - Meta/dia (provisória, falta a oficial): times 1–4 = 2000 peças, 5–6 = 1200. Constante `META_DIA_TIME`.
 - Cards abaixo da pista seguem a mesma ordem das posições (`timesOrdemPista`), também no index.html.
-- Membros em `competicao_times` (usuario_wms, atividade, turno, time, presenca jsonb). Planilha de escalação: **uma aba por time com o nome da cor** (Vermelho…Roxo, + aba Legenda ignorada); colunas Nome, Usuário WMS, Atividade, Turno, Piso, Observação, Líder, 27/11, 28/11, 29/11 (P/F/A; atestado = F). Formato antigo (1 aba com coluna Time) ainda é aceito. "Exportar times atuais" gera o arquivo no formato novo.
+- Membros em `competicao_times` (usuario_wms, atividade, turno, time, presenca jsonb). Planilha de escalação: **uma aba por time com o nome da cor** (Vermelho…Roxo, + aba Legenda ignorada); colunas Nome, Usuário WMS, Atividade (**S**, **C** ou **C/S** = uma linha por pessoa; no banco C/S vira 2 registros sep+conf), Turno, Piso, Observação, Líder, 27/11, 28/11, 29/11 (P/F/A; atestado = F). Formato antigo (1 aba com coluna Time) ainda é aceito. "Exportar times atuais" gera o arquivo no formato novo.
 
 ## Missão Black (27–29/11) — pontuação
 - **Valores só em `regras-black.js`** (`window.RegrasBlack`): 1 pt/peça; meta batida +200; antecipada +50/h antes do fim do turno (máx. 200); hora de ouro = peças da hora 2× se bater a meta da hora; assiduidade 500 × presentes ÷ escalados (atestado = falta, atraso −20); desafios até 300/dia (100 cada); vistoria checklist leve −20 / média −50 / grave −100 / gravíssima −200, sem apontamento +100; destaque +50 (top sep. e top conf. do turno, por grupo); Trinca Perfeita +200 no acumulado. Colmeia: fixos ×0,6.
 - Turnos: T01 05h00–14h48 · T02 14h48–00h16 (depois da meia-noite ainda é o dia anterior) · ADM 07h55–17h33 (a validar). Times por turno: a escalação filtra pelo turno.
 - Tabelas: `competicao_pontos` (vistoria/desafio/ajuste, só insert; correção = estorno) e `competicao_hora_ouro` (agendada; telão mostra faixa dourada com contagem só durante a hora). SQL em `sql/black_pontos.sql`. Só admin lança.
-- Lançamento: Abastecimento > Competição > "Pontos da Black" (ingest.js `renderPontosBlack`). Telão: Tela P "Placar da Black" (antes da Black mostra prévia com o último dia).
+- Lançamento: Abastecimento > Competição > "Pontos da Black" (ingest.js `renderPontosBlack`). Botão "Extrair Descontos e Adições de Pontos por Time" (`extrairPontosBlack`): .xlsx com abas Times, Acumulado, Colaboradores, Lançamentos e Horas de ouro (dias da Black passados × turnos; antes da Black, prévia do dia/turno dos seletores). **Sem placar no telão** (decisão 03/11): o telão só mostra a faixa dourada durante a hora de ouro.
 
 ## Telão (tv.html)
 - Login `@vulcabras.com`; usuário do telão com perfil `gestao` (sessão persistente, `storageKey: telao-produtividade`).
-- Telas em rodízio (pula tela sem dado): A Corrida Maluca 120 s (times do turno do horário) · B Separação e Conferência 90 s · C Operação agora 90 s · D Armazenagem por hora 60 s · P Placar da Black 60 s.
+- Telas em rodízio (pula tela sem dado): A Corrida Maluca 120 s (times do turno do horário) · B Separação e Conferência 90 s · C Operação agora 90 s · D Armazenagem por hora 60 s.
 - Troca de tela com transição (sai esmaecendo 0,35 s, entra deslizando 0,7 s); barra do giro contínua (requestAnimationFrame).
 - Pista: largada 4 %, chegada 93 %; meta batida põe o carro em `P_META_BATIDA` = 1,06 (passa um pouco da linha).
 - Tela C: lê só `dados->resumo` do snapshot `operacao` (gravado pelo ingest.js com Acompanhamento OP + Itens de NF de Saída). Itens por etapa × marca (etapas iguais ao `calcularStatus` do Report), pizza por marca, mais antigo em tela, importados há 2+ dias. Marca pela descrição do produto (mesma regra do Report; sem palavra-chave = Olympikus). Cores: Olympikus `#297ADF`, Mizuno `#DFBD41`, Under Armour `#C8102E`.
@@ -52,15 +52,15 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 | Acompanhamento OP | up-acompanhamento-op | Pedido de Venda, Status da Nota Fiscal, Classificação Tipo Pedido |
 | Itens de NF de Saída | up-itens-nf-saida | Chave Acesso NF-e, Pedido de Venda, Produto, Barra, Qtde. Faturada |
 
-- Comandos (na pasta robo): `npm.cmd install` · `npm.cmd run teste -- arquivo.tsv` (não grava) · `npm.cmd start` · `npm.cmd run gravar` (grava cliques no WMS em gravacao.js; a gravação começa sozinha ao abrir).
+- Comandos (na pasta robo): `npm.cmd install` · `npm.cmd run teste -- arquivo.tsv` (não grava) · `npm.cmd start` · `npm.cmd run baixar -- --uma-vez` (baixa os 6 uma vez, sem enviar) · `npm.cmd run gravar` (grava cliques no WMS em gravacao.js; a gravação começa sozinha ao abrir).
 - Playwright usa o Google Chrome instalado (`channel: 'chrome'`), sem baixar Chromium.
 - `iniciar.bat`: git pull + npm install + liga; o robô reinicia a cada 6 h para pegar atualização.
-- `.env` (nunca no Git): PROD_EMAIL, PROD_SENHA, PASTA (Downloads), MOVER_ENVIADOS, MOSTRAR_NAVEGADOR. Enviados vão para `Downloads\telao-enviados`; log `robo.log`.
+- `.env` (nunca no Git): PROD_EMAIL, PROD_SENHA, PASTA (Downloads), MOVER_ENVIADOS, MOSTRAR_NAVEGADOR, WMS_USUARIO, WMS_SENHA (preenchidos = o robô também baixa). Enviados vão para `Downloads\telao-enviados`; log `robo.log`.
 - Testado com arquivos reais de 26–29/10: 5 relatórios OK.
 
 ## Pendências (ordem)
 1. ~~Gravar os cliques no WMS~~ ✅ 29/10: `robo/gravacao.js` (fora do Git) tem login + 6 exportações .tsv. Achados: login sem captcha/2FA; download imediato (sem fila); botão `#ExportGridPlugin_exportButton` → link "Separado por Tabulações .tsv". Relatórios no menu: Produtividade de Separação, Produtividade de Packing Analítico (= Conferência), Produtividade Montagem de (Colmeia), Kardex de Endereço (depositante VULCABRAS AZALEIA - SP + aba Período), Acompanhamento Saida por Nota Fiscal (Período 30 dias, Todas), Itens de NF de Saida. IDs `#x-auto-NNN` mudam a cada sessão: trocar por texto/role no baixar.js.
-2. **Fase B:** `baixar.js` (Playwright, Google Chrome; visível na tela se `.env` `MOSTRAR_NAVEGADOR=sim`, escondido com `nao` no dia da Black) exporta a cada 5–10 min (Separação, Conferência, OP a cada 5; Colmeia, Kardex, Itens NF a cada 10) e entrega ao envio. Senha do WMS só no .env; ideal um usuário de WMS próprio do robô. Conferência = "Produtividade de Packing Analítico". Itens de NF: data inicial = Importado em do pedido mais antigo do Acompanhamento OP baixado antes (data final = hoje). Datas: `fill()` já substitui o texto; se o campo do WMS não aceitar, usar `click({ clickCount: 3 })` antes (os vários cliques da gravação eram só para selecionar).
+2. **Fase B** (código pronto em 30/10, falta validar 20 min seguidos): `baixar.js` deixa **6 abas do WMS** no Google Chrome (cada uma com login próprio; o robô guarda a referência de cada aba), filtros preenchidos uma vez; no ciclo só clica no atualizar da tela (`#DynamicGrid_refresh` em Separação/Packing/Colmeia/Itens NF, `#AdvancedNavegationBar_refresh` em OP/Kardex), espera a máscara de carregando sumir (até 18 s) e exporta para PASTA como `Exportacao_<relatorio>_<hora>.tsv`. Rápido a cada 5 min: Separação, Packing (= Conferência), Colmeia. Lento a cada 10 min: OP, Itens de NF, Kardex. Refaz a aba na virada do dia (00h–01h a data inicial é ontem, por causa do T02), quando o pedido mais antigo do OP muda (Itens NF começa nesse dia; regra em `ProdutividadeIngest.maisAntigoOp`) ou em erro (print em `robo/erros/`). Login que falha pausa 30 min. Ligado pelo `robo.js` quando `WMS_USUARIO` está no .env. Usuário WMS: nicolas.leme.
 3. Agendador de Tarefas do Windows rodando `iniciar.bat` no logon; desligar suspensão do notebook; telão em tela cheia no mesmo notebook.
 4. **Tela C** ✅ feita em 29/10 (tv.html + ingest.js + robô). Página `operacao` liberada em `dashboard_snapshots` em 30/10 (CHECK `dashboard_snapshots_pagina_check`). A tela só entra no giro depois do primeiro envio do Acompanhamento OP (+ Itens de NF para as marcas).
 5. Metas oficiais por time; teste na TV 75"; trocar senhas expostas após a Black.
