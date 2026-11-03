@@ -311,12 +311,22 @@ async function iniciar(cfg, log, opcoes) {
     }
     caiu = false;
     browser.on("disconnected", function () { caiu = true; });
-    // Começa limpo: fecha abas do WMS que sobraram de execuções anteriores (deixa 1 aba aberta).
-    const sobras = contexto.pages().filter(function (pg) { return /siltwms/.test(pg.url()); });
+    // Reaproveita as abas do robô que já estão abertas (cada uma guarda em window.name o relatório
+    // e o filtro): ao religar, o robô só volta a recarregar com o botão, sem fechar nem logar de novo.
+    // Fecha só abas do WMS sem marca ou repetidas (deixa 1 aba aberta).
+    for (const id in abas) delete abas[id];
+    const sobras = [];
+    for (const pg of contexto.pages()) {
+      if (!/siltwms/.test(pg.url())) continue;
+      let nome = ""; try { nome = await pg.evaluate(function () { return window.name; }); } catch (e) {}
+      const m = /^robo\|([^|]+)\|(.*)$/.exec(nome || "");
+      if (m && TELAS.some(function (t) { return t.id === m[1]; }) && !abas[m[1]]) abas[m[1]] = { page: pg, chave: m[2] || null };
+      else sobras.push(pg);
+    }
     if (sobras.length && sobras.length === contexto.pages().length) await contexto.newPage();
     for (const pg of sobras) { try { await pg.close(); } catch (e) {} }
-    for (const id in abas) delete abas[id];
-    log("Baixador ligado no Chrome do atalho, WMS como " + cfg.WMS_USUARIO);
+    const reaproveitadas = Object.keys(abas);
+    log("Baixador ligado no Chrome do atalho, WMS como " + cfg.WMS_USUARIO + (reaproveitadas.length ? " · reaproveitando " + reaproveitadas.length + " aba(s) abertas" : ""));
   }
   await conectar();
   const doUsuario = true;
@@ -327,6 +337,8 @@ async function iniciar(cfg, log, opcoes) {
   }
 
   const st = { maisAntigoOp: null, pausaAte: 0 };
+  // Itens de NF reaproveitado: a data inicial do filtro dele vira o "pedido mais antigo" até o próximo OP.
+  if (abas.itensnf && abas.itensnf.chave) { const d = dataBR(abas.itensnf.chave.split("-")[0]); if (d) st.maisAntigoOp = d.getTime(); }
 
   async function prepararAba(tela) {
     let aba = abas[tela.id];
@@ -338,6 +350,8 @@ async function iniciar(cfg, log, opcoes) {
     st.passo = "esperar carregar"; await esperarCarregar(aba.page, ESPERA_ABRIR_MS);
     st.passo = "exportar";
     aba.chave = tela.chave(st);
+    // marca a aba (sobrevive ao recarregar): é por ela que o robô reaproveita a aba quando religa
+    await aba.page.evaluate(function (n) { window.name = n; }, "robo|" + tela.id + "|" + aba.chave).catch(function () {});
     log("   aba " + tela.nome + " pronta (filtro " + aba.chave + ")");
   }
 
