@@ -246,7 +246,8 @@ async function exportar(page, tela, pasta) {
   const final = path.join(pasta, "Exportacao_" + tela.id + "_" + hora() + ".tsv");
   const temp = final + ".parcial";                 // o vigia só olha .tsv: não pega pela metade
   // O arquivo termina de baixar em 2º plano enquanto o robô já vai para a próxima aba.
-  return d.saveAs(temp).then(function () { fs.renameSync(temp, final); return final; });
+  // Embrulhado num objeto: se voltasse a promessa direto, o await de quem chama esperaria o download inteiro.
+  return { salvo: d.saveAs(temp).then(function () { fs.renameSync(temp, final); return final; }) };
 }
 
 async function printErro(page, tela) {
@@ -347,7 +348,7 @@ async function iniciar(cfg, log, opcoes) {
         await aba.page.locator(tela.refresh + ":visible").first().click();
         await esperarCarregar(aba.page);
       }
-      const salvo = await exportar(aba.page, tela, cfg.PASTA);
+      const salvo = (await exportar(aba.page, tela, cfg.PASTA)).salvo;
       const fim = salvo.then(function (arq) {
         pendentes.delete(fim);
         log("Baixado " + tela.nome + " em " + Math.round((Date.now() - t0) / 1000) + " s · " + path.basename(arq));
