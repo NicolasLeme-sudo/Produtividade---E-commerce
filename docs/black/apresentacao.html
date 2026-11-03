@@ -66,17 +66,19 @@ td.hl{font-weight:700;color:var(--gold)}
 .shot span{font-size:22px;color:var(--muted)}
 table.cmp td{padding:13px 18px;font-size:26px} table.cmp td.neg{color:var(--red)} table.cmp tr.tot td{border-top:2px solid var(--gold);border-bottom:0;font-weight:700;font-size:30px}
 /* apresentação enxuta (03/11) */
-.tl{display:grid;grid-template-columns:repeat(5,1fr);position:relative;margin-top:40px}
-.tl::before{content:"";position:absolute;left:0;right:0;top:118px;height:3px;background:var(--line)}
-.tl-m{position:relative;padding:0 14px;text-align:center}
+.tl{display:grid;grid-template-columns:repeat(5,1fr);position:relative;margin-top:40px;margin-bottom:36px}
+.tl-m{position:relative;text-align:center}
+.tl-m h3,.tl-m ul{padding:0 14px}
 .tl-d{display:block;font-size:52px;font-weight:300;line-height:1;font-variant-numeric:tabular-nums}
 .tl-d small{display:block;font-size:20px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-top:8px;font-weight:600}
-.tl-m i{display:block;width:26px;height:26px;border-radius:50%;background:var(--card2);border:3px solid var(--steel);margin:16px auto 26px;position:relative;z-index:1}
+.tl-p{position:relative;height:26px;margin:16px 0 26px}
+.tl-p::before{content:"";position:absolute;left:0;right:0;top:50%;height:3px;margin-top:-1.5px;background:var(--line)}
+.tl-m i{display:block;width:26px;height:26px;border-radius:50%;background:var(--card2);border:3px solid var(--steel);margin:0 auto;position:relative;z-index:1}
 .tl-m.on i{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 8px rgba(246,189,0,.15)}
 .tl-m h3{font-size:34px;margin-bottom:12px} .tl-m.on h3{color:var(--gold)} .tl-m ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;align-items:center} .tl-m li{font-size:23px;line-height:1.4;color:#D5DEE8}
 .dias{display:grid;grid-template-columns:repeat(5,1fr);gap:22px;flex:1;min-height:0}
 .dia-c{padding:30px 28px;gap:12px} .dia-c h3{font-size:32px;color:var(--gold)} .dia-c li{font-size:21px;color:#D5DEE8}
-.dia-c .atr{margin-top:auto;height:104px;flex:none;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+.dia-c .atr{display:flex;flex-direction:column;gap:8px}
 .dia-c .sub-t{font-size:18px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-top:6px}
 .dia-c .atr span{font-size:19px;color:var(--sky);font-weight:600} .dia-c .atr span::before{content:"♪ ";color:var(--gold)}
 .gam{display:grid;grid-template-columns:1.55fr 1fr;gap:48px;align-items:start}
@@ -132,10 +134,10 @@ var MARCOS = [['20/11','sex','Pré-Black',['Entrega das camisetas','Apresentaç�
   ['27/11','sex','Largada Black',['Abertura oficial e café','Primeiros desafios']],
   ['28/11','sáb','Superação',['Apuração do 1º dia','Premiação e novos desafios']],
   ['29/11','dom','Grande Final',['Apuração do 2º dia','Última rodada de desafios']],
-  ['30/11','seg','Encerramento',['Time campeão','Agradecimentos e coffee']]];
+  ['30/11','seg','Encerramento',['Time campeão','Agradecimentos e café']]];
 S.push(slide('Visão geral', 'Do aquecimento ao <em>time campeão</em>',
   '<div class="tl">' + MARCOS.map(function(m, k){
-    return '<div class="tl-m' + (k > 0 && k < 4 ? ' on' : '') + '"><span class="tl-d">' + m[0] + '<small>' + m[1] + '</small></span><i></i><h3>' + m[2] + '</h3>' + li(m[3]) + '</div>';
+    return '<div class="tl-m' + (k > 0 && k < 4 ? ' on' : '') + '"><span class="tl-d">' + m[0] + '<small>' + m[1] + '</small></span><div class="tl-p"><i></i></div><h3>' + m[2] + '</h3>' + li(m[3]) + '</div>';
   }).join('') + '</div>' +
   '<p class="lead">Três dias de competição entre <b>6 times: 4 no checkout e 2 na colmeia, em cada turno</b>. Os pontos de cada dia são apurados <b>na manhã seguinte</b>.</p>',
   RODAPE));
@@ -155,14 +157,14 @@ var DIAS_C = [['20/11 · sex','Pré-Black',['Entrega das camisetas','Apresentaç
   ['27/11 · sex','Largada Black',['Abertura oficial','Fala do diretor e do gerente','Vídeo motivacional'],R.DESAFIOS['2026-11-27'],['DJ','Café de abertura']],
   ['28/11 · sáb','Superação',['Apuração e premiação do 1º dia'],R.DESAFIOS['2026-11-28'],['DJ','Pastel e refrigerante']],
   ['29/11 · dom','Grande Final',['Apuração e premiação do 2º dia'],R.DESAFIOS['2026-11-29'],['DJ','Kit energia: batata, energético e chocolate']],
-  ['30/11 · seg','Encerramento',['Apuração do 3º dia','Time campeão da gincana','Fala do diretor e do gerente'],null,['DJ','Coffee de encerramento']]];
+  ['30/11 · seg','Encerramento',['Apuração do 3º dia','Time campeão da gincana','Fala do diretor e do gerente'],null,['DJ','Café de encerramento']]];
 S.push(slide('Cronograma e atrações', 'O que acontece <em>em cada dia</em>',
   '<div class="dias">' + DIAS_C.map(function(d){
     return '<div class="card dia-c"><p class="k">' + d[0] + '</p><h3>' + d[1] + '</h3>' + li(d[2]) +
       (d[3] && d[3].length ? '<p class="sub-t">Desafios</p>' + li(d[3]) : '') +
-      '<div class="atr">' + d[4].map(function(a){ return '<span>' + a + '</span>'; }).join('') + '</div></div>';
+      (d[4].length ? '<p class="sub-t">Atrações</p><div class="atr">' + d[4].map(function(a){ return '<span>' + a + '</span>'; }).join('') + '</div>' : '') + '</div>';
   }).join('') + '</div>',
-  'Atrações em destaque no pé de cada dia'));
+  RODAPE));
 
 // 5 · gamificação
 var GANHA = [['Produtividade','cada peça separada ou conferida','1/peça','1/peça'],
@@ -180,7 +182,7 @@ S.push(slide('Gamificação', 'Como um time <em>ganha a Black</em>',
     GANHA.map(function(r){ return '<tr><td><b>' + r[0] + '</b></td><td style="text-align:left;color:var(--muted)">' + r[1] + '</td><td class="hl">' + r[2] + '</td><td>' + r[3] + '</td></tr>'; }).join('') +
   '</table></div><div><p class="gk r">Perde</p><table class="cmp gt">' +
     PERDE.map(function(r){ return '<tr><td><b>' + r[0] + '</b></td><td class="neg">' + r[1] + '</td></tr>'; }).join('') +
-  '</table><p class="nota">Exemplo de presença: 10 escalados e 1 ausente → ' + fmt(P.assiduidadeMax) + ' × 9 ÷ 10 = <b>' + fmt(P.assiduidadeMax * 0.9) + '</b>. Colmeia: valores fixos ×' + String(R.FATOR_COLMEIA).replace('.', ',') + '.</p></div></div>',
+  '</table><p class="nota"><span style="white-space:nowrap">Exemplo: 10 escalados e 1 ausente → ' + fmt(P.assiduidadeMax) + ' × 9 ÷ 10 = <b>' + fmt(P.assiduidadeMax * 0.9) + '</b></span><br>Colmeia: valores fixos ×' + String(R.FATOR_COLMEIA).replace('.', ',') + '.</p></div></div>',
   'Todos os pontos são do time: a produtividade soma as peças de todos os membros'));
 
 // 6 · vistoria
