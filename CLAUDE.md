@@ -26,6 +26,12 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 - Tabelas: `competicao_pontos` (vistoria/desafio/ajuste, só insert; correção = estorno) e `competicao_hora_ouro` (agendada; telão mostra faixa dourada com contagem só durante a hora). SQL em `sql/black_pontos.sql`. Só admin lança.
 - Lançamento: Admin com menu por setor (Compartilhados, Outbound, Movimentação, Gestão de Estoque, Times da competição, Vistoria, Ajustes = Gincanas + Ajuste de pontuação + Horas de Ouro lado a lado, Base de ativos; ids `adm-*`). Pontos em 4 cartões (`renderPontosBlack`): Vistoria e Ajuste por time; **Gincana lança o mesmo valor para os 6 times** (colmeia ×0,6); lista = desafios do dia + `RegrasBlack.GINCANAS` + Outra. Telas do Admin sem texto explicativo (pedido 03/11). Botão "Extrair Descontos e Adições" (`extrairPontosBlack`): .xlsx com abas Times, Acumulado, Colaboradores, Lançamentos e Horas de ouro (dias da Black passados × turnos; antes da Black, prévia do dia/turno dos seletores). **Sem placar no telão** (decisão 03/11): o telão só mostra a faixa dourada durante a hora de ouro.
 
+## Pastas e entregas da Black
+- Arquivos que o Nicolas manda para eu ler: `C:\Leitura de Arquivos`. Entregas que eu gero: `C:\Entrega de Arquivos`.
+- Apresentação à coordenação (6 slides, sem telão): `docs/black/apresentacao.html` → `python docs/black/embutir.py "C:/Entrega de Arquivos/Missao_Black_Apresentacao.html"`.
+- Para imprimir: `docs/black/checklist-vistoria.html` (2 fichas por A4) e `docs/black/regras.html` (3 págs.) → `node docs/black/gerar-pdfs.js "C:\Entrega de Arquivos"`.
+- Demonstração de meta batida no telão: `tv.html?comemorar=N` (N = time).
+
 ## Telão (tv.html)
 - Login `@vulcabras.com`; usuário do telão com perfil `gestao` (sessão persistente, `storageKey: telao-produtividade`).
 - Telas em rodízio (pula tela sem dado): A Corrida Maluca 120 s (times do turno do horário) · B Separação e Conferência 90 s · C Operação agora 90 s · D Armazenagem por hora 60 s.

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Missão Black · Liderança</title>
+<title>Missão Black 2026</title>
 <link rel="icon" href="img/favicon.png">
 <!-- Padrão de apresentação HTML Vulcabras (report-DISTR/.claude/skills/apresentacao-html/modelo.html).
      Valores de pontos vêm de regras-black.js. Arquivo único para enviar: python docs/black/embutir.py saida.html -->
@@ -65,6 +65,29 @@ td.hl{font-weight:700;color:var(--gold)}
 .shot img{width:100%;max-height:560px;object-fit:contain;object-position:top left;border:1px solid var(--line);border-radius:14px;background:#0F1623}
 .shot span{font-size:22px;color:var(--muted)}
 table.cmp td{padding:13px 18px;font-size:26px} table.cmp td.neg{color:var(--red)} table.cmp tr.tot td{border-top:2px solid var(--gold);border-bottom:0;font-weight:700;font-size:30px}
+/* apresentação enxuta (03/11) */
+.tl{display:grid;grid-template-columns:repeat(5,1fr);position:relative;margin-top:40px}
+.tl::before{content:"";position:absolute;left:0;right:0;top:118px;height:3px;background:var(--line)}
+.tl-m{position:relative;padding-right:28px}
+.tl-d{display:block;font-size:52px;font-weight:300;line-height:1;font-variant-numeric:tabular-nums}
+.tl-d small{display:block;font-size:20px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-top:8px;font-weight:600}
+.tl-m i{display:block;width:26px;height:26px;border-radius:50%;background:var(--card2);border:3px solid var(--steel);margin:16px 0 26px;position:relative;z-index:1}
+.tl-m.on i{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 8px rgba(246,189,0,.15)}
+.tl-m h3{font-size:34px;margin-bottom:10px} .tl-m.on h3{color:var(--gold)} .tl-m p{font-size:24px;line-height:1.4;color:#D5DEE8}
+.dias{display:grid;grid-template-columns:repeat(5,1fr);gap:22px;flex:1;min-height:0}
+.dia-c{padding:30px 28px;gap:12px} .dia-c h3{font-size:32px;color:var(--gold)} .dia-c li{font-size:21px;color:#D5DEE8}
+.dia-c .atr{margin-top:auto;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+.dia-c .atr span{font-size:19px;color:var(--sky);font-weight:600} .dia-c .atr span::before{content:"♪ ";color:var(--gold)}
+.gam{display:grid;grid-template-columns:1.55fr 1fr;gap:48px;align-items:start}
+.gk{font-size:22px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--green);margin-bottom:8px} .gk.r{color:var(--red)}
+table.gt td{padding:7px 14px;font-size:21px} table.gt th{font-size:15px;padding:0 14px 8px} table.gt td:first-child,table.gt td:nth-child(3),table.gt td:nth-child(4){white-space:nowrap}
+.nota{font-size:21px;line-height:1.45;color:#D5DEE8;margin-top:22px} .nota b{color:var(--fg)}
+.aud{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--gold);border-radius:14px;padding:18px 26px;font-size:19px;color:#D5DEE8}
+.aud b{color:var(--gold);font-size:20px;letter-spacing:2px;text-transform:uppercase;margin-right:6px} .aud span::after{content:"·";margin-left:14px;color:var(--steel)} .aud span:last-child::after{content:""}
+.gin{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.gin-c{flex-direction:row;gap:22px;padding:24px 28px;align-items:flex-start}
+.gin-c .n{font-size:46px;font-weight:200;color:var(--gold);line-height:1;min-width:40px}
+.gin-c h3{font-size:28px;margin-bottom:6px} .gin-c p{font-size:20px;line-height:1.4;color:#D5DEE8}
 /* UI */
 #ui{position:fixed;right:20px;top:16px;display:flex;gap:8px;align-items:center;z-index:5;opacity:.35;transition:opacity .3s}
 #ui:hover,body.mouse #ui{opacity:1}
@@ -94,156 +117,82 @@ function foot(t){ return '<div class="foot"><span>' + t + '</span><img class="vm
 function slide(eb, titulo, corpo, rod){ return '<section class="slide"><div class="eyebrow">' + eb + '</div><h2>' + titulo + '</h2>' + corpo + foot(rod) + '</section>'; }
 var CORES = [['Vermelho','--t1'],['Azul','--t2'],['Verde','--t3'],['Amarelo','--t4'],['Rosa','--t5'],['Roxo','--t6']];
 function chips(lista){ return '<div class="chips">' + lista.map(function(c){ return '<span class="chip" style="--c:var(' + c[1] + ')"><i></i>' + c[0] + '</span>'; }).join('') + '</div>'; }
-var RODAPE = 'Missão Black Friday 2026 · 27, 28 e 29 de novembro';
-
-var ex = [['Produtividade','2.200 peças',2200],['Assiduidade','9 de 10 presentes, 1 atraso',430],['Desafios','Grito da equipe',100],['Vistoria','1 caixa aberta no picking',-50],
-  ['Meta do dia','bateu às 11h',200],['Meta antecipada','3 h antes do fim do T01',150],['Hora de ouro','450 peças na hora (meta 400)',450],['Destaques','top separador e top conferente',100]];
-var exTot = ex.reduce(function(a, r){ return a + r[2]; }, 0);
-function pct(n){ return Math.round(n / exTot * 100) + '%'; }
+var RODAPE = 'Missão Black 2026 · 27 a 30 de novembro';
 
 var S = [];
-// capa
-S.push('<section class="slide capa"><img class="logo" src="img/logo-vulcabras.png" alt="Vulcabras"><div class="eyebrow">Missão Black Friday 2026 · E-commerce</div>' +
-  '<h1>Regras, pontuação e roteiro da Black</h1><div class="rule"></div>' +
-  '<p class="sub">Como os times vão competir nos dias 27, 28 e 29 de novembro: regras, pontuação e roteiro de atividades.</p>' +
-  '<div class="tag">Apresentação à liderança · 05/11/2026</div><div class="big">BLACK</div></section>');
+// 1 · capa
+S.push('<section class="slide capa"><img class="logo" src="img/logo-vulcabras.png" alt="Vulcabras"><div class="eyebrow">E-commerce · Vulcabras</div>' +
+  '<h1>Missão Black 2026</h1><div class="rule"></div>' +
+  '<p class="sub">27, 28 e 29 de novembro, com encerramento na segunda, 30/11: programação, gamificação e gincanas.</p>' +
+  '<div class="tag">Apresentação à coordenação · 03/11/2026</div><div class="big">BLACK</div></section>');
 
-// campanha
-S.push(slide('A campanha', 'Três dias para <em>mobilizar o CD inteiro</em>',
-  '<div class="cards">' +
-    '<div class="card gold"><div class="k">Período</div><div class="v">3 dias</div><div class="d">27, 28 e 29/11 · Largada Black, Superação e Grande Final</div></div>' +
-    '<div class="card"><div class="k">Times</div><div class="v">6 cores</div><div class="d">um por piso em cada turno · 4 no piso e 2 na colmeia</div></div>' +
-    '<div class="card"><div class="k">Pontuação</div><div class="v">1/peça</div><div class="d">mais blocos de presença, desafios, vistoria e bônus</div></div>' +
-    '<div class="card green"><div class="k">Presença</div><div class="v">até ' + fmt(P.assiduidadeMax) + '</div><div class="d">pontos por time, por dia · Trinca Perfeita ' + sinal(P.trincaPerfeita) + '</div></div>' +
-  '</div><p class="lead">Produtividade e presença decidem o campeão; <b>desafios, vistoria e bônus</b> mantêm a disputa viva até o fim de cada turno.</p>',
+// 2 · linha do tempo
+var MARCOS = [['20/11','sex','Pré-Black','Camisetas e apresentação da gamificação aos times'],
+  ['27/11','sex','Largada Black','Abertura oficial, café e os primeiros desafios'],
+  ['28/11','sáb','Superação','Apuração do 1º dia, premiação e novos desafios'],
+  ['29/11','dom','Grande Final','Apuração do 2º dia e a última rodada de desafios'],
+  ['30/11','seg','Encerramento','Time campeão, agradecimentos e coffee']];
+S.push(slide('Visão geral', 'Do aquecimento ao <em>time campeão</em>',
+  '<div class="tl">' + MARCOS.map(function(m, k){
+    return '<div class="tl-m' + (k > 0 && k < 4 ? ' on' : '') + '"><span class="tl-d">' + m[0] + '<small>' + m[1] + '</small></span><i></i><h3>' + m[2] + '</h3><p>' + m[3] + '</p></div>';
+  }).join('') + '</div>' +
+  '<p class="lead">Três dias de competição entre <b>6 times</b> (4 no piso e 2 na colmeia, em cada turno). Os pontos de cada dia são apurados <b>na manhã seguinte</b>.</p>',
   RODAPE));
 
-// times e turnos
-S.push(slide('A campanha', 'Um time de cada cor, <em>por piso e por turno</em>',
-  '<div class="two"><div class="stack">' +
-    Object.keys(R.TURNOS).map(function(k){ var t = R.TURNOS[k].rot.split(' · '); return '<div class="pill"><span>' + t[0] + (k === 'ADM' ? ' · a validar' : '') + '</span><b>' + t[1] + '</b></div>'; }).join('') +
-  '</div><div class="stack">' +
-    '<div class="lev"><div class="n">4</div><div><h3>Times no piso</h3><p>2 conferentes + separadores por time. <b>Piso disputa com piso.</b></p><div style="margin-top:16px">' + chips(CORES.slice(0,4)) + '</div></div></div>' +
-    '<div class="lev"><div class="n">2</div><div><h3>Times na colmeia</h3><p>Mesma divisão, com 2 líderes. Meta e pontos fixos proporcionais <b>(×' + String(R.FATOR_COLMEIA).replace('.',',') + ')</b>.</p><div style="margin-top:16px">' + chips(CORES.slice(4)) + '</div></div></div>' +
-  '</div></div>',
-  'Escalação: planilha com uma aba por cor e a presença dos 3 dias na linha de cada pessoa · exporta, edita e reenvia no site'));
+// 3 · cronograma e atrações
+var DIAS_C = [['20/11 · sex','Pré-Black',['Entrega das camisetas','Apresentação da gamificação','Folha de regras nos pisos'],[]],
+  ['27/11 · sex','Largada Black',['Abertura oficial','Fala do diretor e do gerente','Vídeo motivacional','Desafios: ' + (R.DESAFIOS['2026-11-27'] || []).join(', ')],['DJ','Café de abertura']],
+  ['28/11 · sáb','Superação',['Apuração e premiação do 1º dia','Desafios: ' + (R.DESAFIOS['2026-11-28'] || []).join(', ')],['DJ','Pastel e refrigerante']],
+  ['29/11 · dom','Grande Final',['Apuração e premiação do 2º dia','Desafios: ' + (R.DESAFIOS['2026-11-29'] || []).join(', ')],['DJ','Kit energia: batata, energético e chocolate']],
+  ['30/11 · seg','Encerramento',['Apuração do 3º dia','Time campeão da gincana','Fala do diretor e do gerente: agradecimentos e próximos passos'],['DJ','Coffee de encerramento']]];
+S.push(slide('Cronograma e atrações', 'O que acontece <em>em cada dia</em>',
+  '<div class="dias">' + DIAS_C.map(function(d){
+    return '<div class="card dia-c"><p class="k">' + d[0] + '</p><h3>' + d[1] + '</h3>' + li(d[2]) +
+      (d[3].length ? '<div class="atr">' + d[3].map(function(a){ return '<span>' + a + '</span>'; }).join('') + '</div>' : '') + '</div>';
+  }).join('') + '</div>',
+  'Atrações em destaque no rodapé de cada dia'));
 
-// calendário
-S.push(slide('Roteiro de atividades', 'Antes, durante e depois da Black',
-  '<div class="prem" style="grid-template-columns:repeat(5,1fr);gap:40px 36px">' +
-    [['20/11 · sex','Pré-Black',['Entrega das camisetas','Apresentação da gamificação','Folha de regras nos pisos']],
-     ['27/11 · sex','Largada Black',['Café de abertura','Fala do diretor e do gerente','Vídeo motivacional','Quiz relâmpago, grito da equipe e missão surpresa']],
-     ['28/11 · sáb','Superação',['Apuração e premiação do 1º dia','Golden Ticket, desafio relâmpago e espírito de equipe','Pastel e refrigerante']],
-     ['29/11 · dom','Grande Final',['Apuração e premiação do 2º dia','Quiz final, desafio surpresa e equipe mais engajada','Kit energia']],
-     ['30/11 · seg','Encerramento',['Apuração do 3º dia','Time campeão da gincana','Fala do diretor e do gerente','Coffee de encerramento']]
-    ].map(function(d){ return '<div><p class="dia">' + d[0] + '</p><h3>' + d[1] + '</h3>' + li(d[2]) + '</div>'; }).join('') +
-  '</div>',
-  'DJ nos quatro dias de evento · apuração oficial de cada dia na manhã seguinte'));
+// 4 · gamificação
+var GANHA = [['Produtividade','cada peça separada ou conferida','1/peça','1/peça'],
+  ['Assiduidade','máximo × presentes ÷ escalados','até ' + fmt(P.assiduidadeMax),'até ' + fmt(col(P.assiduidadeMax))],
+  ['Gincanas e desafios','por dia','até ' + fmt(P.desafiosMax),'até ' + fmt(col(P.desafiosMax))],
+  ['Meta do dia','bateu a meta do time',sinal(P.metaBatida),sinal(col(P.metaBatida))],
+  ['Meta antecipada','por hora antes do fim do turno (máx. ' + fmt(P.antecipadaMax) + ' · ' + fmt(col(P.antecipadaMax)) + ')',sinal(P.antecipadaHora) + '/h', sinal(col(P.antecipadaHora)) + '/h'],
+  ['Hora que vale ouro','peças da hora em dobro','2×','2×'],
+  ['Destaque do turno','top separador e top conferente',sinal(P.destaque),sinal(col(P.destaque))],
+  ['Vistoria sem apontamento','',sinal(P.vistoriaLimpa),sinal(col(P.vistoriaLimpa))],
+  ['Trinca Perfeita','100% de presença nos 3 dias',sinal(P.trincaPerfeita),sinal(col(P.trincaPerfeita))]];
+var PERDE = [['Falta','sai a parte da pessoa na assiduidade'],['Atraso',sinal(P.atraso) + ' por pessoa']].concat(
+  Object.keys(R.GRAVIDADES).map(function(g){ return ['Vistoria ' + R.GRAVIDADES[g].rot.toLowerCase(), sinal(R.GRAVIDADES[g].pts) + ' por item']; }));
+S.push(slide('Gamificação', 'Como um time <em>ganha a Black</em>',
+  '<div class="gam"><div><p class="gk">Ganha</p><table class="cmp gt"><tr><th>Bloco</th><th style="text-align:left">Como conta</th><th>Piso</th><th>Colmeia</th></tr>' +
+    GANHA.map(function(r){ return '<tr><td><b>' + r[0] + '</b></td><td style="text-align:left;color:var(--muted)">' + r[1] + '</td><td class="hl">' + r[2] + '</td><td>' + r[3] + '</td></tr>'; }).join('') +
+  '</table></div><div><p class="gk r">Perde</p><table class="cmp gt">' +
+    PERDE.map(function(r){ return '<tr><td><b>' + r[0] + '</b></td><td class="neg">' + r[1] + '</td></tr>'; }).join('') +
+  '</table><p class="nota">Vistoria estilo autoescola, em horário aleatório: <b>checklist impresso na mão dos líderes</b>. Colmeia: valores fixos ×' + String(R.FATOR_COLMEIA).replace('.', ',') + '.</p></div></div>' +
+  '<div class="aud"><b>Auditoria</b><span>Peças vêm do WMS, automático pelo robô</span><span>Presença vem da escalação</span><span>Vistoria, gincanas e ajustes só por admin, com horário e quem lançou</span><span>Correção só por estorno: nada é apagado</span><span>Conferência na planilha "Extrair Descontos e Adições"</span></div>',
+  'Tabela completa e checklist da vistoria nos documentos impressos'));
 
-// arquitetura
-S.push(slide('Pontuação', 'Arquitetura de pontos <em>por time, por dia</em>',
-  '<table class="cmp"><tr><th>Bloco</th><th style="text-align:left">Como conta</th><th>Piso</th><th>Colmeia</th></tr>' +
-    [['Produtividade','cada peça separada ou conferida','1/peça','1/peça'],['Meta do dia','total ≥ meta (2.000 · 1.200)',sinal(P.metaBatida),sinal(col(P.metaBatida))],
-     ['Meta antecipada','por hora antes do fim do turno',sinal(P.antecipadaHora)+' (máx. '+fmt(P.antecipadaMax)+')',sinal(col(P.antecipadaHora))+' (máx. '+fmt(col(P.antecipadaMax))+')'],
-     ['Hora que vale ouro','peças da hora em dobro se bater a meta da hora','2×','2×'],['Assiduidade','máximo × presentes ÷ escalados','até '+fmt(P.assiduidadeMax),'até '+fmt(col(P.assiduidadeMax))],
-     ['Desafios','3 por dia, '+fmt(R.PONTOS_DESAFIO)+' cada','até '+fmt(P.desafiosMax),'até '+fmt(col(P.desafiosMax))],['Vistoria','segurança, qualidade e 5S',sinal(P.vistoriaLimpa)+' / descontos',sinal(col(P.vistoriaLimpa))+' / descontos'],
-     ['Destaques','top separador e top conferente do turno',sinal(P.destaque)+' cada',sinal(col(P.destaque))+' cada'],['Trinca Perfeita','100% de presença nos 3 dias',sinal(P.trincaPerfeita),sinal(col(P.trincaPerfeita))]
-    ].map(function(r){ return '<tr><td><b>'+r[0]+'</b></td><td style="text-align:left;color:var(--muted)">'+r[1]+'</td><td class="hl">'+r[2]+'</td><td>'+r[3]+'</td></tr>'; }).join('') +
-  '</table>',
-  'Colmeia: pontos fixos ×' + String(R.FATOR_COLMEIA).replace('.',',') + ', proporcional à meta · todos os valores saem do mesmo arquivo de regras do sistema'));
+// 5 · gincanas
+S.push(slide('Gincanas', 'Competição entre pisos, <em>com prêmio no dia</em>',
+  '<div class="gin">' + R.GINCANAS.map(function(g, k){
+    return '<div class="card gin-c"><span class="n">' + (k + 1) + '</span><div><h3>' + g + '</h3><p>' + ((R.GINCANAS_DESC || {})[g] || '') + '</p></div></div>';
+  }).join('') + '</div>' +
+  '<p class="lead">Prêmio do dia para o piso vencedor: <b>energético, picolé, refrigerante ou chocolate</b>. Cada gincana vale até ' + fmt(R.PONTOS_DESAFIO) + ' pontos por time (' + fmt(col(R.PONTOS_DESAFIO)) + ' na colmeia), dentro do limite de ' + fmt(P.desafiosMax) + ' por dia.</p>',
+  'Lançadas no sistema pelo admin, com horário e quem lançou'));
 
-// por que 1 ponto por peça
-S.push(slide('Pontuação', 'Cada peça vale 1 ponto: <em>nada do esforço é jogado fora</em>',
-  '<div class="grid2">' +
-    '<div class="lev"><div class="n">A</div><div><h3>Proposta inicial</h3><p>Produtividade 500 · Assiduidade 300 · Desafios 150 · Seg./Qual. 50. Teto de 1.000 por dia: quem faz 2.000 ou 2.600 peças recebe o mesmo máximo.</p></div></div>' +
-    '<div class="lev"><div class="n">B</div><div><h3>Proposta ajustada</h3><p><b>1 ponto por peça</b> + blocos fixos dimensionados pela meta, para pesar diante de ~2.000 peças por dia.</p></div></div>' +
-  '</div><div class="cards">' +
-    '<div class="card gold"><div class="k">Produtividade</div><div class="v">' + pct(2200) + '</div></div>' +
-    '<div class="card"><div class="k">Presença</div><div class="v">' + pct(430) + '</div></div>' +
-    '<div class="card"><div class="k">Bônus</div><div class="v">' + pct(900) + '</div></div>' +
-    '<div class="card"><div class="k">Desafios + vistoria</div><div class="v">' + pct(50) + '</div></div>' +
-  '</div>',
-  'Participação no total do dia de exemplo (time Vermelho, ' + fmt(exTot) + ' pts) · produtividade + presença = ' + pct(2630) + ', como na proposta da gerência'));
-
-// assiduidade
-S.push(slide('Pontuação', 'Assiduidade <em>linear</em>: cada falta custa só a parte daquela pessoa',
-  '<div class="cards">' +
-    '<div class="card red"><div class="k">Por faixas · 10 pessoas, 1 falta</div><div class="v">0 pts</div><div class="d">90% de presença. Faixas de 94% a 99,99% só existem em times com mais de 17 pessoas: vira tudo ou nada.</div></div>' +
-    '<div class="card green"><div class="k">Linear · 10 pessoas, 1 falta</div><div class="v">' + fmt(P.assiduidadeMax * 0.9) + ' pts</div><div class="d">Máximo (' + fmt(P.assiduidadeMax) + ') × presentes ÷ escalados. Atestado conta como falta; atraso ' + sinal(P.atraso) + '.</div></div>' +
-    '<div class="card gold"><div class="k">Trinca Perfeita</div><div class="v">' + sinal(P.trincaPerfeita) + '</div><div class="d">Time com 100% de presença nos 3 dias, somado no placar final.</div></div>' +
-  '</div>',
-  'Escalados = pessoas do time na planilha do dia · presença lançada na mesma planilha da escalação (P, F ou A por dia)'));
-
-// desafios
-S.push(slide('Desafios e gincanas', 'Três desafios por dia, <em>' + fmt(R.PONTOS_DESAFIO) + ' pontos cada</em>',
-  '<div class="prem" style="grid-template-columns:repeat(3,1fr)">' +
-    R.DIAS.map(function(d){ return '<div><p class="dia">' + d[1] + '</p><h3>' + d[2] + '</h3>' + li(R.DESAFIOS[d[0]] || []) + '</div>'; }).join('') +
-  '</div><div class="lev"><div class="n">+</div><div><h3>Banco de gincanas entre pisos</h3><p>' + R.GINCANAS.join(' · ') + '. <b>Prêmio do dia para o piso vencedor:</b> energético, picolé, refrigerante ou chocolate.</p></div></div>',
-  'Desafios lançados no sistema por admin, com horário e quem lançou · até ' + fmt(P.desafiosMax) + ' pts por dia no piso, ' + fmt(col(P.desafiosMax)) + ' na colmeia'));
-
-// bônus
-S.push(slide('Bônus', 'Bater a meta cedo e <em>a hora que vale ouro</em>',
-  '<div class="cards">' +
-    '<div class="card gold"><div class="k">Meta do dia</div><div class="v">' + sinal(P.metaBatida) + '</div><div class="d">quando o total do time passa da meta (2.000 piso · 1.200 colmeia)</div></div>' +
-    '<div class="card gold"><div class="k">Meta antecipada</div><div class="v">' + sinal(P.antecipadaHora) + '</div><div class="d">por hora inteira antes do fim do turno · máximo ' + fmt(P.antecipadaMax) + '</div></div>' +
-    '<div class="card gold"><div class="k">Hora que vale ouro</div><div class="v">2×</div><div class="d">agendada em segredo; quem bater a meta da hora tem as peças dela em dobro</div></div>' +
-    '<div class="card gold"><div class="k">Destaques</div><div class="v">' + sinal(P.destaque) + '</div><div class="d">ao time do top separador e do top conferente de cada turno</div></div>' +
-  '</div><p class="lead">A hora de ouro é <b>anunciada de surpresa</b>, com a meta daquela hora.</p>',
-  'Bônus calculados automaticamente a partir dos relatórios do WMS'));
-
-// vistoria
-S.push(slide('Vistoria', 'Segurança, qualidade e 5S <em>no estilo autoescola</em>',
-  '<div class="cards">' +
-    Object.keys(R.GRAVIDADES).map(function(g){ var its = R.CHECKLIST.filter(function(c){ return c.grav === g; }); return '<div class="card red"><div class="k">' + R.GRAVIDADES[g].rot + '</div><div class="v">' + sinal(R.GRAVIDADES[g].pts) + '</div>' + li(its.map(function(c){ return c.item; })) + '</div>'; }).join('') +
-  '</div><p class="lead">Vistoria em horário aleatório, por piso e time. O vistoriador marca o checklist e <b>o desconto entra no placar na hora</b>. Vistoria sem apontamento vale ' + sinal(P.vistoriaLimpa) + '.</p>',
-  'Cada item gravado com motivo, piso, time, horário e quem lançou'));
-
-// exemplo
-S.push(slide('Exemplo', 'Um dia do time Vermelho: <em>' + fmt(exTot) + ' pontos</em>',
-  '<table class="cmp"><tr><th>Bloco</th><th style="text-align:left">O que aconteceu</th><th>Pontos</th></tr>' +
-    ex.map(function(r){ return '<tr><td>' + r[0] + '</td><td style="text-align:left;color:var(--muted)">' + r[1] + '</td><td' + (r[2] < 0 ? ' class="neg"' : '') + '>' + sinal(r[2]) + '</td></tr>'; }).join('') +
-    '<tr class="tot"><td>Total do dia</td><td style="text-align:left">Time Vermelho · T01</td><td class="hl">' + fmt(exTot) + '</td></tr></table>',
-  'Exemplo ilustrativo com os valores do regulamento · conferido à mão'));
-
-// fluxo
-S.push(slide('Auditoria', 'De onde vem cada ponto, <em>e quem lançou</em>',
-  '<div class="grid2">' +
-    [['Robô baixa do WMS','Separação, Conferência, Colmeia, Kardex, Acompanhamento OP e Itens de NF, a cada 5–10 min.'],
-     ['Banco calcula','As mesmas regras do site: produtividade por pessoa e por time, operação em itens.'],
-     ['Lançamentos manuais','Vistoria, desafios e ajustes só por admin, com horário, motivo e quem lançou.'],
-     ['Apuração do dia','Placar fechado na manhã seguinte, com o detalhe de cada ponto.']
-    ].map(function(x, i){ return '<div class="lev"><div class="n">' + (i + 1) + '</div><div><h3>' + x[0] + '</h3><p>' + x[1] + '</p></div></div>'; }).join('') +
-  '</div><p class="lead"><b>Nenhum ponto é apagado.</b> Correção é estorno, que também fica registrado: qualquer questionamento tem resposta com data, hora e responsável.</p>',
-  'Contestação com o líder até o início do turno seguinte'));
-
-// folha de regras
-S.push(slide('Comunicação', 'Folha de regras <em>colada nos pisos</em>',
-  '<div class="two" style="grid-template-columns:560px 1fr">' +
-    '<div class="shot"><img src="img/folha-pisos.png" alt="Folha de regras" style="max-height:620px;width:auto;max-width:100%"></div>' +
-    '<div class="stack">' +
-      '<div class="lev"><div class="n">+</div><div><h3>"Se eu fizer isso, meu time ganha"</h3><p>Cada linha com o valor exato, igual ao sistema.</p></div></div>' +
-      '<div class="lev"><div class="n">−</div><div><h3>"Se eu não seguir isso, meu time perde"</h3><p>Faltas, atrasos e o checklist da vistoria por gravidade.</p></div></div>' +
-      '<div class="lev"><div class="n">3</div><div><h3>Regulamento completo</h3><p>3 páginas A4: blocos, calendário, checklist, exemplo de um dia e auditoria.</p></div></div>' +
-    '</div></div>',
-  'A folha é gerada do mesmo arquivo de regras do sistema: os números nunca divergem'));
-
-// premiação
-S.push(slide('Reconhecimento', 'Premiação',
-  '<div class="prem" style="grid-template-columns:repeat(3,1fr)">' +
-    '<div><h3>Campeão Black Friday</h3><p>Maior pontuação acumulada nos três dias, piso e colmeia, por turno.</p></div>' +
-    '<div><h3>Time Performance</h3><p>Maior produtividade acumulada: soma das peças no período.</p></div>' +
-    '<div><h3>Time 100%</h3><p>Trinca Perfeita: 100% de presença nos 3 dias.</p></div>' +
-    '<div><h3>Destaque do turno</h3><p>Top separador e top conferente de cada dia, com nome no placar.</p></div>' +
-    '<div><h3>Vistoria nota 10</h3><p>Time com mais vistorias sem apontamento.</p></div>' +
-    '<div><h3>Prêmios instantâneos</h3><p>Brindes e Golden Tickets durante os três dias para quem está fora da liderança.</p></div>' +
-  '</div>',
-  RODAPE));
-
-// próximos passos
-S.push(slide('Próximos passos', 'O que precisamos <em>da liderança</em>',
-  '<div class="grid2">' +
-    '<div class="lev"><div class="n">1</div><div><h3>Decisões</h3>' + li(['Aprovar os pesos da pontuação','Metas oficiais por time (hoje provisórias: 2.000 piso · 1.200 colmeia)','Confirmar turno ADM e T03']) + '</div></div>' +
-    '<div class="lev"><div class="n">2</div><div><h3>Preparação</h3>' + li(['Escalação dos times com presença (planilha por cor)','Definir vistoriadores e agenda das horas de ouro','Ensaio no dia anterior','Imprimir e colar a folha de regras nos pisos']) + '</div></div>' +
+// 6 · premiação e próximos passos
+S.push(slide('Reconhecimento e próximos passos', 'Quem leva <em>e o que falta decidir</em>',
+  '<div class="two" style="grid-template-columns:1.25fr 1fr">' +
+    '<div class="prem" style="grid-template-columns:1fr 1fr;gap:30px 44px">' +
+      '<div><h3>Campeão Black Friday</h3><p>Maior pontuação acumulada nos 3 dias, por turno.</p></div>' +
+      '<div><h3>Time Performance</h3><p>Maior produtividade acumulada no período.</p></div>' +
+      '<div><h3>Time 100%</h3><p>Trinca Perfeita: presença total nos 3 dias.</p></div>' +
+      '<div><h3>Destaque do turno</h3><p>Top separador e top conferente de cada dia.</p></div>' +
+      '<div><h3>Vistoria nota 10</h3><p>Mais vistorias sem apontamento.</p></div>' +
+      '<div><h3>Prêmios instantâneos</h3><p>Brindes e Golden Tickets ao longo dos 3 dias.</p></div>' +
+    '</div>' +
+    '<div class="lev"><div class="n">→</div><div><h3>Próximos passos</h3>' + li(['Metas oficiais por time (hoje: 2.000 piso · 1.200 colmeia)','Escalação final com presença (planilha por cor)','Vistoriadores e agenda das horas de ouro','Confirmar DJ, café e lanches','Ensaio geral em 26/11']) + '</div></div>' +
   '</div>',
   RODAPE));
 

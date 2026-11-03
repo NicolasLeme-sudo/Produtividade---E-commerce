@@ -242,12 +242,11 @@ async function exportar(page, tela, pasta) {
   await page.locator("#ExportGridPlugin_exportButton:visible").first().click();
   const download = page.waitForEvent("download", { timeout: ESPERA_EXPORTAR_MS });
   await page.getByRole("link", { name: "Separado por Tabulações .tsv" }).click();
-  const d = await download;
+  const d = await download;                        // só espera o download COMEÇAR
   const final = path.join(pasta, "Exportacao_" + tela.id + "_" + hora() + ".tsv");
   const temp = final + ".parcial";                 // o vigia só olha .tsv: não pega pela metade
-  await d.saveAs(temp);
-  fs.renameSync(temp, final);
-  return final;
+  // O arquivo termina de baixar em 2º plano enquanto o robô já vai para a próxima aba.
+  return d.saveAs(temp).then(function () { fs.renameSync(temp, final); return final; });
 }
 
 async function printErro(page, tela) {
@@ -324,6 +323,7 @@ async function iniciar(cfg, log, opcoes) {
     log("   aba " + tela.nome + " pronta (filtro " + aba.chave + ")");
   }
 
+  const pendentes = new Set();   // downloads terminando em 2º plano
   async function rodar(tela) {
     if (Date.now() < st.pausaAte) return;
     const t0 = Date.now();
@@ -339,13 +339,22 @@ async function iniciar(cfg, log, opcoes) {
         await aba.page.locator(tela.refresh + ":visible").first().click();
         await esperarCarregar(aba.page);
       }
-      const arq = await exportar(aba.page, tela, cfg.PASTA);
-      log("Baixado " + tela.nome + " em " + Math.round((Date.now() - t0) / 1000) + " s · " + path.basename(arq));
+      const salvo = await exportar(aba.page, tela, cfg.PASTA);
+      const fim = salvo.then(function (arq) {
+        pendentes.delete(fim);
+        log("Baixado " + tela.nome + " em " + Math.round((Date.now() - t0) / 1000) + " s · " + path.basename(arq));
+        return arq;
+      }, function (e) { pendentes.delete(fim); log("ERRO ao salvar " + tela.nome + ": " + e.message.split("\n")[0]); return null; });
+      pendentes.add(fim);
+      // Só o OP espera o arquivo: a data inicial do Itens de NF sai dele. Os outros seguem em 2º plano.
       if (tela.id === "op" && opcoes.maisAntigoOp) {
-        try {
-          const ms = await opcoes.maisAntigoOp(arq);
-          if (ms) st.maisAntigoOp = ms;
-        } catch (e) { log("   não li o pedido mais antigo do OP: " + e.message); }
+        const arq = await fim;
+        if (arq) {
+          try {
+            const ms = await opcoes.maisAntigoOp(arq);
+            if (ms) st.maisAntigoOp = ms;
+          } catch (e) { log("   não li o pedido mais antigo do OP: " + e.message); }
+        }
       }
     } catch (e) {
       aba = abas[tela.id];
@@ -367,6 +376,7 @@ async function iniciar(cfg, log, opcoes) {
   if (opcoes.umaVez) {
     await grupo("rapido");
     await grupo("lento");
+    await Promise.all(Array.from(pendentes));    // espera os downloads em 2º plano antes de fechar as abas
     await fechar();
     return;
   }

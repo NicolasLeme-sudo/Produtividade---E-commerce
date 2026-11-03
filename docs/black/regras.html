@@ -47,7 +47,7 @@ p{margin:0}
 .ouro strong{color:#fff}
 .rodape{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--text-secondary);border-top:1px solid var(--card-border);padding:10px 28px}
 table{border-collapse:collapse;width:100%;font-size:12.5px}
-th,td{padding:7px 9px;border:1px solid var(--card-border);text-align:left;font-variant-numeric:tabular-nums;vertical-align:top}
+th,td{padding:5px 9px;border:1px solid var(--card-border);text-align:left;font-variant-numeric:tabular-nums;vertical-align:top}
 thead th{background:var(--chip-bg);color:var(--text-secondary);font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
 td.num,th.num{text-align:right;white-space:nowrap}
 tr.total td{border-top:2px solid #1A6FC4;background:var(--chip-bg);font-weight:700}
@@ -76,7 +76,7 @@ function col(n){ return Math.round(n * R.FATOR_COLMEIA); }
 function topo(kicker, titulo){
   return '<div class="topo"><img src="../../logo-mark.png" alt="Vulcabras"><div><p class="kicker">'+kicker+'</p><h1>'+titulo+'</h1><hr class="regua"></div></div>';
 }
-function rodape(pg){ return '<div class="rodape"><span>Missão Black Friday 2026 · 27, 28 e 29 de novembro · E-commerce Vulcabras</span><span>'+pg+'</span></div>'; }
+function rodape(pg){ return '<div class="rodape"><span>Missão Black 2026 · 27 a 30 de novembro · E-commerce Vulcabras</span><span>'+pg+'</span></div>'; }
 var gravs = R.GRAVIDADES;
 
 // ---------- Página 1: folha para colar nos pisos ----------
@@ -85,7 +85,7 @@ var ganha = [
   ['Time bate a meta do dia', sinal(P.metaBatida)],
   ['Cada hora inteira de antecedência na meta', sinal(P.antecipadaHora)+' (até '+fmt(P.antecipadaMax)+')'],
   ['Presença de todo o time', 'até '+fmt(P.assiduidadeMax)],
-  ['Desafios e gincanas do dia', 'até '+fmt(P.desafiosMax)],
+  ['Gincanas e desafios do dia', 'até '+fmt(P.desafiosMax)],
   ['Vistoria sem nenhum apontamento', sinal(P.vistoriaLimpa)],
   ['Top separador ou top conferente do turno', sinal(P.destaque)+' cada'],
   ['100% de presença nos 3 dias (Trinca Perfeita)', sinal(P.trincaPerfeita)]
@@ -101,10 +101,10 @@ var perde = [
 function lista(itens){ return '<ul class="lista">'+itens.map(function(i){ return '<li><span>'+i[0]+'</span><b>'+i[1]+'</b></li>'; }).join('')+'</ul>'; }
 var pg1 = '<section class="folha">'+topo('Missão Black Friday 2026 · 27, 28 e 29/11', 'Como o seu time pontua')+
   '<div class="corpo">'+
-    '<p class="apoio">Cada piso tem um time por turno. Produtividade, presença, desafios e organização valem pontos. O placar aparece ao vivo no telão.</p>'+
+    '<p class="apoio">Cada piso tem um time por turno. Produtividade, presença, desafios e organização valem pontos. A corrida dos times aparece ao vivo no telão; os pontos de cada dia são apurados na manhã seguinte.</p>'+
     '<div class="duas"><div class="caixa ganha"><h3>Seu time ganha</h3>'+lista(ganha)+'</div><div class="caixa perde"><h3>Seu time perde</h3>'+lista(perde)+'</div></div>'+
     '<div class="ouro"><span class="sel">2×</span><div><p class="kicker" style="margin-bottom:2px">Hora que vale ouro</p><p>Anunciada de surpresa no telão. Se o time bater a meta daquela hora, <strong>todas as peças da hora valem o dobro</strong>. Só vale com qualidade e segurança.</p></div></div>'+
-    '<p class="nota">Colmeia: os valores fixos valem '+fmt(R.FATOR_COLMEIA*100)+'% (a meta da colmeia é menor). A vistoria passa em horários aleatórios e o desconto entra no placar na hora. Todo ponto lançado fica registrado com horário, motivo e quem lançou; dúvidas, fale com o líder do turno.</p>'+
+    '<p class="nota">Colmeia: os valores fixos valem '+fmt(R.FATOR_COLMEIA*100)+'% (a meta da colmeia é menor). A vistoria passa em horários aleatórios e o desconto é lançado na hora. Todo ponto lançado fica registrado com horário, motivo e quem lançou; dúvidas, fale com o líder do turno.</p>'+
   '</div>'+rodape('1')+'</section>';
 
 // ---------- Página 2: regulamento ----------
@@ -116,10 +116,10 @@ var tabPontos = '<table><thead><tr><th>Bloco</th><th>Como conta</th><th class="n
    ['Hora que vale ouro','Peças da hora contam em dobro se o time bater a meta da hora','2× peças','2× peças'],
    ['Assiduidade','Máximo × presentes ÷ escalados do dia; atestado = falta', 'até '+fmt(P.assiduidadeMax), 'até '+fmt(col(P.assiduidadeMax))],
    ['Atraso','Por pessoa atrasada', sinal(P.atraso), sinal(col(P.atraso))],
-   ['Desafios','Soma dos desafios do dia ('+fmt(R.PONTOS_DESAFIO)+' cada)', 'até '+fmt(P.desafiosMax), 'até '+fmt(col(P.desafiosMax))],
+   ['Gincanas e desafios','Soma do dia ('+fmt(R.PONTOS_DESAFIO)+' cada, lançada para os times da gincana)', 'até '+fmt(P.desafiosMax), 'até '+fmt(col(P.desafiosMax))],
    ['Vistoria','Checklist (próxima página); sem apontamento', sinal(P.vistoriaLimpa)+' / descontos', sinal(col(P.vistoriaLimpa))+' / descontos'],
    ['Destaques','Time do top separador e do top conferente do turno', sinal(P.destaque)+' cada', sinal(col(P.destaque))+' cada'],
-   ['Trinca Perfeita','100% de presença nos 3 dias (no placar final)', sinal(P.trincaPerfeita), sinal(col(P.trincaPerfeita))]
+   ['Trinca Perfeita','100% de presença nos 3 dias (na apuração final)', sinal(P.trincaPerfeita), sinal(col(P.trincaPerfeita))]
   ].map(function(r){ return '<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td class="num">'+r[2]+'</td><td class="num">'+r[3]+'</td></tr>'; }).join('')+'</tbody></table>';
 var cal = '<table><thead><tr><th>Dia</th><th>Tema</th><th>Desafios ('+fmt(R.PONTOS_DESAFIO)+' pts cada no piso)</th></tr></thead><tbody>'+
   R.DIAS.map(function(d){ return '<tr><td><b>'+d[1]+'</b></td><td>'+d[2]+'</td><td>'+(R.DESAFIOS[d[0]]||[]).join(' · ')+'</td></tr>'; }).join('')+'</tbody></table>';
@@ -127,7 +127,7 @@ var pg2 = '<section class="folha">'+topo('Regulamento · Missão Black Friday 20
   '<div class="corpo">'+
     '<div class="secao"><h2>Times e turnos</h2><p class="apoio">Um time por piso em cada turno (2 conferentes + separadores); colmeia com a mesma divisão e 2 líderes. Piso disputa com piso, colmeia com colmeia. Turnos: '+turnos+'. O T02 que passa da meia-noite conta no dia em que começou.</p></div>'+
     '<div class="secao"><h2>Blocos de pontos</h2>'+tabPontos+'</div>'+
-    '<div class="secao"><h2>Calendário de desafios</h2>'+cal+'</div>'+
+    '<div class="secao"><h2>Calendário de desafios</h2>'+cal+'<p class="nota"><b>Banco de gincanas entre pisos:</b> '+R.GINCANAS.join(' · ')+'. Prêmio do dia para o piso vencedor: energético, picolé, refrigerante ou chocolate.</p></div>'+
     '<div class="secao"><h2>Assiduidade, na prática</h2><p class="apoio">Escalados são as pessoas do time na planilha de escalação para o dia. Ex.: 10 escalados, 9 vieram (1 deles atrasado) → '+fmt(P.assiduidadeMax)+' × 9 ÷ 10 = '+fmt(P.assiduidadeMax*0.9)+', menos '+fmt(-P.atraso)+' do atraso = <b>'+fmt(P.assiduidadeMax*0.9+P.atraso)+'</b>.</p></div>'+
   '</div>'+rodape('2')+'</section>';
 

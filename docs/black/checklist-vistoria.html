@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist da Vistoria · Missão Black</title>
+<!--
+  Ficha de vistoria para preencher à mão: duas fichas por folha A4 (corta ao meio).
+  Itens e pontos vêm de regras-black.js (os mesmos do lançamento no site).
+  Imprimir: Ctrl+P, A4, margens nenhuma, "gráficos de fundo" ligado.
+-->
+<script src="../../regras-black.js"></script>
+<style>
+:root{--bg-deep:#031F44;--borda:#C9D2DC;--texto:#1A3A6B;--apoio:#5B6B7C;--ouro:#F6BD00;--neg:#C0392B;--pos:#2E9E2E;--chip:#EEF2F7;
+  --fonte:"Segoe UI",Roboto,Arial,sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:#F4F6F9;color:var(--texto);font-family:var(--fonte);-webkit-font-smoothing:antialiased}
+.folha{width:210mm;height:297mm;margin:16px auto;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);display:grid;grid-template-rows:148.5mm 148.5mm;overflow:hidden}
+.ficha{padding:5.5mm 9mm 4.5mm;display:flex;flex-direction:column;gap:1.8mm;border-bottom:1px dashed #9AA7B5;overflow:hidden}
+.ficha:last-child{border-bottom:0}
+.topo{display:flex;justify-content:space-between;align-items:center;background:var(--bg-deep);color:#fff;border-radius:2mm;padding:2mm 4mm}
+.topo .k{font-size:7.5pt;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ouro);margin:0}
+.topo h1{font-size:12.5pt;margin:0;font-weight:800}
+.topo .reg{font-size:7.5pt;color:#C9D4E3;text-align:right;line-height:1.35}
+.campos{display:grid;grid-template-columns:1fr 1fr 1.3fr 1fr;gap:1mm 3mm}
+.campo{font-size:7.5pt;color:var(--apoio);text-transform:uppercase;letter-spacing:.06em;font-weight:700;border-bottom:1px solid var(--borda);padding-bottom:2.6mm}
+.campo.largo{grid-column:span 2}
+.opc{font-weight:600;color:var(--texto);text-transform:none;letter-spacing:0;font-size:8pt;margin-left:2mm}
+table{border-collapse:collapse;width:100%;font-size:8pt}
+th,td{border:1px solid var(--borda);padding:.55mm 2mm;text-align:left;vertical-align:middle}
+thead th{background:var(--chip);color:var(--apoio);font-size:6.8pt;letter-spacing:.07em;text-transform:uppercase}
+td.g{font-weight:800;font-size:7.6pt;text-transform:uppercase;letter-spacing:.04em;width:22mm}
+td.n,th.n{text-align:center;white-space:nowrap;width:15mm;font-variant-numeric:tabular-nums}
+td.neg{color:var(--neg);font-weight:700}
+td.q{width:16mm}
+.rodape{display:grid;grid-template-columns:auto 1fr 1fr;gap:3mm;align-items:end;font-size:7.8pt}
+.caixa{border:1.5px solid var(--pos);border-radius:1.5mm;padding:1.6mm 2.6mm;color:var(--pos);font-weight:700;white-space:nowrap}
+.caixa i{display:inline-block;width:3.4mm;height:3.4mm;border:1.5px solid var(--pos);border-radius:.6mm;vertical-align:-.6mm;margin-right:1.6mm}
+.linha{border-bottom:1px solid var(--borda);padding-bottom:2.6mm;color:var(--apoio);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:7pt}
+.nota{font-size:7pt;color:var(--apoio)}
+@media print{body{background:#fff}.folha{margin:0;box-shadow:none;page-break-after:always;break-after:page}.folha:last-child{page-break-after:auto}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@page{size:A4;margin:0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+var R = window.RegrasBlack, P = R.P, G = R.GRAVIDADES;
+function fmt(n){ return Number(n).toLocaleString('pt-BR'); }
+function sinal(n){ return (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n)); }
+function col(n){ return Math.round(n * R.FATOR_COLMEIA); }
+var porGrav = {};
+R.CHECKLIST.forEach(function(c){ (porGrav[c.grav] = porGrav[c.grav] || []).push(c.item); });
+var linhas = Object.keys(G).map(function(g){
+  return (porGrav[g] || []).map(function(item, i){
+    return '<tr>' + (i === 0 ? '<td class="g" rowspan="' + porGrav[g].length + '">' + G[g].rot + '</td>' : '') +
+      '<td>' + item + '</td><td class="n neg">' + sinal(G[g].pts) + '</td><td class="n neg">' + sinal(col(G[g].pts)) + '</td><td class="q"></td></tr>';
+  }).join('');
+}).join('');
+var ficha = '<div class="ficha">' +
+  '<div class="topo"><div><p class="k">Missão Black 2026 · Vistoria</p><h1>Checklist de segurança, qualidade e 5S</h1></div>' +
+    '<div class="reg">Marque a quantidade de cada item encontrado.<br>Lançar no site: Admin › Vistoria.</div></div>' +
+  '<div class="campos">' +
+    '<div class="campo">Data</div>' +
+    '<div class="campo">Horário</div>' +
+    '<div class="campo">Turno<span class="opc">☐ T01 ☐ T02 ☐ ADM</span></div>' +
+    '<div class="campo">Piso / Colmeia</div>' +
+    '<div class="campo largo">Time<span class="opc">☐ Vermelho ☐ Azul ☐ Verde ☐ Amarelo ☐ Rosa ☐ Roxo</span></div>' +
+    '<div class="campo largo">Vistoriador</div>' +
+  '</div>' +
+  '<table><thead><tr><th>Gravidade</th><th>Item observado</th><th class="n">Piso</th><th class="n">Colmeia</th><th class="n">Qtde.</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
+  '<div class="rodape"><div class="caixa"><i></i>Sem apontamento ' + sinal(P.vistoriaLimpa) + ' (colmeia ' + sinal(col(P.vistoriaLimpa)) + ')</div>' +
+    '<div class="linha">Observação (local, corredor)</div><div class="linha">Assinatura</div></div>' +
+  '<p class="nota">Pontos por item × quantidade. Vale para o time inteiro. Correção só por estorno no site.</p>' +
+'</div>';
+document.getElementById('app').innerHTML = '<section class="folha">' + ficha + ficha + '</section>';
+})();
+</script>
+</body>
+</html>
