@@ -1208,39 +1208,53 @@ function diaOperacionalIngest(agora) {
   return paraDataISOLocal(d);
 }
 function somaArr(a) { return (a || []).reduce(function (s, v) { return s + (v || 0); }, 0); }
-// horasPorDia = [{data, horas:[24]}] · realizadoDia = total do dia que a tela mostra (opcional)
-// 1) curva média por hora dos últimos 10 dias com dado; 2) ritmo = hoje ÷ curva até o mesmo minuto
-// (entre 50% e 150%; antes de 5% do dia fica 100%); 3) previsão = realizado + ritmo × o que a curva ainda faz;
-// 4) próxima hora = ritmo × média da próxima hora cheia. Sem 3 dias de histórico, não prevê.
+// Operação do dia: do início do T01 (05h00) ao fim do T02 (00h16); almoço do T01 e janta do T02 não contam.
+var OPERACAO_FIM_MIN = 24 * 60 + 16, OPERACAO_PAUSAS = [[11 * 60 + 30, 12 * 60 + 30], [18 * 60 + 30, 19 * 60 + 30]];
+// Minutos trabalhados entre dois minutos do dia (sem as pausas).
+function minutosDeOperacao(de, ate) {
+  var t = Math.max(0, ate - de);
+  OPERACAO_PAUSAS.forEach(function (p) { t -= Math.max(0, Math.min(ate, p[1]) - Math.max(de, p[0])); });
+  return Math.max(0, t);
+}
+// Previsão do dia e da próxima hora, pelo que já foi feito HOJE:
+//   média por hora = peças das horas completas de hoje ÷ horas trabalhadas nelas (desde a 1ª hora com produção)
+//   previsão do dia = realizado + média por hora × horas trabalhadas que faltam até 00h16
+//   próxima hora    = média por hora × parte trabalhada da próxima hora
+// Começo do turno (menos de 1 hora de produção hoje): usa o dia anterior no mesmo horário —
+//   previsão = realizado + o que o dia anterior fez daqui até o fim; próxima hora = o que ele fez nessa hora.
+// horasPorDia = [{data, horas:[24]}] · realizadoDia = total do dia mostrado na tela · fator = ajuste (colmeia na conferência)
 function previsaoDoDia(horasPorDia, agora, realizadoDia, fator) {
   agora = agora || new Date(); fator = fator || 1;
   var dia = diaOperacionalIngest(agora);
-  // Só dias completos: os enviados no meio do dia (ou quase vazios) puxariam a curva para baixo.
-  // Completo = última hora com produção perto da mediana dos dias e total ≥ 50% da mediana.
-  var cand = (horasPorDia || []).filter(function (d) { return d.data < dia && somaArr(d.horas) > 0; });
-  var ultimaHora = function (d) { for (var h = 23; h >= 0; h--) if (d.horas[h] > 0) return h; return -1; };
-  var mediana = function (a) { a = a.slice().sort(function (x, y) { return x - y; }); return a.length ? a[Math.floor(a.length / 2)] : 0; };
-  var medHora = mediana(cand.map(ultimaHora)), medTotal = mediana(cand.map(function (d) { return somaArr(d.horas); }));
-  var hist = cand.filter(function (d) { return ultimaHora(d) >= medHora - 2 && somaArr(d.horas) >= medTotal * 0.5; }).slice(-10);
-  var hojeH = ((horasPorDia || []).filter(function (d) { return d.data === dia; })[0] || {}).horas || [];
-  var realHora = somaArr(hojeH), real = realizadoDia != null ? realizadoDia : realHora;
-  var r = { data: dia, realizado: real, diasBase: hist.length, calculadoEm: agora.getTime() };
-  if (hist.length < 3) return r;
-  var media = new Array(24).fill(0);
-  hist.forEach(function (d) { for (var h = 0; h < 24; h++) media[h] += (d.horas[h] || 0) / hist.length; });
-  // depois da meia-noite (ainda dia anterior) o dia já passou de todas as horas
-  var H = paraDataISOLocal(agora) === dia ? agora.getHours() : 24, frac = H < 24 ? agora.getMinutes() / 60 : 0;
-  var esperado = 0, resto = 0, total = somaArr(media);
-  for (var h = 0; h < 24; h++) {
-    if (h < H) esperado += media[h];
-    else if (h === H) { esperado += media[h] * frac; resto += media[h] * (1 - frac); }
-    else resto += media[h];
+  var lista = horasPorDia || [];
+  var hojeH = (lista.filter(function (d) { return d.data === dia; })[0] || {}).horas || new Array(24).fill(0);
+  var real = realizadoDia != null ? realizadoDia : somaArr(hojeH);
+  // minuto atual no dia operacional (depois da meia-noite continua contando: 24h05 = 1445)
+  var minAgora = agora.getHours() * 60 + agora.getMinutes() + (paraDataISOLocal(agora) === dia ? 0 : 1440);
+  var r = { data: dia, realizado: real, calculadoEm: agora.getTime() };
+  if (minAgora >= OPERACAO_FIM_MIN) { r.previsto = real; r.hora = null; r.proximaHora = 0; r.base = "fim"; return r; }
+  var H = Math.floor(minAgora / 60), prox = H + 1;
+  var primeira = hojeH.findIndex(function (v) { return v > 0; });
+  var feitoCompleto = 0; for (var h = Math.max(0, primeira); h < Math.min(H, 24); h++) feitoCompleto += hojeH[h] || 0;
+  var minCompletos = primeira >= 0 ? minutosDeOperacao(primeira * 60, Math.min(H, 24) * 60) : 0;
+  var minRestantes = minutosDeOperacao(minAgora, OPERACAO_FIM_MIN);
+  var minProx = minutosDeOperacao(prox * 60, Math.min((prox + 1) * 60, OPERACAO_FIM_MIN));
+  r.hora = prox <= 24 ? prox % 24 : null;
+  if (minCompletos >= 60 && feitoCompleto > 0) {
+    var porHora = feitoCompleto / (minCompletos / 60);
+    r.base = "hoje";
+    r.previsto = Math.round(real + porHora * minRestantes / 60 * fator);
+    r.proximaHora = Math.round(porHora * minProx / 60 * fator);
+    return r;
   }
-  var ritmo = esperado > 0 && esperado >= total * 0.05 ? Math.max(0.5, Math.min(1.5, realHora / esperado)) : 1;
-  r.ritmo = Math.round(ritmo * 100) / 100;
-  r.previsto = Math.round(real + ritmo * resto * fator);
-  r.hora = H + 1 <= 23 ? H + 1 : null;
-  r.proximaHora = r.hora === null ? 0 : Math.round(ritmo * media[r.hora] * fator);
+  // começo do turno: o dia anterior com produção, no mesmo horário
+  var ant = lista.filter(function (d) { return d.data < dia && somaArr(d.horas) > 0; }).pop();
+  if (!ant) return r;   // sem base: a tela mostra "—"
+  var fracH = (minAgora % 60) / 60, daquiAteFim = 0;
+  for (var k = H; k < 24; k++) daquiAteFim += (ant.horas[k] || 0) * (k === H ? 1 - fracH : 1);
+  r.base = "dia anterior (" + ant.data + ")";
+  r.previsto = Math.round(real + daquiAteFim * fator);
+  r.proximaHora = Math.round((prox < 24 ? ant.horas[prox] || 0 : 0) * fator);
   return r;
 }
 // Horas do analítico (soma de todos os usuários) por dia: [{data, horas:[24]}]

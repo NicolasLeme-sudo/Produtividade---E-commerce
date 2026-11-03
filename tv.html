@@ -364,11 +364,11 @@ function top5Html(obj, nomeDe){ var l = Object.keys(obj).map(function(n){ return
 function nomeWms(u){ return nomeCurto(nomeBonito(u)); }
 var COR_SEP = '#297ADF', COR_SEP2 = '#7DB8FF', COR_CONF = '#2EC4B6', COR_CONF2 = '#8CEBDF', COR_ARM = '#297ADF', COR_ARM2 = '#45C645';
 
-// Card da curva de planejamento (previsão gravada pelo ingest.js a cada envio).
+// Card de previsão: número grande = previsão do dia; embaixo = próxima hora (calculadas no ingest.js a cada envio).
 function kpiPrevisao(rot, prev, realizado, kc, vc){
   if (!ehHoje()) return kpiHtml(rot, fmt(realizado), 'dia encerrado', kc, vc, 'peças');
   if (!prev || prev.data !== diaTela()) return kpiHtml(rot, '—', 'aguardando o próximo envio', kc, vc);
-  if (prev.previsto == null) return kpiHtml(rot, '—', 'pouco histórico ('+fmt(prev.diasBase)+' dia'+(prev.diasBase === 1 ? '' : 's')+')', kc, vc);
+  if (prev.previsto == null) return kpiHtml(rot, '—', 'sem base ainda', kc, vc);
   return kpiHtml(rot, fmt(Math.max(prev.previsto, realizado)), prev.hora != null ? 'próx. hora '+String(prev.hora).padStart(2,'0')+'h: '+fmt(prev.proximaHora) : 'fim do dia', kc, vc, 'peças');
 }
 function rotuloDia(base, dia){ return base + (dia === hojeOp() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)); }
