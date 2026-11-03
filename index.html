@@ -492,7 +492,9 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .pb-grav{display:grid; gap:4px;}
 .pb-grav b{font-size:.74rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em;}
 .pb-item{display:flex; align-items:center; gap:8px; font-size:.8rem;}
-.pb-item input[type=number]{width:48px; flex:none;}
+.pb-item input[type=number]{width:52px; flex:none; border:1px solid var(--border); background:var(--bg-card); color:var(--text); border-radius:7px; padding:5px 6px; font-size:.78rem; font-family:inherit; text-align:center; font-variant-numeric:tabular-nums;}
+.pb-item input[type=number]:focus{outline:none; border-color:var(--accent);}
+.pb-item input[type=checkbox]{accent-color:var(--accent); width:15px; height:15px;}
 .pb-ouros{display:flex; flex-direction:column; gap:6px; font-size:.8rem;}
 /* Ajustes: Gincanas, Ajuste de pontuação e Horas de Ouro lado a lado */
 .pb-ajustes{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; align-items:start;}
