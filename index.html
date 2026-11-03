@@ -127,7 +127,8 @@ body{
 .sub-head h3{margin:0; font-size:.95rem;}
 .sub-head .kicker{margin:0;}
 .kicker{font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin:0 0 6px;}
-.subsection.flash{animation:flashPulse 800ms ease-in-out 3;}
+.subsection.flash,.grupo-abastecimento.flash{animation:flashPulse 800ms ease-in-out 3;}
+.grupo-abastecimento{border-radius:10px;}
 @keyframes flashPulse{0%,100%{box-shadow:0 0 0 0 transparent; background:transparent;} 50%{box-shadow:0 0 0 3px var(--amber), 0 0 16px 2px var(--amber-soft); background:var(--amber-soft);}}
 
 .filterbar{position:sticky; top:0; z-index:5; display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px;}
@@ -493,6 +494,9 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .pb-item{display:flex; align-items:center; gap:8px; font-size:.8rem;}
 .pb-item input[type=number]{width:48px; flex:none;}
 .pb-ouros{display:flex; flex-direction:column; gap:6px; font-size:.8rem;}
+/* campo com nome em cima: altura do conteúdo (sem esticar) */
+.pb-campo{display:flex; flex-direction:column; gap:3px; flex:1 1 140px; font-size:.68rem; color:var(--text-muted);}
+.comp-add .pb-campo > input,.comp-add .pb-campo > select{flex:none; width:100%;}
 .pb-vazio{font-size:.78rem; color:var(--text-muted); margin:0;}
 .comp-lista-membros{display:flex; flex-direction:column; gap:8px; max-height:224px; overflow-y:auto; padding-right:4px;}   /* 4 colaboradores visíveis, o resto rola */
 .comp-add input,.comp-add select,.comp-edit select,.comp-edit input{border:1px solid var(--border); background:var(--bg-card); color:var(--text); border-radius:7px; padding:7px 10px; font-size:.76rem; font-family:inherit; min-width:0; flex:1 1 110px;}

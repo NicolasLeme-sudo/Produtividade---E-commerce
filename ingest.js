@@ -1647,7 +1647,7 @@ async function renderPontosBlack() {
   var lanc = rL.data || [], ouros = rO.data || [];
 
   // Peças comuns aos 4 cartões
-  var campo = function (rotulo, html) { return '<label style="display:flex; flex-direction:column; gap:3px; flex:1 1 110px; font-size:.68rem; color:var(--text-muted)">' + rotulo + html + "</label>"; };
+  var campo = function (rotulo, html) { return '<label class="pb-campo">' + rotulo + html + "</label>"; };
   var linhaCampos = function (html) { return '<div class="comp-add" style="align-items:flex-end">' + html + "</div>"; };
   var seletores = function (comTime) {
     return linhaCampos(campo("Dia", '<select data-pb="dia">' + opcoes(dias, pb.dia) + "</select>") + campo("Turno", '<select data-pb="turno">' + opcoes(COMP_TURNOS, pb.turno) + "</select>") +
