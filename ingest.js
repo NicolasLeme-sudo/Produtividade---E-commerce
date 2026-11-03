@@ -1661,6 +1661,9 @@ async function renderPontosBlack() {
   var T = RB.TURNOS[pb.turno] || RB.TURNOS["1º Turno"], horas = [];
   for (var h = Math.floor(T.ini / 60); h < Math.ceil(T.fim / 60); h++) horas.push([h % 24, String(h % 24).padStart(2, "0") + "h00–" + String((h + 1) % 24).padStart(2, "0") + "h00"]);
 
+  // Campo com nome visível em cima (os números sozinhos confundiam: 260 e 160 eram as metas da hora).
+  var campo = function (rotulo, html) { return '<label style="display:flex; flex-direction:column; gap:3px; flex:1 1 110px; font-size:.68rem; color:var(--text-muted)">' + rotulo + html + "</label>"; };
+  var linhaCampos = '<div class="comp-add" style="align-items:flex-end">';
   el.innerHTML = '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:12px">' +
     '<div class="panel-head"><div><p class="kicker">Missão Black</p><h4>Pontos da Black · vistoria, desafios e ajustes</h4></div>' +
       '<button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições de Pontos por Time</button></div>' +
@@ -1669,10 +1672,15 @@ async function renderPontosBlack() {
     '<div class="pb-col"><div><p class="kicker">Vistoria (desconta na hora)</p><div class="pb-check">' + checklist + "</div>" +
       '<label class="pb-item"><input type="checkbox" id="pb-limpa"> Vistoria sem apontamento (+' + f(RB.P.vistoriaLimpa) + ")</label>" +
       '<div class="comp-add"><input id="pb-vis-obs" placeholder="Observação (local, corredor, quem viu)"><button class="btn" id="pb-btn-vistoria">Lançar vistoria</button></div></div>' +
-    '<div><p class="kicker">Desafio / gincana</p><div class="comp-add"><select id="pb-desafio">' + opcoes(desafios, desafios[0]) + '</select><input id="pb-des-pts" type="number" value="' + f(RB.PONTOS_DESAFIO) + '" aria-label="Pontos"><button class="btn" id="pb-btn-desafio">Lançar desafio</button></div>' +
-      '<p class="kicker" style="margin-top:14px">Ajuste manual</p><div class="comp-add"><input id="pb-aj-pts" type="number" placeholder="Pontos (ex.: -30 ou 50)"><input id="pb-aj-motivo" placeholder="Motivo (obrigatório)"><button class="btn" id="pb-btn-ajuste">Lançar ajuste</button></div>' +
+    '<div><p class="kicker">Desafio / gincana</p>' + linhaCampos + campo("Desafio do dia", '<select id="pb-desafio">' + opcoes(desafios, desafios[0]) + "</select>") +
+      campo("Pontos para o time (máx. " + f(RB.P.desafiosMax) + " no dia)", '<input id="pb-des-pts" type="number" value="' + f(RB.PONTOS_DESAFIO) + '">') + '<button class="btn" id="pb-btn-desafio">Lançar desafio</button></div>' +
+      '<p class="kicker" style="margin-top:14px">Ajuste manual</p>' + linhaCampos + campo("Pontos (negativo desconta)", '<input id="pb-aj-pts" type="number" placeholder="ex.: -30 ou 50">') +
+      campo("Motivo (obrigatório)", '<input id="pb-aj-motivo" placeholder="o que aconteceu">') + '<button class="btn" id="pb-btn-ajuste">Lançar ajuste</button></div>' +
       '<p class="kicker" style="margin-top:14px">Horas de ouro agendadas (' + htmlSeguro(pb.turno) + ")</p>" +
-      '<div class="comp-add"><select id="pb-ouro-hora">' + opcoes(horas, horas[0] && horas[0][0]) + '</select><input id="pb-ouro-piso" type="number" placeholder="Meta piso/h" value="260"><input id="pb-ouro-col" type="number" placeholder="Meta colmeia/h" value="160"><button class="btn" id="pb-btn-ouro">Agendar</button></div>' +
+      linhaCampos + campo("Hora", '<select id="pb-ouro-hora">' + opcoes(horas, horas[0] && horas[0][0]) + "</select>") +
+      campo("Meta da hora · cada time do piso (peças)", '<input id="pb-ouro-piso" type="number" value="260">') +
+      campo("Meta da hora · cada time da colmeia (peças)", '<input id="pb-ouro-col" type="number" value="160">') + '<button class="btn" id="pb-btn-ouro">Agendar</button></div>' +
+      '<p class="pb-vazio">Vale para todos os times do turno (o seletor de time não conta aqui). Time que fizer a meta na hora ganha as peças da hora de novo (vale 2×).</p>' +
       (ouros.length ? '<div class="pb-ouros">' + ouros.map(function (o) { return '<span>' + String(o.hora).padStart(2, "0") + 'h · piso ' + o.meta_piso + ' · colmeia ' + o.meta_colmeia + ' <button class="btn ghost pb-ouro-del" data-id="' + o.id + '">Remover</button></span>'; }).join("") + "</div>" : '<p class="pb-vazio">Nenhuma hora de ouro neste dia e turno (o telão só mostra quando a hora chega).</p>') +
     "</div></div>" +
     '<div class="upload-status" id="pb-status"></div>' +
