@@ -145,7 +145,7 @@ S.push(slide('Visão geral', 'Do aquecimento ao <em>time campeão</em>',
 // 3 · a campanha
 S.push(slide('A campanha', 'Um time de cada cor, <em>em cada turno</em>',
   '<div class="two"><div class="stack">' +
-    Object.keys(R.TURNOS).map(function(k){ var t = R.TURNOS[k].rot.split(' · '); return '<div class="pill"><span>' + t[0] + (k === 'ADM' ? ' · a validar' : '') + '</span><b>' + t[1] + '</b></div>'; }).join('') +
+    Object.keys(R.TURNOS).map(function(k){ var t = R.TURNOS[k].rot.split(' · '); return '<div class="pill"><span>' + t[0] + '</span><b>' + t[1] + '</b></div>'; }).join('') +
   '</div><div class="stack">' +
     '<div class="lev"><div class="n">4</div><div><h3>Times no checkout</h3><p>Separadores e conferentes em cada time. <b>Checkout disputa com checkout.</b></p><div style="margin-top:16px">' + chips(CORES.slice(0,4)) + '</div></div></div>' +
     '<div class="lev"><div class="n">2</div><div><h3>Times na colmeia</h3><p>Mesma divisão. <b>Colmeia disputa com colmeia</b>, com meta e pontos fixos proporcionais (×' + String(R.FATOR_COLMEIA).replace('.',',') + ').</p><div style="margin-top:16px">' + chips(CORES.slice(4)) + '</div></div></div>' +

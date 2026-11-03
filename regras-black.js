@@ -12,9 +12,9 @@ var DIAS = [['2026-11-27', '27/11', 'Largada Black'], ['2026-11-28', '28/11', 'S
 
 // Horário de cada turno em minutos desde 00:00 (o T02 passa da meia-noite: 1456 = 00:16 do dia seguinte).
 var TURNOS = {
-// almoco = [início, fim] em minutos: não conta como hora trabalhada na meta antecipada (T02 ainda sem horário).
+// almoco = [início, fim] em minutos (no T02 é a janta): não conta como hora trabalhada na meta antecipada.
   '1º Turno': { ini: 5 * 60, fim: 14 * 60 + 48, almoco: [11 * 60 + 30, 12 * 60 + 30], rot: 'T01 · 05h00–14h48' },
-  '2º Turno': { ini: 14 * 60 + 48, fim: 24 * 60 + 16, almoco: null, rot: 'T02 · 14h48–00h16' },
+  '2º Turno': { ini: 14 * 60 + 48, fim: 24 * 60 + 16, almoco: [18 * 60 + 30, 19 * 60 + 30], rot: 'T02 · 14h48–00h16' },
   'ADM':      { ini: 7 * 60 + 55, fim: 17 * 60 + 33, almoco: [12 * 60 + 15, 13 * 60 + 15], rot: 'ADM · 07h55–17h33' }
 };
 

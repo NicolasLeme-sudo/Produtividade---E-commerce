@@ -273,41 +273,49 @@ async function iniciar(cfg, log, opcoes) {
   fs.writeFileSync(trava, String(process.pid));
   process.on("exit", function () { try { if (fs.readFileSync(trava, "utf8") === String(process.pid)) fs.unlinkSync(trava); } catch (e) {} });
   const porta = cfg.CHROME_PORTA || "9222";
-  let browser, contexto, tentouAbrir = false;
-  for (;;) {
-    try {
-      browser = await chromium.connectOverCDP("http://127.0.0.1:" + porta, { timeout: 15000, slowMo: PAUSA_MS });
-      contexto = browser.contexts()[0] || await browser.newContext();
-      break;
-    } catch (e) {
-      // Janela do atalho fechada: o próprio robô roda o atalho e espera o Chrome abrir.
-      if (!tentouAbrir) {
-        tentouAbrir = true;
-        log("Abrindo o Chrome do robô (atalho abrir-chrome-robo.bat)");
-        require("child_process").spawn("cmd.exe", ["/c", path.join(__dirname, "abrir-chrome-robo.bat")], { detached: true, stdio: "ignore", windowsHide: true }).unref();
-        await new Promise(function (r) { setTimeout(r, 6000); });
-        continue;
+  // Uma "alça" (page) por relatório: é por ela que o robô volta em cada aba.
+  const abas = {};          // id -> { page, chave }
+  let browser, contexto, caiu = false;
+
+  // Liga no Chrome do atalho. Se a janela estiver fechada, o próprio robô roda o atalho e espera.
+  async function conectar() {
+    let tentouAbrir = false;
+    for (;;) {
+      try {
+        browser = await chromium.connectOverCDP("http://127.0.0.1:" + porta, { timeout: 15000, slowMo: PAUSA_MS });
+        contexto = browser.contexts()[0] || await browser.newContext();
+        break;
+      } catch (e) {
+        if (!tentouAbrir) {
+          tentouAbrir = true;
+          log("Abrindo o Chrome do robô (atalho abrir-chrome-robo.bat)");
+          require("child_process").spawn("cmd.exe", ["/c", path.join(__dirname, "abrir-chrome-robo.bat")], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+          await new Promise(function (r) { setTimeout(r, 6000); });
+          continue;
+        }
+        log("Chrome do robô não abriu (tento de novo em 1 min)");
+        if (opcoes.umaVez) throw new Error("Chrome do robô não abriu");
+        tentouAbrir = false;
+        await new Promise(function (r) { setTimeout(r, 60000); });
       }
-      log("Chrome do robô não abriu (tento de novo em 1 min)");
-      if (opcoes.umaVez) throw new Error("Chrome do robô não abriu");
-      tentouAbrir = false;
-      await new Promise(function (r) { setTimeout(r, 60000); });
     }
+    caiu = false;
+    browser.on("disconnected", function () { caiu = true; });
+    // Começa limpo: fecha abas do WMS que sobraram de execuções anteriores (deixa 1 aba aberta).
+    const sobras = contexto.pages().filter(function (pg) { return /siltwms/.test(pg.url()); });
+    if (sobras.length && sobras.length === contexto.pages().length) await contexto.newPage();
+    for (const pg of sobras) { try { await pg.close(); } catch (e) {} }
+    for (const id in abas) delete abas[id];
+    log("Baixador ligado no Chrome do atalho, WMS como " + cfg.WMS_USUARIO);
   }
+  await conectar();
   const doUsuario = true;
-  // Começa limpo: fecha abas do WMS que sobraram de execuções anteriores (deixa 1 aba aberta).
-  const sobras = contexto.pages().filter(function (pg) { return /siltwms/.test(pg.url()); });
-  if (sobras.length && sobras.length === contexto.pages().length) await contexto.newPage();
-  for (const pg of sobras) { try { await pg.close(); } catch (e) {} }
-  log("Baixador ligado no Chrome do atalho, WMS como " + cfg.WMS_USUARIO);
   // No Chrome do usuário só fecha as abas do robô; nunca o navegador.
   async function fechar() {
     if (!doUsuario) return browser.close();
     for (const id in abas) try { await abas[id].page.close(); } catch (e) {}
   }
 
-  // Uma "alça" (page) por relatório: é por ela que o robô volta em cada aba.
-  const abas = {};          // id -> { page, chave }
   const st = { maisAntigoOp: null, pausaAte: 0 };
 
   async function prepararAba(tela) {
@@ -370,6 +378,11 @@ async function iniciar(cfg, log, opcoes) {
   }
 
   async function grupo(nome) {
+    // Janela do Chrome do robô fechou no meio: abre de novo e refaz as abas.
+    if (caiu || !browser.isConnected()) {
+      log("Chrome do robô fechou, abrindo de novo");
+      await conectar();
+    }
     for (const tela of TELAS) if (tela.grupo === nome) await rodar(tela);
   }
 
