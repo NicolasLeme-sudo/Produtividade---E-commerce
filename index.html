@@ -494,6 +494,11 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .pb-item{display:flex; align-items:center; gap:8px; font-size:.8rem;}
 .pb-item input[type=number]{width:48px; flex:none;}
 .pb-ouros{display:flex; flex-direction:column; gap:6px; font-size:.8rem;}
+/* Ajustes: Gincanas, Ajuste de pontuação e Horas de Ouro lado a lado */
+.pb-ajustes{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; align-items:start;}
+@media (max-width:1100px){ .pb-ajustes{grid-template-columns:1fr;} }
+.pb-extrair{display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-bottom:12px;}
+.pb-extrair .upload-status{margin:0;}
 /* campo com nome em cima: altura do conteúdo (sem esticar) */
 .pb-campo{display:flex; flex-direction:column; gap:3px; flex:1 1 140px; font-size:.68rem; color:var(--text-muted);}
 .comp-add .pb-campo > input,.comp-add .pb-campo > select{flex:none; width:100%;}
@@ -578,9 +583,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-estoque"><span class="nav-dot"></span>Gestão de Estoque</div>
       <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-times"><span class="nav-dot"></span>Times da competição</div>
       <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-vistoria"><span class="nav-dot"></span>Vistoria</div>
-      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-gincanas"><span class="nav-dot"></span>Gincanas</div>
-      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-ajuste"><span class="nav-dot"></span>Ajuste de pontuação</div>
-      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-ouro"><span class="nav-dot"></span>Horas de Ouro</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-ajustes"><span class="nav-dot"></span>Ajustes</div>
       <div class="nav-item" tabindex="0" data-page="admin" data-target="ativos"><span class="nav-dot"></span>Base de ativos</div>
     </div>
   </aside>

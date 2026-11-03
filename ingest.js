@@ -1685,7 +1685,7 @@ async function renderPontosBlack() {
   var gincanas = (RB.DESAFIOS[pb.dia] || []).concat(RB.GINCANAS || [], ["Outra gincana"]);
   caixas.gincanas.innerHTML = cartao("gincanas", "Gincanas", seletores(false) +
     linhaCampos(campo("Gincana", '<select id="pb-desafio">' + opcoes(gincanas, gincanas[0]) + "</select>") +
-      campo("Pontos por time (colmeia × " + String(RB.FATOR_COLMEIA).replace(".", ",") + ")", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">') +
+      campo("Pontos (colmeia × " + String(RB.FATOR_COLMEIA).replace(".", ",") + ")", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">') +
       '<button class="btn" id="pb-btn-desafio">Lançar para todos os times</button>') +
     tabelaLanc("desafio"));
 
@@ -1693,16 +1693,17 @@ async function renderPontosBlack() {
   caixas.ajuste.innerHTML = cartao("ajuste", "Ajuste de pontuação", seletores(true) +
     linhaCampos(campo("Pontos (negativo desconta)", '<input id="pb-aj-pts" type="number" placeholder="ex.: -30 ou 50">') +
       campo("Motivo (obrigatório)", '<input id="pb-aj-motivo">') + '<button class="btn" id="pb-btn-ajuste">Lançar ajuste</button>') +
-    tabelaLanc("ajuste"),
-    '<button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições de Pontos por Time</button>');
+    tabelaLanc("ajuste"));
+  var cxExtrair = document.getElementById("pb-bloco-extrair");
+  if (cxExtrair) cxExtrair.innerHTML = '<div class="pb-extrair"><span class="upload-status" id="pb-status-extrair"></span><button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições de Pontos por Time</button></div>';
 
   // Horas de ouro
   var T = RB.TURNOS[pb.turno] || RB.TURNOS["1º Turno"], horas = [];
   for (var h = Math.floor(T.ini / 60); h < Math.ceil(T.fim / 60); h++) horas.push([h % 24, String(h % 24).padStart(2, "0") + "h00–" + String((h + 1) % 24).padStart(2, "0") + "h00"]);
   caixas.ouro.innerHTML = cartao("ouro", "Horas de Ouro", seletores(false) +
     linhaCampos(campo("Hora", '<select id="pb-ouro-hora">' + opcoes(horas, horas[0] && horas[0][0]) + "</select>") +
-      campo("Meta da hora · cada time do piso (peças)", '<input id="pb-ouro-piso" type="number" value="260">') +
-      campo("Meta da hora · cada time da colmeia (peças)", '<input id="pb-ouro-col" type="number" value="160">') + '<button class="btn" id="pb-btn-ouro">Agendar</button>') +
+      campo("Meta/h por time · piso", '<input id="pb-ouro-piso" type="number" value="260">') +
+      campo("Meta/h por time · colmeia", '<input id="pb-ouro-col" type="number" value="160">') + '<button class="btn" id="pb-btn-ouro">Agendar</button>') +
     (ouros.length ? '<div class="pb-ouros">' + ouros.map(function (o) { return "<span>" + String(o.hora).padStart(2, "0") + "h · piso " + o.meta_piso + " · colmeia " + o.meta_colmeia + ' <button class="btn ghost pb-ouro-del" data-id="' + o.id + '">Remover</button></span>'; }).join("") + "</div>" : ""));
 
   // Eventos
@@ -1713,8 +1714,8 @@ async function renderPontosBlack() {
     });
   });
   document.getElementById("pb-btn-extrair").addEventListener("click", async function () {
-    aviso("ajuste", "Montando a planilha…", "pendente");
-    try { aviso("ajuste", await extrairPontosBlack(), "ok"); } catch (e) { console.error(e); aviso("ajuste", "Erro ao extrair: " + e.message, "erro"); }
+    aviso("extrair", "Montando a planilha…", "pendente");
+    try { aviso("extrair", await extrairPontosBlack(), "ok"); } catch (e) { console.error(e); aviso("extrair", "Erro ao extrair: " + e.message, "erro"); }
   });
   var email = async function () { var r = await supabaseClient.auth.getSession(); return r.data && r.data.session ? r.data.session.user.email : null; };
   var gravar = async function (k, linhas, ok) {
@@ -1962,9 +1963,7 @@ async function renderAbastecimento() {
     ], "adm-estoque") +
     grupoAbastecimento("Times da competição", ['<div id="bloco-competicao-admin"><div class="panel">Carregando…</div></div>'], "adm-times") +
     grupoAbastecimento("Vistoria", ['<div id="pb-bloco-vistoria"></div>'], "adm-vistoria") +
-    grupoAbastecimento("Gincanas", ['<div id="pb-bloco-gincanas"></div>'], "adm-gincanas") +
-    grupoAbastecimento("Ajuste de pontuação", ['<div id="pb-bloco-ajuste"></div>'], "adm-ajuste") +
-    grupoAbastecimento("Horas de Ouro", ['<div id="pb-bloco-ouro"></div>'], "adm-ouro");
+    grupoAbastecimento("Ajustes", ['<div id="pb-bloco-extrair"></div><div class="pb-ajustes"><div id="pb-bloco-gincanas"></div><div id="pb-bloco-ajuste"></div><div id="pb-bloco-ouro"></div></div>'], "adm-ajustes");
   restaurarStatusAbastecimento();
   renderCompeticaoAdmin(true);
 }
