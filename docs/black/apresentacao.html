@@ -78,7 +78,7 @@ table.cmp td{padding:13px 18px;font-size:26px} table.cmp td.neg{color:var(--red)
 .tl-m h3{font-size:34px;margin-bottom:12px} .tl-m.on h3{color:var(--gold)} .tl-m ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;align-items:center} .tl-m li{font-size:23px;line-height:1.4;color:#D5DEE8}
 .dias{display:grid;grid-template-columns:repeat(5,1fr);gap:22px;flex:1;min-height:0}
 .dia-c{padding:30px 28px;gap:12px} .dia-c h3{font-size:32px;color:var(--gold)} .dia-c li{font-size:21px;color:#D5DEE8}
-.dia-c .atr{display:flex;flex-direction:column;gap:8px}
+.dia-c .atr{margin-top:auto;height:104px;flex:none;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}
 .dia-c .sub-t{font-size:18px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-top:6px}
 .dia-c .atr span{font-size:19px;color:var(--sky);font-weight:600} .dia-c .atr span::before{content:"♪ ";color:var(--gold)}
 .gam{display:grid;grid-template-columns:1.55fr 1fr;gap:48px;align-items:start}
@@ -162,9 +162,9 @@ S.push(slide('Cronograma e atrações', 'O que acontece <em>em cada dia</em>',
   '<div class="dias">' + DIAS_C.map(function(d){
     return '<div class="card dia-c"><p class="k">' + d[0] + '</p><h3>' + d[1] + '</h3>' + li(d[2]) +
       (d[3] && d[3].length ? '<p class="sub-t">Desafios</p>' + li(d[3]) : '') +
-      (d[4].length ? '<p class="sub-t">Atrações</p><div class="atr">' + d[4].map(function(a){ return '<span>' + a + '</span>'; }).join('') + '</div>' : '') + '</div>';
+      '<div class="atr">' + d[4].map(function(a){ return '<span>' + a + '</span>'; }).join('') + '</div></div>';
   }).join('') + '</div>',
-  RODAPE));
+  'Atrações em destaque no pé de cada dia'));
 
 // 5 · gamificação
 var GANHA = [['Produtividade','cada peça separada ou conferida','1/peça','1/peça'],
