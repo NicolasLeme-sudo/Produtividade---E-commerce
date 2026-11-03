@@ -22,8 +22,7 @@ var FATOR_COLMEIA = 0.6;
 var P = {
   porPeca: 1,             // cada peça separada ou conferida
   metaBatida: 200,        // bateu 100% da meta do dia
-  antecipadaHora: 50,     // por hora inteira antes do fim do turno
-  antecipadaMax: 200,
+  antecipadaHora: 100,    // por hora antes do fim do turno, proporcional aos minutos (sem teto)
   assiduidadeMax: 500,    // × presentes ÷ escalados (atestado conta como falta)
   atraso: -20,            // por pessoa atrasada
   desafiosMax: 300,       // soma dos desafios no dia
@@ -60,7 +59,7 @@ var DESAFIOS = {
 var PONTOS_DESAFIO = 100;
 // Banco de gincanas entre pisos (qualquer dia).
 var GINCANAS = ['Acerte o alvo', 'Corrida do palete', 'Montagem relâmpago', 'Quebra-cabeça da Black', 'Quem canta ganha',
-  'Corrida de entregas', 'Desafio dos líderes', 'TikTok dos líderes', 'Grito de guerra do piso'];
+  'Corrida de entregas', 'Desafio dos líderes', 'TikTok dos líderes', 'Grito de guerra do time'];
 var GINCANAS_DESC = {
   'Acerte o alvo': 'Caixas de sapato abertas coladas num palete: ganha quem acertar mais bolinhas.',
   'Corrida do palete': 'Empurrar um palete vazio de um ponto ao outro no menor tempo.',
@@ -70,7 +69,7 @@ var GINCANAS_DESC = {
   'Corrida de entregas': 'Levar todas as caixas vazias até o ponto final sem deixar cair.',
   'Desafio dos líderes': 'Provas rápidas entre líderes, como a corrida da colher com bolinha.',
   'TikTok dos líderes': 'Os líderes dançam a coreografia escolhida pela equipe e o público vota no "Líder do Ritmo".',
-  'Grito de guerra do piso': 'Cada time cria e apresenta o grito de guerra do seu piso.'
+  'Grito de guerra do time': 'Cada time cria e apresenta o seu grito de guerra.'
 };
 
 function fator(time) { return time >= 5 ? FATOR_COLMEIA : 1; }   // times 5 e 6 = colmeia
