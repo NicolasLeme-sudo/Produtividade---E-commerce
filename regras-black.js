@@ -12,9 +12,10 @@ var DIAS = [['2026-11-27', '27/11', 'Largada Black'], ['2026-11-28', '28/11', 'S
 
 // Horário de cada turno em minutos desde 00:00 (o T02 passa da meia-noite: 1456 = 00:16 do dia seguinte).
 var TURNOS = {
-  '1º Turno': { ini: 5 * 60, fim: 14 * 60 + 48, rot: 'T01 · 05h00–14h48' },
-  '2º Turno': { ini: 14 * 60 + 48, fim: 24 * 60 + 16, rot: 'T02 · 14h48–00h16' },
-  'ADM':      { ini: 7 * 60 + 55, fim: 17 * 60 + 33, rot: 'ADM · 07h55–17h33' }
+// almoco = [início, fim] em minutos: não conta como hora trabalhada na meta antecipada (T02 ainda sem horário).
+  '1º Turno': { ini: 5 * 60, fim: 14 * 60 + 48, almoco: [11 * 60 + 30, 12 * 60 + 30], rot: 'T01 · 05h00–14h48' },
+  '2º Turno': { ini: 14 * 60 + 48, fim: 24 * 60 + 16, almoco: null, rot: 'T02 · 14h48–00h16' },
+  'ADM':      { ini: 7 * 60 + 55, fim: 17 * 60 + 33, almoco: [12 * 60 + 15, 13 * 60 + 15], rot: 'ADM · 07h55–17h33' }
 };
 
 // Pontos do piso (meta 2.000 peças/dia). A colmeia (meta 1.200) recebe os fixos × FATOR_COLMEIA.
@@ -165,6 +166,13 @@ function calcularCompeticao(snap, cadastro, diaAlvo) {
   return { times: times, dia: dia, temDados: temDados };
 }
 
+// Minutos de trabalho entre dois minutos do dia, sem o intervalo de almoço do turno.
+function minutosTrabalhados(de, ate, almoco) {
+  var total = Math.max(0, ate - de);
+  if (almoco) total -= Math.max(0, Math.min(ate, almoco[1]) - Math.max(de, almoco[0]));
+  return Math.max(0, total);
+}
+
 // Minuto do dia (0 = 00:00; T02 passa de 1440 depois da meia-noite) em que o time passou da meta.
 // Usa as peças por minuto (Data/Hora Fim) da Separação e da Conferência Analítica e, para a
 // Conferência Colmeia (que não tem hora), as marcas que o robô grava a cada exportação (~5 min).
@@ -262,7 +270,7 @@ function placarDoDia(o) {
         for (var h = 0; h < 24; h++) { cum += horas[h] * esc; if (cum >= t.meta) { r.horaMeta = h + 1; break; } }
         if (r.horaMeta != null) r.minutoMeta = r.horaMeta * 60;
       }
-      if (r.minutoMeta != null) r.antecipada = Math.max(0, Math.round(pts(P.antecipadaHora, n) * (T.fim - r.minutoMeta) / 60));
+      if (r.minutoMeta != null) r.antecipada = Math.round(pts(P.antecipadaHora, n) * minutosTrabalhados(r.minutoMeta, T.fim, T.almoco) / 60);
     }
 
     // hora de ouro: peças da hora valem 2× se o time bater a meta da hora (só depois que a hora termina)
@@ -323,7 +331,7 @@ function acumulado(placares) {
 global.RegrasBlack = {
   DIAS: DIAS, TURNOS: TURNOS, P: P, FATOR_COLMEIA: FATOR_COLMEIA, GRAVIDADES: GRAVIDADES, CHECKLIST: CHECKLIST,
   DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
-  placarDoDia: placarDoDia, acumulado: acumulado, isoLocal: isoLocal,
+  placarDoDia: placarDoDia, minutosTrabalhados: minutosTrabalhados, acumulado: acumulado, isoLocal: isoLocal,
   META_DIA_TIME: META_DIA_TIME, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu
 };
 })(typeof window !== 'undefined' ? window : globalThis);

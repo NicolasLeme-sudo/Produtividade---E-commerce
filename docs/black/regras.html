@@ -83,7 +83,7 @@ var gravs = R.GRAVIDADES;
 var ganha = [
   ['Cada peça separada ou conferida', sinal(P.porPeca)+' ponto'],
   ['Time bate a meta do dia', sinal(P.metaBatida)],
-  ['Cada hora de antecedência na meta (conta os minutos)', sinal(P.antecipadaHora)+' por hora'],
+  ['Cada hora trabalhada de antecedência na meta (conta os minutos, sem o almoço)', sinal(P.antecipadaHora)+' por hora'],
   ['Presença de todo o time', 'até '+fmt(P.assiduidadeMax)],
   ['Gincanas e desafios do dia', 'até '+fmt(P.desafiosMax)],
   ['Vistoria sem nenhum apontamento', sinal(P.vistoriaLimpa)],
@@ -112,7 +112,7 @@ var turnos = Object.keys(R.TURNOS).map(function(k){ return R.TURNOS[k].rot; }).j
 var tabPontos = '<table><thead><tr><th>Bloco</th><th>Como conta</th><th class="num">Checkout</th><th class="num">Colmeia</th></tr></thead><tbody>'+
   [['Produtividade','Cada peça separada ou conferida pelos membros do time no dia', P.porPeca+'/peça', P.porPeca+'/peça'],
    ['Meta do dia','Total do time ≥ meta (checkout 2.000 · colmeia 1.200 peças)', sinal(P.metaBatida), sinal(col(P.metaBatida))],
-   ['Meta antecipada','Por hora entre a batida da meta e o fim do turno, contando os minutos', sinal(P.antecipadaHora)+'/h', sinal(col(P.antecipadaHora))+'/h'],
+   ['Meta antecipada','Por hora trabalhada entre a batida da meta e o fim do turno, contando os minutos; o almoço não conta', sinal(P.antecipadaHora)+'/h', sinal(col(P.antecipadaHora))+'/h'],
    ['Hora que vale ouro','Peças da hora contam em dobro se o time bater a meta da hora','2× peças','2× peças'],
    ['Assiduidade','Time todo presente; cada ausência tira a parte da pessoa', 'até '+fmt(P.assiduidadeMax), 'até '+fmt(col(P.assiduidadeMax))],
    ['Atraso não justificado','Por pessoa atrasada', sinal(P.atraso), sinal(col(P.atraso))],
@@ -131,7 +131,7 @@ var tabVis = '<table><thead><tr><th>Gravidade</th><th>Itens observados</th><th c
   Object.keys(gravs).map(function(g){ return '<tr><td><b>'+gravs[g].rot+'</b></td><td>'+(porGrav[g]||[]).join('<br>')+'</td><td class="num neg">'+sinal(gravs[g].pts)+'</td><td class="num neg">'+sinal(col(gravs[g].pts))+'</td></tr>'; }).join('')+
   '<tr><td><b>Sem apontamento</b></td><td>Vistoria do dia sem nenhum item marcado</td><td class="num pos">'+sinal(P.vistoriaLimpa)+'</td><td class="num pos">'+sinal(col(P.vistoriaLimpa))+'</td></tr></tbody></table>';
 var ex = [['Produtividade','2.200 peças',2200],['Assiduidade','9 de 10 presentes, 1 atraso',430],['Desafios','Grito da equipe',100],['Vistoria','1 caixa aberta no picking',-50],
-  ['Meta do dia','bateu às 11h',200],['Meta antecipada','bateu às 11h00: 3h48 antes do fim do T01',380],['Hora de ouro','450 peças na hora (meta 400)',450],['Destaques','top separador e top conferente',100]];
+  ['Meta do dia','bateu às 11h',200],['Meta antecipada','bateu às 11h00: 2h48 trabalhadas até o fim do T01 (sem 1h de almoço)',280],['Hora de ouro','450 peças na hora (meta 400)',450],['Destaques','top separador e top conferente',100]];
 var tabEx = '<table><thead><tr><th>Bloco</th><th>O que aconteceu</th><th class="num">Pontos</th></tr></thead><tbody>'+
   ex.map(function(r){ return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td class="num '+(r[2]<0?'neg':'')+'">'+sinal(r[2])+'</td></tr>'; }).join('')+
   '<tr class="total"><td>Total do dia</td><td>Time Vermelho · T01</td><td class="num">'+fmt(ex.reduce(function(a,r){ return a+r[2]; },0))+'</td></tr></tbody></table>';
