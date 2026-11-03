@@ -1685,14 +1685,14 @@ async function renderPontosBlack() {
   var gincanas = (RB.DESAFIOS[pb.dia] || []).concat(RB.GINCANAS || [], ["Outra gincana"]);
   caixas.gincanas.innerHTML = cartao("gincanas", "Gincanas", seletores(false) +
     linhaCampos(campo("Gincana", '<select id="pb-desafio">' + opcoes(gincanas, gincanas[0]) + "</select>") +
-      campo("Pontos (colmeia × " + String(RB.FATOR_COLMEIA).replace(".", ",") + ")", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">') +
-      '<button class="btn" id="pb-btn-desafio">Lançar para todos os times</button>') +
+      campo("Pontos (colmeia × " + String(RB.FATOR_COLMEIA).replace(".", ",") + ")", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">')) +
+      '<div><button class="btn" id="pb-btn-desafio">Lançar para todos os times</button></div>' +
     tabelaLanc("desafio"));
 
   // Ajuste de pontuação (+ extração da planilha)
   caixas.ajuste.innerHTML = cartao("ajuste", "Ajuste de pontuação", seletores(true) +
     linhaCampos(campo("Pontos (negativo desconta)", '<input id="pb-aj-pts" type="number" placeholder="ex.: -30 ou 50">') +
-      campo("Motivo (obrigatório)", '<input id="pb-aj-motivo">') + '<button class="btn" id="pb-btn-ajuste">Lançar ajuste</button>') +
+      campo("Motivo (obrigatório)", '<input id="pb-aj-motivo">')) + '<div><button class="btn" id="pb-btn-ajuste">Lançar ajuste</button></div>' +
     tabelaLanc("ajuste"));
   var cxExtrair = document.getElementById("pb-bloco-extrair");
   if (cxExtrair) cxExtrair.innerHTML = '<div class="pb-extrair"><span class="upload-status" id="pb-status-extrair"></span><button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições</button></div>';
@@ -1703,7 +1703,7 @@ async function renderPontosBlack() {
   caixas.ouro.innerHTML = cartao("ouro", "Horas de Ouro", seletores(false) +
     linhaCampos(campo("Hora", '<select id="pb-ouro-hora">' + opcoes(horas, horas[0] && horas[0][0]) + "</select>") +
       campo("Meta/h por time · piso", '<input id="pb-ouro-piso" type="number" value="260">') +
-      campo("Meta/h por time · colmeia", '<input id="pb-ouro-col" type="number" value="160">') + '<button class="btn" id="pb-btn-ouro">Agendar</button>') +
+      campo("Meta/h por time · colmeia", '<input id="pb-ouro-col" type="number" value="160">')) + '<div><button class="btn" id="pb-btn-ouro">Agendar</button></div>' +
     (ouros.length ? '<div class="pb-ouros">' + ouros.map(function (o) { return "<span>" + String(o.hora).padStart(2, "0") + "h · piso " + o.meta_piso + " · colmeia " + o.meta_colmeia + ' <button class="btn ghost pb-ouro-del" data-id="' + o.id + '">Remover</button></span>'; }).join("") + "</div>" : ""));
 
   // Eventos
