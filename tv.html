@@ -354,21 +354,23 @@ function graficoHoras(horas, dia, cor, cor2, rotMedia){
   var faixa = horas.slice(ini, fim+1), agora = new Date().getHours(), emAndamento = dia === hoje() && fim === agora;
   var completas = emAndamento ? faixa.slice(0, -1) : faixa, media = completas.length ? Math.round(completas.reduce(function(a,b){ return a+b; },0) / completas.length) : 0;
   var mx = Math.max.apply(null, faixa.concat([media])) * 1.18 || 1;
-  var maior = Math.max.apply(null, faixa) || 1;
-  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor2, cor, v/maior)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
+  // escala de cor só com as horas completas (a hora em andamento ainda está pela metade)
+  var base = completas.length ? completas : faixa, maior = Math.max.apply(null, base) || 1, menor = Math.min.apply(null, base), forte = escurece(cor, .3);
+  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor2, forte, maior > menor ? (v - menor)/(maior - menor) : 1)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
   var hrs = faixa.map(function(v, i){ return '<i>'+String(ini+i).padStart(2,'0')+'h</i>'; }).join('');
   var ml = media ? '<div class="media" style="bottom:'+(media/mx*100).toFixed(1)+'%"><small>média '+fmt(media)+'/h</small></div>' : '';
   return { html:'<div class="grafico" style="--cor:'+cor+';--cor2:'+cor2+'"><div class="colunas">'+cols+ml+'</div><div class="horas">'+hrs+'</div></div>', ultima:{ hora:ini+faixa.length-1, valor:faixa[faixa.length-1], completa: emAndamento ? (faixa.length > 1 ? { hora:ini+faixa.length-2, valor:faixa[faixa.length-2] } : null) : { hora:fim, valor:faixa[faixa.length-1] } }, media:media };
 }
 // Heatmap nos tons da tela: do tom claro (pouco) à cor forte (muito).
 function rgbDe(hex){ var n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function escurece(hex, f){ return '#'+rgbDe(hex).map(function(x){ return Math.round(x*(1 - f)).toString(16).padStart(2, '0'); }).join(''); }
 function tomCalor(claro, forte, t){ var a = rgbDe(claro), b = rgbDe(forte); t = Math.max(0, Math.min(1, t || 0));
   return 'rgb('+a.map(function(x, i){ return Math.round(x + (b[i] - x)*t); }).join(',')+')'; }
 function top5Html(obj, nomeDe, cor, cor2){ var l = Object.keys(obj).map(function(n){ return { n:n, v:obj[n] }; }).filter(function(x){ return x.v > 0; }).sort(function(a,b){ return b.v - a.v; }).slice(0,5);
   if (!l.length) return '<div class="semhora">Sem registros no dia</div>';
-  var mx = l[0].v, mn = l[l.length-1].v;
-  return '<div class="top5">'+l.map(function(x, i){ var t = mx > mn ? .15 + .85*(x.v - mn)/(mx - mn) : 1;
-    return '<div><span class="p">'+(i+1)+'</span><span class="nm">'+esc(nomeDe(x.n))+'</span><b style="color:'+tomCalor(cor2, cor, t)+'">'+fmt(x.v)+'</b></div>'; }).join('')+'</div>'; }
+  var INTENS = [1, .8, .62, .46, .32];   // intensidade da cor pela posição
+  return '<div class="top5">'+l.map(function(x, i){ var st = ' style="color:'+cor+';opacity:'+INTENS[i]+'"';
+    return '<div><span class="p"'+st+'>'+(i+1)+'</span><span class="nm">'+esc(nomeDe(x.n))+'</span><b'+st+'>'+fmt(x.v)+'</b></div>'; }).join('')+'</div>'; }
 function nomeWms(u){ return nomeCurto(nomeBonito(u)); }
 var COR_SEP = '#297ADF', COR_SEP2 = '#7DB8FF', COR_CONF = '#2EC4B6', COR_CONF2 = '#8CEBDF', COR_ARM = '#297ADF', COR_ARM2 = '#45C645';
 
