@@ -1209,7 +1209,7 @@ function diaOperacionalIngest(agora) {
 }
 function somaArr(a) { return (a || []).reduce(function (s, v) { return s + (v || 0); }, 0); }
 // Operação do dia: do início do T01 (05h00) ao fim do T02 (00h16); almoço do T01 e janta do T02 não contam.
-var OPERACAO_FIM_MIN = 24 * 60 + 16, OPERACAO_PAUSAS = [[11 * 60 + 30, 12 * 60 + 30], [18 * 60 + 30, 19 * 60 + 30]];
+var OPERACAO_FIM_MIN = 24 * 60 + 16, OPERACAO_PAUSAS = [[11 * 60 + 30, 12 * 60 + 30], [18 * 60 + 40, 19 * 60 + 40]];
 // Minutos trabalhados entre dois minutos do dia (sem as pausas).
 function minutosDeOperacao(de, ate) {
   var t = Math.max(0, ate - de);
