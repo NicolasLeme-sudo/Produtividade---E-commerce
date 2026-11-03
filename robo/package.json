@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node robo.js",
     "teste": "node robo.js --teste",
+    "baixar": "node baixar.js",
     "gravar": "playwright codegen --channel chrome --target javascript -o gravacao.js https://vulcaprd.seniorcloud.com.br/siltwms/"
   },
   "engines": {

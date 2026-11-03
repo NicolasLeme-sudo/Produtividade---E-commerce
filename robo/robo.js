@@ -174,6 +174,14 @@ async function enviar(arq, cfg) {
   return ok;
 }
 
+/* ---------------- pedido mais antigo do OP (para o baixador) ---------------- */
+// A regra (só pedidos em aberto) fica no ingest.js.
+let ingestLeitura = null;
+async function maisAntigoOp(arq) {
+  const ing = ingest || ingestLeitura || (ingestLeitura = carregarIngest(true));
+  return ing.api.maisAntigoOp(arquivoComoFile(arq));
+}
+
 /* ---------------- vigia de pasta ---------------- */
 function lerEstado() { try { return JSON.parse(fs.readFileSync(ARQ_ESTADO, "utf8")); } catch (e) { return {}; } }
 function salvarEstado(e) { try { fs.writeFileSync(ARQ_ESTADO, JSON.stringify(e, null, 1)); } catch (x) {} }
@@ -189,6 +197,11 @@ async function vigiar(cfg) {
   setTimeout(function () { log("Reinício programado (6 h) para buscar atualização."); process.exit(0); }, 6 * 3600 * 1000);
   log("Vigiando " + pasta + " · baixe os relatórios do WMS normalmente. Ctrl+C para parar.");
   await prepararIngest(cfg);
+  // Com usuário do WMS no .env, o robô também baixa os relatórios sozinho.
+  if (cfg.WMS_USUARIO) {
+    require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp })
+      .catch(function (e) { log("ERRO no baixador: " + e.message + " · reinicio em 1 min"); setTimeout(function () { process.exit(0); }, 60000); });
+  }
   setInterval(async function () {
     if (ocupado) return; ocupado = true;
     try {
@@ -211,8 +224,10 @@ async function vigiar(cfg) {
   }, INTERVALO_MS);
 }
 
+module.exports = { lerEnv: lerEnv, log: log, maisAntigoOp: maisAntigoOp };
+
 /* ---------------- início ---------------- */
-(async function () {
+if (require.main === module) (async function () {
   const cfg = lerEnv();
   try {
     if (TESTE) {
