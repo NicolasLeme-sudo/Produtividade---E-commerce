@@ -40,9 +40,11 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 - Tela C: lê só `dados->resumo` do snapshot `operacao` (gravado pelo ingest.js com Acompanhamento OP + Itens de NF de Saída). Itens por etapa × marca (etapas iguais ao `calcularStatus` do Report), pizza por marca, mais antigo em tela, importados há 2+ dias. Marca pela descrição do produto (mesma regra do Report; sem palavra-chave = Olympikus). Cores: Olympikus `#297ADF`, Mizuno `#DFBD41`, Under Armour `#C8102E`.
 - Dados a cada 60 s; recarrega a página a cada 6 h; wakeLock; setas trocam tela; botão Tela cheia some em tela cheia.
 - Selo de atualização: verde < 30 min, âmbar < 2 h, vermelho acima.
-- Parâmetros: `?giro=`, `?refresh=`, `?comemorar=N`.
+- Parâmetros: `?giro=`, `?refresh=`, `?comemorar=N`, `?dia=aaaa-mm-dd`.
+- **Dia mostrado:** padrão = dia operacional de hoje (`RegrasBlack.diaOperacional`: 00h–01h ainda é ontem). Clicar na data embaixo do relógio (calendário) ou setas ↑/↓ escolhe outro dia; selo âmbar "EXIBINDO …" + botão Voltar para hoje; volta sozinho após 30 min. Dia passado: Tela C sai do giro, previsão vira "dia encerrado", sem comemoração/hora de ouro. Nunca cai em dia antigo: sem dado = 0.
 - Comemoração de meta: moldura + card azul translúcido ("META BATIDA!", "Time <Cor>", peças na cor do time) + áudio 25 s bem alto + carro traz o card, estaciona e vai/volta a cada 3 s até sumir. Só cruzamentos do dia; chave `telao_comemorou_<dia>_<n>`; tecla/clique pula.
-- Tela B: separação `#297ADF`, conferência `#2EC4B6`; Top 5 de cada. Tela D: `armazenagem.normalHoraDia` (Kardex tem data+hora).
+- Tela B (5 cards): Separado · Conferido · **Separado sem conferir** (OP: ENVIADO PARA FATURAMENTO sem "Conferido em", `operacao.resumo.semConferir`) · Previsão separação · Previsão conferência. Cores: separação `#297ADF`, conferência `#2EC4B6`; Top 5 de cada. Tela D: realizado do dia + Previsão do dia; `armazenagem.normalHoraDia` (Kardex tem data+hora). Tela C: colunas com título Itens | Pedidos.
+- **Previsão** (`previsaoDoDia` no ingest.js, gravada em `separacao/conferencia/armazenagem.previsao` a cada envio): realizado + média por hora das horas completas de hoje (sem almoço 11h30–12h30 e janta 18h30–19h30) × horas trabalhadas que faltam até 00h16; próxima hora = média por hora. Menos de 1 h de produção hoje: dia anterior no mesmo horário. Conferência: curva do checkout, colmeia na proporção de hoje.
 - Faixa inferior (ticker) contínua, quantidades na cor do time.
 
 ## Robô (robo/)
@@ -58,7 +60,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 | Acompanhamento OP | up-acompanhamento-op | Pedido de Venda, Status da Nota Fiscal, Classificação Tipo Pedido |
 | Itens de NF de Saída | up-itens-nf-saida | Chave Acesso NF-e, Pedido de Venda, Produto, Barra, Qtde. Faturada |
 
-- Comandos (na pasta robo): `npm.cmd install` · `npm.cmd run teste -- arquivo.tsv` (não grava) · `npm.cmd start` · `npm.cmd run baixar -- --uma-vez` (baixa os 6 uma vez, sem enviar) · `npm.cmd run gravar` (grava cliques no WMS em gravacao.js; a gravação começa sozinha ao abrir).
+- Comandos (na pasta robo): `npm.cmd install` · `npm.cmd run teste -- arquivo.tsv` (não grava) · `npm.cmd start` · `npm.cmd run baixar -- --uma-vez` (baixa os 6 uma vez, sem enviar; `--de dd/mm/aaaa --ate dd/mm/aaaa --so separacao,packing --pasta C:\x` baixa dias passados — o filtro de data do Kardex NÃO funciona pelo robô) · `node robo.js --enviar a.tsv b.tsv` (envia arquivos escolhidos) · `npm.cmd run gravar` (grava cliques no WMS em gravacao.js; a gravação começa sozinha ao abrir).
 - Playwright usa o Google Chrome instalado (`channel: 'chrome'`), sem baixar Chromium.
 - `iniciar.bat`: git pull + npm install + liga, numa janela preta "Robo do Telao" (fechar a janela = desligar o robô); o robô reinicia a cada 6 h para pegar atualização. Se a janela do Chrome do robô fechar, ele reabre pelo `abrir-chrome-robo.bat` e refaz as abas.
 - `.env` (nunca no Git): PROD_EMAIL, PROD_SENHA, PASTA (Downloads), MOVER_ENVIADOS, MOSTRAR_NAVEGADOR, WMS_USUARIO, WMS_SENHA (preenchidos = o robô também baixa). Enviados vão para `Downloads\telao-enviados`; log `robo.log`.
