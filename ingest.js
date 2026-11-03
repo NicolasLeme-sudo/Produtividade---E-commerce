@@ -1250,8 +1250,14 @@ function previsaoDoDia(horasPorDia, agora, realizadoDia, fator) {
   // começo do turno: o dia anterior com produção, no mesmo horário
   var ant = lista.filter(function (d) { return d.data < dia && somaArr(d.horas) > 0; }).pop();
   if (!ant) return r;   // sem base: a tela mostra "—"
-  var fracH = (minAgora % 60) / 60, daquiAteFim = 0;
-  for (var k = H; k < 24; k++) daquiAteFim += (ant.horas[k] || 0) * (k === H ? 1 - fracH : 1);
+  var fracH = (minAgora % 60) / 60, daquiAteFim = 0, antAteAgora = 0;
+  for (var k = 0; k < 24; k++) {
+    if (k < H) antAteAgora += ant.horas[k] || 0;
+    else daquiAteFim += (ant.horas[k] || 0) * (k === H ? 1 - fracH : 1);
+  }
+  if (antAteAgora > 0) antAteAgora += (ant.horas[H] || 0) * fracH;
+  // Nenhuma peça hoje e o dia anterior já produzia até este horário: dia sem operação, previsão 0.
+  if (real === 0 && antAteAgora > 0) { r.base = "sem produção hoje"; r.previsto = 0; r.proximaHora = 0; return r; }
   r.base = "dia anterior (" + ant.data + ")";
   r.previsto = Math.round(real + daquiAteFim * fator);
   r.proximaHora = Math.round((prox < 24 ? ant.horas[prox] || 0 : 0) * fator);

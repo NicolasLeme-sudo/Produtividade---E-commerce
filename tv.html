@@ -129,7 +129,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .grafico{display:grid;grid-template-rows:1fr auto;gap:6px;min-height:0}
 .colunas{position:relative;display:flex;align-items:flex-end;gap:10px;min-height:0}
 .colunas span{flex:1;position:relative;background:var(--cor);border-radius:5px 5px 0 0;min-height:2px}
-.colunas span.agora{background:var(--cor2)}
+.colunas span.agora{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 7px,transparent 7px 14px)}
 .colunas em{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:4px;font-style:normal;font-weight:800;font-size:16px;white-space:nowrap;background:var(--bg-card);padding:0 5px;border-radius:4px;z-index:2}
 .horas{display:flex;gap:10px}.horas i{flex:1;text-align:center;font-style:normal;font-size:14px;color:var(--text-muted)}
 .media{position:absolute;left:0;right:0;border-top:2px dashed var(--amber);z-index:1}
@@ -137,7 +137,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .semhora{display:grid;place-items:center;color:var(--text-muted);font-size:18px;text-align:center}
 .top5{display:grid;align-content:start;gap:6px}
 .top5 div{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;font-size:18px;border-bottom:1px solid var(--border);padding-bottom:6px}
-.top5 .p{font-weight:800;color:var(--text-muted)}.top5 b{font-size:20px}
+.top5 .p{font-weight:800;color:var(--text-muted)}.top5 b{font-size:20px;padding:2px 10px;border-radius:6px;min-width:64px;text-align:right}
 .top5 .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ---------- tela C: operação agora (itens por etapa e marca) ---------- */
@@ -354,14 +354,21 @@ function graficoHoras(horas, dia, cor, cor2, rotMedia){
   var faixa = horas.slice(ini, fim+1), agora = new Date().getHours(), emAndamento = dia === hoje() && fim === agora;
   var completas = emAndamento ? faixa.slice(0, -1) : faixa, media = completas.length ? Math.round(completas.reduce(function(a,b){ return a+b; },0) / completas.length) : 0;
   var mx = Math.max.apply(null, faixa.concat([media])) * 1.18 || 1;
-  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%"><em>'+fmt(v)+'</em></span>'; }).join('');
+  var maior = Math.max.apply(null, faixa) || 1;
+  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor, v/maior)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
   var hrs = faixa.map(function(v, i){ return '<i>'+String(ini+i).padStart(2,'0')+'h</i>'; }).join('');
   var ml = media ? '<div class="media" style="bottom:'+(media/mx*100).toFixed(1)+'%"><small>média '+fmt(media)+'/h</small></div>' : '';
   return { html:'<div class="grafico" style="--cor:'+cor+';--cor2:'+cor2+'"><div class="colunas">'+cols+ml+'</div><div class="horas">'+hrs+'</div></div>', ultima:{ hora:ini+faixa.length-1, valor:faixa[faixa.length-1], completa: emAndamento ? (faixa.length > 1 ? { hora:ini+faixa.length-2, valor:faixa[faixa.length-2] } : null) : { hora:fim, valor:faixa[faixa.length-1] } }, media:media };
 }
-function top5Html(obj, nomeDe){ var l = Object.keys(obj).map(function(n){ return { n:n, v:obj[n] }; }).filter(function(x){ return x.v > 0; }).sort(function(a,b){ return b.v - a.v; }).slice(0,5);
+// Heatmap: do tom claro (pouco) ao escuro (muito), a partir da cor da tela.
+function rgbDe(hex){ var n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function tomCalor(hex, t){ var c = rgbDe(hex); t = Math.max(0, Math.min(1, t || 0));
+  return 'rgb('+c.map(function(x){ var claro = x + (255 - x)*.6, escuro = x*.5; return Math.round(claro + (escuro - claro)*t); }).join(',')+')'; }
+function top5Html(obj, nomeDe, cor){ var l = Object.keys(obj).map(function(n){ return { n:n, v:obj[n] }; }).filter(function(x){ return x.v > 0; }).sort(function(a,b){ return b.v - a.v; }).slice(0,5);
   if (!l.length) return '<div class="semhora">Sem registros no dia</div>';
-  return '<div class="top5">'+l.map(function(x, i){ return '<div><span class="p">'+(i+1)+'</span><span class="nm">'+esc(nomeDe(x.n))+'</span><b>'+fmt(x.v)+'</b></div>'; }).join('')+'</div>'; }
+  var mx = l[0].v, mn = l[l.length-1].v;
+  return '<div class="top5">'+l.map(function(x, i){ var t = mx > mn ? .15 + .85*(x.v - mn)/(mx - mn) : 1;
+    return '<div><span class="p">'+(i+1)+'</span><span class="nm">'+esc(nomeDe(x.n))+'</span><b style="background:'+tomCalor(cor||COR_SEP, t)+';color:'+(t < .45 ? '#0E1626' : '#fff')+'">'+fmt(x.v)+'</b></div>'; }).join('')+'</div>'; }
 function nomeWms(u){ return nomeCurto(nomeBonito(u)); }
 var COR_SEP = '#297ADF', COR_SEP2 = '#7DB8FF', COR_CONF = '#2EC4B6', COR_CONF2 = '#8CEBDF', COR_ARM = '#297ADF', COR_ARM2 = '#45C645';
 
@@ -397,9 +404,9 @@ function renderTelaB(snap, opRes){
     kpiPrevisao('Previsão conferência', conf.previsao, tConf, COR_CONF, COR_CONF)+
   '</div><div class="linhas" style="grid-template-rows:1fr 1fr">'+
     '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">'+semHora+'</div>')+'</div>'+
-      '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms)+'</div></div>'+
+      '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms, COR_SEP)+'</div></div>'+
     '<div class="linha"><div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Conferência Checkout · peças por hora</span>'+(gC ? gC.html : '<div class="semhora">'+semHora+'</div>')+'</div>'+
-      '<div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Top 5 conferentes</span>'+top5Html(juntaObj(cc, cm), nomeWms)+'</div></div>'+
+      '<div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Top 5 conferentes</span>'+top5Html(juntaObj(cc, cm), nomeWms, COR_CONF)+'</div></div>'+
   '</div>';
 }
 
@@ -417,7 +424,7 @@ function renderTelaD(snapIn){
     kpiPrevisao('Previsão do dia', arm.previsao, total, 'var(--olive)', 'var(--olive)')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
     '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">'+(ehHoje() ? 'Sem armazenagem hoje ainda' : 'Sem armazenagem neste dia')+'</div>')+'</div>'+
-    '<div class="painel"><span class="k">Top 5 armazenadores</span>'+top5Html(pessoas, function(n){ return nomeCurto(nomeBonito(n)); })+'</div>'+
+    '<div class="painel"><span class="k">Top 5 armazenadores</span>'+top5Html(pessoas, function(n){ return nomeCurto(nomeBonito(n)); }, COR_ARM)+'</div>'+
   '</div></div>';
 }
 
