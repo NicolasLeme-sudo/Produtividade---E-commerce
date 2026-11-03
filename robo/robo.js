@@ -194,14 +194,16 @@ async function vigiar(cfg) {
   const mover = String(cfg.MOVER_ENVIADOS || "sim").toLowerCase() !== "nao";
   const inicio = Date.now(), tamanhos = {}, estado = lerEstado();
   let ocupado = false;
-  // Reinicia a cada 6 h: o iniciar.bat baixa a versão nova do GitHub e liga de novo.
-  setTimeout(function () { log("Reinício programado (6 h) para buscar atualização."); process.exit(0); }, 6 * 3600 * 1000);
   log("Vigiando " + pasta + " · baixe os relatórios do WMS normalmente. Ctrl+C para parar.");
   await prepararIngest(cfg);
   // Com usuário do WMS no .env, o robô também baixa os relatórios sozinho.
   if (cfg.WMS_USUARIO) {
-    require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp })
-      .catch(function (e) { log("ERRO no baixador: " + e.message + " · reinicio em 1 min"); setTimeout(function () { process.exit(0); }, 60000); });
+    // Erro no baixador: tenta de novo em 1 min aqui mesmo (o robô só para quando você desliga).
+    const ligarBaixador = function () {
+      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp })
+        .catch(function (e) { log("ERRO no baixador: " + e.message + " · tento de novo em 1 min"); setTimeout(ligarBaixador, 60000); });
+    };
+    ligarBaixador();
   }
   setInterval(async function () {
     if (ocupado) return; ocupado = true;
