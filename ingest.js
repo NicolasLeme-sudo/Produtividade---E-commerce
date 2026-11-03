@@ -1069,14 +1069,18 @@ function etapaDoPedido(row) {
   return tem("Processado em") ? -1 : 4;   // conferido, aguardando coleta (processado = despachado, sai)
 }
 
-// Pedido -> [etapa, itens, importado em (ms)]
+// Pedido -> [etapa, itens, importado em (ms), separado sem conferir (1/0)]
+// Separado sem conferir = status ENVIADO PARA FATURAMENTO e "Conferido em" vazio: a separação
+// terminou, mas o pedido ainda não passou no caixa de faturamento (lá vira FATURADO com a data).
 function processarOperacaoOp(rows) {
   var pedidos = {};
   rows.forEach(function (row) {
     var pedido = String(obterCampo(row, ["Pedido de Venda"]) || "").trim();
     var etapa = etapaDoPedido(row);
     if (!pedido || etapa < 0) return;
-    pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"]))];
+    var conferidoEm = obterCampo(row, ["Conferido em"]);
+    var semConf = normalizarTexto(obterCampo(row, ["Status da Nota Fiscal"])) === "ENVIADO PARA FATURAMENTO" && (conferidoEm == null || String(conferidoEm).trim() === "") ? 1 : 0;
+    pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"])), semConf];
   });
   return pedidos;
 }
@@ -1111,7 +1115,7 @@ function processarMarcasItensNf(rows) {
 
 function resumoOperacao(op) {
   var pedidos = op.pedidos || {}, marcas = op.marcas || {};
-  var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, marcas: {},
+  var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, marcas: {}, semConferir: { itens: 0, pedidos: 0 },
     etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, marcas: {} }; }),
     idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0 }; }),
     opEm: op.opEm || null, nfEm: op.nfEm || null };
@@ -1123,6 +1127,7 @@ function resumoOperacao(op) {
     etapa.marcas[marca] = (etapa.marcas[marca] || 0) + itens;
     r.marcas[marca] = (r.marcas[marca] || 0) + itens;
     if (!marcas[p]) r.semMarca += itens;
+    if (e[3]) { r.semConferir.itens += itens; r.semConferir.pedidos++; }
     if (imp) {
       if (r.maisAntigo === null || imp < r.maisAntigo) { r.maisAntigo = imp; r.maisAntigoPedido = p; }
       var d = new Date(imp); d.setHours(0, 0, 0, 0);
@@ -1186,6 +1191,72 @@ function mesclarDias(anterior, novoArray) {
   return Array.from(mapa.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });
 }
 function somaMapa(mapa) { var s = 0; mapa.forEach(function (v) { s += v; }); return s; }
+
+// ---- Curva de planejamento (telão): previsão do dia e da próxima hora ----
+// Dia operacional: entre 00h e 01h ainda é o dia anterior (o T02 vai até 00h16).
+function diaOperacionalIngest(agora) {
+  var d = new Date(agora); if (d.getHours() < 1) d.setDate(d.getDate() - 1);
+  return paraDataISOLocal(d);
+}
+function somaArr(a) { return (a || []).reduce(function (s, v) { return s + (v || 0); }, 0); }
+// horasPorDia = [{data, horas:[24]}] · realizadoDia = total do dia que a tela mostra (opcional)
+// 1) curva média por hora dos últimos 10 dias com dado; 2) ritmo = hoje ÷ curva até o mesmo minuto
+// (entre 50% e 150%; antes de 5% do dia fica 100%); 3) previsão = realizado + ritmo × o que a curva ainda faz;
+// 4) próxima hora = ritmo × média da próxima hora cheia. Sem 3 dias de histórico, não prevê.
+function previsaoDoDia(horasPorDia, agora, realizadoDia, fator) {
+  agora = agora || new Date(); fator = fator || 1;
+  var dia = diaOperacionalIngest(agora);
+  // Só dias completos: os enviados no meio do dia (ou quase vazios) puxariam a curva para baixo.
+  // Completo = última hora com produção perto da mediana dos dias e total ≥ 50% da mediana.
+  var cand = (horasPorDia || []).filter(function (d) { return d.data < dia && somaArr(d.horas) > 0; });
+  var ultimaHora = function (d) { for (var h = 23; h >= 0; h--) if (d.horas[h] > 0) return h; return -1; };
+  var mediana = function (a) { a = a.slice().sort(function (x, y) { return x - y; }); return a.length ? a[Math.floor(a.length / 2)] : 0; };
+  var medHora = mediana(cand.map(ultimaHora)), medTotal = mediana(cand.map(function (d) { return somaArr(d.horas); }));
+  var hist = cand.filter(function (d) { return ultimaHora(d) >= medHora - 2 && somaArr(d.horas) >= medTotal * 0.5; }).slice(-10);
+  var hojeH = ((horasPorDia || []).filter(function (d) { return d.data === dia; })[0] || {}).horas || [];
+  var realHora = somaArr(hojeH), real = realizadoDia != null ? realizadoDia : realHora;
+  var r = { data: dia, realizado: real, diasBase: hist.length, calculadoEm: agora.getTime() };
+  if (hist.length < 3) return r;
+  var media = new Array(24).fill(0);
+  hist.forEach(function (d) { for (var h = 0; h < 24; h++) media[h] += (d.horas[h] || 0) / hist.length; });
+  // depois da meia-noite (ainda dia anterior) o dia já passou de todas as horas
+  var H = paraDataISOLocal(agora) === dia ? agora.getHours() : 24, frac = H < 24 ? agora.getMinutes() / 60 : 0;
+  var esperado = 0, resto = 0, total = somaArr(media);
+  for (var h = 0; h < 24; h++) {
+    if (h < H) esperado += media[h];
+    else if (h === H) { esperado += media[h] * frac; resto += media[h] * (1 - frac); }
+    else resto += media[h];
+  }
+  var ritmo = esperado > 0 && esperado >= total * 0.05 ? Math.max(0.5, Math.min(1.5, realHora / esperado)) : 1;
+  r.ritmo = Math.round(ritmo * 100) / 100;
+  r.previsto = Math.round(real + ritmo * resto * fator);
+  r.hora = H + 1 <= 23 ? H + 1 : null;
+  r.proximaHora = r.hora === null ? 0 : Math.round(ritmo * media[r.hora] * fator);
+  return r;
+}
+// Horas do analítico (soma de todos os usuários) por dia: [{data, horas:[24]}]
+function horasDoAnaliticoIngest(analitico, tipos) {
+  return (analitico || []).map(function (d) {
+    var h = new Array(24).fill(0);
+    tipos.forEach(function (t) { Object.keys(d[t] || {}).forEach(function (u) { (d[t][u] || []).forEach(function (v, i) { h[i] += v || 0; }); }); });
+    return { data: d.data, horas: h };
+  });
+}
+function totalDoDia(series, dia) {
+  var s = 0;
+  series.forEach(function (sr) { (sr || []).forEach(function (d) { if (String(d.data).slice(0, 10) === dia) Object.keys(d.itens || {}).forEach(function (n) { s += d.itens[n] || 0; }); }); });
+  return s;
+}
+// Separação (checkout + colmeia, com hora) e Conferência (curva do checkout; a colmeia segue o mesmo ritmo, na proporção de hoje).
+function atualizarPrevisoesOutbound(snap) {
+  var agora = new Date(), dia = diaOperacionalIngest(agora), sep = snap.separacao, conf = snap.conferencia;
+  if (sep && sep.analitico) sep.previsao = previsaoDoDia(horasDoAnaliticoIngest(sep.analitico, ["checkout", "colmeia"]), agora, totalDoDia([sep.checkoutDia, sep.colmeiaDia], dia));
+  if (conf && conf.analitico) {
+    var hc = horasDoAnaliticoIngest(conf.analitico, ["checkout"]);
+    var chk = totalDoDia([conf.confCheckoutDia], dia), tot = totalDoDia([conf.confCheckoutDia, conf.confColmeiaUnitDia], dia);
+    conf.previsao = previsaoDoDia(hc, agora, tot, chk > 0 ? tot / chk : 1);
+  }
+}
 function mapParaSerieDia(mapa, campoValor) {
   var arr = Array.from(mapa.entries()).map(function (e) { var o = { data: e[0] }; o[campoValor] = e[1]; return o; });
   arr.sort(function (a, b) { return a.data.localeCompare(b.data); });
@@ -2170,6 +2241,8 @@ async function processar(id) {
         // Hora a hora da armazenagem normal (telão): os dias do arquivo substituem os salvos, guarda até 31 dias.
         normalHoraDia: mesclarDias(armAnterior.normalHoraDia, Array.from(r5.normalHora.entries()).map(function (e) { return { data: e[0], horas: e[1] }; })).slice(-31),
       };
+      atual5.armazenagem.previsao = previsaoDoDia(atual5.armazenagem.normalHoraDia, new Date(),
+        totalDoDia([atual5.armazenagem.normalDia], diaOperacionalIngest(new Date())));
       atual5.recebimento = atual5.recebimento || {};
       atual5.recebimento.normal = Object.assign({}, atual5.recebimento.normal, { itensArmazenados: r5.totalNormal });
       atual5.recebimento.reversa = Object.assign({}, atual5.recebimento.reversa, { itensArmazenados: r5.totalReversa });
@@ -2209,6 +2282,7 @@ async function processar(id) {
       var geralSA = new Map(acS.totais.checkout);
       acS.totais.colmeia.forEach(function (v, k) { geralSA.set(k, (geralSA.get(k) || 0) + v); });
       sepA.ranking.geral = mapParaRanking(geralSA);
+      atualizarPrevisoesOutbound(atualSA);
       await salvarSnapshot("outbound", atualSA);
       definirStatus(id, "✓ Separação Analítica processada: " + diasS.length + " dia(s), de " + fmtDataBRIngest(diasS[0].data) + (diasS.length > 1 ? " a " + fmtDataBRIngest(diasS[diasS.length - 1].data) : "") + " (Checkout + Colmeia, por dia e por hora).", "ok");
     }
@@ -2226,6 +2300,7 @@ async function processar(id) {
       confA.confCheckoutSegDia = mesclarDias(confA.confCheckoutSegDia, diaMapParaArray(acC.seg.checkout));
       confA.confCheckout = mapParaRanking(acC.totais.checkout);
       confA.totalCheckout = somaMapa(acC.totais.checkout);
+      atualizarPrevisoesOutbound(atualCA);
       await salvarSnapshot("outbound", atualCA);
       definirStatus(id, "✓ Conferência Analítica processada: " + diasC.length + " dia(s), de " + fmtDataBRIngest(diasC[0].data) + (diasC.length > 1 ? " a " + fmtDataBRIngest(diasC[diasC.length - 1].data) : "") + " (por dia e por hora).", "ok");
     }
@@ -2244,6 +2319,7 @@ async function processar(id) {
       atual4.conferencia.confColmeia = lista4;
       atual4.conferencia.totalColmeiaUnit = lista4.reduce(function (s, x) { return s + x.unitaria; }, 0);
       atual4.conferencia.totalColmeiaVol = lista4.reduce(function (s, x) { return s + x.volumes; }, 0);
+      atualizarPrevisoesOutbound(atual4);
       await salvarSnapshot("outbound", atual4);
       definirStatus(id, "✓ Conferência Colmeia processada.", "ok");
     }

@@ -85,7 +85,11 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .fsb[hidden]{display:none}
 body.ocioso,body.ocioso *{cursor:none!important}
 .fh .lv{font-size:12px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:99px;padding:2px 10px}
-.fh .ck{text-align:right;font-size:12px;color:var(--text-muted)}.fh .ck div{font-size:24px;font-weight:700;color:var(--text)}
+.fh .ck{text-align:right;font-size:12px;color:var(--text-muted);position:relative}.fh .ck div{font-size:24px;font-weight:700;color:var(--text)}
+.fh .ck #data{cursor:pointer;border-bottom:1px dotted var(--text-muted)}.fh .ck #data::after{content:" ▾"}
+.fh .ck input{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0}
+.fh .lv.passado{color:var(--amber);border-color:var(--amber)}
+.fh .volta{font-size:12px}
 .main{flex:1;min-height:0;padding:12px 22px 0;display:flex;flex-direction:column;position:relative}
 .tela{display:none;flex-direction:column;flex:1;min-height:0;justify-content:center}.tela.on{display:flex;animation:telaEntra .7s cubic-bezier(.2,.8,.2,1) both}
 .tela.saindo{animation:telaSai .35s ease-in both}
@@ -111,7 +115,8 @@ body.ocioso,body.ocioso *{cursor:none!important}
 
 /* ---------- telas B e D: KPIs, gráfico por hora e top 5 ---------- */
 .kpis{display:grid;gap:14px;margin-bottom:14px}
-.kpis.c4{grid-template-columns:repeat(4,1fr)}.kpis.c3{grid-template-columns:repeat(3,1fr)}
+.kpis.c5{grid-template-columns:repeat(5,1fr)}.kpis.c4{grid-template-columns:repeat(4,1fr)}.kpis.c3{grid-template-columns:repeat(3,1fr)}
+.kpis.c5 .kpi .v{font-size:42px}
 .kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;gap:4px;border-top:4px solid var(--kc,var(--border))}
 .kpi .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
 .kpi .v{font-size:46px;font-weight:800;line-height:1;color:var(--vc,var(--text))}
@@ -143,6 +148,8 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .etapa .barra{height:100%;background:var(--accent);border-radius:8px}
 .etapa .tot{text-align:right;font-size:30px;font-weight:800}.etapa .tot small{display:block;font-size:13px;color:var(--text-muted);font-weight:600}
 .etapa .tot.ped{color:var(--text-label)}
+.etapa.cab .nm{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
+.etapa.cab .tot{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
 .pizza{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px;justify-items:center;min-height:0}
 .pizza svg{height:100%;max-height:300px;min-height:0;aspect-ratio:1}
 .pizza .leg{display:grid;gap:8px;width:100%}
@@ -199,7 +206,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado"></span><input type="date" id="dataInp" tabindex="-1" aria-label="Dia mostrado"></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaA" data-titulo="Corrida Maluca" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
@@ -231,6 +238,21 @@ var SUPABASE_URL = 'https://vehfchdfbukrbcedciiy.supabase.co';
 var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlaGZjaGRmYnVrcmJjZWRjaWl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMDI5NjksImV4cCI6MjEwNTU3ODk2OX0.zuHswp3JIts2jeA_AOj7DIXo7no7Ql33BPNVX4oePL8';
 var DOMINIO_LOGIN = '@vulcabras.com';
 var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'telao-produtividade' } });
+
+/* ================= DIA EXIBIDO ================= */
+// Padrão: o dia operacional de hoje. Dá para escolher outro clicando na data embaixo do relógio,
+// com as setas ↑/↓ ou por ?dia=aaaa-mm-dd. Escolha pelo telão volta sozinha para hoje depois de 30 min.
+var diaEscolhido = /^\d{4}-\d{2}-\d{2}$/.test(Q.get('dia') || '') ? Q.get('dia') : null, escolhidoEm = Date.now();
+function hojeOp(){ return RegrasBlack.diaOperacional(new Date()); }
+function diaTela(){ return diaEscolhido && diaEscolhido < hojeOp() ? diaEscolhido : hojeOp(); }
+function ehHoje(){ return diaTela() === hojeOp(); }
+function somaDias(iso, n){ var p = iso.split('-'), d = new Date(+p[0], +p[1]-1, +p[2] + n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function escolheDia(iso){
+  diaEscolhido = iso && iso < hojeOp() ? iso : null; escolhidoEm = Date.now();
+  if (typeof carregar === 'function') carregar();
+}
+setInterval(function(){ if (diaEscolhido && Date.now() - escolhidoEm > 30*60000 && diaEscolhido !== Q.get('dia')) escolheDia(null); }, 60000);
+function rotDia(dia){ var p = dia.split('-'), d = new Date(+p[0], +p[1]-1, +p[2]); return d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' }); }
 
 /* ================= TIMES (mesmos do index.html) ================= */
 var TIMES_COR = { 1:{nome:'Vermelho',c:'--t1',s:'--t1-soft',hex:'#EF5B5B'}, 2:{nome:'Azul',c:'--t2',s:'--t2-soft',hex:'#4C95F0'}, 3:{nome:'Verde',c:'--t3',s:'--t3-soft',hex:'#45C665',escuro:true},
@@ -342,43 +364,58 @@ function top5Html(obj, nomeDe){ var l = Object.keys(obj).map(function(n){ return
 function nomeWms(u){ return nomeCurto(nomeBonito(u)); }
 var COR_SEP = '#297ADF', COR_SEP2 = '#7DB8FF', COR_CONF = '#2EC4B6', COR_CONF2 = '#8CEBDF', COR_ARM = '#297ADF', COR_ARM2 = '#45C645';
 
-function renderTelaB(snap){
+// Card da curva de planejamento (previsão gravada pelo ingest.js a cada envio).
+function kpiPrevisao(rot, prev, realizado, kc, vc){
+  if (!ehHoje()) return kpiHtml(rot, fmt(realizado), 'dia encerrado', kc, vc, 'peças');
+  if (!prev || prev.data !== diaTela()) return kpiHtml(rot, '—', 'aguardando o próximo envio', kc, vc);
+  if (prev.previsto == null) return kpiHtml(rot, '—', 'pouco histórico ('+fmt(prev.diasBase)+' dia'+(prev.diasBase === 1 ? '' : 's')+')', kc, vc);
+  return kpiHtml(rot, fmt(Math.max(prev.previsto, realizado)), prev.hora != null ? 'próx. hora '+String(prev.hora).padStart(2,'0')+'h: '+fmt(prev.proximaHora) : 'fim do dia', kc, vc, 'peças');
+}
+function rotuloDia(base, dia){ return base + (dia === hojeOp() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)); }
+
+function renderTelaB(snap, opRes){
   var el = document.getElementById('telaB'), sep = (snap||{}).separacao || {}, conf = (snap||{}).conferencia || {};
-  var dia = diaMaisRecente([sep.checkoutDia, sep.colmeiaDia, conf.confCheckoutDia, conf.confColmeiaUnitDia]);
-  if (!dia) { el.dataset.vazia = '1'; el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência.</div>'; return; }
+  if (!sep.checkoutDia && !conf.confCheckoutDia) { el.dataset.vazia = '1'; el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência.</div>'; return; }
   el.dataset.vazia = '';
+  var dia = diaTela();
   var sc = itensDoDia(sep.checkoutDia, dia), sm = itensDoDia(sep.colmeiaDia, dia), cc = itensDoDia(conf.confCheckoutDia, dia), cm = itensDoDia(conf.confColmeiaUnitDia, dia);
   var tSep = somaObj(sc) + somaObj(sm), tConf = somaObj(cc) + somaObj(cm);
   var gS = graficoHoras(horasDoAnalitico(sep.analitico, dia, ['checkout','colmeia']), dia, COR_SEP, COR_SEP2);
   var gC = graficoHoras(horasDoAnalitico(conf.analitico, dia, ['checkout']), dia, COR_CONF, COR_CONF2);
-  var rS = gS && gS.ultima.completa, rC = gC && gC.ultima.completa;
-  el.innerHTML = '<div class="kpis c4">'+
-    kpiHtml('Separado'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tSep), 'Checkout '+fmt(somaObj(sc))+' · Colmeia '+fmt(somaObj(sm)), COR_SEP, COR_SEP2, 'peças')+
-    kpiHtml('Conferido'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tConf), 'Checkout '+fmt(somaObj(cc))+' · Colmeia '+fmt(somaObj(cm)), COR_CONF, COR_CONF, 'peças')+
-    kpiHtml('Ritmo na última hora', rS ? fmt(rS.valor) : '—', rS ? (rC ? 'conferidas '+fmt(rC.valor) : '') : 'sem hora completa ainda', 'var(--olive)', 'var(--olive)')+
-    kpiHtml('Separado sem conferir', fmt(Math.max(0, tSep - tConf)), 'aguardando conferência', 'var(--amber)', 'var(--amber)', 'peças')+
+  // Separado sem conferir: foto atual do Acompanhamento OP (ENVIADO PARA FATURAMENTO sem "Conferido em").
+  var sc2 = opRes && opRes.semConferir;
+  var kSem = !ehHoje() ? kpiHtml('Separado sem conferir', '—', 'só no dia de hoje', 'var(--amber)', 'var(--amber)')
+    : sc2 ? kpiHtml('Separado sem conferir', fmt(sc2.itens), fmt(sc2.pedidos)+' pedidos aguardando conferência', 'var(--amber)', 'var(--amber)', 'peças')
+    : kpiHtml('Separado sem conferir', '—', 'aguardando o próximo Acompanhamento OP', 'var(--amber)', 'var(--amber)');
+  var semHora = ehHoje() ? 'Sem produção hoje ainda' : 'Sem produção neste dia';
+  el.innerHTML = '<div class="kpis c5">'+
+    kpiHtml(rotuloDia('Separado', dia), fmt(tSep), 'Checkout '+fmt(somaObj(sc))+' · Colmeia '+fmt(somaObj(sm)), COR_SEP, COR_SEP2, 'peças')+
+    kpiHtml(rotuloDia('Conferido', dia), fmt(tConf), 'Checkout '+fmt(somaObj(cc))+' · Colmeia '+fmt(somaObj(cm)), COR_CONF, COR_CONF, 'peças')+
+    kSem+
+    kpiPrevisao('Previsão separação', sep.previsao, tSep, COR_SEP, COR_SEP2)+
+    kpiPrevisao('Previsão conferência', conf.previsao, tConf, COR_CONF, COR_CONF)+
   '</div><div class="linhas" style="grid-template-rows:1fr 1fr">'+
-    '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">Abasteça a Separação Analítica para ver por hora</div>')+'</div>'+
+    '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">'+semHora+'</div>')+'</div>'+
       '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms)+'</div></div>'+
-    '<div class="linha"><div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Conferência Checkout · peças por hora</span>'+(gC ? gC.html : '<div class="semhora">Abasteça a Conferência Analítica para ver por hora</div>')+'</div>'+
+    '<div class="linha"><div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Conferência Checkout · peças por hora</span>'+(gC ? gC.html : '<div class="semhora">'+semHora+'</div>')+'</div>'+
       '<div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Top 5 conferentes</span>'+top5Html(juntaObj(cc, cm), nomeWms)+'</div></div>'+
   '</div>';
 }
 
 function renderTelaD(snapIn){
-  var el = document.getElementById('telaD'), arm = (snapIn||{}).armazenagem || {};
-  var dia = diaMaisRecente([arm.normalDia]);
-  if (!dia) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // sem armazenagem: a tela sai do giro
+  var el = document.getElementById('telaD'), arm = (snapIn||{}).armazenagem;
+  if (!arm || !arm.normalDia) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // sem Kardex nenhum: a tela sai do giro
   el.dataset.vazia = '';
+  var dia = diaTela();
   var pessoas = itensDoDia(arm.normalDia, dia), rev = itensDoDia(arm.reversaDia, dia), total = somaObj(pessoas);
   var hd = (arm.normalHoraDia||[]).filter(function(x){ return String(x.data).slice(0,10) === dia; })[0];
-  var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_ARM2) : null, r = g && g.ultima.completa;
+  var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_ARM2) : null;
   el.innerHTML = '<div class="kpis c3">'+
-    kpiHtml('Peças armazenadas'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(total), fmt(somaObj(rev))+' itens de reversa', COR_ARM, null, 'peças')+
+    kpiHtml(rotuloDia('Peças armazenadas', dia), fmt(total), fmt(somaObj(rev))+' itens de reversa', COR_ARM, null, 'peças')+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', 'var(--orange)', null)+
-    kpiHtml('Ritmo na última hora', r ? fmt(r.valor) : '—', r ? 'peças às '+String(r.hora).padStart(2,'0')+'h' : 'por hora a partir do próximo envio do Kardex', 'var(--olive)', 'var(--olive)')+
+    kpiPrevisao('Previsão do dia', arm.previsao, total, 'var(--olive)', 'var(--olive)')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
-    '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">O gráfico por hora aparece no próximo envio do Kardex de Endereço</div>')+'</div>'+
+    '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">'+(ehHoje() ? 'Sem armazenagem hoje ainda' : 'Sem armazenagem neste dia')+'</div>')+'</div>'+
     '<div class="painel"><span class="k">Top 5 armazenadores</span>'+top5Html(pessoas, function(n){ return nomeCurto(nomeBonito(n)); })+'</div>'+
   '</div></div>';
 }
@@ -410,7 +447,8 @@ function pizzaHtml(porMarca, total){
 }
 function renderTelaC(res){
   var el = document.getElementById('telaC');
-  if (!res || !res.pedidos) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // sem Acompanhamento OP: a tela sai do giro
+  // sem Acompanhamento OP, ou com um dia passado escolhido (o OP é só a foto de agora): a tela sai do giro
+  if (!res || !res.pedidos || !ehHoje()) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }
   el.dataset.vazia = '';
   var maxE = Math.max.apply(null, res.etapas.map(function(e){ return e.itens; }).concat(1));
   var velhos = res.idade[2].itens + res.idade[3].itens;
@@ -419,8 +457,8 @@ function renderTelaC(res){
   var etapas = res.etapas.map(function(e, i){
     return '<div class="etapa"><span class="nm">'+NOME_ETAPA[i]+'</span>'+
       '<div class="trilho"><div class="barra" style="width:'+(e.itens/maxE*100).toFixed(2)+'%"></div></div>'+
-      '<span class="tot">'+fmt(e.itens)+'<small>itens</small></span>'+
-      '<span class="tot ped">'+fmt(e.pedidos)+'<small>pedidos</small></span></div>';
+      '<span class="tot">'+fmt(e.itens)+'</span>'+
+      '<span class="tot ped">'+fmt(e.pedidos)+'</span></div>';
   }).join('');
   // Pedidos importados há 2+ dias: vem do ingest a partir do próximo envio do Acompanhamento OP
   var velhosPed = res.idade[2].pedidos == null ? null : res.idade[2].pedidos + res.idade[3].pedidos;
@@ -433,7 +471,7 @@ function renderTelaC(res){
       dAnt ? idadeTexto(res.maisAntigo)+' · pedido '+esc(res.maisAntigoPedido) : 'sem data de importação', corAnt, corAnt)+
     kpiHtml('Importados há 2+ dias', fmt(velhos), velhosPed == null ? '' : fmt(velhosPed)+' pedidos', corVelhos, corVelhos, 'itens')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
-    '<div class="painel"><span class="k">Itens por etapa</span><div class="etapas">'+etapas+'</div></div>'+
+    '<div class="painel"><div class="etapa cab"><span class="nm">Itens por etapa</span><span></span><span class="tot">Itens</span><span class="tot">Pedidos</span></div><div class="etapas">'+etapas+'</div></div>'+
     '<div class="painel"><span class="k">Itens por marca</span>'+pizzaHtml(res.marcas, res.itens)+'</div>'+
   '</div></div>';
 }
@@ -463,8 +501,9 @@ function renderFaixa(c, snap){
     if (m && m.valor) itens.push('<span class="ti" style="--c:var('+t.cor.c+')"><i></i><b>Time 0'+t.n+' · '+t.cor.nome+'</b> destaque: '+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+' <span class="v">'+fmt(m.valor)+'</span> peças</span>');
   });
   var sep = 0, conf = 0;
-  ['checkoutDia','colmeiaDia'].forEach(function(k){ ultimoDia(((snap||{}).separacao||{})[k]).forEach(function(d){ Object.keys(d.itens||{}).forEach(function(n){ sep += d.itens[n]||0; }); }); });
-  ['confCheckoutDia','confColmeiaUnitDia'].forEach(function(k){ ultimoDia(((snap||{}).conferencia||{})[k]).forEach(function(d){ Object.keys(d.itens||{}).forEach(function(n){ conf += d.itens[n]||0; }); }); });
+  var dia = diaTela();
+  ['checkoutDia','colmeiaDia'].forEach(function(k){ sep += somaObj(itensDoDia(((snap||{}).separacao||{})[k], dia)); });
+  ['confCheckoutDia','confColmeiaUnitDia'].forEach(function(k){ conf += somaObj(itensDoDia(((snap||{}).conferencia||{})[k], dia)); });
   itens.push('<span class="ti ger"><b>Separado no dia</b> <span class="v">'+fmt(sep)+'</span> peças</span>');
   itens.push('<span class="ti ger"><b>Conferido no dia</b> <span class="v">'+fmt(conf)+'</span> peças</span>');
   var g = '<div class="g">'+itens.join('')+'</div>';
@@ -491,7 +530,7 @@ var primeiraLeitura = true;
 // é marcado como comemorado, sem festa, para não abrir uma fila de comemorações.
 function verificaMetas(c){
   var primeira = primeiraLeitura; primeiraLeitura = false;
-  if (!c.dia || c.dia !== hojeISO()) return;
+  if (!c.dia || c.dia !== hojeOp() || !ehHoje()) return;
   c.times.forEach(function(t){
     if (t.meta && t.total >= t.meta && !jaComemorou(c.dia, t.n)) {
       marcaComemorou(c.dia, t.n);
@@ -599,14 +638,31 @@ document.addEventListener('keydown', function(e){   // para quem estiver ao lado
   if (comemorando) { encerraComemoracao(); return; }   // qualquer tecla encerra a comemoração
   if (e.key === 'ArrowRight') mostraTela(proximaTela(1));
   if (e.key === 'ArrowLeft') mostraTela(proximaTela(-1));
+  if (e.key === 'ArrowDown') escolheDia(somaDias(diaTela(), -1));   // dia anterior
+  if (e.key === 'ArrowUp') escolheDia(somaDias(diaTela(), 1));      // dia seguinte (até hoje)
 });
+(function(){
+  var inp = document.getElementById('dataInp');
+  document.getElementById('data').addEventListener('click', function(e){
+    e.stopPropagation();
+    inp.max = hojeOp(); inp.value = diaTela();
+    try { inp.showPicker(); } catch(err){ inp.focus(); inp.click(); }
+  });
+  inp.addEventListener('change', function(){ if (inp.value) escolheDia(inp.value); });
+  document.getElementById('btnHoje').addEventListener('click', function(e){ e.stopPropagation(); escolheDia(null); });
+})();
 
 /* ================= RELÓGIO, SELO E ESCALA ================= */
 var atualizadoEm = {}, falhou = false;   // data de atualização de cada snapshot (outbound, inbound)
 function relogio(){
   var d = new Date();
   document.getElementById('hora').textContent = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-  document.getElementById('data').textContent = d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
+  var dia = diaTela(), passado = !ehHoje();
+  document.getElementById('data').textContent = rotDia(dia);
+  var lv = document.getElementById('aoVivo');
+  lv.textContent = passado ? '⚠ EXIBINDO ' + rotDia(dia).toUpperCase() : '● AO VIVO';
+  lv.classList.toggle('passado', passado);
+  document.getElementById('btnHoje').hidden = !passado;
   var s = document.getElementById('selo');
   var ultimoDado = atualizadoEm[telas[atual] ? telas[atual].getAttribute('data-fonte') : 'outbound'];
   if (!ultimoDado) return;
@@ -664,14 +720,14 @@ async function carregar(){
     turnoTela = cadT === cadAll ? null : ta.turno;
     var rotTurno = turnoTela ? ' · ' + RegrasBlack.TURNOS[turnoTela].rot.split(' · ')[0] : '';
     document.getElementById('telaA').setAttribute('data-titulo', 'Corrida Maluca' + rotTurno);
-    var c = calcularCompeticao(snap, cadT);
+    var c = calcularCompeticao(snap, cadT, diaTela());
     var ouros = r[3].error ? [] : (r[3].data || []);
     var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
-    ouroAtivo = ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
+    ouroAtivo = !ehHoje() ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
     atualizaOuro();
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
-    renderTelaA(c); renderTelaB(snap); renderTelaC(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap); verificaMetas(c);
+    renderTelaA(c); renderTelaB(snap, op && op.resumo); renderTelaC(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap); verificaMetas(c);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho

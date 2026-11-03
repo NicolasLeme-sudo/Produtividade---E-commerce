@@ -78,6 +78,8 @@ function isoLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).p
 
 // Turno em andamento agora (T01 ou T02; o ADM só aparece se pedido) e o dia "da Black" dele:
 // depois da meia-noite o T02 ainda pertence ao dia anterior.
+// Dia operacional: entre 00h e 01h ainda é o dia anterior (o T02 vai até 00h16). Mesma regra do robô e do ingest.js.
+function diaOperacional(agora) { var d = new Date(agora || new Date()); if (d.getHours() < 1) d.setDate(d.getDate() - 1); return isoLocal(d); }
 function turnoAtual(agora, comAdm) {
   agora = agora || new Date();
   var min = agora.getHours() * 60 + agora.getMinutes(), dia = new Date(agora);
@@ -331,6 +333,6 @@ global.RegrasBlack = {
   DIAS: DIAS, TURNOS: TURNOS, P: P, FATOR_COLMEIA: FATOR_COLMEIA, GRAVIDADES: GRAVIDADES, CHECKLIST: CHECKLIST,
   DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
   placarDoDia: placarDoDia, minutosTrabalhados: minutosTrabalhados, acumulado: acumulado, isoLocal: isoLocal,
-  META_DIA_TIME: META_DIA_TIME, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu
+  META_DIA_TIME: META_DIA_TIME, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
 };
 })(typeof window !== 'undefined' ? window : globalThis);
