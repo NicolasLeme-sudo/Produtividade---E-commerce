@@ -1454,8 +1454,8 @@ var OPC_LIDER = [["false", "Membro"], ["true", "Líder"]];
 function tabelaClassificacoesCompeticao() {
   var col = function (itens) { return itens.map(htmlSeguro).join("<br>"); };
   return '<div class="tbl-wrap"><table class="comp-classif"><thead><tr><th>Atividade</th><th>Turno</th><th>Piso</th><th>Time</th><th>Observação</th><th>Líder</th></tr></thead><tbody><tr>' +
-    "<td>" + col(["S (Separação)", "C (Conferência)", "C/S (as duas)"]) + "</td><td>" + col(COMP_TURNOS) + "</td><td>" + col(["1", "2", "3", "4", "(vazio)"]) + "</td>" +
-    "<td>" + col(COMP_NUM_TIMES.map(function (n) { return "0" + n + " · " + COMP_TIMES[n][0]; })) + "</td><td>" + col(["(vazio)", "Colmeia"]) + "</td><td>" + col(["S", "N"]) + "</td></tr></tbody></table></div>";
+    "<td>" + col(["S (Separação)", "C (Conferência)", "C/S (as duas)"]) + "</td><td>" + col(COMP_TURNOS) + "</td><td>" + col(["1", "2", "3", "4"]) + "</td>" +
+    "<td>" + col(COMP_NUM_TIMES.map(function (n) { return "0" + n + " · " + COMP_TIMES[n][0]; })) + "</td><td>" + col(["Colmeia"]) + "</td><td>" + col(["S", "N"]) + "</td></tr></tbody></table></div>";
 }
 
 async function renderCompeticaoAdmin(recarregarBase) {
