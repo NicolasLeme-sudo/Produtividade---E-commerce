@@ -58,6 +58,9 @@ var DESAFIOS = {
   '2026-11-29': ['Quiz final', 'Desafio surpresa', 'Equipe mais engajada']
 };
 var PONTOS_DESAFIO = 100;
+// Banco de gincanas entre pisos (qualquer dia).
+var GINCANAS = ['Acerte o alvo', 'Corrida do palete', 'Montagem relâmpago', 'Quebra-cabeça da Black', 'Quem canta ganha',
+  'Corrida de entregas', 'Desafio dos líderes', 'TikTok dos líderes', 'Grito de guerra do piso'];
 
 function fator(time) { return time >= 5 ? FATOR_COLMEIA : 1; }   // times 5 e 6 = colmeia
 function pts(valor, time) { return Math.round(valor * fator(time)); }
@@ -253,7 +256,7 @@ function acumulado(placares) {
 
 global.RegrasBlack = {
   DIAS: DIAS, TURNOS: TURNOS, P: P, FATOR_COLMEIA: FATOR_COLMEIA, GRAVIDADES: GRAVIDADES, CHECKLIST: CHECKLIST,
-  DESAFIOS: DESAFIOS, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
+  DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
   placarDoDia: placarDoDia, acumulado: acumulado, isoLocal: isoLocal,
   META_DIA_TIME: META_DIA_TIME, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu
 };

@@ -568,8 +568,16 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     </div>
     <div class="nav-group" id="grupoAdmin">
       <div class="nav-label" tabindex="0">Admin <span style="color:var(--amber)">·</span> restrito</div>
-      <div class="nav-item" tabindex="0" data-page="admin" data-target="abastecimento"><span class="nav-dot"></span>Abastecimento de base<span class="badge-admin">Admin</span></div>
-      <div class="nav-item" tabindex="0" data-page="admin" data-target="ativos"><span class="nav-dot"></span>Base de ativos<span class="badge-admin">Admin</span></div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-compartilhados"><span class="nav-dot"></span>Compartilhados</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-outbound"><span class="nav-dot"></span>Outbound</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-movimentacao"><span class="nav-dot"></span>Movimentação</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-estoque"><span class="nav-dot"></span>Gestão de Estoque</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-times"><span class="nav-dot"></span>Times da competição</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-vistoria"><span class="nav-dot"></span>Vistoria</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-gincanas"><span class="nav-dot"></span>Gincanas</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-ajuste"><span class="nav-dot"></span>Ajuste de pontuação</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-ouro"><span class="nav-dot"></span>Horas de Ouro</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="ativos"><span class="nav-dot"></span>Base de ativos</div>
     </div>
   </aside>
 
@@ -2495,7 +2503,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       var titulos = { outbound:['Outbound','Separação · Conferência · Expedição'], inbound:['Inbound','Recebimento · Armazenagem · Mov. de Pallets'],
         estoque:['Gestão de Estoque','Inventário · Corte · Pula · Cancelamentos WMS'], reversa:['Reversa','Integração · Vinculação'],
         competicao:['Competição','Placar dos times · Ranking por time'],
-        admin:['Admin','Abastecimento de base · Base de ativos'] };
+        admin:['Admin','Abastecimento de base · Pontos da Black · Base de ativos'] };
       document.getElementById('page-title').textContent = titulos[grupo][0];
       document.getElementById('page-sub').textContent = titulos[grupo][1];
       renderPagina(grupo);

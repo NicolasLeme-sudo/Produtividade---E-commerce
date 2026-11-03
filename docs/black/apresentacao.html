@@ -178,7 +178,7 @@ S.push(slide('Pontuação', 'Assiduidade <em>linear</em>: cada falta custa só a
 S.push(slide('Desafios e gincanas', 'Três desafios por dia, <em>' + fmt(R.PONTOS_DESAFIO) + ' pontos cada</em>',
   '<div class="prem" style="grid-template-columns:repeat(3,1fr)">' +
     R.DIAS.map(function(d){ return '<div><p class="dia">' + d[1] + '</p><h3>' + d[2] + '</h3>' + li(R.DESAFIOS[d[0]] || []) + '</div>'; }).join('') +
-  '</div><div class="lev"><div class="n">+</div><div><h3>Banco de gincanas entre pisos</h3><p>Acerte o alvo · Corrida do palete · Montagem relâmpago · Quebra-cabeça da Black · Quem canta ganha · Corrida de entregas · Desafio dos líderes · TikTok dos líderes · Grito de guerra do piso. <b>Prêmio do dia para o piso vencedor:</b> energético, picolé, refrigerante ou chocolate.</p></div></div>',
+  '</div><div class="lev"><div class="n">+</div><div><h3>Banco de gincanas entre pisos</h3><p>' + R.GINCANAS.join(' · ') + '. <b>Prêmio do dia para o piso vencedor:</b> energético, picolé, refrigerante ou chocolate.</p></div></div>',
   'Desafios lançados no sistema por admin, com horário e quem lançou · até ' + fmt(P.desafiosMax) + ' pts por dia no piso, ' + fmt(col(P.desafiosMax)) + ' na colmeia'));
 
 // bônus
