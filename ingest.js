@@ -246,10 +246,17 @@ function acumularHora(dias, data, tipo, usuario, hora, valor) {
   arr[hora] += valor;
   dia[tipo].set(usuario, arr);
 }
-function diasHoraParaArray(dias) {
+// minutos (opcional): Map(data -> { checkout: Map(usuario -> Map(minuto -> peças)), colmeia }) -> checkoutMin/colmeiaMin = { USUARIO: [[minuto, peças], ...] }
+function diasHoraParaArray(dias, minutos) {
   return Array.from(dias.values()).map(function (d) {
     var o = { data: d.data, checkout: {}, colmeia: {} };
     ["checkout", "colmeia"].forEach(function (t) { d[t].forEach(function (arr, u) { o[t][u] = arr; }); });
+    var dm = minutos && minutos.get(d.data);
+    if (dm) ["checkout", "colmeia"].forEach(function (t) {
+      var porU = {};
+      dm[t].forEach(function (mp, u) { porU[u] = Array.from(mp.entries()).sort(function (a, b) { return a[0] - b[0]; }); });
+      o[t + "Min"] = porU;
+    });
     return o;
   }).sort(function (a, b) { return a.data.localeCompare(b.data); });
 }
@@ -264,7 +271,7 @@ function segundosDoTexto(v) {
   return m ? Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +(m[6] || 0)) / 1000 : null;
 }
 function novoAcumuladorAnalitico() {
-  return { horas: new Map(), pecas: { checkout: new Map(), colmeia: new Map() }, spans: new Map(), totais: { checkout: new Map(), colmeia: new Map() } };
+  return { horas: new Map(), minutos: new Map(), pecas: { checkout: new Map(), colmeia: new Map() }, spans: new Map(), totais: { checkout: new Map(), colmeia: new Map() } };
 }
 function registrarSpan(ac, chave, ini, fim) {
   var sp = ac.spans.get(chave);
@@ -282,6 +289,19 @@ function acumularAnalitico(ac, row, tipo, usuario) {
   somarNoDia(ac.pecas[tipo], dataDia, usuario, pecas);
   ac.totais[tipo].set(usuario, (ac.totais[tipo].get(usuario) || 0) + pecas);
   var i0 = segundosDoTexto(ini), i1 = segundosDoTexto(fimTxt);
+  // Minuto do dia em que a tarefa terminou (Data/Hora Fim), contado a partir do dia de início
+  // (passa de 1440 se terminou depois da meia-noite). Usado na meta antecipada da Missão Black.
+  var fimSeg = i1 !== null ? i1 : i0;
+  if (fimSeg !== null) {
+    var p0 = dataInicio.split("-"), minuto = Math.floor((fimSeg - Date.UTC(+p0[0], +p0[1] - 1, +p0[2]) / 1000) / 60);
+    if (minuto >= 0 && minuto < 2880) {
+      var dm = ac.minutos.get(dataInicio) || { checkout: new Map(), colmeia: new Map() };
+      ac.minutos.set(dataInicio, dm);
+      var mu = dm[tipo].get(usuario) || new Map();
+      mu.set(minuto, (mu.get(minuto) || 0) + pecas);
+      dm[tipo].set(usuario, mu);
+    }
+  }
   if (i0 !== null && i1 !== null) {
     registrarSpan(ac, dataDia + "|" + tipo + "|" + usuario, i0, i1);
     registrarSpan(ac, dataDia + "|geral|" + usuario, i0, i1);
@@ -494,6 +514,24 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
 }
 
 // ---- 5) Conferência Colmeia ----
+// Conferência Colmeia não tem hora: cada envio (o robô exporta a cada 5 min) vira uma marca
+// [minuto do envio, { OPERADOR: acumulado do dia }]. Só para hoje (e ontem até 02h, por causa do T02).
+// Formato: [{ data, marcas: [[minuto, {...}], ...] }], guarda os 7 dias mais recentes.
+function marcarColmeia(anterior, unitDia) {
+  var agora = new Date(), minAgora = agora.getHours() * 60 + agora.getMinutes();
+  var hojeISO = paraDataISOLocal(agora), ontem = new Date(agora); ontem.setDate(ontem.getDate() - 1);
+  var ontemISO = paraDataISOLocal(ontem);
+  var lista = (anterior || []).slice();
+  unitDia.forEach(function (porOp, dia) {
+    var minuto = dia === hojeISO ? minAgora : (dia === ontemISO && agora.getHours() < 2 ? 1440 + minAgora : null);
+    if (minuto === null) return;
+    var itens = {}; porOp.forEach(function (v, op) { itens[op] = v; });
+    var reg = lista.filter(function (x) { return x.data === dia; })[0];
+    if (!reg) { reg = { data: dia, marcas: [] }; lista.push(reg); }
+    reg.marcas = reg.marcas.filter(function (mk) { return mk[0] !== minuto; }).concat([[minuto, itens]]).sort(function (a, b) { return a[0] - b[0]; });
+  });
+  return lista.sort(function (a, b) { return a.data.localeCompare(b.data); }).slice(-7);
+}
 function processarConferenciaColmeia(rows) {
   var porOperador = new Map(); // nome -> { unitaria, volumes }
   var unitDia = new Map(), volDia = new Map();
@@ -1134,6 +1172,13 @@ function diaMapParaArray(mapaDia) {
   });
   arr.sort(function (a, b) { return a.data.localeCompare(b.data); });
   return arr;
+}
+// Peças por minuto pesam: ficam só nos 4 dias mais recentes (as horas continuam nos 31).
+function podarMinutos(lista) {
+  return lista.map(function (d, i) {
+    if (i >= lista.length - 4 || (!d.checkoutMin && !d.colmeiaMin)) return d;
+    var c = Object.assign({}, d); delete c.checkoutMin; delete c.colmeiaMin; return c;
+  });
 }
 function mesclarDias(anterior, novoArray) {
   var mapa = new Map((anterior || []).map(function (d) { return [d.data, d]; }));
@@ -1797,7 +1842,7 @@ async function extrairPontosBlack() {
 
   var nomeTime = function (n) { return COMP_TIMES[n] ? COMP_TIMES[n][0] : "Time " + n; };
   var abaTimes = [["Dia", "Turno", "Time", "Grupo", "Peças", "Meta do dia", "Produtividade", "Escalados", "Presentes", "Atrasos", "Assiduidade",
-    "Desafios", "Vistoria", "Meta batida", "Antecipada", "Hora de ouro", "Destaque", "Ajustes", "Total do dia"]];
+    "Desafios", "Vistoria", "Meta batida", "Bateu a meta às", "Antecipada", "Hora de ouro", "Destaque", "Ajustes", "Total do dia"]];
   var abaPessoas = [["Dia", "Turno", "Time", "Nome", "Usuário WMS", "Atividade", "Peças separação", "Peças conferência", "Peças total", "Presença", "Destaque", "Pontos de destaque"]];
   var abaOuro = [["Dia", "Turno", "Hora", "Time", "Meta da hora", "Peças na hora", "Hora terminou", "Bateu", "Bônus (peças em dobro)"]];
   var porTurno = {};
@@ -1811,7 +1856,8 @@ async function extrairPontosBlack() {
     var dBR = fmtDataBRIngest(dia);
     pl.linhas.forEach(function (x) {
       abaTimes.push([dBR, turno, nomeTime(x.n), x.colmeia ? "Colmeia" : "Piso", x.pecas, x.meta, x.produtividade, x.escalados, x.presentes, x.atrasos, x.assiduidade,
-        x.desafios, x.segQual, x.metaBatida, x.antecipada, x.ouro, x.destaque, x.ajustes, x.total]);
+        x.desafios, x.segQual, x.metaBatida, x.minutoMeta == null ? "" : String(Math.floor(x.minutoMeta / 60) % 24).padStart(2, "0") + ":" + String(x.minutoMeta % 60).padStart(2, "0"),
+        x.antecipada, x.ouro, x.destaque, x.ajustes, x.total]);
       x.ouroDetalhe.forEach(function (o) {
         abaOuro.push([dBR, turno, String(o.hora).padStart(2, "0") + "h00", nomeTime(x.n), o.meta, o.feitas, o.terminou ? "Sim" : "Não", o.bateu ? "Sim" : "Não", o.bateu ? o.feitas : 0]);
       });
@@ -2135,13 +2181,13 @@ async function processar(id) {
     else if (id === "up-separacao-analitica") {
       var rowsSA = await parseArquivoGenerico(input.files[0]);
       var acS = processarSeparacaoAnalitica(rowsSA);
-      var diasS = diasHoraParaArray(acS.horas);
+      var diasS = diasHoraParaArray(acS.horas, acS.minutos);
       if (!diasS.length) throw new Error("Nenhuma linha válida: confira se o arquivo traz Data/Hora Início, Região Destino e Usuário.");
       var atualSA = await lerSnapshot("outbound");
       atualSA.separacao = atualSA.separacao || {};
       var sepA = atualSA.separacao;
       // Os dias do arquivo substituem os já salvos; os demais ficam (guarda até 31 dias de hora a hora).
-      sepA.analitico = mesclarDias(sepA.analitico, diasS).slice(-31);
+      sepA.analitico = podarMinutos(mesclarDias(sepA.analitico, diasS).slice(-31));
       sepA.checkoutDia = mesclarDias(sepA.checkoutDia, diaMapParaArray(acS.pecas.checkout));
       sepA.colmeiaDia = mesclarDias(sepA.colmeiaDia, diaMapParaArray(acS.pecas.colmeia));
       sepA.checkoutSegDia = mesclarDias(sepA.checkoutSegDia, diaMapParaArray(acS.seg.checkout));
@@ -2170,12 +2216,12 @@ async function processar(id) {
     else if (id === "up-conferencia-analitica") {
       var rowsCA = await parseArquivoGenerico(input.files[0]);
       var acC = processarConferenciaAnalitica(rowsCA);
-      var diasC = diasHoraParaArray(acC.horas);
+      var diasC = diasHoraParaArray(acC.horas, acC.minutos);
       if (!diasC.length) throw new Error("Nenhuma linha válida: confira se o arquivo traz Data/Hora Início e Conferênte.");
       var atualCA = await lerSnapshot("outbound");
       atualCA.conferencia = atualCA.conferencia || {};
       var confA = atualCA.conferencia;
-      confA.analitico = mesclarDias(confA.analitico, diasC).slice(-31);
+      confA.analitico = podarMinutos(mesclarDias(confA.analitico, diasC).slice(-31));
       confA.confCheckoutDia = mesclarDias(confA.confCheckoutDia, diaMapParaArray(acC.pecas.checkout));
       confA.confCheckoutSegDia = mesclarDias(confA.confCheckoutSegDia, diaMapParaArray(acC.seg.checkout));
       confA.confCheckout = mapParaRanking(acC.totais.checkout);
@@ -2192,6 +2238,7 @@ async function processar(id) {
       atual4.conferencia = atual4.conferencia || {};
       atual4.conferencia.confColmeiaUnitDia = mesclarDias(atual4.conferencia.confColmeiaUnitDia, diaMapParaArray(r4.unitDia));
       atual4.conferencia.confColmeiaVolDia = mesclarDias(atual4.conferencia.confColmeiaVolDia, diaMapParaArray(r4.volDia));
+      atual4.conferencia.colmeiaMarcas = marcarColmeia(atual4.conferencia.colmeiaMarcas, r4.unitDia);
       var lista4 = Array.from(mapa4.entries()).map(function (e) { return { nome: e[0], unitaria: e[1].unitaria, volumes: e[1].volumes }; });
       lista4.sort(function (a, b) { return b.unitaria - a.unitaria; });
       atual4.conferencia.confColmeia = lista4;

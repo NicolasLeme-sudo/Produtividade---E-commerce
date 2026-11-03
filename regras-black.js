@@ -165,6 +165,60 @@ function calcularCompeticao(snap, cadastro, diaAlvo) {
   return { times: times, dia: dia, temDados: temDados };
 }
 
+// Minuto do dia (0 = 00:00; T02 passa de 1440 depois da meia-noite) em que o time passou da meta.
+// Usa as peças por minuto (Data/Hora Fim) da Separação e da Conferência Analítica e, para a
+// Conferência Colmeia (que não tem hora), as marcas que o robô grava a cada exportação (~5 min).
+// Devolve null quando o dia não tem minutos gravados.
+function minutoDaMeta(snap, dia, turno, t) {
+  var s = snap || {}, sep = (s.separacao || {}).analitico || [], conf = (s.conferencia || {}).analitico || [];
+  var proximo = isoLocal(new Date(new Date(dia + 'T12:00:00').getTime() + 864e5));
+  var eventos = [], temMin = false;
+  function dosMinutos(lista, campo, d, desloc, chaveFonte) {
+    var reg = lista.filter(function (x) { return String(x.data).slice(0, 10) === d; })[0];
+    var porUsu = reg && reg[campo];
+    if (!porUsu) return;
+    temMin = true;
+    t.lista.forEach(function (m) {
+      var k = m.chaves && m.chaves[chaveFonte];
+      if (!k) return;
+      Object.keys(porUsu).forEach(function (u) {
+        if (chaveUsu(u) !== k) return;
+        (porUsu[u] || []).forEach(function (par) { if (desloc === 0 || par[0] < 120) eventos.push([par[0] + desloc, par[1]]); });
+      });
+    });
+  }
+  [[dia, 0]].concat(turno === '2º Turno' ? [[proximo, 1440]] : []).forEach(function (dd) {
+    dosMinutos(sep, 'checkoutMin', dd[0], dd[1], 'sep_checkout');
+    dosMinutos(sep, 'colmeiaMin', dd[0], dd[1], 'sep_colmeia');
+    dosMinutos(conf, 'checkoutMin', dd[0], dd[1], 'conf_checkout');
+  });
+  if (!temMin) return null;
+  // Conferência Colmeia: degraus pelas marcas (acumulado do dia por operador em cada exportação)
+  var marcas = [];
+  var regM = ((s.conferencia || {}).colmeiaMarcas || []).filter(function (x) { return x.data === dia; })[0];
+  if (regM) (regM.marcas || []).forEach(function (mk) {
+    var tot = 0;
+    t.lista.forEach(function (m) {
+      var k = m.chaves && m.chaves.conf_colmeia;
+      if (!k) return;
+      Object.keys(mk[1] || {}).forEach(function (u) { if (chaveUsu(u) === k) tot += mk[1][u] || 0; });
+    });
+    marcas.push([mk[0], tot]);
+  });
+  marcas.sort(function (a, b) { return a[0] - b[0]; });
+  eventos.sort(function (a, b) { return a[0] - b[0]; });
+  var minutos = eventos.map(function (e) { return e[0]; }).concat(marcas.map(function (mk) { return mk[0]; }));
+  minutos = minutos.filter(function (x, i) { return minutos.indexOf(x) === i; }).sort(function (a, b) { return a - b; });
+  var cum = 0, ie = 0, confCol = 0, im = 0;
+  for (var i = 0; i < minutos.length; i++) {
+    var mm = minutos[i];
+    while (ie < eventos.length && eventos[ie][0] <= mm) cum += eventos[ie++][1];
+    while (im < marcas.length && marcas[im][0] <= mm) confCol = marcas[im++][1];
+    if (cum + confCol >= t.meta) return mm;
+  }
+  return null;
+}
+
 // Placar de UM dia de UM turno.
 //   c         = resultado de calcularCompeticao(snap, cadastroDoTurno, dia) — times com total, meta, lista (membros com sep/conf/chaves)
 //   cadastro  = linhas de competicao_times do turno (com presenca)
@@ -197,16 +251,18 @@ function placarDoDia(o) {
     var r = { n: n, cor: t.cor, colmeia: t.colmeia, pecas: t.total, meta: t.meta, detalhe: [] };
     r.produtividade = Math.round(t.total * P.porPeca);
 
-    // meta batida + antecipada
+    // meta batida + antecipada: +antecipadaHora por hora antes do fim do turno, contando os minutos.
+    // Minuto da meta = minuto exato (Data/Hora Fim das tarefas + marcas da colmeia); sem minutos, cai no fim da hora.
     r.metaBatida = t.total >= t.meta && t.meta ? pts(P.metaBatida, n) : 0;
-    r.antecipada = 0; r.horaMeta = null;
+    r.antecipada = 0; r.horaMeta = null; r.minutoMeta = null;
     if (r.metaBatida) {
-      var cum = 0;
-      for (var h = 0; h < 24; h++) { cum += horas[h] * esc; if (cum >= t.meta) { r.horaMeta = h + 1; break; } }
-      if (r.horaMeta != null) {
-        var antes = Math.floor((T.fim - r.horaMeta * 60) / 60);
-        r.antecipada = Math.min(pts(P.antecipadaMax, n), Math.max(0, antes) * pts(P.antecipadaHora, n));
+      r.minutoMeta = minutoDaMeta(o.snap, dia, turno, t);
+      if (r.minutoMeta == null) {
+        var cum = 0;
+        for (var h = 0; h < 24; h++) { cum += horas[h] * esc; if (cum >= t.meta) { r.horaMeta = h + 1; break; } }
+        if (r.horaMeta != null) r.minutoMeta = r.horaMeta * 60;
       }
+      if (r.minutoMeta != null) r.antecipada = Math.max(0, Math.round(pts(P.antecipadaHora, n) * (T.fim - r.minutoMeta) / 60));
     }
 
     // hora de ouro: peças da hora valem 2× se o time bater a meta da hora (só depois que a hora termina)
