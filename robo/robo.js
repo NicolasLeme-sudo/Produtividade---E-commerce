@@ -21,6 +21,7 @@ const vm = require("vm");
 
 const RAIZ = __dirname;
 const TESTE = process.argv.includes("--teste");
+const ENVIAR = process.argv.includes("--enviar");   // envia de verdade os arquivos passados (preencher dias que faltam)
 const ARQ_LOG = path.join(RAIZ, "robo.log");
 const ARQ_ESTADO = path.join(RAIZ, "estado.json");
 const INTERVALO_MS = 5000;          // a cada 5 s olha a pasta
@@ -230,8 +231,8 @@ module.exports = { lerEnv: lerEnv, log: log, maisAntigoOp: maisAntigoOp };
 if (require.main === module) (async function () {
   const cfg = lerEnv();
   try {
-    if (TESTE) {
-      const arqs = process.argv.slice(2).filter(function (a) { return a !== "--teste"; });
+    if (TESTE || ENVIAR) {
+      const arqs = process.argv.slice(2).filter(function (a) { return a !== "--teste" && a !== "--enviar"; });
       if (!arqs.length) { console.log("Uso: npm run teste -- C:\\caminho\\Exportacao_123.tsv"); return; }
       for (const a of arqs) await enviar(path.resolve(a), cfg);
       process.exit(0);

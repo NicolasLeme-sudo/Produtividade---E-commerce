@@ -14,6 +14,9 @@
    o pedido mais antigo do OP muda (Itens de NF) ou dá qualquer erro.
 
    Uso sozinho (teste):  npm run baixar -- --uma-vez
+   Dias passados (preencher buracos, sem enviar):
+     npm run baixar -- --uma-vez --de 27/10/2026 --ate 30/10/2026 --so separacao,packing --pasta C:\pasta
+   Depois envie com:  node robo.js --enviar C:\pasta\*.tsv
    ========================================================================= */
 "use strict";
 const fs = require("fs");
@@ -33,9 +36,15 @@ const PASTA_ERROS = path.join(__dirname, "erros");
 function ddmmaaaa(d) {
   return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
 }
-function hoje() { return new Date(); }
+// --de/--ate (dd/mm/aaaa): baixa um período passado em vez de hoje.
+function argumento(nome) { const i = process.argv.indexOf(nome); return i > 0 ? process.argv[i + 1] : null; }
+function dataBR(s) { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s || ""); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; }
+const PERIODO = { de: dataBR(argumento("--de")), ate: dataBR(argumento("--ate")) };
+const SO = argumento("--so") ? argumento("--so").split(",") : null;   // só estes relatórios (ids de TELAS)
+function hoje() { return PERIODO.ate || new Date(); }
 // Entre 00h e 01h ainda pega o dia anterior (T02 vai até 00h16).
 function inicioDoDia() {
+  if (PERIODO.de) return PERIODO.de;
   const d = new Date();
   if (d.getHours() < 1) d.setDate(d.getDate() - 1);
   return d;
@@ -379,6 +388,7 @@ async function iniciar(cfg, log, opcoes) {
   }
 
   async function grupo(nome) {
+    if (SO) { for (const tela of TELAS) if (tela.grupo === nome && SO.indexOf(tela.id) !== -1) await rodar(tela); return; }
     // Janela do Chrome do robô fechou no meio: abre de novo e refaz as abas.
     if (caiu || !browser.isConnected()) {
       log("Chrome do robô fechou, abrindo de novo");
@@ -412,6 +422,7 @@ module.exports = { iniciar: iniciar };
 if (require.main === module) {
   const robo = require("./robo");
   const cfg = robo.lerEnv();
+  if (argumento("--pasta")) { cfg.PASTA = argumento("--pasta"); fs.mkdirSync(cfg.PASTA, { recursive: true }); }
   iniciar(cfg, robo.log, { umaVez: process.argv.includes("--uma-vez"), maisAntigoOp: robo.maisAntigoOp })
     .then(function () { process.exit(0); })
     .catch(function (e) { robo.log("ERRO: " + e.message); process.exit(1); });
