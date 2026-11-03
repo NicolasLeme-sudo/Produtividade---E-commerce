@@ -1695,7 +1695,7 @@ async function renderPontosBlack() {
       campo("Motivo (obrigatório)", '<input id="pb-aj-motivo">') + '<button class="btn" id="pb-btn-ajuste">Lançar ajuste</button>') +
     tabelaLanc("ajuste"));
   var cxExtrair = document.getElementById("pb-bloco-extrair");
-  if (cxExtrair) cxExtrair.innerHTML = '<div class="pb-extrair"><span class="upload-status" id="pb-status-extrair"></span><button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições de Pontos por Time</button></div>';
+  if (cxExtrair) cxExtrair.innerHTML = '<div class="pb-extrair"><span class="upload-status" id="pb-status-extrair"></span><button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições</button></div>';
 
   // Horas de ouro
   var T = RB.TURNOS[pb.turno] || RB.TURNOS["1º Turno"], horas = [];
