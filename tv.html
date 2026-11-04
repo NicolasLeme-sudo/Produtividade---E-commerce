@@ -501,13 +501,16 @@ function idadeTexto(ms){
   return h < 24 ? Math.floor(h)+' h em tela' : Math.floor(h/24)+' d '+Math.floor(h%24)+' h em tela';
 }
 function pizzaHtml(porMarca, total){
+  // Pedido ainda sem produto no Itens de NF segue a regra de reserva da marca (Olympikus): nunca aparece fatia sem marca.
+  porMarca = Object.assign({}, porMarca);
+  if (porMarca['Sem marca']) { porMarca['Olympikus'] = (porMarca['Olympikus']||0) + porMarca['Sem marca']; delete porMarca['Sem marca']; }
   var R = 70, C = 2*Math.PI*R, acc = 0, ms = marcasDe(porMarca);
   var fatias = ms.map(function(m){
     var f = porMarca[m]/total, s = '<circle r="'+R+'" cx="90" cy="90" fill="none" stroke="'+(COR_MARCA[m]||'#8E9BB5')+'" stroke-width="34" stroke-dasharray="'+(f*C).toFixed(1)+' '+C.toFixed(1)+'" stroke-dashoffset="'+(-acc*C).toFixed(1)+'" transform="rotate(-90 90 90)"/>';
     acc += f; return s;
   }).join('');
   var leg = ms.map(function(m){
-    return '<div style="--m:'+(COR_MARCA[m]||'#8E9BB5')+'"><i></i><span>'+esc(m === 'Sem marca' ? 'Aguardando NF' : m)+'</span><b>'+fmt(porMarca[m])+'</b><em>'+Math.round(porMarca[m]/total*100)+'%</em></div>';
+    return '<div style="--m:'+(COR_MARCA[m]||'#8E9BB5')+'"><i></i><span>'+esc(m)+'</span><b>'+fmt(porMarca[m])+'</b><em>'+Math.round(porMarca[m]/total*100)+'%</em></div>';
   }).join('');
   return '<div class="pizza"><svg viewBox="0 0 180 180">'+fatias+
     '<text x="90" y="92" text-anchor="middle" fill="#E8EBF2" font-size="26" font-weight="800">'+fmt(total)+'</text>'+
