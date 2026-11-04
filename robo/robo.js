@@ -241,6 +241,14 @@ if (require.main === module) (async function () {
       for (const a of arqs) await enviar(path.resolve(a), cfg);
       process.exit(0);
     }
+    // Só um robô por vez: um segundo (tarefa agendada + ligar na mão) duplicaria os envios.
+    const trava = path.join(__dirname, "robo.lock");
+    try {
+      const pid = Number(fs.readFileSync(trava, "utf8"));
+      if (pid && pid !== process.pid) { process.kill(pid, 0); log("Já tem um robô rodando (processo " + pid + "): este não liga."); process.exit(0); }
+    } catch (e) { /* sem trava ou processo antigo já fechado: segue */ }
+    fs.writeFileSync(trava, String(process.pid));
+    process.on("exit", function () { try { if (fs.readFileSync(trava, "utf8") === String(process.pid)) fs.unlinkSync(trava); } catch (e) {} });
     await vigiar(cfg);
   } catch (e) { log("ERRO: " + e.message); process.exit(1); }
 })();

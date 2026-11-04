@@ -46,10 +46,14 @@ const SO = argumento("--so") ? argumento("--so").split(",") : null;   // só est
 const RODADAS = Math.max(1, +argumento("--rodadas") || 1), MOSTRAR = process.argv.includes("--mostrar"), MANTER_ABAS = process.argv.includes("--manter-abas");
 function hoje() { return PERIODO.ate || new Date(); }
 // Entre 00h e 01h ainda pega o dia anterior (T02 vai até 00h16).
+// incluirOntem: na 1ª rodada depois de ligar (modo contínuo), a data inicial é ontem — completa o 2º turno
+// do dia anterior, que rodou depois do robô desligar. Da 2ª rodada em diante, só hoje.
+let incluirOntem = false;
 function inicioDoDia() {
   if (PERIODO.de) return PERIODO.de;
   const d = new Date();
   if (d.getHours() < 1) d.setDate(d.getDate() - 1);
+  if (incluirOntem) d.setDate(d.getDate() - 1);
   return d;
 }
 function hora() {
@@ -434,6 +438,8 @@ async function iniciar(cfg, log, opcoes) {
     return;
   }
   const proximo = { rapido: 0, lento: 0 };
+  incluirOntem = !PERIODO.de;
+  if (incluirOntem) log("1ª rodada: de ontem até hoje (completa o 2º turno de ontem); as próximas, só hoje");
   for (;;) {
     for (const g of ["rapido", "lento"]) {          // rápido tem prioridade
       if (Date.now() >= proximo[g]) {
@@ -441,6 +447,7 @@ async function iniciar(cfg, log, opcoes) {
         await grupo(g);
       }
     }
+    incluirOntem = false;                           // as duas levas da 1ª rodada já foram
     await new Promise(function (r) { setTimeout(r, 5000); });
   }
 }

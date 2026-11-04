@@ -819,7 +819,7 @@ function relogio(){
   var min = (Date.now() - ultimoDado.getTime()) / 60000, hh = ultimoDado.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
   var dd = ultimoDado.toDateString() === d.toDateString() ? '' : ' de ' + ultimoDado.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
   s.textContent = '● Dado de ' + hh + dd + (falhou ? ' · sem conexão' : '');
-  s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 30 ? 'atencao' : 'ok');
+  s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 60 ? 'atencao' : 'ok');   // robô atualiza a cada 45 min
 }
 setInterval(relogio, 15000); relogio();
 // O palco tem 1500 px de base e estica na outra direção até preencher a janela inteira,
