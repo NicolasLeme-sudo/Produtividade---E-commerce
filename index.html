@@ -1252,10 +1252,9 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         '<text x="'+(x+lc/2)+'" y="'+(y(t)-6)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle" pointer-events="none">'+fmt(t)+'</text>'+
         '<text x="'+(x+lc/2)+'" y="'+(base+16)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(h).padStart(2,'0')+'h</text>';
     });
-    s += '<line x1="'+esq+'" x2="'+(W-dir)+'" y1="'+y(media)+'" y2="'+y(media)+'" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="6 5" pointer-events="none"/>'+
-      '<text x="'+(W-dir)+'" y="'+(y(media)-6)+'" font-size="10.5" font-weight="700" fill="var(--amber)" text-anchor="end" pointer-events="none">Média/hora '+fmt(Math.round(media))+'</text>';
+    s += '<line x1="'+esq+'" x2="'+(W-dir)+'" y1="'+y(media)+'" y2="'+y(media)+'" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="6 5" pointer-events="none"/>';   // valor da média vai na legenda (não cobre os números das colunas)
     return '<div class="chart-scroll-x">'+s+'</svg></div>'+
-      '<div class="legend-line"><span><i class="sq" style="background:var(--accent)"></i>Checkout (SINGLE)</span><span><i class="sq" style="background:var(--olive)"></i>Colmeia (MULTI)</span><span><i style="background:var(--amber)"></i>Média por hora</span></div>';
+      '<div class="legend-line"><span><i class="sq" style="background:var(--accent)"></i>Checkout (SINGLE)</span><span><i class="sq" style="background:var(--olive)"></i>Colmeia (MULTI)</span><span><i style="background:var(--amber)"></i>Média por hora <b style="color:var(--amber)">'+fmt(Math.round(media))+'</b></span></div>';
   }
   function ligarSeparacaoPorHora(){
     var tip = tipGrafico('sep-hora', '.sep-hora-col');
