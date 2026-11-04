@@ -41,6 +41,9 @@ function argumento(nome) { const i = process.argv.indexOf(nome); return i > 0 ? 
 function dataBR(s) { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s || ""); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; }
 const PERIODO = { de: dataBR(argumento("--de")), ate: dataBR(argumento("--ate")) };
 const SO = argumento("--so") ? argumento("--so").split(",") : null;   // só estes relatórios (ids de TELAS)
+// Demonstração: --rodadas N (levas seguidas no modo --uma-vez), --mostrar (traz para frente a aba que atualiza),
+// --manter-abas (não fecha as abas no fim: o robô reaproveita quando ligar).
+const RODADAS = Math.max(1, +argumento("--rodadas") || 1), MOSTRAR = process.argv.includes("--mostrar"), MANTER_ABAS = process.argv.includes("--manter-abas");
 function hoje() { return PERIODO.ate || new Date(); }
 // Entre 00h e 01h ainda pega o dia anterior (T02 vai até 00h16).
 function inicioDoDia() {
@@ -369,6 +372,7 @@ async function iniciar(cfg, log, opcoes) {
         aba = abas[tela.id];
       } else {
         st.passo = "atualizar";
+        if (MOSTRAR) await aba.page.bringToFront();   // só na demonstração (--mostrar)
         // Sem bringToFront: no Windows ele puxa a janela do Chrome para frente e não deixa minimizar.
         // A aba atualiza e exporta em segundo plano (o Chrome do robô abre sem a economia de abas ocultas).
         await aba.page.locator(tela.refresh + ":visible").first().click();
@@ -415,10 +419,13 @@ async function iniciar(cfg, log, opcoes) {
   }
 
   if (opcoes.umaVez) {
-    await grupo("rapido");
-    await grupo("lento");
-    await Promise.all(Array.from(pendentes));    // espera os downloads em 2º plano antes de fechar as abas
-    await fechar();
+    for (let r = 1; r <= RODADAS; r++) {
+      if (RODADAS > 1) log("=== " + r + "ª leva" + (r === 1 ? ": abrir as abas e exportar" : ": passar pelas abas, recarregar e exportar") + " ===");
+      await grupo("rapido");
+      await grupo("lento");
+      await Promise.all(Array.from(pendentes));  // espera os downloads em 2º plano
+    }
+    if (!MANTER_ABAS) await fechar();
     return;
   }
   const proximo = { rapido: 0, lento: 0 };
