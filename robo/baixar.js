@@ -368,7 +368,8 @@ async function iniciar(cfg, log, opcoes) {
         aba = abas[tela.id];
       } else {
         st.passo = "atualizar";
-        await aba.page.bringToFront();             // mostra na tela a aba que está sendo atualizada
+        // Sem bringToFront: no Windows ele puxa a janela do Chrome para frente e não deixa minimizar.
+        // A aba atualiza e exporta em segundo plano (o Chrome do robô abre sem a economia de abas ocultas).
         await aba.page.locator(tela.refresh + ":visible").first().click();
         await esperarCarregar(aba.page);
       }
