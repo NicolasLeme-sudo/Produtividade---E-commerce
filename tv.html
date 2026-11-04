@@ -97,8 +97,9 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .navt{display:inline-flex;align-items:center;gap:12px;vertical-align:middle}
 .navt.so button{visibility:hidden}
 #titulo{display:inline-block}
-#titulo.troca{animation:tituloEntra .6s cubic-bezier(.2,.8,.2,1)}
-@keyframes tituloEntra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+#titulo.troca{animation:tituloAvanca .55s cubic-bezier(.2,.8,.2,1)}#titulo.troca.volta{animation-name:tituloVolta}
+@keyframes tituloAvanca{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+@keyframes tituloVolta{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
 .navt button{width:34px;height:34px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 55%, transparent);background:color-mix(in srgb, var(--cc,#297ADF) 14%, transparent);color:var(--cc,#297ADF);font-family:inherit;font-size:20px;font-weight:800;line-height:1;padding:0 0 2px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .3s,border-color .3s,color .3s}
 .navt button:hover{background:color-mix(in srgb, var(--cc,#297ADF) 30%, transparent);border-color:var(--cc,#297ADF)}
 .fsb{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
@@ -856,12 +857,14 @@ function mostraTela(i){
 // Cor dos detalhes do calendário e da data em cada tela: [forte, clara, texto sobre a forte]
 var COR_CAL = { telaC:['#297ADF','#7FB2EC','#fff'], telaA:['#EF5B5B','#F59A9A','#fff'], telaB:['#2EC4B6','#8CEBDF','#0E1626'],
                 telaE:['#F6BD00','#FCE38A','#142032'], telaD:['#F5A524','#FBCB7A','#142032'] };
+var sentidoTroca = 1;   // 1 = avançou (botão >, seta → ou rodízio), -1 = voltou (botão <, seta ←)
 function entraTela(i){
   telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
   var cc = COR_CAL[telas[i].id] || COR_CAL.telaC, pal = document.getElementById('palco');
   pal.style.setProperty('--cc', cc[0]); pal.style.setProperty('--cc2', cc[1]); pal.style.setProperty('--cc-t', cc[2]);
   var tit = document.getElementById('titulo'), novoTit = telas[i].getAttribute('data-titulo');
-  if (tit.textContent !== novoTit) { tit.textContent = novoTit; tit.classList.remove('troca'); void tit.offsetWidth; tit.classList.add('troca'); }   // nome entra deslizando
+  if (tit.textContent !== novoTit) { tit.textContent = novoTit; tit.classList.remove('troca', 'volta'); void tit.offsetWidth; tit.classList.add('troca'); if (sentidoTroca < 0) tit.classList.add('volta'); }   // avançar: entra pela direita; voltar: pela esquerda
+  sentidoTroca = 1;
   document.getElementById('barra').hidden = telasAtivas().length < 2;   // com uma tela só não há o que girar
   document.querySelector('.navt').classList.toggle('so', telasAtivas().length < 2);
   relogio();
@@ -884,11 +887,11 @@ setInterval(function(){
 }, 500);
 // Botões ‹ › ao lado do nome da tela: mesmo efeito das setas do teclado (o rodízio segue a partir da tela escolhida)
 ['telaAnt', 'telaProx'].forEach(function(id, k){ document.getElementById(id).addEventListener('click', function(e){
-  e.stopPropagation(); if (comemorando) { encerraComemoracao(); return; } mostraTela(proximaTela(k ? 1 : -1)); }); });
+  e.stopPropagation(); if (comemorando) { encerraComemoracao(); return; } sentidoTroca = k ? 1 : -1; mostraTela(proximaTela(sentidoTroca)); }); });
 document.addEventListener('keydown', function(e){   // para quem estiver ao lado da TV
   if (comemorando) { encerraComemoracao(); return; }   // qualquer tecla encerra a comemoração
   if (e.key === 'ArrowRight') mostraTela(proximaTela(1));
-  if (e.key === 'ArrowLeft') mostraTela(proximaTela(-1));
+  if (e.key === 'ArrowLeft') { sentidoTroca = -1; mostraTela(proximaTela(-1)); }
   if (e.key === 'ArrowDown') escolheDia(somaDias(diaTela(), -1));   // dia anterior
   if (e.key === 'ArrowUp') escolheDia(somaDias(diaTela(), 1));      // dia seguinte (até hoje)
 });
