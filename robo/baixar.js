@@ -76,7 +76,11 @@ const TELAS = [
   { id: "colmeia", nome: "Colmeia", grupo: "rapido", busca: "colmeia", item: "Produtividade Montagem de", refresh: ATUALIZAR_GRID,
     chave: function () { return ddmmaaaa(inicioDoDia()) + "-" + ddmmaaaa(hoje()); },
     filtros: function (p) { return datasParametros(p, "#ParametersDialog_dataInicio", "#ParametersDialog_dataFim", inicioDoDia(), hoje()); } },
-  // O OP vem antes do Itens de NF: a data inicial do Itens de NF sai dele.
+  // O Itens de NF vem ANTES do OP: assim, quando o OP chega, a marca dos pedidos novos já está gravada
+  // (sem a fatia "Sem marca"). A data inicial do Itens de NF sai do OP anterior.
+  { id: "itensnf", nome: "Itens de NF", grupo: "lento", busca: "itens de nf", item: "Itens de NF de Saida", refresh: ATUALIZAR_GRID,
+    chave: function (st) { return ddmmaaaa(inicioItensNf(st)) + "-" + ddmmaaaa(hoje()); },
+    filtros: function (p, st) { return datasParametros(p, "#ParametersDialog_dataInicio", "#ParametersDialog_dataFim", inicioItensNf(st), hoje()); } },
   { id: "op", nome: "Acompanhamento OP", grupo: "lento", busca: "acompanhamento", item: "Acompanhamento Saida por",
     itemSeletor: '[id$="NavigationView_tree-ItemAcompanhamentoSaidaporNotaFiscal"]', refresh: ATUALIZAR_NAVEGACAO,
     chave: function () { return "30dias"; },
@@ -101,9 +105,6 @@ const TELAS = [
         }
       }
     } },
-  { id: "itensnf", nome: "Itens de NF", grupo: "lento", busca: "itens de nf", item: "Itens de NF de Saida", refresh: ATUALIZAR_GRID,
-    chave: function (st) { return ddmmaaaa(inicioItensNf(st)) + "-" + ddmmaaaa(hoje()); },
-    filtros: function (p, st) { return datasParametros(p, "#ParametersDialog_dataInicio", "#ParametersDialog_dataFim", inicioItensNf(st), hoje()); } },
   { id: "kardex", nome: "Kardex", grupo: "lento", busca: "kardex", item: "Kardex de Endereço", refresh: ATUALIZAR_NAVEGACAO,
     chave: function () { return ddmmaaaa(inicioDoDia()) + "-" + ddmmaaaa(hoje()); },
     filtros: async function (p) {

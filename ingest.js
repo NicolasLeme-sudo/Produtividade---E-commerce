@@ -1170,32 +1170,54 @@ function processarOperacaoOp(rows) {
   return pedidos;
 }
 
-// Mesma regra do Report E-commerce: palavra-chave na descrição; sem nenhuma, Olympikus.
-function marcaPorDescricao(descricao) {
+// Marca do produto: 1) palavra-chave no nome (mesma regra do Report E-commerce); 2) sem palavra-chave,
+// a base Embalas (Artigo -> MARCA, card up-embalas); 3) sem as duas, Olympikus.
+var MARCA_DA_LETRA = { O: "Olympikus", M: "Mizuno", U: "Under Armour", P: "Opanka" };
+function marcaPorNome(descricao) {
   var d = normalizarTexto(descricao);
   if (/MIZUNO|\bMIZ\b/.test(d)) return "Mizuno";
-  if (/UNDER ARMOUR|\bUA\b|UNDERARMOUR/.test(d)) return "Under Armour";
+  if (/UNDER ARMOUR|\bUA\b|UNDERARMOUR|\bUNDER\b/.test(d)) return "Under Armour";
   if (/OLYMPIKUS|\bOLY\b|\bOLK\b/.test(d)) return "Olympikus";
   if (/OPANKA/.test(d)) return "Opanka";
-  return "Olympikus";
+  return null;
+}
+function marcaPorDescricao(descricao, codigo, embalas) {
+  var m = marcaPorNome(descricao);
+  if (m) return m;
+  var art = String(codigo || "").trim().split("_")[0];
+  return (embalas && MARCA_DA_LETRA[embalas[art]]) || "Olympikus";
+}
+// Embalas (base de embalagem, aba Base Final) -> { Artigo: letra da marca }
+function processarEmbalas(rows) {
+  var mapa = {};
+  rows.forEach(function (row) {
+    var art = String(obterCampo(row, ["Artigo"]) || "").trim() || String(obterCampo(row, ["SKU"]) || "").trim().split("_")[0];
+    var m = normalizarTexto(obterCampo(row, ["MARCA", "Marca"]));
+    var letra = m.indexOf("MIZUNO") !== -1 ? "M" : m.indexOf("UNDER") !== -1 ? "U" : m.indexOf("OPANKA") !== -1 ? "P" : m.indexOf("OLYMPIKUS") !== -1 ? "O" : null;
+    if (art && letra) mapa[art] = letra;
+  });
+  return mapa;
 }
 
-// Pedido -> marca com mais peças no pedido.
-function processarMarcasItensNf(rows) {
-  var somas = {};
+// Pedido -> marca com mais peças no pedido. "abertos" = pedidos cuja nota ainda não foi processada nem
+// cancelada (seguem em operação): a marca deles fica guardada mesmo se ainda não estavam no último OP.
+function processarMarcasItensNf(rows, embalas) {
+  var somas = {}, abertos = {};
   rows.forEach(function (row) {
     var pedido = String(obterCampo(row, ["Pedido de Venda"]) || "").trim();
     if (!pedido) return;
-    var marca = marcaPorDescricao(obterCampo(row, ["Produto"]));
+    var marca = marcaPorDescricao(obterCampo(row, ["Produto"]), obterCampo(row, ["Código do Produto", "Codigo do Produto"]), embalas);
     var s = somas[pedido] || (somas[pedido] = {});
     s[marca] = (s[marca] || 0) + (numero(obterCampo(row, ["Quantidade"])) || 1);
+    var st = normalizarTexto(obterCampo(row, ["Status"]));
+    if (st !== "PROCESSADA" && st.indexOf("CANCELAD") !== 0) abertos[pedido] = 1;
   });
   var marcas = {};
   Object.keys(somas).forEach(function (p) {
     var s = somas[p];
     marcas[p] = Object.keys(s).sort(function (a, b) { return s[b] - s[a]; })[0];
   });
-  return marcas;
+  return { marcas: marcas, abertos: abertos };
 }
 
 function resumoOperacao(op) {
@@ -1301,13 +1323,16 @@ function guardarInfoNf(op, novo) {
 
 // Junta o que chegou (pedidos do OP, marcas/infos do Itens de NF, expedição do Kardex) e regrava o resumo.
 async function atualizarOperacao(novo) {
-  var exp = novo.expedicao, info = novo.nfInfo;
+  var exp = novo.expedicao, info = novo.nfInfo, linhasNf = novo.linhasItensNf;
   var op = await lerSnapshot("operacao");
-  Object.keys(novo).forEach(function (k) { if (k !== "expedicao" && k !== "nfInfo") op[k] = novo[k]; });
-  if (novo.marcas && op.pedidos) {   // guarda só as marcas dos pedidos em operação (snapshot pequeno)
+  Object.keys(novo).forEach(function (k) { if (k !== "expedicao" && k !== "nfInfo" && k !== "linhasItensNf") op[k] = novo[k]; });
+  if (linhasNf) {   // Itens de NF: marca pelo nome do produto, depois pela Embalas já gravada
+    var rm = processarMarcasItensNf(linhasNf, op.embalas);
+    // guarda as marcas dos pedidos em operação + os ainda abertos no Itens de NF (assim o próximo OP já acha a marca)
     var m = {};
-    Object.keys(op.pedidos).forEach(function (p) { if (novo.marcas[p]) m[p] = novo.marcas[p]; });
+    Object.keys(rm.marcas).forEach(function (p) { if ((op.pedidos && op.pedidos[p]) || rm.abertos[p]) m[p] = rm.marcas[p]; });
     op.marcas = m;
+    info = processarInfoNf(linhasNf);
   }
   if (exp) juntarExpedicao(op, exp, new Date());
   if (info) guardarInfoNf(op, info);
@@ -2294,6 +2319,7 @@ async function renderAbastecimento() {
     grupoAbastecimento("Outbound", [
       caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
       caixaUpload("up-itens-nf-saida", "Itens de NF de Saída", "Alimenta as <strong>marcas</strong> da tela <strong>Operação agora</strong> do telão (junto com o Acompanhamento_Op). Data inicial = pedido mais antigo em tela."),
+      caixaUpload("up-embalas", "Embalas (base de embalagem)", "Artigo → <strong>Marca</strong> para os produtos sem a marca no nome (Operação agora). Atualize quando a base semanal mudar."),
       caixaUpload("up-separacao-analitica", "Separação Analítica", "Alimenta <strong>Separação Checkout e Colmeia</strong> (ranking, gráfico por dia, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Uma linha por tarefa, com Data/Hora Início. Substitui a Produtividade de Separação."),
       caixaUpload("up-conferencia-analitica", "Conferência Analítica", "Alimenta <strong>Conferência Checkout</strong> (ranking, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Substitui a Conferência Checkout/Etiqueta."),
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
@@ -2592,10 +2618,19 @@ async function processar(id) {
       definirStatus(id, "✓ Acompanhamento_Op processado (Itens em separação + Aguardando geração de onda · " + textoOp + ").", "ok");
     }
 
+    else if (id === "up-embalas") {
+      // Base de embalagem (Embalas, atualizada toda semana): Artigo -> MARCA, usada quando o nome do produto não traz a marca.
+      var mapaEmb = processarEmbalas(await parseArquivoGenerico(input.files[0]));
+      var nEmb = Object.keys(mapaEmb).length;
+      if (!nEmb) throw new Error("Nenhum artigo com marca: confira se o arquivo tem as colunas Artigo (ou SKU) e MARCA.");
+      await atualizarOperacao({ embalas: mapaEmb, embalasEm: Date.now() });
+      definirStatus(id, "✓ Embalas: " + nEmb.toLocaleString("pt-BR") + " artigos com marca (vale a partir do próximo Itens de NF).", "ok");
+    }
+
     else if (id === "up-itens-nf-saida") {
       var rowsNf = await parseArquivoGenerico(input.files[0]);
       // marcas (Operação agora) + transportadora e SINGLE/MULTI das notas (Expedição)
-      var resNf = await atualizarOperacao({ marcas: processarMarcasItensNf(rowsNf), nfInfo: processarInfoNf(rowsNf), nfEm: Date.now() });
+      var resNf = await atualizarOperacao({ linhasItensNf: rowsNf, nfEm: Date.now() });
       definirStatus(id, "✓ Itens de NF de Saída processado (marcas da Operação agora; " + resNf.semMarca.toLocaleString("pt-BR") + " itens ainda sem marca).", "ok");
     }
 

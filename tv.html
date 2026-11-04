@@ -24,6 +24,7 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 /* ---------- palco 1500×844 (16:9) escalado para qualquer TV ---------- */
 #palco{position:absolute;left:50%;top:50%;width:1500px;height:844px;transform-origin:50% 50%;display:flex;flex-direction:column;
   --bg:#0F1623;--bg-card:#192032;--bg-input:#1E2A3D;--border:#253048;--text:#E8EBF2;--text-muted:#7C8BA8;--text-label:#9BAAC4;
+  --cc:#297ADF;--cc2:#7FB2EC;--cc-t:#fff;
   --accent:#297ADF;--accent-light:#7FB2EC;--olive:#45C645;--amber:#F6BD00;--orange:#F5A524;--red:#E0334F;
   --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;
   --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;
@@ -88,29 +89,29 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .fh .lv{font-size:12px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:99px;padding:2px 10px}
 .fh .ck{text-align:right;font-size:12px;color:var(--text-muted);position:relative}.fh .ck #hora{font-size:24px;font-weight:700;color:var(--text)}
 .fh .ck #data{cursor:pointer;display:inline-flex;align-items:center;gap:7px;margin-top:3px;padding:2px 10px;border:1px solid var(--border);border-radius:99px;color:var(--text-label);font-weight:600;text-transform:capitalize}
-.fh .ck #data::after{content:"";border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--accent-light)}
-.fh .ck #data:hover,.fh .ck #data.aberto{border-color:var(--accent-light);color:var(--text)}
-/* Calendário do dia exibido (identidade Vulcabras: card escuro, tons de azul) */
+.fh .ck #data::after{content:"";border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--cc2)}
+.fh .ck #data:hover,.fh .ck #data.aberto{border-color:var(--cc2);color:var(--text)}
+/* Calendário do dia exibido: card escuro com os detalhes na cor da tela aberta (--cc forte, --cc2 clara, --cc-t texto) */
 .cal{position:absolute;right:0;top:calc(100% + 8px);z-index:60;width:304px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px 12px;text-align:left;box-shadow:0 14px 34px rgba(0,0,0,.5);font-family:"Segoe UI",Roboto,Arial,sans-serif}
 .cal[hidden]{display:none}
-.cal .kk{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--accent-light)}
-.cal .cab{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px;padding-bottom:9px;border-bottom:1px solid rgba(41,122,223,.55)}
+.cal .kk{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--cc2)}
+.cal .cab{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px;padding-bottom:9px;border-bottom:1px solid var(--cc)}
 .cal .mes{font-size:18px;font-weight:700;color:var(--text)}
 .cal .nav{background:none;border:1px solid var(--border);color:var(--text-label);width:30px;height:30px;border-radius:6px;cursor:pointer;font:inherit;font-size:18px;line-height:1}
-.cal .nav:hover:not(:disabled){border-color:var(--accent-light);color:var(--accent-light)}.cal .nav:disabled{opacity:.25;cursor:default}
+.cal .nav:hover:not(:disabled){border-color:var(--cc2);color:var(--cc2)}.cal .nav:disabled{opacity:.25;cursor:default}
 .cal .grade{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
 .cal .sm{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);padding:2px 0 4px}
 .cal .d{position:relative;height:34px;border-radius:6px;border:1px solid transparent;background:none;color:var(--text);font:inherit;font-size:14px;font-weight:600;cursor:pointer;padding:0}
 .cal .d:hover:not(:disabled){background:var(--bg-input);border-color:var(--border)}
 .cal .d:disabled{color:#38445C;cursor:default}
-.cal .d.hoje{border-color:var(--accent);color:var(--accent-light)}
-.cal .d.sel{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:800}
-.cal .d.dado::after{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--accent-light)}
-.cal .d.sel.dado::after{background:#fff}
+.cal .d.hoje{border-color:var(--cc);color:var(--cc2)}
+.cal .d.sel{background:var(--cc);border-color:var(--cc);color:var(--cc-t);font-weight:800}
+.cal .d.dado::after{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--cc2)}
+.cal .d.sel.dado::after{background:var(--cc-t)}
 .cal .rod{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)}
-.cal .rod i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent-light);margin-right:6px;vertical-align:2px}
-.cal .rod button{font:inherit;font-weight:700;font-size:12px;color:var(--accent-light);background:none;border:1px solid var(--accent-light);border-radius:99px;padding:4px 14px;cursor:pointer}
-.cal .rod button:hover{background:var(--accent);color:#fff}
+.cal .rod i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--cc2);margin-right:6px;vertical-align:2px}
+.cal .rod button{font:inherit;font-weight:700;font-size:12px;color:var(--cc2);background:none;border:1px solid var(--cc2);border-radius:99px;padding:4px 14px;cursor:pointer}
+.cal .rod button:hover{background:var(--cc);color:var(--cc-t)}
 .fh .lv.passado{color:var(--amber);border-color:var(--amber)}
 .fh .volta{font-size:12px}
 .main{flex:1;min-height:0;padding:12px 22px 0;display:flex;flex-direction:column;position:relative}
@@ -717,8 +718,13 @@ function mostraTela(i){
     trocaPendente = setTimeout(function(){ velha.classList.remove('saindo'); entraTela(i); }, 350);
   } else entraTela(i);
 }
+// Cor dos detalhes do calendário e da data em cada tela: [forte, clara, texto sobre a forte]
+var COR_CAL = { telaC:['#297ADF','#7FB2EC','#fff'], telaA:['#EF5B5B','#F59A9A','#fff'], telaB:['#2EC4B6','#8CEBDF','#0E1626'],
+                telaE:['#F6BD00','#FCE38A','#142032'], telaD:['#F5A524','#FBCB7A','#142032'] };
 function entraTela(i){
   telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
+  var cc = COR_CAL[telas[i].id] || COR_CAL.telaC, pal = document.getElementById('palco');
+  pal.style.setProperty('--cc', cc[0]); pal.style.setProperty('--cc2', cc[1]); pal.style.setProperty('--cc-t', cc[2]);
   document.getElementById('titulo').textContent = telas[i].getAttribute('data-titulo');
   document.getElementById('barra').hidden = telasAtivas().length < 2;   // com uma tela só não há o que girar
   relogio();

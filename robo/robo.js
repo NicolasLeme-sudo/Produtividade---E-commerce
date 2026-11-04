@@ -54,6 +54,8 @@ const RELATORIOS = [
   { id: "up-kardex-geral",          nome: "Kardex",                todas: ["Local", "Tipo do Local", "Complementar", "Estoque Antes", "Usuário"] },
   { id: "up-acompanhamento-op",     nome: "Acompanhamento OP",     todas: ["Pedido de Venda", "Status da Nota Fiscal", "Classificação Tipo Pedido", "Cancelado Pelo ERP", "Qtde. Total de Produto"] },
   { id: "up-itens-nf-saida",        nome: "Itens de NF de Saída",  todas: ["Chave Acesso NF-e", "Pedido de Venda", "Produto", "Barra", "Qtde. Faturada"] },
+  // Base de embalagem salva em Downloads toda semana: envia quando muda e NÃO tira o arquivo de lá.
+  { id: "up-embalas",               nome: "Embalas",               todas: ["SKU", "Artigo", "MARCA"], naoMover: true },
 ];
 // Relatórios que o robô conhece mas ainda não envia (nenhum por enquanto).
 const IGNORADOS = [];
@@ -218,7 +220,7 @@ async function vigiar(cfg) {
         estado[chave] = new Date().toISOString(); salvarEstado(estado);
         let ok = false;
         try { ok = await enviar(arq, cfg); } catch (e) { log("ERRO ao enviar " + n + ": " + e.message); }
-        if (ok && mover) {
+        if (ok && mover && !(identificar(arq).rel || {}).naoMover) {   // Embalas fica em Downloads
           try { fs.mkdirSync(destino, { recursive: true }); fs.renameSync(arq, path.join(destino, n)); } catch (e) { log("Não consegui mover " + n + ": " + e.message); }
         }
       }
