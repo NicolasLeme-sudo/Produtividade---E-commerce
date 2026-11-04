@@ -151,8 +151,13 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .linha{display:grid;grid-template-columns:3fr 1fr;gap:14px;min-height:0}
 .painel{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
 .painel .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--pc,var(--text-muted))}
-.grafico{display:grid;grid-template-rows:1fr auto;gap:6px;min-height:0;position:relative}
-.grafico .fora{position:absolute;top:-4px;right:0;font-size:13px;color:var(--text-muted);z-index:2}
+.grafico{min-height:0;position:relative;overflow:hidden}
+.grafico .trilho{display:grid;grid-template-rows:1fr auto;gap:6px;height:100%;min-width:100%}
+.gwrap{display:grid;grid-template-rows:1fr auto;gap:8px;min-height:0}
+.grafico.rola{overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.grafico.rola::-webkit-scrollbar{display:none}
+.barra{position:relative;height:8px;border-radius:4px;background:rgba(127,140,170,.2)}
+.barra b{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--cor)}
+.grafico.rola .media small{left:auto;right:0}
 .colunas{position:relative;display:flex;align-items:flex-end;gap:10px;min-height:0}
 .colunas span{flex:1;position:relative;background:var(--cor);border-radius:5px 5px 0 0;min-height:2px}
 .colunas span.agora{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 7px,transparent 7px 14px)}
@@ -395,6 +400,9 @@ function kpiHtml(rot, valor, sub, kc, vc, un){ vc = vc || kc; return '<div class
 // Gráfico de colunas por hora: só as JANELA_HORAS últimas horas, a mais recente encostada à direita.
 // A 00h do próprio dia é o fim do T02 do dia anterior: sai do começo e a 00h do dia seguinte (h00) entra no fim.
 var JANELA_HORAS = 10;
+document.addEventListener('scroll', function(e){ var g = e.target; if (!g.classList || !g.classList.contains('rola') || !g.nextElementSibling) return;
+  var b = g.nextElementSibling.firstChild; if (b) b.style.left = (g.scrollLeft / g.scrollWidth * 100).toFixed(2)+'%'; }, true);
+new MutationObserver(function(){ document.querySelectorAll('.grafico.rola:not([data-rolou])').forEach(function(g){ g.scrollLeft = g.scrollWidth; g.dataset.rolou = '1'; }); }).observe(document.documentElement, { childList:true, subtree:true });
 function graficoHoras(horas, dia, cor, cor2, rotMedia, h00){
   var vals = horas.slice(1).concat([h00 || 0]), labs = [];
   for (var k = 1; k <= 23; k++) labs.push(k); labs.push(0);
@@ -403,16 +411,20 @@ function graficoHoras(horas, dia, cor, cor2, rotMedia, h00){
   var faixa = vals.slice(ini, fim+1), lab = labs.slice(ini, fim+1), agora = new Date().getHours();
   var emAndamento = dia === (agora === 0 ? somaDias(hoje(), -1) : hoje()) && fim === (agora === 0 ? 23 : agora - 1);
   var completas = emAndamento ? faixa.slice(0, -1) : faixa, media = completas.length ? Math.round(completas.reduce(function(a,b){ return a+b; },0) / completas.length) : 0;
-  var corte = Math.max(0, faixa.length - JANELA_HORAS), vis = faixa.slice(corte), visLab = lab.slice(corte);
-  var mx = Math.max.apply(null, vis.concat([media])) * 1.18 || 1;
+  // Desenha o dia inteiro; cada coluna ocupa 1/JANELA_HORAS da largura. Com mais horas que isso, o gráfico
+  // ganha barra de rolagem e abre encostado à direita (hora mais recente visível).
+  var rola = faixa.length > JANELA_HORAS, larg = rola ? (faixa.length / JANELA_HORAS * 100).toFixed(2) : 100;
+  var mx = Math.max.apply(null, faixa.concat([media])) * 1.18 || 1;
   // escala de cor só com as horas completas (a hora em andamento ainda está pela metade)
   var base = completas.length ? completas : faixa, maior = Math.max.apply(null, base) || 1, menor = Math.min.apply(null, base), forte = escurece(cor, .3);
-  var cols = vis.map(function(v, i){ return '<span class="'+(emAndamento && i === vis.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor2, forte, maior > menor ? (v - menor)/(maior - menor) : 1)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
-  var hh = function(h){ return String(h).padStart(2,'0')+'h'; };
-  var hrs = visLab.map(function(h){ return '<i>'+hh(h)+'</i>'; }).join('');
+  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor2, forte, maior > menor ? (v - menor)/(maior - menor) : 1)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
+  var hrs = lab.map(function(h){ return '<i>'+String(h).padStart(2,'0')+'h</i>'; }).join('');
   var ml = media ? '<div class="media" style="bottom:'+(media/mx*100).toFixed(1)+'%"><small>média '+fmt(media)+'/h</small></div>' : '';
-  var fora = corte ? '<div class="fora">◀ '+hh(lab[0])+'–'+hh(lab[corte-1])+' fora da janela</div>' : '';
-  return { html:'<div class="grafico" style="--cor:'+cor+';--cor2:'+cor2+'">'+fora+'<div class="colunas">'+cols+ml+'</div><div class="horas">'+hrs+'</div></div>', media:media };
+  var g = '<div class="grafico'+(rola ? ' rola' : '')+'" style="--cor:'+cor+';--cor2:'+cor2+'"><div class="trilho" style="width:'+larg+'%"><div class="colunas">'+cols+ml+'</div><div class="horas">'+hrs+'</div></div></div>';
+  // barra de rolagem desenhada (sempre visível, também no navegador da TV); começa na ponta direita
+  var vis = (JANELA_HORAS / faixa.length * 100).toFixed(2);
+  if (rola) g = '<div class="gwrap">'+g+'<div class="barra" style="--cor:'+cor+'"><b style="width:'+vis+'%;left:'+(100 - vis).toFixed(2)+'%"></b></div></div>';
+  return { html:g, media:media };
 }
 // Heatmap nos tons da tela: do tom claro (pouco) à cor forte (muito).
 function rgbDe(hex){ var n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
