@@ -176,6 +176,8 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .etapa .tot{text-align:right;font-size:30px;font-weight:800}.etapa .tot small{display:block;font-size:13px;color:var(--text-muted);font-weight:600}
 .etapa .tot.ped{color:var(--text-label)}
 .etapa.cab .nm{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
+.etapas.compacta{gap:6px}.etapas.compacta .trilho{height:30px}.etapas.compacta .etapa .tot{font-size:24px}.etapas.compacta .etapa .nm{font-size:17px}
+.etapa.cab .nm .semt{font-size:12px;letter-spacing:0;text-transform:none;color:var(--text-muted);font-weight:600}
 .etapa.cab .tot{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
 .pizza{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px;justify-items:center;min-height:0}
 .pizza svg{height:100%;max-height:300px;min-height:0;aspect-ratio:1}
@@ -260,6 +262,9 @@ body.ocioso,body.ocioso *{cursor:none!important}
 var Q = new URLSearchParams(location.search);
 var GIRO_S = +Q.get('giro') || 90;          // segundos por tela
 var REFRESH_S = +Q.get('refresh') || 60;    // segundos entre buscas no banco
+// ?modo=operacao: link da TV da operação — mesmas telas e mesmo banco, SEM a Corrida Maluca, hora de ouro,
+// comemoração de meta e destaques dos times na faixa de baixo.
+var MODO_OPERACAO = Q.get('modo') === 'operacao';
 var RECARREGA_H = 6;                        // recarga completa da página (pega versão nova, libera memória)
 var COMEMORA_MS = 25000, PARADO_MS = 3000;  // comemoração inteira e tempo do carro parado na vaga
 var SUPABASE_URL = 'https://vehfchdfbukrbcedciiy.supabase.co';
@@ -351,6 +356,7 @@ function cardsHtml(c){
 }
 function renderTelaA(c){
   var el = document.getElementById('telaA');
+  if (MODO_OPERACAO) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // TV da operação: sem Corrida
   if (!c.temDados) { el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência ainda.<br>Abasteça a base no site do Produtividade.</div>'; return; }
   el.innerHTML = pistaHtml(c) + cardsHtml(c);
   // os carros andam da posição anterior até a nova, como no site
@@ -555,10 +561,11 @@ function renderTelaE(opRes){
   var d = porDia[dia] || { pecas:0, pedidos:0, horas:new Array(24).fill(0), usuarios:{}, transp:{}, tipo:{ checkout:[0,0], colmeia:[0,0], semInfo:[0,0] } };
   var pessoas = {}; Object.keys(d.usuarios).forEach(function(u){ if (u !== 'SILT') pessoas[u] = d.usuarios[u][0]; });   // SILT = sistema: conta no total, fora do ranking
   var g = graficoHoras(d.horas, dia, COR_EXP, COR_EXP2);
-  var tr = Object.keys(d.transp).map(function(t){ return { n:t, p:d.transp[t][0], q:d.transp[t][1] }; }).sort(function(a,b){ return b.p - a.p; });
+  var semT = d.transp['Aguardando Itens de NF'];   // embarcadas que ainda não têm transportadora: aviso no título, fora da lista
+  var tr = Object.keys(d.transp).filter(function(t){ return t !== 'Aguardando Itens de NF'; }).map(function(t){ return { n:t, p:d.transp[t][0], q:d.transp[t][1] }; }).sort(function(a,b){ return b.p - a.p; });
   var maxT = Math.max.apply(null, tr.map(function(x){ return x.p; }).concat(1));
   var linhas = tr.map(function(x){
-    return '<div class="etapa"><span class="nm">'+esc(x.n === 'Aguardando Itens de NF' ? x.n : nomeTransp(x.n))+'</span>'+
+    return '<div class="etapa"><span class="nm">'+esc(nomeTransp(x.n))+'</span>'+
       '<div class="trilho"><div class="barra" style="width:'+(x.p/maxT*100).toFixed(2)+'%;background:'+COR_EXP+'"></div></div>'+
       '<span class="tot">'+fmt(x.p)+'</span><span class="tot ped">'+fmt(x.q)+'</span></div>';
   }).join('');
@@ -573,7 +580,7 @@ function renderTelaE(opRes){
   '</div><div class="linhas" style="grid-template-rows:1.25fr 1fr">'+
     '<div class="linha"><div class="painel media-clara" style="--pc:'+COR_EXP+'"><span class="k">Expedição · peças por hora</span>'+(g ? g.html : '<div class="semhora">'+(dia === hojeOp() ? 'Sem expedição hoje ainda' : 'Sem expedição neste dia')+'</div>')+'</div>'+
       '<div class="painel" style="--pc:'+COR_EXP+'"><span class="k">Top 5 operadores</span>'+top5Html(pessoas, nomeWms, COR_EXP, COR_EXP2)+'</div></div>'+
-    '<div class="painel"><div class="etapa cab"><span class="nm" style="color:'+COR_EXP+'">Por transportadora</span><span></span><span class="tot">Peças</span><span class="tot">Pedidos</span></div><div class="etapas">'+(linhas || '<div class="semhora">Sem expedição neste dia</div>')+'</div></div>'+
+    '<div class="painel"><div class="etapa cab"><span class="nm" style="color:'+COR_EXP+'">Por transportadora'+(semT ? ' <small class="semt">· '+fmt(semT[1])+' pedidos aguardando transportadora</small>' : '')+'</span><span></span><span class="tot">Peças</span><span class="tot">Pedidos</span></div><div class="etapas'+(tr.length > 3 ? ' compacta' : '')+'">'+(linhas || '<div class="semhora">Sem expedição neste dia</div>')+'</div></div>'+
   '</div>';
 }
 
@@ -595,9 +602,9 @@ setInterval(atualizaOuro, 1000);
 
 /* ================= FAIXA DE BAIXO (loop contínuo) ================= */
 var faixaAtual = '';
-function renderFaixa(c, snap, dia){
+function renderFaixa(c, snap, dia, opRes){
   var itens = [];
-  ordemPista(c).forEach(function(t){
+  if (!MODO_OPERACAO) ordemPista(c).forEach(function(t){
     var m = t.lista[0];
     if (m && m.valor) itens.push('<span class="ti" style="--c:var('+t.cor.c+')"><i></i><b>Time 0'+t.n+' · '+t.cor.nome+'</b> destaque: '+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+' <span class="v">'+fmt(m.valor)+'</span> peças</span>');
   });
@@ -606,6 +613,11 @@ function renderFaixa(c, snap, dia){
   ['confCheckoutDia','confColmeiaUnitDia'].forEach(function(k){ conf += somaObj(itensDoDia(((snap||{}).conferencia||{})[k], dia)); });
   itens.push('<span class="ti ger"><b>Separado no dia</b> <span class="v">'+fmt(sep)+'</span> peças</span>');
   itens.push('<span class="ti ger"><b>Conferido no dia</b> <span class="v">'+fmt(conf)+'</span> peças</span>');
+  if (MODO_OPERACAO) {   // na TV da operação a faixa traz os totais gerais no lugar dos times
+    var ex = ((opRes||{}).expedicao||{}).dias || [], dx = ex.filter(function(x){ return x.data === dia; })[0];
+    if (dx) itens.push('<span class="ti ger"><b>Expedido no dia</b> <span class="v">'+fmt(dx.pecas)+'</span> peças</span>');
+    if (opRes && opRes.itens) itens.push('<span class="ti ger"><b>Itens em operação</b> <span class="v">'+fmt(opRes.itens)+'</span> itens</span>');
+  }
   var g = '<div class="g">'+itens.join('')+'</div>';
   if (g === faixaAtual) return;               // mesmo conteúdo: não reinicia a animação
   faixaAtual = g;
@@ -857,11 +869,11 @@ async function carregar(){
     var c = calcularCompeticao(snap, cadT, diaOut);
     var ouros = r[3].error ? [] : (r[3].data || []);
     var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
-    ouroAtivo = !ehHoje() ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
+    ouroAtivo = MODO_OPERACAO || !ehHoje() ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
     atualizaOuro();
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
-    renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap, diaOut); verificaMetas(c);
+    renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap, diaOut, op && op.resumo); if (!MODO_OPERACAO) verificaMetas(c);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho
@@ -881,7 +893,7 @@ async function iniciar(){
   mostraTela(0);
   await carregar();
   setInterval(carregar, REFRESH_S*1000);
-  var teste = +Q.get('comemorar');
+  var teste = MODO_OPERACAO ? 0 : +Q.get('comemorar');
   if (TIMES_COR[teste]) { fila.push({ n:teste, pecas:META_DIA_TIME[teste] }); proximaComemoracao(); }
 }
 document.getElementById('loginForm').addEventListener('submit', async function(e){

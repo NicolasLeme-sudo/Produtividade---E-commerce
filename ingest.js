@@ -1155,6 +1155,18 @@ function diferencaDiasUteis(dataInicial, dataFinal) {
 // terminou, mas o pedido ainda não passou no caixa de faturamento (lá vira FATURADO com a data).
 // Faturado sem coleta = status FATURADO com "Faturado em" e coluna Carga vazia: conferido e faturado, mas
 // ainda não entrou em nenhuma coleta (ao embarcar vira PROCESSADA no Itens de NF e sai do OP).
+// Transportadora e SINGLE/MULTI das notas que estão no OP (mesmo formato do processarInfoNf, status "OP"):
+// a nota sai do OP só depois de embarcar, então o Kardex que mostra o embarque já acha a transportadora.
+function infoNfDoOp(rows) {
+  var info = {};
+  rows.forEach(function (row) {
+    var id = String(obterCampo(row, ["idNotaFiscal"]) || "").trim();
+    if (!id) return;
+    var cl = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"]));
+    info[id] = [String(obterCampo(row, ["Transportadora"]) || "").trim(), cl.indexOf("MULTI") !== -1 ? "M" : cl.indexOf("SINGLE") !== -1 ? "S" : "", "OP", ""];
+  });
+  return info;
+}
 function processarOperacaoOp(rows) {
   var pedidos = {};
   rows.forEach(function (row) {
@@ -1311,17 +1323,19 @@ function juntarExpedicao(op, exp, agora) {
   var deHoje = lista.filter(function (d) { return d.data === hoje; })[0];
   op.expPrev = previsaoDoDia(lista.map(function (d) { return { data: d.data, horas: d.horas }; }), agora, deHoje ? deHoje.pecas : 0, 1, porMin);
 }
-function guardarInfoNf(op, novo) {
+function guardarInfoNf(op, novo, opIds) {
   var emRaw = {};
   Object.keys(op.expNfs || {}).forEach(function (d) { Object.keys(op.expNfs[d]).forEach(function (id) { emRaw[id] = 1; }); });
   var velho = lerInfoNf(op), nomes = [], idx = {}, n = {};
   function poe(id, t, c) { if (!(t in idx)) { idx[t] = nomes.length; nomes.push(t); } n[id] = [idx[t], c]; }
-  Object.keys(velho).forEach(function (id) { if (emRaw[id]) poe(id, velho[id][0], velho[id][1]); });
+  // OP só acrescenta (não apaga nada). O Itens de NF limpa: ficam as embarcadas nos dias crus + o que ele mesmo traz abaixo.
+  Object.keys(velho).forEach(function (id) { if (opIds || emRaw[id]) poe(id, velho[id][0], velho[id][1]); });
   // EM CARGA/OR = vai embarcar; PROCESSADA recente = pode ter embarcado depois do último Kardex (ele ainda vai chegar)
   var corte = new Date(); corte.setDate(corte.getDate() - 3); corte = paraDataISOLocal(corte);
   Object.keys(novo).forEach(function (id) {
     var x = novo[id];
-    if (x[2].indexOf("EM CARGA") === 0 || emRaw[id] || (x[2] === "PROCESSADA" && (x[3] || "") >= corte)) poe(id, x[0], x[1]);
+    if (!x[0] && n[id]) return;   // sem transportadora: não apaga a que já está guardada
+    if (x[2] === "OP" || x[2].indexOf("EM CARGA") === 0 || emRaw[id] || (x[2] === "PROCESSADA" && (x[3] || "") >= corte)) poe(id, x[0], x[1]);
   });
   op.nfInfo = { t: nomes, n: n };
 }
@@ -1340,7 +1354,7 @@ async function atualizarOperacao(novo) {
     info = processarInfoNf(linhasNf);
   }
   if (exp) juntarExpedicao(op, exp, new Date());
-  if (info) guardarInfoNf(op, info);
+  if (info) guardarInfoNf(op, info, novo.pedidos ? info : null);
   op.resumo = resumoOperacao(op);
   await salvarSnapshot("operacao", op);
   return op.resumo;
@@ -2617,7 +2631,7 @@ async function processar(id) {
       // Operação agora (telão) é um extra: se falhar, os KPIs acima já estão gravados.
       var textoOp;
       try {
-        var resOp = await atualizarOperacao({ pedidos: processarOperacaoOp(rowsAcOp), opEm: Date.now() });
+        var resOp = await atualizarOperacao({ pedidos: processarOperacaoOp(rowsAcOp), nfInfo: infoNfDoOp(rowsAcOp), opEm: Date.now() });
         textoOp = "Operação agora: " + resOp.itens.toLocaleString("pt-BR") + " itens em " + resOp.pedidos + " pedidos";
       } catch (eOp) { console.error(eOp); textoOp = "Operação agora NÃO gravada: " + eOp.message; }
       definirStatus(id, "✓ Acompanhamento_Op processado (Itens em separação + Aguardando geração de onda · " + textoOp + ").", "ok");
