@@ -169,6 +169,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 
 /* ---------- tela C: operação agora (itens por etapa e marca) ---------- */
 .etapas{display:grid;align-content:space-around;gap:10px;min-height:0}
+#telaC .linha > .painel:first-child{grid-template-rows:auto 1fr auto}
 .etapa{display:grid;grid-template-columns:190px 1fr 130px 130px;gap:16px;align-items:center}
 .etapa .nm{font-size:20px;font-weight:700;white-space:nowrap}
 .etapa .trilho{height:46px;background:var(--bg-input);border-radius:8px;overflow:hidden}
@@ -178,6 +179,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .etapa.cab .nm{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
 .etapas.compacta{gap:6px}.etapas.compacta .trilho{height:30px}.etapas.compacta .etapa .tot{font-size:24px}.etapas.compacta .etapa .nm{font-size:17px}
 .etapa.cab .nm .semt{font-size:12px;letter-spacing:0;text-transform:none;color:var(--text-muted);font-weight:600}
+.etapa.total{border-top:1px solid var(--border);padding-top:10px;margin-top:4px}.etapa.total .nm{color:var(--text-label)}
 .etapa.cab .tot{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
 .pizza{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px;justify-items:center;min-height:0}
 .pizza svg{height:100%;max-height:300px;min-height:0;aspect-ratio:1}
@@ -532,14 +534,18 @@ function renderTelaC(res){
   // idade em dias úteis (mesma regra do Report E-commerce); sem o campo novo, cai nas horas corridas
   var duAnt = res.maisAntigoDias != null ? res.maisAntigoDias : Math.floor(hAnt / 24);
   var corAnt = duAnt >= 2 ? 'var(--red)' : duAnt >= 1 ? 'var(--amber)' : 'var(--olive)', corVelhos = velhos ? 'var(--red)' : 'var(--olive)';
+  // embaixo do número: itens Single · Multi (Classificação Tipo Pedido); OP antigo sem o campo mostra os pedidos
+  function tipos(o, ped){ return o && o.single != null ? 'Single '+qt(o.single)+' · Multi '+qt(o.multi) : qt(ped)+' pedidos'; }
+  var velhosTipo = res.idade[2].single == null ? null : { single: res.idade[2].single + res.idade[3].single, multi: res.idade[2].multi + res.idade[3].multi };
   el.innerHTML = '<div class="kpis c4">'+
-    kpiHtml('Itens em operação', fmt(res.itens), qt(res.pedidos)+' pedidos', 'var(--accent)', null, 'itens')+
-    kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), qt(res.etapas[0].pedidos)+' pedidos', 'var(--amber)', null, 'itens')+
+    kpiHtml('Itens em operação', fmt(res.itens), tipos(res, res.pedidos), 'var(--accent)', null, 'itens')+
+    kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), tipos(res.etapas[0], res.etapas[0].pedidos), 'var(--amber)', null, 'itens')+
     kpiHtml('Mais antigo em tela', dAnt ? dAnt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dAnt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—',
       dAnt ? (res.maisAntigoDias != null ? (duAnt === 0 ? 'importado hoje' : duAnt+(duAnt === 1 ? ' dia útil' : ' dias úteis')+' em tela') : idadeTexto(res.maisAntigo))+' · pedido '+esc(res.maisAntigoPedido) : 'sem data de importação', corAnt, corAnt)+
-    kpiHtml('Importados há 2+ dias úteis', fmt(velhos), velhosPed == null ? '' : qt(velhosPed)+' pedidos', corVelhos, corVelhos, 'itens')+
+    kpiHtml('Importados há 2+ dias úteis', fmt(velhos), velhosTipo ? tipos(velhosTipo) : velhosPed == null ? '' : qt(velhosPed)+' pedidos', corVelhos, corVelhos, 'itens')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
-    '<div class="painel"><div class="etapa cab"><span class="nm">Itens por etapa</span><span></span><span class="tot">Itens</span><span class="tot">Pedidos</span></div><div class="etapas">'+etapas+'</div></div>'+
+    '<div class="painel"><div class="etapa cab"><span class="nm">Itens por etapa</span><span></span><span class="tot">Itens</span><span class="tot">Pedidos</span></div><div class="etapas">'+etapas+'</div>'+
+      '<div class="etapa total"><span class="nm">Total geral</span><span></span><span class="tot">'+fmt(res.itens)+'</span><span class="tot ped">'+fmt(res.pedidos)+'</span></div></div>'+
     '<div class="painel"><span class="k">Itens por marca</span>'+pizzaHtml(res.marcas, res.itens)+'</div>'+
   '</div></div>';
 }
@@ -611,12 +617,12 @@ function renderFaixa(c, snap, dia, opRes){
   var sep = 0, conf = 0;
   ['checkoutDia','colmeiaDia'].forEach(function(k){ sep += somaObj(itensDoDia(((snap||{}).separacao||{})[k], dia)); });
   ['confCheckoutDia','confColmeiaUnitDia'].forEach(function(k){ conf += somaObj(itensDoDia(((snap||{}).conferencia||{})[k], dia)); });
-  itens.push('<span class="ti ger"><b>Separado no dia</b> <span class="v">'+fmt(sep)+'</span> peças</span>');
-  itens.push('<span class="ti ger"><b>Conferido no dia</b> <span class="v">'+fmt(conf)+'</span> peças</span>');
+  itens.push('<span class="ti ger" style="--c:'+COR_SEP+'"><b>Separado no dia</b> <span class="v">'+fmt(sep)+'</span> peças</span>');
+  itens.push('<span class="ti ger" style="--c:'+COR_CONF+'"><b>Conferido no dia</b> <span class="v">'+fmt(conf)+'</span> peças</span>');
   if (MODO_OPERACAO) {   // na TV da operação a faixa traz os totais gerais no lugar dos times
     var ex = ((opRes||{}).expedicao||{}).dias || [], dx = ex.filter(function(x){ return x.data === dia; })[0];
-    if (dx) itens.push('<span class="ti ger"><b>Expedido no dia</b> <span class="v">'+fmt(dx.pecas)+'</span> peças</span>');
-    if (opRes && opRes.itens) itens.push('<span class="ti ger"><b>Itens em operação</b> <span class="v">'+fmt(opRes.itens)+'</span> itens</span>');
+    if (dx) itens.push('<span class="ti ger" style="--c:'+COR_EXP+'"><b>Expedido no dia</b> <span class="v">'+fmt(dx.pecas)+'</span> peças</span>');
+    if (opRes && opRes.itens) itens.push('<span class="ti ger" style="--c:var(--accent)"><b>Itens em operação</b> <span class="v">'+fmt(opRes.itens)+'</span> itens</span>');
   }
   var g = '<div class="g">'+itens.join('')+'</div>';
   if (g === faixaAtual) return;               // mesmo conteúdo: não reinicia a animação
@@ -842,6 +848,18 @@ function mexeu(){ document.body.classList.remove('ocioso'); clearTimeout(ocioso)
 document.addEventListener('mousemove', mexeu); mexeu();
 addEventListener('resize', function(){ escala(); requestAnimationFrame(ajustaAltura); }); escala();
 setTimeout(function(){ location.reload(); }, RECARREGA_H*3600*1000);
+// Versão nova publicada (deploy na Vercel): confere a cada 5 min e recarrega sozinho, sem precisar de F5.
+(function(){
+  var versao = null;
+  function confere(){
+    fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).then(function(t){
+      if (!t) return;
+      if (versao === null) { versao = t; return; }
+      if (t !== versao && !comemorando) location.reload();
+    }).catch(function(){});
+  }
+  confere(); setInterval(confere, 5*60000);
+})();
 if (navigator.wakeLock) { var pedeWake = function(){ navigator.wakeLock.request('screen').catch(function(){}); }; pedeWake(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) pedeWake(); }); }
 
 /* ================= DADOS ================= */

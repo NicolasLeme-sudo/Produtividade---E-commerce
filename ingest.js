@@ -1178,7 +1178,9 @@ function processarOperacaoOp(rows) {
     var vazio = function (col) { var v = obterCampo(row, [col]); return v == null || String(v).trim() === ""; };
     var semColeta = normalizarTexto(obterCampo(row, ["Status da Nota Fiscal"])) === "FATURADO" && !vazio("Faturado em") && vazio("Carga")
       ? (normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"])).indexOf("MULTI") !== -1 ? 2 : 1) : 0;
-    pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"])), semConf, semColeta];
+    var clTipo = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"]));
+    pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"])), semConf, semColeta,
+      clTipo.indexOf("MULTI") !== -1 ? "M" : clTipo.indexOf("SINGLE") !== -1 ? "S" : ""];
   });
   return pedidos;
 }
@@ -1235,8 +1237,9 @@ function processarMarcasItensNf(rows, embalas) {
 function resumoOperacao(op) {
   var pedidos = op.pedidos || {}, marcas = op.marcas || {};
   var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, marcas: {}, semConferir: { itens: 0, pedidos: 0 }, semColeta: { itens: 0, pedidos: 0, checkout: 0, colmeia: 0 },
-    etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, marcas: {} }; }),
-    idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0 }; }),
+    single: 0, multi: 0,   // itens por tipo de pedido (Classificação Tipo Pedido)
+    etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, single: 0, multi: 0, marcas: {} }; }),
+    idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0, single: 0, multi: 0 }; }),
     opEm: op.opEm || null, nfEm: op.nfEm || null };
   // Idade em DIAS ÚTEIS, mesma regra do Report E-commerce (diferencaDiasUteis): seg a sex sem feriados.
   var ref = new Date(op.opEm || Date.now()), cacheIdade = {};
@@ -1249,6 +1252,8 @@ function resumoOperacao(op) {
     var e = pedidos[p], etapa = r.etapas[e[0]], itens = e[1], imp = e[2], marca = marcas[p] || "Sem marca";
     r.itens += itens; r.pedidos++;
     etapa.itens += itens; etapa.pedidos++;
+    var tp = e[5] === "M" ? "multi" : e[5] === "S" ? "single" : null;
+    if (tp) { r[tp] += itens; etapa[tp] += itens; }
     etapa.marcas[marca] = (etapa.marcas[marca] || 0) + itens;
     r.marcas[marca] = (r.marcas[marca] || 0) + itens;
     if (!marcas[p]) r.semMarca += itens;
@@ -1258,6 +1263,7 @@ function resumoOperacao(op) {
       if (r.maisAntigo === null || imp < r.maisAntigo) { r.maisAntigo = imp; r.maisAntigoPedido = p; }
       var faixa = r.idade[Math.min(3, idadeDias(imp))];
       faixa.itens += itens; faixa.pedidos++;
+      if (tp) faixa[tp] += itens;
     }
   });
   r.maisAntigoDias = r.maisAntigo === null ? null : idadeDias(r.maisAntigo);
