@@ -94,6 +94,9 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .fh .selo{font-size:20px}
 .fh .sem-hoje{font-size:20px;font-weight:800;color:var(--amber);margin-right:-14px}.fh .sem-hoje[hidden]{display:none}
 .fh .tt{flex:1;font-size:22px;font-weight:700}
+.navt{display:inline-flex;gap:4px;margin-left:14px;vertical-align:middle}.navt[hidden]{display:none}
+.navt button{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:inherit;font-size:26px;font-weight:700;line-height:1;padding:0 0 4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.navt button:hover{color:var(--text);border-color:var(--text-muted)}
 .fsb{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
 .dica-tc{position:fixed;top:70px;right:16px;z-index:60;max-width:360px;background:var(--bg-card);border:1px solid var(--border);border-top:4px solid var(--accent);border-radius:10px;padding:14px 16px;font-size:15px;line-height:1.6;box-shadow:0 10px 30px rgba(0,0,0,.45)}
 .dica-tc>b:first-child{display:block;font-size:16px;margin-bottom:6px}.dica-tc small{display:block;margin-top:8px;color:var(--text-muted);font-size:12px}
@@ -259,7 +262,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span id="titulo">Corrida Maluca</span><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lsaquo;</button><button type="button" id="telaProx" aria-label="Próxima tela">&rsaquo;</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
@@ -811,6 +814,7 @@ function entraTela(i){
   pal.style.setProperty('--cc', cc[0]); pal.style.setProperty('--cc2', cc[1]); pal.style.setProperty('--cc-t', cc[2]);
   document.getElementById('titulo').textContent = telas[i].getAttribute('data-titulo');
   document.getElementById('barra').hidden = telasAtivas().length < 2;   // com uma tela só não há o que girar
+  document.querySelector('.navt').hidden = telasAtivas().length < 2;
   relogio();
   if (telas[i].id === 'telaA') requestAnimationFrame(ajustaAltura);
   requestAnimationFrame(function(){   // tela estava escondida: só agora dá para medir
@@ -828,6 +832,9 @@ setInterval(function(){
   var dec = (Date.now() - inicioTela) / giroDe(atual);
   if (telasAtivas().length > 1 && dec >= 1 && !comemorando) mostraTela(proximaTela(1));
 }, 500);
+// Botões ‹ › ao lado do nome da tela: mesmo efeito das setas do teclado (o rodízio segue a partir da tela escolhida)
+['telaAnt', 'telaProx'].forEach(function(id, k){ document.getElementById(id).addEventListener('click', function(e){
+  e.stopPropagation(); if (comemorando) { encerraComemoracao(); return; } mostraTela(proximaTela(k ? 1 : -1)); }); });
 document.addEventListener('keydown', function(e){   // para quem estiver ao lado da TV
   if (comemorando) { encerraComemoracao(); return; }   // qualquer tecla encerra a comemoração
   if (e.key === 'ArrowRight') mostraTela(proximaTela(1));
