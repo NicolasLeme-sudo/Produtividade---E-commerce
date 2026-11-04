@@ -151,7 +151,8 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .linha{display:grid;grid-template-columns:3fr 1fr;gap:14px;min-height:0}
 .painel{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
 .painel .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--pc,var(--text-muted))}
-.grafico{display:grid;grid-template-rows:1fr auto;gap:6px;min-height:0}
+.grafico{display:grid;grid-template-rows:1fr auto;gap:6px;min-height:0;position:relative}
+.grafico .fora{position:absolute;top:-4px;right:0;font-size:13px;color:var(--text-muted);z-index:2}
 .colunas{position:relative;display:flex;align-items:flex-end;gap:10px;min-height:0}
 .colunas span{flex:1;position:relative;background:var(--cor);border-radius:5px 5px 0 0;min-height:2px}
 .colunas span.agora{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 7px,transparent 7px 14px)}
@@ -391,19 +392,27 @@ function hoje(){ return hojeISO(); }
 // O número segue a cor da barra de destaque (kc) quando não vem cor própria (vc). un = unidade ao lado do número.
 function qt(n){ return '<b>'+fmt(n)+'</b>'; }   // quantidade embaixo do card, na cor de destaque
 function kpiHtml(rot, valor, sub, kc, vc, un){ vc = vc || kc; return '<div class="kpi" style="'+(kc?'--kc:'+kc+';':'')+(vc?'--vc:'+vc:'')+'"><span class="k">'+rot+'</span><span class="v">'+valor+(un?'<small>'+un+'</small>':'')+'</span><span class="s">'+sub+'</span></div>'; }
-// Gráfico de colunas por hora, com rótulo em cada coluna e a média das horas completas.
-function graficoHoras(horas, dia, cor, cor2, rotMedia){
-  var ini = horas.findIndex(function(v){ return v > 0; }), fim = 23 - horas.slice().reverse().findIndex(function(v){ return v > 0; });
+// Gráfico de colunas por hora: só as JANELA_HORAS últimas horas, a mais recente encostada à direita.
+// A 00h do próprio dia é o fim do T02 do dia anterior: sai do começo e a 00h do dia seguinte (h00) entra no fim.
+var JANELA_HORAS = 10;
+function graficoHoras(horas, dia, cor, cor2, rotMedia, h00){
+  var vals = horas.slice(1).concat([h00 || 0]), labs = [];
+  for (var k = 1; k <= 23; k++) labs.push(k); labs.push(0);
+  var ini = vals.findIndex(function(v){ return v > 0; }), fim = vals.length - 1 - vals.slice().reverse().findIndex(function(v){ return v > 0; });
   if (ini < 0) return null;
-  var faixa = horas.slice(ini, fim+1), agora = new Date().getHours(), emAndamento = dia === hoje() && fim === agora;
+  var faixa = vals.slice(ini, fim+1), lab = labs.slice(ini, fim+1), agora = new Date().getHours();
+  var emAndamento = dia === (agora === 0 ? somaDias(hoje(), -1) : hoje()) && fim === (agora === 0 ? 23 : agora - 1);
   var completas = emAndamento ? faixa.slice(0, -1) : faixa, media = completas.length ? Math.round(completas.reduce(function(a,b){ return a+b; },0) / completas.length) : 0;
-  var mx = Math.max.apply(null, faixa.concat([media])) * 1.18 || 1;
+  var corte = Math.max(0, faixa.length - JANELA_HORAS), vis = faixa.slice(corte), visLab = lab.slice(corte);
+  var mx = Math.max.apply(null, vis.concat([media])) * 1.18 || 1;
   // escala de cor só com as horas completas (a hora em andamento ainda está pela metade)
   var base = completas.length ? completas : faixa, maior = Math.max.apply(null, base) || 1, menor = Math.min.apply(null, base), forte = escurece(cor, .3);
-  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor2, forte, maior > menor ? (v - menor)/(maior - menor) : 1)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
-  var hrs = faixa.map(function(v, i){ return '<i>'+String(ini+i).padStart(2,'0')+'h</i>'; }).join('');
+  var cols = vis.map(function(v, i){ return '<span class="'+(emAndamento && i === vis.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor2, forte, maior > menor ? (v - menor)/(maior - menor) : 1)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
+  var hh = function(h){ return String(h).padStart(2,'0')+'h'; };
+  var hrs = visLab.map(function(h){ return '<i>'+hh(h)+'</i>'; }).join('');
   var ml = media ? '<div class="media" style="bottom:'+(media/mx*100).toFixed(1)+'%"><small>média '+fmt(media)+'/h</small></div>' : '';
-  return { html:'<div class="grafico" style="--cor:'+cor+';--cor2:'+cor2+'"><div class="colunas">'+cols+ml+'</div><div class="horas">'+hrs+'</div></div>', ultima:{ hora:ini+faixa.length-1, valor:faixa[faixa.length-1], completa: emAndamento ? (faixa.length > 1 ? { hora:ini+faixa.length-2, valor:faixa[faixa.length-2] } : null) : { hora:fim, valor:faixa[faixa.length-1] } }, media:media };
+  var fora = corte ? '<div class="fora">◀ '+hh(lab[0])+'–'+hh(lab[corte-1])+' fora da janela</div>' : '';
+  return { html:'<div class="grafico" style="--cor:'+cor+';--cor2:'+cor2+'">'+fora+'<div class="colunas">'+cols+ml+'</div><div class="horas">'+hrs+'</div></div>', media:media };
 }
 // Heatmap nos tons da tela: do tom claro (pouco) à cor forte (muito).
 function rgbDe(hex){ var n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
@@ -447,8 +456,8 @@ function renderTelaB(snap, opRes, dia){
   el.dataset.vazia = ''; el.dataset.dia = dia;
   var sc = itensDoDia(sep.checkoutDia, dia), sm = itensDoDia(sep.colmeiaDia, dia), cc = itensDoDia(conf.confCheckoutDia, dia), cm = itensDoDia(conf.confColmeiaUnitDia, dia);
   var tSep = somaObj(sc) + somaObj(sm), tConf = somaObj(cc) + somaObj(cm);
-  var gS = graficoHoras(horasDoAnalitico(sep.analitico, dia, ['checkout','colmeia']), dia, COR_SEP, COR_SEP2);
-  var gC = graficoHoras(horasDoAnalitico(conf.analitico, dia, ['checkout']), dia, COR_CONF, COR_CONF2);
+  var gS = graficoHoras(horasDoAnalitico(sep.analitico, dia, ['checkout','colmeia']), dia, COR_SEP, COR_SEP2, null, horasDoAnalitico(sep.analitico, somaDias(dia, 1), ['checkout','colmeia'])[0]);
+  var gC = graficoHoras(horasDoAnalitico(conf.analitico, dia, ['checkout']), dia, COR_CONF, COR_CONF2, null, horasDoAnalitico(conf.analitico, somaDias(dia, 1), ['checkout'])[0]);
   // Separado sem conferir: foto atual do Acompanhamento OP (ENVIADO PARA FATURAMENTO sem "Conferido em").
   var sc2 = opRes && opRes.semConferir;
   var kSem = !ehHoje() ? kpiHtml('Separado sem conferir', '—', 'só no dia de hoje', 'var(--amber)', 'var(--amber)')
@@ -477,7 +486,8 @@ function renderTelaD(snapIn){
   el.dataset.dia = dia;
   var pessoas = itensDoDia(arm.normalDia, dia), rev = itensDoDia(arm.reversaDia, dia), total = somaObj(pessoas);
   var hd = (arm.normalHoraDia||[]).filter(function(x){ return String(x.data).slice(0,10) === dia; })[0];
-  var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_SEP2) : null;
+  var hd1 = (arm.normalHoraDia||[]).filter(function(x){ return String(x.data).slice(0,10) === somaDias(dia, 1); })[0];
+  var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_SEP2, null, hd1 && hd1.horas ? hd1.horas[0] : 0) : null;
   el.innerHTML = '<div class="kpis c3">'+
     kpiHtml(rotuloDia('Peças armazenadas', dia), fmt(total), qt(somaObj(rev))+' itens de reversa', COR_ARM, null, 'peças')+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', 'var(--orange)', null)+
@@ -569,7 +579,7 @@ function renderTelaE(opRes){
   el.dataset.dia = dia;
   var d = porDia[dia] || { pecas:0, pedidos:0, horas:new Array(24).fill(0), usuarios:{}, transp:{}, tipo:{ checkout:[0,0], colmeia:[0,0], semInfo:[0,0] } };
   var pessoas = {}; Object.keys(d.usuarios).forEach(function(u){ if (u !== 'SILT') pessoas[u] = d.usuarios[u][0]; });   // SILT = sistema: conta no total, fora do ranking
-  var g = graficoHoras(d.horas, dia, COR_EXP, COR_EXP2);
+  var d1 = porDia[somaDias(dia, 1)], g = graficoHoras(d.horas, dia, COR_EXP, COR_EXP2, null, d1 && d1.horas ? d1.horas[0] : 0);
   var semT = d.transp['Aguardando Itens de NF'];   // embarcadas que ainda não têm transportadora: aviso no título, fora da lista
   var tr = Object.keys(d.transp).filter(function(t){ return t !== 'Aguardando Itens de NF'; }).map(function(t){ return { n:t, p:d.transp[t][0], q:d.transp[t][1] }; }).sort(function(a,b){ return b.p - a.p; });
   var maxT = Math.max.apply(null, tr.map(function(x){ return x.p; }).concat(1));
