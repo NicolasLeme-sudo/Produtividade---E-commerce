@@ -465,8 +465,8 @@ function renderTelaB(snap, opRes, dia){
     : kpiHtml('Separado sem conferir', '—', 'aguardando o próximo Acompanhamento OP', 'var(--amber)', 'var(--amber)');
   var semHora = dia === hojeOp() ? 'Sem produção hoje ainda' : 'Sem produção neste dia';
   el.innerHTML = '<div class="kpis c5">'+
-    kpiHtml(rotuloDia('Separado', dia), fmt(tSep), 'Checkout '+qt(somaObj(sc))+' · Colmeia '+qt(somaObj(sm)), COR_SEP, COR_SEP2, 'peças')+
-    kpiHtml(rotuloDia('Conferido', dia), fmt(tConf), 'Checkout '+qt(somaObj(cc))+' · Colmeia '+qt(somaObj(cm)), COR_CONF, COR_CONF, 'peças')+
+    kpiHtml(rotuloDia('Separado', dia), fmt(tSep), 'Checkout '+qt(somaObj(sc))+'<br>Colmeia '+qt(somaObj(sm)), COR_SEP, COR_SEP2, 'peças')+
+    kpiHtml(rotuloDia('Conferido', dia), fmt(tConf), 'Checkout '+qt(somaObj(cc))+'<br>Colmeia '+qt(somaObj(cm)), COR_CONF, COR_CONF, 'peças')+
     kSem+
     kpiPrevisao('Previsão separação', sep.previsao, tSep, COR_SEP, COR_SEP2, dia)+
     kpiPrevisao('Previsão conferência', conf.previsao, tConf, COR_CONF, COR_CONF, dia)+
@@ -548,7 +548,7 @@ function renderTelaC(res){
   var duAnt = res.maisAntigoDias != null ? res.maisAntigoDias : Math.floor(hAnt / 24);
   var corAnt = duAnt >= 2 ? 'var(--red)' : duAnt >= 1 ? 'var(--amber)' : 'var(--olive)', corVelhos = velhos ? 'var(--red)' : 'var(--olive)';
   // embaixo do número: itens Single · Multi (Classificação Tipo Pedido); OP antigo sem o campo mostra os pedidos
-  function tipos(o, ped){ return o && o.single != null ? 'Single '+qt(o.single)+' · Multi '+qt(o.multi) : qt(ped)+' pedidos'; }
+  function tipos(o, ped){ return o && o.single != null ? 'Single '+qt(o.single)+'<br>Multi '+qt(o.multi) : qt(ped)+' pedidos'; }
   var velhosTipo = res.idade[2].single == null ? null : { single: res.idade[2].single + res.idade[3].single, multi: res.idade[2].multi + res.idade[3].multi };
   el.innerHTML = '<div class="kpis c4">'+
     kpiHtml('Itens em operação', fmt(res.itens), tipos(res, res.pedidos), 'var(--accent)', null, 'itens')+
@@ -589,10 +589,10 @@ function renderTelaE(opRes){
       '<span class="tot">'+fmt(x.p)+'</span><span class="tot ped">'+fmt(x.q)+'</span></div>';
   }).join('');
   el.innerHTML = '<div class="kpis c4">'+
-    kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+' · Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças')+
+    kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+'<br>Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças')+
     // Conferido sem expedição: foto atual do Acompanhamento OP (FATURADO com "Faturado em" e sem Carga)
     (dia !== hojeOp() ? kpiHtml('Conferido sem expedição', '—', 'só no dia de hoje', COR_EXP2, COR_EXP2)
-      : opRes.semColeta && opRes.semColeta.checkout != null ? kpiHtml('Conferido sem expedição', fmt(opRes.semColeta.itens), 'Checkout '+qt(opRes.semColeta.checkout)+' · Colmeia '+qt(opRes.semColeta.colmeia), COR_EXP2, COR_EXP2, 'itens')
+      : opRes.semColeta && opRes.semColeta.checkout != null ? kpiHtml('Conferido sem expedição', fmt(opRes.semColeta.itens), 'Checkout '+qt(opRes.semColeta.checkout)+'<br>Colmeia '+qt(opRes.semColeta.colmeia), COR_EXP2, COR_EXP2, 'itens')
       : kpiHtml('Conferido sem expedição', '—', 'aguardando o próximo Acompanhamento OP', COR_EXP2, COR_EXP2))+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', '#DFBD41', null)+
     kpiPrevisao('Previsão do dia', exp.previsao, d.pecas, COR_EXP, COR_EXP, dia)+
