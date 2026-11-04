@@ -170,7 +170,9 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .gwrap{display:grid;grid-template-rows:1fr auto;gap:8px;min-height:0}
 .grafico.rola{overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.grafico.rola::-webkit-scrollbar{display:none}
 .barra{position:relative;height:8px;border-radius:4px;background:rgba(127,140,170,.2)}
+.barra{cursor:pointer;touch-action:none}.barra::before{content:"";position:absolute;inset:-8px 0}
 .barra b{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--cor)}
+.grafico.rola{cursor:grab}body.arrastando,body.arrastando *{cursor:grabbing!important;user-select:none}
 .grafico.rola .media small{left:auto;right:0}
 .colunas{position:relative;display:flex;align-items:flex-end;gap:10px;min-height:0}
 .colunas span{flex:1;position:relative;background:var(--cor);border-radius:5px 5px 0 0;min-height:2px}
@@ -414,13 +416,34 @@ function kpiHtml(rot, valor, sub, kc, vc, un){ vc = vc || kc; return '<div class
 // Gráfico de colunas por hora: só as JANELA_HORAS últimas horas, a mais recente encostada à direita.
 // A 00h do próprio dia é o fim do T02 do dia anterior: sai do começo e a 00h do dia seguinte (h00) entra no fim.
 var JANELA_HORAS = 10;
+// Rolagem dos gráficos: a posição que a pessoa deixa vale até a tela trocar (aí volta para a hora mais recente).
+var rolagemUsuario = {};   // chave do gráfico -> scrollLeft escolhido
+function chaveGrafico(g){ var t = g.closest('section.tela'); return t ? t.id + ':' + Array.prototype.indexOf.call(t.querySelectorAll('.grafico.rola'), g) : ''; }
+function escalaDe(g){ return g.getBoundingClientRect().width / (g.clientWidth || 1) || 1; }
+function marcaUsuario(g){ var k = chaveGrafico(g); if (k) rolagemUsuario[k] = g.scrollLeft; }
 document.addEventListener('scroll', function(e){ var g = e.target; if (!g.classList || !g.classList.contains('rola') || !g.nextElementSibling) return;
-  var b = g.nextElementSibling.firstChild; if (b) b.style.left = (g.scrollLeft / g.scrollWidth * 100).toFixed(2)+'%'; }, true);
+  var b = g.nextElementSibling.firstChild; if (b) b.style.left = (g.scrollLeft / g.scrollWidth * 100).toFixed(2)+'%';
+  var k = chaveGrafico(g); if (k && k in rolagemUsuario) rolagemUsuario[k] = g.scrollLeft; }, true);
+// dedo/touchpad/rodinha em cima do gráfico: passa a valer a posição da pessoa
+['wheel', 'touchstart'].forEach(function(ev){ document.addEventListener(ev, function(e){ var g = e.target.closest && e.target.closest('.grafico.rola'); if (g) marcaUsuario(g); }, { passive:true, capture:true }); });
+// arrastar com o mouse: a barra (pula para onde clicou e acompanha) ou o próprio gráfico (puxa para os lados)
+document.addEventListener('pointerdown', function(e){
+  var barra = e.target.closest && e.target.closest('.barra'), g = barra ? barra.previousElementSibling : (e.pointerType === 'mouse' && e.target.closest && e.target.closest('.grafico.rola'));
+  if (!g || !g.classList.contains('rola')) return;
+  e.preventDefault(); e.stopPropagation(); marcaUsuario(g);
+  var x0 = e.clientX, s0 = g.scrollLeft, k = escalaDe(g);
+  function pelaBarra(x){ var r = barra.getBoundingClientRect(), vis = g.clientWidth / g.scrollWidth; g.scrollLeft = ((x - r.left) / r.width - vis/2) * g.scrollWidth; }
+  if (barra) pelaBarra(e.clientX);
+  document.body.classList.add('arrastando');
+  function mexe(ev){ if (barra) pelaBarra(ev.clientX); else g.scrollLeft = s0 - (ev.clientX - x0) / k; }
+  function solta(){ document.removeEventListener('pointermove', mexe); document.removeEventListener('pointerup', solta); document.body.classList.remove('arrastando'); }
+  document.addEventListener('pointermove', mexe); document.addEventListener('pointerup', solta);
+}, true);
 // Linha de baixo dos cards numa linha só: se não couber, a fonte diminui até caber (mínimo 14 px).
 function ajustaLinhaKpi(){ document.querySelectorAll('.kpi .s').forEach(function(el){ el.style.fontSize = ''; var f = 21; while (el.scrollWidth > el.clientWidth + 1 && f > 14) el.style.fontSize = (--f)+'px'; }); }
 window.addEventListener('resize', ajustaLinhaKpi);
 new MutationObserver(function(m){ if (m.some(function(x){ return x.target.querySelector && x.target.querySelector('.kpi .s'); })) ajustaLinhaKpi(); }).observe(document.documentElement, { childList:true, subtree:true });
-new MutationObserver(function(){ document.querySelectorAll('.grafico.rola:not([data-rolou])').forEach(function(g){ g.scrollLeft = g.scrollWidth; if (g.scrollWidth) g.dataset.rolou = '1'; }); }).observe(document.documentElement, { childList:true, subtree:true });
+new MutationObserver(function(){ document.querySelectorAll('.grafico.rola:not([data-rolou])').forEach(function(g){ var k = chaveGrafico(g); g.scrollLeft = k in rolagemUsuario ? rolagemUsuario[k] : g.scrollWidth; if (g.scrollWidth) g.dataset.rolou = '1'; }); }).observe(document.documentElement, { childList:true, subtree:true });
 function graficoHoras(horas, dia, cor, cor2, rotMedia, h00){
   var vals = horas.slice(1).concat([h00 || 0]), labs = [];
   for (var k = 1; k <= 23; k++) labs.push(k); labs.push(0);
@@ -792,6 +815,7 @@ function entraTela(i){
   if (telas[i].id === 'telaA') requestAnimationFrame(ajustaAltura);
   requestAnimationFrame(function(){   // tela estava escondida: só agora dá para medir
     ajustaLinhaKpi();
+    rolagemUsuario = {};   // tela nova: todos os gráficos voltam para a hora mais recente
     telas[i].querySelectorAll('.grafico.rola').forEach(function(g){ g.scrollLeft = g.scrollWidth; });
   });
 }
