@@ -571,7 +571,8 @@ function processarInfoNf(rows) {
     var id = String(obterCampo(row, ["idNotaFiscal"]) || "").trim();
     if (!id || info[id]) return;
     var cl = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"]));
-    info[id] = [String(obterCampo(row, ["Transportadora"]) || "").trim(), cl.indexOf("MULTI") !== -1 ? "M" : cl.indexOf("SINGLE") !== -1 ? "S" : "", normalizarTexto(obterCampo(row, ["Status"]))];
+    info[id] = [String(obterCampo(row, ["Transportadora"]) || "").trim(), cl.indexOf("MULTI") !== -1 ? "M" : cl.indexOf("SINGLE") !== -1 ? "S" : "", normalizarTexto(obterCampo(row, ["Status"])),
+      paraDataISO(obterCampo(row, ["Data de Cadastro"])) || ""];
   });
   return info;
 }
@@ -1316,7 +1317,12 @@ function guardarInfoNf(op, novo) {
   var velho = lerInfoNf(op), nomes = [], idx = {}, n = {};
   function poe(id, t, c) { if (!(t in idx)) { idx[t] = nomes.length; nomes.push(t); } n[id] = [idx[t], c]; }
   Object.keys(velho).forEach(function (id) { if (emRaw[id]) poe(id, velho[id][0], velho[id][1]); });
-  Object.keys(novo).forEach(function (id) { var x = novo[id]; if (x[2].indexOf("EM CARGA") === 0 || emRaw[id]) poe(id, x[0], x[1]); });
+  // EM CARGA/OR = vai embarcar; PROCESSADA recente = pode ter embarcado depois do último Kardex (ele ainda vai chegar)
+  var corte = new Date(); corte.setDate(corte.getDate() - 3); corte = paraDataISOLocal(corte);
+  Object.keys(novo).forEach(function (id) {
+    var x = novo[id];
+    if (x[2].indexOf("EM CARGA") === 0 || emRaw[id] || (x[2] === "PROCESSADA" && (x[3] || "") >= corte)) poe(id, x[0], x[1]);
+  });
   op.nfInfo = { t: nomes, n: n };
 }
 
