@@ -245,7 +245,7 @@ if (require.main === module) (async function () {
     const trava = path.join(__dirname, "robo.lock");
     try {
       const pid = Number(fs.readFileSync(trava, "utf8"));
-      if (pid && pid !== process.pid) { process.kill(pid, 0); log("Já tem um robô rodando (processo " + pid + "): este não liga."); process.exit(0); }
+      if (pid && pid !== process.pid) { process.kill(pid, 0); log("Já tem um robô rodando (processo " + pid + "): este não liga."); process.exit(3); /* 3 = a janela deste fecha sozinha */ }
     } catch (e) { /* sem trava ou processo antigo já fechado: segue */ }
     fs.writeFileSync(trava, String(process.pid));
     process.on("exit", function () { try { if (fs.readFileSync(trava, "utf8") === String(process.pid)) fs.unlinkSync(trava); } catch (e) {} });

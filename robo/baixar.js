@@ -440,7 +440,24 @@ async function iniciar(cfg, log, opcoes) {
   const proximo = { rapido: 0, lento: 0 };
   incluirOntem = !PERIODO.de;
   if (incluirOntem) log("1ª rodada: de ontem até hoje (completa o 2º turno de ontem); as próximas, só hoje");
+  // HORARIOS_EXTRA no .env (ex.: 07:55,17:20): além do intervalo, uma rodada completa em cada horário.
+  // Vale até 30 min depois do horário (ligou mais tarde = não roda a que já passou); a rodada de quando
+  // liga já conta para o horário extra que acabou de passar.
+  const extras = String(cfg.HORARIOS_EXTRA || "").split(",").map(function (x) { return x.trim(); })
+    .filter(function (x) { return /^\d{1,2}:\d{2}$/.test(x); }).map(function (x) { const p = x.split(":"); return +p[0] * 60 + +p[1]; });
+  const feitosExtra = {};
+  function chaveExtra(m) { return new Date().toDateString() + "|" + m; }
+  function minAgora() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+  extras.forEach(function (m) { if (m <= minAgora() && minAgora() - m < 30) feitosExtra[chaveExtra(m)] = 1; });
+  if (extras.length) log("Horários extras de atualização: " + extras.map(function (m) { return String(Math.floor(m / 60)).padStart(2, "0") + "h" + String(m % 60).padStart(2, "0"); }).join(", "));
   for (;;) {
+    const ag = minAgora();
+    const extra = extras.filter(function (m) { return m <= ag && ag - m < 30 && !feitosExtra[chaveExtra(m)]; })[0];
+    if (extra != null) {
+      feitosExtra[chaveExtra(extra)] = 1;
+      log("Rodada extra das " + String(Math.floor(extra / 60)).padStart(2, "0") + "h" + String(extra % 60).padStart(2, "0"));
+      proximo.rapido = 0; proximo.lento = 0;       // roda tudo agora; o intervalo volta a contar daqui
+    }
     for (const g of ["rapido", "lento"]) {          // rápido tem prioridade
       if (Date.now() >= proximo[g]) {
         proximo[g] = Date.now() + intervalo[g];
