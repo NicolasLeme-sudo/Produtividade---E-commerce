@@ -97,7 +97,7 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .navt{display:inline-flex;align-items:center;gap:12px;vertical-align:middle}
 .navt.so button{visibility:hidden}
 #titulo{display:inline-block}
-#titulo.troca{animation:tituloAvanca .55s cubic-bezier(.2,.8,.2,1)}#titulo.troca.volta{animation-name:tituloVolta}
+#titulo.troca{animation:tituloAvanca .55s cubic-bezier(.2,.8,.2,1)}#titulo.troca.recua{animation-name:tituloVolta}
 @keyframes tituloAvanca{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
 @keyframes tituloVolta{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
 .navt button{width:34px;height:34px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 55%, transparent);background:color-mix(in srgb, var(--cc,#297ADF) 14%, transparent);color:var(--cc,#297ADF);font-family:inherit;font-size:20px;font-weight:800;line-height:1;padding:0 0 2px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .3s,border-color .3s,color .3s}
@@ -863,7 +863,7 @@ function entraTela(i){
   var cc = COR_CAL[telas[i].id] || COR_CAL.telaC, pal = document.getElementById('palco');
   pal.style.setProperty('--cc', cc[0]); pal.style.setProperty('--cc2', cc[1]); pal.style.setProperty('--cc-t', cc[2]);
   var tit = document.getElementById('titulo'), novoTit = telas[i].getAttribute('data-titulo');
-  if (tit.textContent !== novoTit) { tit.textContent = novoTit; tit.classList.remove('troca', 'volta'); void tit.offsetWidth; tit.classList.add('troca'); if (sentidoTroca < 0) tit.classList.add('volta'); }   // avançar: entra pela direita; voltar: pela esquerda
+  if (tit.textContent !== novoTit) { tit.textContent = novoTit; tit.classList.remove('troca', 'recua'); void tit.offsetWidth; tit.classList.add('troca'); if (sentidoTroca < 0) tit.classList.add('recua'); }   // avançar: entra pela direita; voltar: pela esquerda
   sentidoTroca = 1;
   document.getElementById('barra').hidden = telasAtivas().length < 2;   // com uma tela só não há o que girar
   document.querySelector('.navt').classList.toggle('so', telasAtivas().length < 2);
