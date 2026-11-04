@@ -563,10 +563,10 @@ function renderTelaE(opRes){
   }).join('');
   el.innerHTML = '<div class="kpis c4">'+
     kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+' · Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças')+
-    // Faturado sem coleta: foto atual do Acompanhamento OP (FATURADO com "Faturado em" e sem Carga)
-    (dia !== hojeOp() ? kpiHtml('Faturado sem coleta', '—', 'só no dia de hoje', COR_EXP2, COR_EXP2)
-      : opRes.semColeta && opRes.semColeta.checkout != null ? kpiHtml('Faturado sem coleta', fmt(opRes.semColeta.itens), 'Checkout '+qt(opRes.semColeta.checkout)+' · Colmeia '+qt(opRes.semColeta.colmeia), COR_EXP2, COR_EXP2, 'itens')
-      : kpiHtml('Faturado sem coleta', '—', 'aguardando o próximo Acompanhamento OP', COR_EXP2, COR_EXP2))+
+    // Conferido sem coleta: foto atual do Acompanhamento OP (FATURADO com "Faturado em" e sem Carga)
+    (dia !== hojeOp() ? kpiHtml('Conferido sem coleta', '—', 'só no dia de hoje', COR_EXP2, COR_EXP2)
+      : opRes.semColeta && opRes.semColeta.checkout != null ? kpiHtml('Conferido sem coleta', fmt(opRes.semColeta.itens), 'Checkout '+qt(opRes.semColeta.checkout)+' · Colmeia '+qt(opRes.semColeta.colmeia), COR_EXP2, COR_EXP2, 'itens')
+      : kpiHtml('Conferido sem coleta', '—', 'aguardando o próximo Acompanhamento OP', COR_EXP2, COR_EXP2))+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', '#DFBD41', null)+
     kpiPrevisao('Previsão do dia', exp.previsao, d.pecas, COR_EXP, COR_EXP, dia)+
   '</div><div class="linhas" style="grid-template-rows:1.25fr 1fr">'+
