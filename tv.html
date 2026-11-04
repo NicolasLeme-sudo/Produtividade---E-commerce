@@ -86,9 +86,31 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .fsb[hidden]{display:none}
 body.ocioso,body.ocioso *{cursor:none!important}
 .fh .lv{font-size:12px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:99px;padding:2px 10px}
-.fh .ck{text-align:right;font-size:12px;color:var(--text-muted);position:relative}.fh .ck div{font-size:24px;font-weight:700;color:var(--text)}
-.fh .ck #data{cursor:pointer;border-bottom:1px dotted var(--text-muted)}.fh .ck #data::after{content:" ▾"}
-.fh .ck input{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0}
+.fh .ck{text-align:right;font-size:12px;color:var(--text-muted);position:relative}.fh .ck #hora{font-size:24px;font-weight:700;color:var(--text)}
+.fh .ck #data{cursor:pointer;display:inline-flex;align-items:center;gap:7px;margin-top:3px;padding:2px 10px;border:1px solid var(--border);border-radius:99px;color:var(--text-label);font-weight:600;text-transform:capitalize}
+.fh .ck #data::after{content:"";border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--amber)}
+.fh .ck #data:hover,.fh .ck #data.aberto{border-color:var(--amber);color:var(--text)}
+/* Calendário do dia exibido (identidade Vulcabras: card escuro, kicker e linha dourados) */
+.cal{position:absolute;right:0;top:calc(100% + 8px);z-index:60;width:304px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px 12px;text-align:left;box-shadow:0 14px 34px rgba(0,0,0,.5);font-family:"Segoe UI",Roboto,Arial,sans-serif}
+.cal[hidden]{display:none}
+.cal .kk{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--amber)}
+.cal .cab{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px;padding-bottom:9px;border-bottom:1px solid rgba(246,189,0,.5)}
+.cal .mes{font-size:18px;font-weight:700;color:var(--text)}
+.cal .nav{background:none;border:1px solid var(--border);color:var(--text-label);width:30px;height:30px;border-radius:6px;cursor:pointer;font:inherit;font-size:18px;line-height:1}
+.cal .nav:hover:not(:disabled){border-color:var(--amber);color:var(--amber)}.cal .nav:disabled{opacity:.25;cursor:default}
+.cal .grade{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .sm{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);padding:2px 0 4px}
+.cal .d{position:relative;height:34px;border-radius:6px;border:1px solid transparent;background:none;color:var(--text);font:inherit;font-size:14px;font-weight:600;cursor:pointer;padding:0}
+.cal .d:hover:not(:disabled){background:var(--bg-input);border-color:var(--border)}
+.cal .d:disabled{color:#38445C;cursor:default}
+.cal .d.hoje{border-color:var(--amber);color:var(--amber)}
+.cal .d.sel{background:var(--amber);border-color:var(--amber);color:#142032;font-weight:800}
+.cal .d.dado::after{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--amber)}
+.cal .d.sel.dado::after{background:#142032}
+.cal .rod{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)}
+.cal .rod i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--amber);margin-right:6px;vertical-align:2px}
+.cal .rod button{font:inherit;font-weight:700;font-size:12px;color:var(--amber);background:none;border:1px solid var(--amber);border-radius:99px;padding:4px 14px;cursor:pointer}
+.cal .rod button:hover{background:var(--amber);color:#142032}
 .fh .lv.passado{color:var(--amber);border-color:var(--amber)}
 .fh .volta{font-size:12px}
 .main{flex:1;min-height:0;padding:12px 22px 0;display:flex;flex-direction:column;position:relative}
@@ -122,6 +144,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .kpi .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
 .kpi .v{font-size:46px;font-weight:800;line-height:1;color:var(--vc,var(--text))}
 .kpi .v small{font-size:20px;font-weight:700;color:var(--text-muted);margin-left:8px}
+.kpi .v{white-space:nowrap}.kpis.c5 .kpi .v small{font-size:17px;margin-left:6px}
 .kpi .s{font-size:15px;color:var(--text-muted)}.kpi .s b{color:var(--vc,var(--kc,var(--text)));font-weight:800}
 .linhas{flex:1;min-height:0;display:grid;gap:14px}
 .linha{display:grid;grid-template-columns:3fr 1fr;gap:14px;min-height:0}
@@ -207,7 +230,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado"></span><input type="date" id="dataInp" tabindex="-1" aria-label="Dia mostrado"></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
@@ -394,7 +417,7 @@ function kpiPrevisao(rot, prev, realizado, kc, vc, dia){
     : prev.nestaHora == null ? 'nesta hora: —'
     : prev.hora !== new Date().getHours() ? 'nesta hora: aguardando envio'
     : 'nesta hora ('+String(prev.hora).padStart(2,'0')+'h): '+qt(prev.nestaHora);
-  return kpiHtml(rot, fmt(Math.max(prev.previsto, realizado)), sub, kc, vc, 'peças');
+  return kpiHtml(rot, fmt(Math.max(prev.previsto, realizado)), sub, kc, vc, 'peças no dia');
 }
 function rotuloDia(base, dia){ return base + (dia === hojeOp() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)); }
 
@@ -402,8 +425,11 @@ function rotuloDia(base, dia){ return base + (dia === hojeOp() ? ' hoje' : ' em 
 function diaOutbound(snap){
   var sep = (snap||{}).separacao || {}, conf = (snap||{}).conferencia || {};
   var series = [sep.checkoutDia, sep.colmeiaDia, conf.confCheckoutDia, conf.confColmeiaUnitDia];
-  return diaComFallback(function(d){ return series.some(function(sr){ return somaObj(itensDoDia(sr, d)) > 0; }); }, diasDasSeries(series));
+  var temDado = function(d){ return series.some(function(sr){ return somaObj(itensDoDia(sr, d)) > 0; }); };
+  diasComDado = {}; diasDasSeries(series).forEach(function(d){ if (temDado(d)) diasComDado[d] = 1; });
+  return diaComFallback(temDado, diasDasSeries(series));
 }
+var diasComDado = {};
 function renderTelaB(snap, opRes, dia){
   var el = document.getElementById('telaB'), sep = (snap||{}).separacao || {}, conf = (snap||{}).conferencia || {};
   if (!sep.checkoutDia && !conf.confCheckoutDia) { el.dataset.vazia = '1'; el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência.</div>'; return; }
@@ -415,7 +441,7 @@ function renderTelaB(snap, opRes, dia){
   // Separado sem conferir: foto atual do Acompanhamento OP (ENVIADO PARA FATURAMENTO sem "Conferido em").
   var sc2 = opRes && opRes.semConferir;
   var kSem = !ehHoje() ? kpiHtml('Separado sem conferir', '—', 'só no dia de hoje', 'var(--amber)', 'var(--amber)')
-    : sc2 ? kpiHtml('Separado sem conferir', fmt(sc2.itens), qt(sc2.pedidos)+' pedidos aguardando conferência', 'var(--amber)', 'var(--amber)', 'peças')
+    : sc2 ? kpiHtml('Separado sem conferir', fmt(sc2.itens), qt(sc2.pedidos)+' pedidos', 'var(--amber)', 'var(--amber)', 'peças')
     : kpiHtml('Separado sem conferir', '—', 'aguardando o próximo Acompanhamento OP', 'var(--amber)', 'var(--amber)');
   var semHora = dia === hojeOp() ? 'Sem produção hoje ainda' : 'Sem produção neste dia';
   el.innerHTML = '<div class="kpis c5">'+
@@ -509,7 +535,7 @@ function renderTelaC(res){
 
 /* ================= TELA E · EXPEDIÇÃO (embarque na doca) ================= */
 // Resumo pronto do ingest.js (operacao.resumo.expedicao): Kardex DOCA + transportadora/classificação do Itens de NF.
-var COR_EXP = '#F39C3D', COR_EXP2 = '#FFC98A';
+var COR_EXP = '#F6BD00', COR_EXP2 = '#FCE38A';   // dourado da marca (tons de amarelo)
 function nomeTransp(t){
   var n = String(t||'').replace(/\b(LTDA|S\.?\/?A|EIRELI|ME|EPP|LOGISTICA|TRANSPORTES?)\b\.?/gi, ' ').replace(/[.,]+/g, ' ').trim();
   return nomeBonito(n || t);
@@ -535,7 +561,7 @@ function renderTelaE(exp){
   el.innerHTML = '<div class="kpis c4">'+
     kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+' · Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças')+
     kpiHtml('Pedidos expedidos', fmt(d.pedidos), d.pedidos ? qt(porPed)+' peças por pedido' : 'nenhum pedido no dia', COR_EXP2, COR_EXP2, 'pedidos')+
-    kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', 'var(--orange)', null)+
+    kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', '#DFBD41', null)+
     kpiPrevisao('Previsão do dia', exp.previsao, d.pecas, COR_EXP, COR_EXP, dia)+
   '</div><div class="linhas" style="grid-template-rows:1.25fr 1fr">'+
     '<div class="linha"><div class="painel" style="--pc:'+COR_EXP+'"><span class="k">Expedição · peças por hora</span>'+(g ? g.html : '<div class="semhora">'+(dia === hojeOp() ? 'Sem expedição hoje ainda' : 'Sem expedição neste dia')+'</div>')+'</div>'+
@@ -708,14 +734,39 @@ document.addEventListener('keydown', function(e){   // para quem estiver ao lado
   if (e.key === 'ArrowDown') escolheDia(somaDias(diaTela(), -1));   // dia anterior
   if (e.key === 'ArrowUp') escolheDia(somaDias(diaTela(), 1));      // dia seguinte (até hoje)
 });
+// Calendário do dia exibido (no lugar do calendário nativo do Chrome, que não segue a identidade).
 (function(){
-  var inp = document.getElementById('dataInp');
-  document.getElementById('data').addEventListener('click', function(e){
+  var cal = document.getElementById('cal'), lbl = document.getElementById('data'), mesCal = null;
+  var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  function iso(a, m, d){ return a+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+  function desenha(){
+    var hj = hojeOp(), sel = diaTela(), a = mesCal[0], m = mesCal[1];
+    var ini = new Date(a, m, 1).getDay(), n = new Date(a, m+1, 0).getDate(), temProx = (m === 11 ? iso(a+1, 0, 1) : iso(a, m+1, 1)) <= hj;
+    var h = '<div class="kk">Dia exibido</div><div class="cab"><button type="button" class="nav" data-mes="-1" aria-label="Mês anterior">‹</button>'+
+      '<span class="mes">'+MESES[m]+' de '+a+'</span><button type="button" class="nav" data-mes="1" aria-label="Próximo mês"'+(temProx ? '' : ' disabled')+'>›</button></div>'+
+      '<div class="grade">'+['D','S','T','Q','Q','S','S'].map(function(x){ return '<span class="sm">'+x+'</span>'; }).join('');
+    for (var b = 0; b < ini; b++) h += '<span></span>';
+    for (var d = 1; d <= n; d++) {
+      var k = iso(a, m, d), cls = 'd'+(k === hj ? ' hoje' : '')+(k === sel ? ' sel' : '')+(diasComDado[k] ? ' dado' : '');
+      h += '<button type="button" class="'+cls+'" data-dia="'+k+'"'+(k > hj ? ' disabled' : '')+'>'+d+'</button>';
+    }
+    cal.innerHTML = h + '</div><div class="rod"><span><i></i>dia com produção</span><button type="button" data-dia="'+hj+'">Hoje</button></div>';
+  }
+  function fecha(){ cal.hidden = true; lbl.classList.remove('aberto'); }
+  lbl.addEventListener('click', function(e){
     e.stopPropagation();
-    inp.max = hojeOp(); inp.value = diaTela();
-    try { inp.showPicker(); } catch(err){ inp.focus(); inp.click(); }
+    if (!cal.hidden) { fecha(); return; }
+    var p = diaTela().split('-'); mesCal = [+p[0], +p[1]-1];
+    desenha(); cal.hidden = false; lbl.classList.add('aberto');
   });
-  inp.addEventListener('change', function(){ if (inp.value) escolheDia(inp.value); });
+  cal.addEventListener('click', function(e){
+    e.stopPropagation();
+    var b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.mes) { var m = mesCal[1] + (+b.dataset.mes); mesCal = [mesCal[0] + Math.floor(m/12), (m%12+12)%12]; desenha(); return; }
+    if (b.dataset.dia) { escolheDia(b.dataset.dia === hojeOp() ? null : b.dataset.dia); fecha(); }
+  });
+  document.addEventListener('click', fecha);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') fecha(); });
   document.getElementById('btnHoje').addEventListener('click', function(e){ e.stopPropagation(); escolheDia(null); });
 })();
 
