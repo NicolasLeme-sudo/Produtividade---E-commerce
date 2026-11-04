@@ -94,7 +94,11 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .fh .selo{font-size:20px}
 .fh .sem-hoje{font-size:20px;font-weight:800;color:var(--amber);margin-right:-14px}.fh .sem-hoje[hidden]{display:none}
 .fh .tt{flex:1;font-size:22px;font-weight:700}
-.navt{display:inline-flex;gap:4px;margin-left:14px;vertical-align:middle}.navt[hidden]{display:none}
+.navt{display:inline-flex;align-items:center;gap:12px;vertical-align:middle}
+.navt.so button{visibility:hidden}
+#titulo{display:inline-block}
+#titulo.troca{animation:tituloEntra .6s cubic-bezier(.2,.8,.2,1)}
+@keyframes tituloEntra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .navt button{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:inherit;font-size:26px;font-weight:700;line-height:1;padding:0 0 4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 .navt button:hover{color:var(--text);border-color:var(--text-muted)}
 .fsb{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
@@ -179,6 +183,10 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .grafico.rola .media small{left:auto;right:0}
 .colunas{position:relative;display:flex;align-items:flex-end;gap:10px;min-height:0}
 .colunas span{flex:1;position:relative;background:var(--cor);border-radius:5px 5px 0 0;min-height:2px}
+.colunas span.anima{transition:height .9s cubic-bezier(.2,.8,.2,1)}
+.colunas span.novo em{animation:valorNovo 1.6s ease-out}
+@keyframes valorNovo{0%{transform:translateX(-50%) scale(1.35);color:var(--cor2,#fff)}100%{transform:translateX(-50%) scale(1)}}
+@media (prefers-reduced-motion: reduce){.colunas span.anima{transition:none}.colunas span.novo em,#titulo.troca{animation:none}}
 .colunas span.agora{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 7px,transparent 7px 14px)}
 .colunas em{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:4px;font-style:normal;font-weight:800;font-size:16px;white-space:nowrap;background:var(--bg-card);padding:0 5px;border-radius:4px;z-index:2}
 .horas{display:flex;gap:10px}.horas i{flex:1;text-align:center;font-style:normal;font-size:14px;color:var(--text-muted)}
@@ -262,7 +270,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span id="titulo">Corrida Maluca</span><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lsaquo;</button><button type="button" id="telaProx" aria-label="Próxima tela">&rsaquo;</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lsaquo;</button><span id="titulo">Corrida Maluca</span><button type="button" id="telaProx" aria-label="Próxima tela">&rsaquo;</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
@@ -419,6 +427,32 @@ function kpiHtml(rot, valor, sub, kc, vc, un){ vc = vc || kc; return '<div class
 // Gráfico de colunas por hora: só as JANELA_HORAS últimas horas, a mais recente encostada à direita.
 // A 00h do próprio dia é o fim do T02 do dia anterior: sai do começo e a 00h do dia seguinte (h00) entra no fim.
 var JANELA_HORAS = 10;
+// Dado novo no gráfico: a coluna nova cresce do zero e a que mudou de valor sobe/desce até o novo tamanho.
+// Compara com o que a pessoa VIU por último (memória só muda quando a animação roda, com a tela na frente).
+var memoriaColunas = {};   // "tela:índice" -> { hora: [altura, valor] }
+function animaGraficos(){
+  document.querySelectorAll('.grafico:not([data-animado])').forEach(function(g){
+    g.dataset.animado = '1';
+    var t = g.closest('section.tela'); if (!t) return;
+    var chave = t.id + ':' + Array.prototype.indexOf.call(t.querySelectorAll('.grafico'), g), antes = memoriaColunas[chave], agora = {};
+    g.querySelectorAll('.colunas span[data-h]').forEach(function(sp){
+      var h = sp.dataset.h; agora[h] = [sp.style.height, sp.textContent];
+      if (antes && antes[h] && antes[h][0] === sp.style.height && antes[h][1] === sp.textContent) return;   // nada mudou nesta hora
+      sp.dataset.alvo = sp.style.height; sp.dataset.atualiza = antes && (!antes[h] || antes[h][1] !== sp.textContent) ? '1' : '';   // destaque só no número que mudou
+      sp.style.height = antes && antes[h] ? antes[h][0] : '0%';          // parte do tamanho antigo (ou do zero)
+    });
+    g._chave = chave; g._agora = agora;
+    if (t.classList.contains('on')) tocaAnimacao(g);                     // tela escondida: espera ela entrar
+  });
+}
+function tocaAnimacao(g){
+  memoriaColunas[g._chave] = g._agora;
+  var sps = g.querySelectorAll('.colunas span[data-alvo]');
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ sps.forEach(function(sp){
+    sp.classList.add('anima'); if (sp.dataset.atualiza) sp.classList.add('novo');
+    sp.style.height = sp.dataset.alvo; delete sp.dataset.alvo; }); }); });
+}
+new MutationObserver(animaGraficos).observe(document.documentElement, { childList:true, subtree:true });
 // Rolagem dos gráficos: a posição que a pessoa deixa vale até a tela trocar (aí volta para a hora mais recente).
 var rolagemUsuario = {};   // chave do gráfico -> scrollLeft escolhido
 function chaveGrafico(g){ var t = g.closest('section.tela'); return t ? t.id + ':' + Array.prototype.indexOf.call(t.querySelectorAll('.grafico.rola'), g) : ''; }
@@ -461,7 +495,7 @@ function graficoHoras(horas, dia, cor, cor2, rotMedia, h00){
   var mx = Math.max.apply(null, faixa.concat([media])) * 1.18 || 1;
   // escala de cor só com as horas completas (a hora em andamento ainda está pela metade)
   var base = completas.length ? completas : faixa, maior = Math.max.apply(null, base) || 1, menor = Math.min.apply(null, base), forte = escurece(cor, .3);
-  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor2, forte, maior > menor ? (v - menor)/(maior - menor) : 1)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
+  var cols = faixa.map(function(v, i){ return '<span data-h="'+lab[i]+'" class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor2, forte, maior > menor ? (v - menor)/(maior - menor) : 1)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
   var hrs = lab.map(function(h){ return '<i>'+String(h).padStart(2,'0')+'h</i>'; }).join('');
   var ml = media ? '<div class="media" style="bottom:'+(media/mx*100).toFixed(1)+'%"><small>média '+fmt(media)+'/h</small></div>' : '';
   var g = '<div class="grafico'+(rola ? ' rola' : '')+'" style="--cor:'+cor+';--cor2:'+cor2+'"><div class="trilho" style="width:'+larg+'%"><div class="colunas">'+cols+ml+'</div><div class="horas">'+hrs+'</div></div></div>';
@@ -812,14 +846,16 @@ function entraTela(i){
   telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
   var cc = COR_CAL[telas[i].id] || COR_CAL.telaC, pal = document.getElementById('palco');
   pal.style.setProperty('--cc', cc[0]); pal.style.setProperty('--cc2', cc[1]); pal.style.setProperty('--cc-t', cc[2]);
-  document.getElementById('titulo').textContent = telas[i].getAttribute('data-titulo');
+  var tit = document.getElementById('titulo'), novoTit = telas[i].getAttribute('data-titulo');
+  if (tit.textContent !== novoTit) { tit.textContent = novoTit; tit.classList.remove('troca'); void tit.offsetWidth; tit.classList.add('troca'); }   // nome entra deslizando
   document.getElementById('barra').hidden = telasAtivas().length < 2;   // com uma tela só não há o que girar
-  document.querySelector('.navt').hidden = telasAtivas().length < 2;
+  document.querySelector('.navt').classList.toggle('so', telasAtivas().length < 2);
   relogio();
   if (telas[i].id === 'telaA') requestAnimationFrame(ajustaAltura);
   requestAnimationFrame(function(){   // tela estava escondida: só agora dá para medir
     ajustaLinhaKpi();
     rolagemUsuario = {};   // tela nova: todos os gráficos voltam para a hora mais recente
+    telas[i].querySelectorAll('.grafico').forEach(function(g){ if (g._agora) tocaAnimacao(g); });   // dado que chegou com a tela escondida
     telas[i].querySelectorAll('.grafico.rola').forEach(function(g){ g.scrollLeft = g.scrollWidth; });
   });
 }
