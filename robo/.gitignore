@@ -5,3 +5,7 @@ estado.json
 package-lock.json
 gravacao*.js
 robo-saida.log
+erros/
+*.parcial
+baixar.lock
+robo.lock

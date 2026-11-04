@@ -21,6 +21,7 @@ const vm = require("vm");
 
 const RAIZ = __dirname;
 const TESTE = process.argv.includes("--teste");
+const ENVIAR = process.argv.includes("--enviar");   // envia de verdade os arquivos passados (preencher dias que faltam)
 const ARQ_LOG = path.join(RAIZ, "robo.log");
 const ARQ_ESTADO = path.join(RAIZ, "estado.json");
 const INTERVALO_MS = 5000;          // a cada 5 s olha a pasta
@@ -52,11 +53,12 @@ const RELATORIOS = [
   { id: "up-conf-colmeia",          nome: "Conferência Colmeia",   todas: ["Operador", "Qtde Unitária Montada", "Qtde Volumes"] },
   { id: "up-kardex-geral",          nome: "Kardex",                todas: ["Local", "Tipo do Local", "Complementar", "Estoque Antes", "Usuário"] },
   { id: "up-acompanhamento-op",     nome: "Acompanhamento OP",     todas: ["Pedido de Venda", "Status da Nota Fiscal", "Classificação Tipo Pedido", "Cancelado Pelo ERP", "Qtde. Total de Produto"] },
+  { id: "up-itens-nf-saida",        nome: "Itens de NF de Saída",  todas: ["Chave Acesso NF-e", "Pedido de Venda", "Produto", "Barra", "Qtde. Faturada"] },
+  // Base de embalagem salva em Downloads toda semana: envia quando muda e NÃO tira o arquivo de lá.
+  { id: "up-embalas",               nome: "Embalas",               todas: ["SKU", "Artigo", "MARCA"], naoMover: true },
 ];
-// Relatórios que o robô conhece mas ainda não envia (vão para o Report E-commerce na fase 2).
-const IGNORADOS = [
-  { nome: "Itens de NF de Saída", todas: ["Chave Acesso NF-e", "Barra", "Qtde. Faturada"] },
-];
+// Relatórios que o robô conhece mas ainda não envia (nenhum por enquanto).
+const IGNORADOS = [];
 
 function normCol(s) { return String(s || "").replace(/^\uFEFF/, "").trim(); }
 function cabecalhoDoArquivo(arq) {
@@ -175,6 +177,14 @@ async function enviar(arq, cfg) {
   return ok;
 }
 
+/* ---------------- pedido mais antigo do OP (para o baixador) ---------------- */
+// A regra (só pedidos em aberto) fica no ingest.js.
+let ingestLeitura = null;
+async function maisAntigoOp(arq) {
+  const ing = ingest || ingestLeitura || (ingestLeitura = carregarIngest(true));
+  return ing.api.maisAntigoOp(arquivoComoFile(arq));
+}
+
 /* ---------------- vigia de pasta ---------------- */
 function lerEstado() { try { return JSON.parse(fs.readFileSync(ARQ_ESTADO, "utf8")); } catch (e) { return {}; } }
 function salvarEstado(e) { try { fs.writeFileSync(ARQ_ESTADO, JSON.stringify(e, null, 1)); } catch (x) {} }
@@ -186,10 +196,17 @@ async function vigiar(cfg) {
   const mover = String(cfg.MOVER_ENVIADOS || "sim").toLowerCase() !== "nao";
   const inicio = Date.now(), tamanhos = {}, estado = lerEstado();
   let ocupado = false;
-  // Reinicia a cada 6 h: o iniciar.bat baixa a versão nova do GitHub e liga de novo.
-  setTimeout(function () { log("Reinício programado (6 h) para buscar atualização."); process.exit(0); }, 6 * 3600 * 1000);
   log("Vigiando " + pasta + " · baixe os relatórios do WMS normalmente. Ctrl+C para parar.");
   await prepararIngest(cfg);
+  // Com usuário do WMS no .env, o robô também baixa os relatórios sozinho.
+  if (cfg.WMS_USUARIO) {
+    // Erro no baixador: tenta de novo em 1 min aqui mesmo (o robô só para quando você desliga).
+    const ligarBaixador = function () {
+      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp })
+        .catch(function (e) { log("ERRO no baixador: " + e.message + " · tento de novo em 1 min"); setTimeout(ligarBaixador, 60000); });
+    };
+    ligarBaixador();
+  }
   setInterval(async function () {
     if (ocupado) return; ocupado = true;
     try {
@@ -203,7 +220,7 @@ async function vigiar(cfg) {
         estado[chave] = new Date().toISOString(); salvarEstado(estado);
         let ok = false;
         try { ok = await enviar(arq, cfg); } catch (e) { log("ERRO ao enviar " + n + ": " + e.message); }
-        if (ok && mover) {
+        if (ok && mover && !(identificar(arq).rel || {}).naoMover) {   // Embalas fica em Downloads
           try { fs.mkdirSync(destino, { recursive: true }); fs.renameSync(arq, path.join(destino, n)); } catch (e) { log("Não consegui mover " + n + ": " + e.message); }
         }
       }
@@ -212,16 +229,26 @@ async function vigiar(cfg) {
   }, INTERVALO_MS);
 }
 
+module.exports = { lerEnv: lerEnv, log: log, maisAntigoOp: maisAntigoOp };
+
 /* ---------------- início ---------------- */
-(async function () {
+if (require.main === module) (async function () {
   const cfg = lerEnv();
   try {
-    if (TESTE) {
-      const arqs = process.argv.slice(2).filter(function (a) { return a !== "--teste"; });
+    if (TESTE || ENVIAR) {
+      const arqs = process.argv.slice(2).filter(function (a) { return a !== "--teste" && a !== "--enviar"; });
       if (!arqs.length) { console.log("Uso: npm run teste -- C:\\caminho\\Exportacao_123.tsv"); return; }
       for (const a of arqs) await enviar(path.resolve(a), cfg);
       process.exit(0);
     }
+    // Só um robô por vez: um segundo (tarefa agendada + ligar na mão) duplicaria os envios.
+    const trava = path.join(__dirname, "robo.lock");
+    try {
+      const pid = Number(fs.readFileSync(trava, "utf8"));
+      if (pid && pid !== process.pid) { process.kill(pid, 0); log("Já tem um robô rodando (processo " + pid + "): este não liga."); process.exit(3); /* 3 = a janela deste fecha sozinha */ }
+    } catch (e) { /* sem trava ou processo antigo já fechado: segue */ }
+    fs.writeFileSync(trava, String(process.pid));
+    process.on("exit", function () { try { if (fs.readFileSync(trava, "utf8") === String(process.pid)) fs.unlinkSync(trava); } catch (e) {} });
     await vigiar(cfg);
   } catch (e) { log("ERRO: " + e.message); process.exit(1); }
 })();

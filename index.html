@@ -71,7 +71,7 @@ body{
 .login-logo{width:52px; height:52px; object-fit:contain; margin-bottom:14px;}
 .login-box h1{font-size:18px; margin:0 0 2px; color:var(--text);}
 .login-sub{font-size:12px; color:var(--text-muted); margin:0 0 22px;}
-.login-box input{width:100%; padding:10px 12px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-input); color:var(--text); font-size:13px;}
+.login-box input{width:100%; padding:10px 12px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-input); color:var(--text); font-size:13px; font-family:inherit;}
 .login-box button{width:100%; padding:10px 12px; border-radius:8px; border:none; background:var(--accent); color:#fff; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit;}
 .login-erro{color:var(--red); font-size:12px; margin-top:10px; min-height:14px;}
 
@@ -80,28 +80,29 @@ body{
 .layout.oculto{display:none;}
 .sidebar{width:220px; flex:0 0 220px; background:var(--bg-sidebar); display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,.06); overflow-y:auto; scrollbar-width:none; -ms-overflow-style:none;}
 .sidebar::-webkit-scrollbar{display:none;}
-.sidebar-brand{padding:18px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:12px;}
+.sidebar-brand{padding:20px 18px 16px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:12px;}
 .sidebar-brand .mark{width:36px; height:36px; border-radius:8px; flex-shrink:0; background:var(--bg-sidebar); display:flex; align-items:center; justify-content:center; overflow:hidden;}
 .sidebar-brand .mark img{width:100%; height:100%; object-fit:contain;}
 .sidebar-brand .nome{font-size:13px; font-weight:700; color:#fff; line-height:1.3;}
 .sidebar-brand .sub{font-size:10.5px; color:#7C9AB8; margin-top:2px;}
-.nav-group{display:flex; flex-direction:column; gap:2px; padding:10px 10px 4px;}
-.nav-label{color:rgba(255,255,255,.4); font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; padding:8px 8px 4px; cursor:pointer;}
-.nav-label:hover{color:rgba(255,255,255,.7);}
+.nav-group{display:flex; flex-direction:column;}
+/* Setores e itens com as mesmas medidas do Report E-commerce e do Report Distribuidora */
+.nav-label{color:#4A6080; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; padding:16px 12px 6px 18px; line-height:14px; cursor:pointer;}
+.nav-label:hover{color:#9BAAC4;}
 .nav-label:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
-.nav-item{display:flex; align-items:center; gap:8px; color:rgba(255,255,255,.75); font-size:.83rem; padding:7px 8px; border-radius:6px; cursor:pointer;}
-.nav-item:hover{background:rgba(255,255,255,.07); color:#fff;}
-.nav-item.active{background:rgba(41,122,223,.25); color:#fff; font-weight:600;}
+.nav-item{display:flex; align-items:center; gap:10px; color:#9BAAC4; font-size:13px; font-weight:500; padding:9px 18px; line-height:20px; border-left:3px solid transparent; cursor:pointer; transition:background .15s, color .15s; user-select:none;}
+.nav-item:hover{background:rgba(255,255,255,.05); color:#fff;}
+.nav-item.active{background:rgba(41,122,223,.12); color:#fff; border-left-color:var(--accent); font-weight:600;}
 .nav-item:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
 .nav-dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.6; flex:0 0 auto;}
 .nav-group.oculto{display:none;}
 .nav-label{display:flex; align-items:center; gap:4px;}
 .nav-label-txt{flex:1;}
-.nav-seta{width:22px; height:22px; border:none; border-radius:6px; background:transparent; color:rgba(255,255,255,.45); cursor:pointer; display:grid; place-items:center; flex:0 0 auto; transition:transform .18s;}
+.nav-seta{width:22px; height:22px; border:none; border-radius:6px; background:transparent; color:rgba(255,255,255,.45); cursor:pointer; display:grid; place-items:center; flex:0 0 auto; margin:-4px 0; transition:transform .18s;}
 .nav-seta:hover{background:rgba(255,255,255,.08); color:#fff;}
 .nav-seta:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
 .nav-group.aberto .nav-seta{transform:rotate(180deg);}
-.nav-filhos{display:flex; flex-direction:column; gap:2px; margin-left:10px; padding-left:6px; border-left:1px solid rgba(255,255,255,.08);}
+.nav-filhos{display:flex; flex-direction:column;}
 .nav-filhos[hidden]{display:none;}
 .tag-novo{font-size:.55rem; background:var(--amber); color:#1C2333; padding:1px 6px; border-radius:8px; font-weight:800; letter-spacing:.04em; margin-left:6px;}
 @media (prefers-reduced-motion:reduce){ .nav-seta, .fb-seta{transition:none;} }
@@ -111,9 +112,9 @@ body{
 .sidebar-footer button{background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#fff; border-radius:7px; padding:6px 10px; font-size:11.5px; cursor:pointer; font-family:inherit;}
 
 .main{flex:1; min-width:0; display:flex; flex-direction:column;}
-.topbar{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:14px 22px; border-bottom:1px solid var(--border); background:var(--bg-card); box-shadow:var(--shadow);}
-.topbar h2{margin:0; font-size:1.05rem;}
-.topbar .sub{font-size:.75rem; color:var(--text-muted); margin-top:2px;}
+.topbar{display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; min-height:60px; padding:0 24px; border-bottom:1px solid var(--border); background:var(--bg-card); box-shadow:var(--shadow);}
+.topbar h2{margin:0; font-size:16px; font-weight:700; line-height:1.25;}
+.topbar .sub{font-size:11.5px; color:var(--text-muted); margin-top:2px; line-height:1.25;}
 .btn{background:var(--accent); color:#fff; border:none; padding:8px 14px; border-radius:7px; font-size:.8rem; font-weight:600; cursor:pointer; font-family:inherit;}
 .btn.ghost{background:var(--bg-input); color:var(--text); border:1px solid var(--border);}
 .btn-tema{padding:6px 12px; border-radius:20px; cursor:pointer; background:var(--bg-input); border:1px solid var(--border); color:var(--text); font-size:12px; font-weight:600;}
@@ -127,7 +128,8 @@ body{
 .sub-head h3{margin:0; font-size:.95rem;}
 .sub-head .kicker{margin:0;}
 .kicker{font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin:0 0 6px;}
-.subsection.flash{animation:flashPulse 800ms ease-in-out 3;}
+.subsection.flash,.grupo-abastecimento.flash{animation:flashPulse 800ms ease-in-out 3;}
+.grupo-abastecimento{border-radius:10px;}
 @keyframes flashPulse{0%,100%{box-shadow:0 0 0 0 transparent; background:transparent;} 50%{box-shadow:0 0 0 3px var(--amber), 0 0 16px 2px var(--amber-soft); background:var(--amber-soft);}}
 
 .filterbar{position:sticky; top:0; z-index:5; display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px;}
@@ -485,6 +487,27 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .comp-membro small{display:block; color:var(--text-muted); font-size:.66rem;}
 .comp-edit{grid-column:1 / -1; display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
 .comp-add{display:flex; gap:8px; flex-wrap:wrap;}
+/* Missão Black: lançamento de pontos */
+.pb-col{display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:18px;}
+.pb-check{display:grid; gap:10px;}
+.pb-grav{display:grid; gap:4px;}
+.pb-grav b{font-size:.74rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em;}
+.pb-item{display:flex; align-items:center; gap:8px; font-size:.8rem;}
+.pb-item input[type=number]{width:52px; flex:none; border:1px solid var(--border); background:var(--bg-card); color:var(--text); border-radius:7px; padding:5px 6px; font-size:.78rem; font-family:inherit; text-align:center; font-variant-numeric:tabular-nums;}
+.pb-item input[type=number]:focus{outline:none; border-color:var(--accent);}
+.pb-item input[type=checkbox]{accent-color:var(--accent); width:15px; height:15px;}
+.pb-ouros{display:flex; flex-direction:column; gap:6px; font-size:.8rem;}
+/* Ajustes: Gincanas, Ajuste de pontuação e Horas de Ouro lado a lado */
+.pb-ajustes{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; align-items:stretch;}
+.pb-ajustes > div > .panel{height:100%; box-sizing:border-box;}
+@media (max-width:1100px){ .pb-ajustes{grid-template-columns:1fr;} }
+.pb-extrair{display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-bottom:12px;}
+.pb-extrair .upload-status{margin:0;}
+.pb-extrair .btn{white-space:nowrap; flex:none;}
+/* campo com nome em cima: altura do conteúdo (sem esticar) */
+.pb-campo{display:flex; flex-direction:column; gap:3px; flex:1 1 140px; font-size:.68rem; color:var(--text-muted);}
+.comp-add .pb-campo > input,.comp-add .pb-campo > select{flex:none; width:100%;}
+.pb-vazio{font-size:.78rem; color:var(--text-muted); margin:0;}
 .comp-lista-membros{display:flex; flex-direction:column; gap:8px; max-height:224px; overflow-y:auto; padding-right:4px;}   /* 4 colaboradores visíveis, o resto rola */
 .comp-add input,.comp-add select,.comp-edit select,.comp-edit input{border:1px solid var(--border); background:var(--bg-card); color:var(--text); border-radius:7px; padding:7px 10px; font-size:.76rem; font-family:inherit; min-width:0; flex:1 1 110px;}
 .comp-aviso{color:var(--amber); font-size:.66rem; font-weight:700;}
@@ -508,7 +531,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   <div class="login-box">
     <img src="/logo-mark.png" alt="Logo" class="login-logo">
     <h1>Produtividade E-commerce</h1>
-    <p class="login-sub">Vulcabras · Armazém</p>
+    <p class="login-sub">Vulcabras · Extrema</p>
     <form id="loginForm">
       <input type="text" id="loginEmail" placeholder="Usuário" required autocomplete="username">
       <input type="password" id="loginSenha" placeholder="Senha" required autocomplete="current-password">
@@ -553,14 +576,20 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       <div class="nav-item" tabindex="0" data-page="reversa" data-target="vinculacao"><span class="nav-dot"></span>Vinculação</div>
     </div>
     <div class="nav-group">
-      <div class="nav-label" tabindex="0">Competição<span class="tag-novo">NOVO</span></div>
+      <div class="nav-label" tabindex="0">Competição</div>
       <div class="nav-item" tabindex="0" data-page="competicao" data-target="placar"><span class="nav-dot"></span>Placar dos times</div>
       <div class="nav-item" tabindex="0" data-page="competicao" data-target="equipes"><span class="nav-dot"></span>Ranking por time</div>
     </div>
     <div class="nav-group" id="grupoAdmin">
       <div class="nav-label" tabindex="0">Admin <span style="color:var(--amber)">·</span> restrito</div>
-      <div class="nav-item" tabindex="0" data-page="admin" data-target="abastecimento"><span class="nav-dot"></span>Abastecimento de base<span class="badge-admin">Admin</span></div>
-      <div class="nav-item" tabindex="0" data-page="admin" data-target="ativos"><span class="nav-dot"></span>Base de ativos<span class="badge-admin">Admin</span></div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-compartilhados"><span class="nav-dot"></span>Compartilhados</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-outbound"><span class="nav-dot"></span>Outbound</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-movimentacao"><span class="nav-dot"></span>Movimentação</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-estoque"><span class="nav-dot"></span>Gestão de Estoque</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-times"><span class="nav-dot"></span>Times da competição</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-vistoria"><span class="nav-dot"></span>Vistoria</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="adm-ajustes"><span class="nav-dot"></span>Ajustes</div>
+      <div class="nav-item" tabindex="0" data-page="admin" data-target="ativos"><span class="nav-dot"></span>Base de ativos</div>
     </div>
   </aside>
 
@@ -877,6 +906,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 <!-- ingest.js: só é EXECUTADO de fato (renderiza uploads, lê arquivos, grava
      no Supabase) quando perfilAtual === 'admin' e a tela de Abastecimento é
      aberta. Nas demais telas ele só fica carregado, sem rodar nada. -->
+<script src="regras-black.js"></script>
 <script src="ingest.js"></script>
 
 <script>
@@ -1222,10 +1252,9 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         '<text x="'+(x+lc/2)+'" y="'+(y(t)-6)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle" pointer-events="none">'+fmt(t)+'</text>'+
         '<text x="'+(x+lc/2)+'" y="'+(base+16)+'" font-size="10.5" fill="var(--text-muted)" text-anchor="middle">'+String(h).padStart(2,'0')+'h</text>';
     });
-    s += '<line x1="'+esq+'" x2="'+(W-dir)+'" y1="'+y(media)+'" y2="'+y(media)+'" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="6 5" pointer-events="none"/>'+
-      '<text x="'+(W-dir)+'" y="'+(y(media)-6)+'" font-size="10.5" font-weight="700" fill="var(--amber)" text-anchor="end" pointer-events="none">Média/hora '+fmt(Math.round(media))+'</text>';
+    s += '<line x1="'+esq+'" x2="'+(W-dir)+'" y1="'+y(media)+'" y2="'+y(media)+'" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="6 5" pointer-events="none"/>';   // valor da média vai na legenda (não cobre os números das colunas)
     return '<div class="chart-scroll-x">'+s+'</svg></div>'+
-      '<div class="legend-line"><span><i class="sq" style="background:var(--accent)"></i>Checkout (SINGLE)</span><span><i class="sq" style="background:var(--olive)"></i>Colmeia (MULTI)</span><span><i style="background:var(--amber)"></i>Média por hora</span></div>';
+      '<div class="legend-line"><span><i class="sq" style="background:var(--accent)"></i>Checkout (SINGLE)</span><span><i class="sq" style="background:var(--olive)"></i>Colmeia (MULTI)</span><span><i style="background:var(--amber)"></i>Média por hora <b style="color:var(--amber)">'+fmt(Math.round(media))+'</b></span></div>';
   }
   function ligarSeparacaoPorHora(){
     var tip = tipGrafico('sep-hora', '.sep-hora-col');
@@ -2485,7 +2514,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       var titulos = { outbound:['Outbound','Separação · Conferência · Expedição'], inbound:['Inbound','Recebimento · Armazenagem · Mov. de Pallets'],
         estoque:['Gestão de Estoque','Inventário · Corte · Pula · Cancelamentos WMS'], reversa:['Reversa','Integração · Vinculação'],
         competicao:['Competição','Placar dos times · Ranking por time'],
-        admin:['Admin','Abastecimento de base · Base de ativos'] };
+        admin:['Admin','Abastecimento de base · Pontos da Black · Base de ativos'] };
       document.getElementById('page-title').textContent = titulos[grupo][0];
       document.getElementById('page-sub').textContent = titulos[grupo][1];
       renderPagina(grupo);

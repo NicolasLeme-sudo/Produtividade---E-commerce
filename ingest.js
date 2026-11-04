@@ -246,10 +246,17 @@ function acumularHora(dias, data, tipo, usuario, hora, valor) {
   arr[hora] += valor;
   dia[tipo].set(usuario, arr);
 }
-function diasHoraParaArray(dias) {
+// minutos (opcional): Map(data -> { checkout: Map(usuario -> Map(minuto -> peças)), colmeia }) -> checkoutMin/colmeiaMin = { USUARIO: [[minuto, peças], ...] }
+function diasHoraParaArray(dias, minutos) {
   return Array.from(dias.values()).map(function (d) {
     var o = { data: d.data, checkout: {}, colmeia: {} };
     ["checkout", "colmeia"].forEach(function (t) { d[t].forEach(function (arr, u) { o[t][u] = arr; }); });
+    var dm = minutos && minutos.get(d.data);
+    if (dm) ["checkout", "colmeia"].forEach(function (t) {
+      var porU = {};
+      dm[t].forEach(function (mp, u) { porU[u] = Array.from(mp.entries()).sort(function (a, b) { return a[0] - b[0]; }); });
+      o[t + "Min"] = porU;
+    });
     return o;
   }).sort(function (a, b) { return a.data.localeCompare(b.data); });
 }
@@ -264,7 +271,7 @@ function segundosDoTexto(v) {
   return m ? Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +(m[6] || 0)) / 1000 : null;
 }
 function novoAcumuladorAnalitico() {
-  return { horas: new Map(), pecas: { checkout: new Map(), colmeia: new Map() }, spans: new Map(), totais: { checkout: new Map(), colmeia: new Map() } };
+  return { horas: new Map(), minutos: new Map(), pecas: { checkout: new Map(), colmeia: new Map() }, spans: new Map(), totais: { checkout: new Map(), colmeia: new Map() } };
 }
 function registrarSpan(ac, chave, ini, fim) {
   var sp = ac.spans.get(chave);
@@ -282,6 +289,19 @@ function acumularAnalitico(ac, row, tipo, usuario) {
   somarNoDia(ac.pecas[tipo], dataDia, usuario, pecas);
   ac.totais[tipo].set(usuario, (ac.totais[tipo].get(usuario) || 0) + pecas);
   var i0 = segundosDoTexto(ini), i1 = segundosDoTexto(fimTxt);
+  // Minuto do dia em que a tarefa terminou (Data/Hora Fim), contado a partir do dia de início
+  // (passa de 1440 se terminou depois da meia-noite). Usado na meta antecipada da Missão Black.
+  var fimSeg = i1 !== null ? i1 : i0;
+  if (fimSeg !== null) {
+    var p0 = dataInicio.split("-"), minuto = Math.floor((fimSeg - Date.UTC(+p0[0], +p0[1] - 1, +p0[2]) / 1000) / 60);
+    if (minuto >= 0 && minuto < 2880) {
+      var dm = ac.minutos.get(dataInicio) || { checkout: new Map(), colmeia: new Map() };
+      ac.minutos.set(dataInicio, dm);
+      var mu = dm[tipo].get(usuario) || new Map();
+      mu.set(minuto, (mu.get(minuto) || 0) + pecas);
+      dm[tipo].set(usuario, mu);
+    }
+  }
   if (i0 !== null && i1 !== null) {
     registrarSpan(ac, dataDia + "|" + tipo + "|" + usuario, i0, i1);
     registrarSpan(ac, dataDia + "|geral|" + usuario, i0, i1);
@@ -453,6 +473,7 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
   var totalNormal = 0, totalReversa = 0;
   var normalDia = new Map(), reversaDia = new Map();
   var normalHora = new Map();   // data -> [24] peças armazenadas por hora (só armazenagem normal)
+  var normalMin = new Map();    // data -> { minuto do dia: peças } (previsão "nesta hora"; não é gravado)
 
   rows.forEach(function (row) {
     var dataBruta = obterCampo(row, ["Data"]);
@@ -482,6 +503,8 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
         var horas = normalHora.get(dataISO) || new Array(24).fill(0);
         horas[hora] += delta;
         normalHora.set(dataISO, horas);
+        var minuto = minutoDoValor(dataBruta);
+        if (minuto !== null) { var mm = normalMin.get(dataISO) || {}; mm[minuto] = (mm[minuto] || 0) + delta; normalMin.set(dataISO, mm); }
       }
     } else if (prefixo === "S") {
       porUsuarioReversa.set(colaborador.nome, (porUsuarioReversa.get(colaborador.nome) || 0) + delta);
@@ -490,10 +513,89 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
     }
   });
 
-  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora };
+  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora, normalMin: normalMin };
+}
+// Minuto do dia (0-1439) da coluna Data: "dd/mm/yyyy HH:mm:ss", serial do Excel ou Date. Sem hora = null.
+function minutoDoValor(valor) {
+  if (valor === null || valor === undefined || valor === "") return null;
+  if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor.getHours() * 60 + valor.getMinutes();
+  if (typeof valor === "number") { var fr = valor - Math.floor(valor); return fr > 0 ? Math.min(1439, Math.floor(fr * 1440 + 1e-6)) : null; }
+  var m = String(valor).match(/\s(\d{1,2}):(\d{2})/);
+  return m ? Math.min(1439, Number(m[1]) * 60 + Number(m[2])) : null;
+}
+// { data: {minuto: peças} } do calendário -> minutos do dia operacional (00h–01h do dia seguinte entra como 1440+).
+function minutosOperacionais(porData, dia) {
+  var out = Object.assign({}, porData.get(dia) || {}), seg = porData.get(diaSeguinteISO(dia)) || {};
+  Object.keys(seg).forEach(function (k) { if (+k < 60) out[+k + 1440] = (out[+k + 1440] || 0) + seg[k]; });
+  return out;
+}
+
+// ---- Expedição (embarque) pelo Kardex ----
+// Bipagem na doca: Tipo do Local DOCA + Complementar "NOTA FISCAL PROCESSADA, RETIRADO ESTOQUE PARA
+// NOTAFISCAL ID:<id>". O id é o idNotaFiscal do Itens de NF (1 nota = 1 pedido). Vale o ÚLTIMO evento
+// de cada nota: processada = embarcada (usuário e horário desse evento; peças = Estoque Antes − Após das
+// linhas desse momento); estorno ("PROCESSAMENTO DE NOTA FISCAL ESTORNADO") ou cancelamento depois = não conta.
+// Dia operacional: 00h–01h ainda é o dia anterior (minuto 1440+).
+// Retorna { dias: { dia: { idNF: [usuario, minuto, peças] } }, estornadas: [idNF] }
+function processarExpedicaoKardex(rows) {
+  var ev = {};
+  rows.forEach(function (row) {
+    if (normalizarTexto(obterCampo(row, ["Tipo do Local"])) !== "DOCA") return;
+    var comp = normalizarTexto(obterCampo(row, ["Complementar"]));
+    var m = /NOTAFISCAL ID:\s*(\d+)/.exec(comp);
+    if (!m) return;
+    var tipo = comp.indexOf("NOTA FISCAL PROCESSADA, RETIRADO ESTOQUE") === 0 ? "P"
+      : (comp.indexOf("ESTORNADO, ADICIONADO ESTOQUE") !== -1 || comp.indexOf("CANCELADA, REMOVIDO ESTOQUE") !== -1) ? "E" : null;
+    if (!tipo) return;
+    var ms = dataHoraParaMs(obterCampo(row, ["Data"]));
+    if (ms === null) return;
+    var pecas = tipo === "P" ? numero(obterCampo(row, ["Estoque Antes"])) - numero(obterCampo(row, ["Estoque Após", "Estoque Apos"])) : 0;
+    (ev[m[1]] || (ev[m[1]] = [])).push([ms, tipo, String(obterCampo(row, ["Usuário", "Usuario"]) || "").trim().toUpperCase(), pecas]);
+  });
+  var out = { dias: {}, estornadas: [] };
+  Object.keys(ev).forEach(function (id) {
+    var l = ev[id].sort(function (a, b) { return a[0] - b[0] || (a[1] === "E" ? 1 : -1); }), ult = l[l.length - 1];
+    if (ult[1] !== "P") { out.estornadas.push(id); return; }
+    var pecas = l.reduce(function (s, x) { return s + (x[1] === "P" && x[0] === ult[0] ? x[3] : 0); }, 0);
+    var d = new Date(ult[0]), min = d.getHours() * 60 + d.getMinutes();
+    if (d.getHours() < 1) { d.setDate(d.getDate() - 1); min += 1440; }
+    var dia = paraDataISOLocal(d);
+    (out.dias[dia] || (out.dias[dia] = {}))[id] = [ult[2] || "(sem usuário)", min, pecas];
+  });
+  return out;
+}
+// Itens de NF -> { idNF: [transportadora, "S" | "M" | "", status] } (SINGLE = checkout, MULTI = colmeia)
+function processarInfoNf(rows) {
+  var info = {};
+  rows.forEach(function (row) {
+    var id = String(obterCampo(row, ["idNotaFiscal"]) || "").trim();
+    if (!id || info[id]) return;
+    var cl = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"]));
+    info[id] = [String(obterCampo(row, ["Transportadora"]) || "").trim(), cl.indexOf("MULTI") !== -1 ? "M" : cl.indexOf("SINGLE") !== -1 ? "S" : "", normalizarTexto(obterCampo(row, ["Status"])),
+      paraDataISO(obterCampo(row, ["Data de Cadastro"])) || ""];
+  });
+  return info;
 }
 
 // ---- 5) Conferência Colmeia ----
+// Conferência Colmeia não tem hora: cada envio (o robô exporta a cada 5 min) vira uma marca
+// [minuto do envio, { OPERADOR: acumulado do dia }]. Só para hoje (e ontem até 02h, por causa do T02).
+// Formato: [{ data, marcas: [[minuto, {...}], ...] }], guarda os 7 dias mais recentes.
+function marcarColmeia(anterior, unitDia) {
+  var agora = new Date(), minAgora = agora.getHours() * 60 + agora.getMinutes();
+  var hojeISO = paraDataISOLocal(agora), ontem = new Date(agora); ontem.setDate(ontem.getDate() - 1);
+  var ontemISO = paraDataISOLocal(ontem);
+  var lista = (anterior || []).slice();
+  unitDia.forEach(function (porOp, dia) {
+    var minuto = dia === hojeISO ? minAgora : (dia === ontemISO && agora.getHours() < 2 ? 1440 + minAgora : null);
+    if (minuto === null) return;
+    var itens = {}; porOp.forEach(function (v, op) { itens[op] = v; });
+    var reg = lista.filter(function (x) { return x.data === dia; })[0];
+    if (!reg) { reg = { data: dia, marcas: [] }; lista.push(reg); }
+    reg.marcas = reg.marcas.filter(function (mk) { return mk[0] !== minuto; }).concat([[minuto, itens]]).sort(function (a, b) { return a[0] - b[0]; });
+  });
+  return lista.sort(function (a, b) { return a.data.localeCompare(b.data); }).slice(-7);
+}
 function processarConferenciaColmeia(rows) {
   var porOperador = new Map(); // nome -> { unitaria, volumes }
   var unitDia = new Map(), volDia = new Map();
@@ -1001,6 +1103,269 @@ function processarAcompanhamentoOp(rows, pedidosComCorte) {
   return { emSeparacao: emSeparacao, aguardandoOnda: aguardandoOnda };
 }
 
+// ---- 15) Operação agora, em ITENS (Tela C do telão) ----
+// Acompanhamento_Op diz a etapa e os itens de cada pedido; Itens de NF de
+// Saída diz a marca. Fica no snapshot "operacao": os pedidos e as marcas
+// (para recalcular quando só um dos dois relatórios chega) + o resumo que o
+// telão lê. Etapas iguais às do Report E-commerce (calcularStatus de lá).
+var ETAPAS_OPERACAO = ["01 - Gerar", "02 - Em Separação", "03 - Separado - Aguardando NF", "04 - Separado - Conferir", "05 - Conferido - Despachar"];
+
+// "dd/mm/aaaa HH:mm:ss", Date ou serial do Excel -> milissegundos (null se vazio).
+function dataHoraParaMs(valor) {
+  if (valor === null || valor === undefined || valor === "") return null;
+  if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor.getTime();
+  if (typeof valor === "number") return excelSerialParaData(valor).getTime();
+  var m = String(valor).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
+}
+
+// Índice em ETAPAS_OPERACAO, ou -1 (cancelado, despachado ou status desconhecido).
+function etapaDoPedido(row) {
+  var cancelado = normalizarTexto(obterCampo(row, ["Cancelado Pelo ERP"]));
+  if (cancelado === "SIM" || cancelado === "S" || cancelado === "TRUE" || cancelado === "1") return -1;
+  var status = normalizarTexto(obterCampo(row, ["Status da Nota Fiscal"]));
+  var tem = function (col) { var v = obterCampo(row, [col]); return v !== undefined && v !== null && String(v).trim() !== ""; };
+  if (STATUS_AGUARDANDO_ONDA.indexOf(status) !== -1) return 0;
+  if (STATUS_EM_SEPARACAO.indexOf(status) !== -1) return 1;
+  if (status === "ENVIADO PARA FATURAMENTO" && !tem("Faturado em")) return 2;
+  if ((status === "ENVIADO PARA FATURAMENTO" || status === "FATURADO") && !tem("Conferido em")) return 3;
+  return tem("Processado em") ? -1 : 4;   // conferido, aguardando coleta (processado = despachado, sai)
+}
+
+// ---- Dias úteis: cópia da regra do Report E-commerce (report-ecommerce/ingest.js) ----
+// Seg a sex, sem os feriados oficiais (nacional + municipal de Extrema-MG). Atualizar a lista todo ano.
+var FERIADOS_2026 = new Set(["2026-01-01", "2026-04-18", "2026-04-21", "2026-05-01", "2026-05-22", "2026-09-07",
+  "2026-09-18", "2026-10-12", "2026-11-02", "2026-11-15", "2026-11-20", "2026-12-25"]);
+function ehDiaUtil(date) {
+  var dow = date.getDay();
+  if (dow === 0 || dow === 6) return false;
+  return !FERIADOS_2026.has(paraDataISOLocal(date));
+}
+// Dias úteis completos entre duas datas (como no Backlog FIFO do Report): hoje ou ontem = 0/1, 2+ = fora do prazo.
+function diferencaDiasUteis(dataInicial, dataFinal) {
+  var d = new Date(dataInicial.getFullYear(), dataInicial.getMonth(), dataInicial.getDate());
+  var fim = new Date(dataFinal.getFullYear(), dataFinal.getMonth(), dataFinal.getDate()), contados = 0;
+  while (d <= fim) { if (ehDiaUtil(d)) contados++; d.setDate(d.getDate() + 1); }
+  return contados - 1;
+}
+
+// Pedido -> [etapa, itens, importado em (ms), separado sem conferir (1/0), faturado sem coleta (0 = não, 1 = checkout/SINGLE, 2 = colmeia/MULTI)]
+// Separado sem conferir = status ENVIADO PARA FATURAMENTO e "Conferido em" vazio: a separação
+// terminou, mas o pedido ainda não passou no caixa de faturamento (lá vira FATURADO com a data).
+// Faturado sem coleta = status FATURADO com "Faturado em" e coluna Carga vazia: conferido e faturado, mas
+// ainda não entrou em nenhuma coleta (ao embarcar vira PROCESSADA no Itens de NF e sai do OP).
+// Transportadora e SINGLE/MULTI das notas que estão no OP (mesmo formato do processarInfoNf, status "OP"):
+// a nota sai do OP só depois de embarcar, então o Kardex que mostra o embarque já acha a transportadora.
+function infoNfDoOp(rows) {
+  var info = {};
+  rows.forEach(function (row) {
+    var id = String(obterCampo(row, ["idNotaFiscal"]) || "").trim();
+    if (!id) return;
+    var cl = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"]));
+    info[id] = [String(obterCampo(row, ["Transportadora"]) || "").trim(), cl.indexOf("MULTI") !== -1 ? "M" : cl.indexOf("SINGLE") !== -1 ? "S" : "", "OP", ""];
+  });
+  return info;
+}
+function processarOperacaoOp(rows) {
+  var pedidos = {};
+  rows.forEach(function (row) {
+    var pedido = String(obterCampo(row, ["Pedido de Venda"]) || "").trim();
+    var etapa = etapaDoPedido(row);
+    if (!pedido || etapa < 0) return;
+    var conferidoEm = obterCampo(row, ["Conferido em"]);
+    var semConf = normalizarTexto(obterCampo(row, ["Status da Nota Fiscal"])) === "ENVIADO PARA FATURAMENTO" && (conferidoEm == null || String(conferidoEm).trim() === "") ? 1 : 0;
+    var vazio = function (col) { var v = obterCampo(row, [col]); return v == null || String(v).trim() === ""; };
+    var semColeta = normalizarTexto(obterCampo(row, ["Status da Nota Fiscal"])) === "FATURADO" && !vazio("Faturado em") && vazio("Carga")
+      ? (normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"])).indexOf("MULTI") !== -1 ? 2 : 1) : 0;
+    var clTipo = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"]));
+    pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"])), semConf, semColeta,
+      clTipo.indexOf("MULTI") !== -1 ? "M" : clTipo.indexOf("SINGLE") !== -1 ? "S" : ""];
+  });
+  return pedidos;
+}
+
+// Marca do produto: 1) base Embalas pelo Artigo do código (Artigo -> MARCA, card up-embalas); 2) fora da
+// Embalas, palavra-chave no nome (mesma regra do Report E-commerce); 3) sem as duas, Olympikus.
+var MARCA_DA_LETRA = { O: "Olympikus", M: "Mizuno", U: "Under Armour", P: "Opanka" };
+function marcaPorNome(descricao) {
+  var d = normalizarTexto(descricao);
+  if (/MIZUNO|\bMIZ\b/.test(d)) return "Mizuno";
+  if (/UNDER ARMOUR|\bUA\b|UNDERARMOUR|\bUNDER\b/.test(d)) return "Under Armour";
+  if (/OLYMPIKUS|\bOLY\b|\bOLK\b/.test(d)) return "Olympikus";
+  if (/OPANKA/.test(d)) return "Opanka";
+  return null;
+}
+function marcaPorDescricao(descricao, codigo, embalas) {
+  var art = String(codigo || "").trim().split("_")[0];
+  return (embalas && MARCA_DA_LETRA[embalas[art]]) || marcaPorNome(descricao) || "Olympikus";
+}
+
+// Embalas (base de embalagem, aba Base Final) -> { Artigo: letra da marca }
+function processarEmbalas(rows) {
+  var mapa = {};
+  rows.forEach(function (row) {
+    var art = String(obterCampo(row, ["Artigo"]) || "").trim() || String(obterCampo(row, ["SKU"]) || "").trim().split("_")[0];
+    var m = normalizarTexto(obterCampo(row, ["MARCA", "Marca"]));
+    var letra = m.indexOf("MIZUNO") !== -1 ? "M" : m.indexOf("UNDER") !== -1 ? "U" : m.indexOf("OPANKA") !== -1 ? "P" : m.indexOf("OLYMPIKUS") !== -1 ? "O" : null;
+    if (art && letra) mapa[art] = letra;
+  });
+  return mapa;
+}
+
+// Pedido -> marca com mais peças no pedido. "abertos" = pedidos cuja nota ainda não foi processada nem
+// cancelada (seguem em operação): a marca deles fica guardada mesmo se ainda não estavam no último OP.
+function processarMarcasItensNf(rows, embalas) {
+  var somas = {}, abertos = {};
+  rows.forEach(function (row) {
+    var pedido = String(obterCampo(row, ["Pedido de Venda"]) || "").trim();
+    if (!pedido) return;
+    var marca = marcaPorDescricao(obterCampo(row, ["Produto"]), obterCampo(row, ["Código do Produto", "Codigo do Produto"]), embalas);
+    var s = somas[pedido] || (somas[pedido] = {});
+    s[marca] = (s[marca] || 0) + (numero(obterCampo(row, ["Quantidade"])) || 1);
+    var st = normalizarTexto(obterCampo(row, ["Status"]));
+    if (st !== "PROCESSADA" && st.indexOf("CANCELAD") !== 0) abertos[pedido] = 1;
+  });
+  var marcas = {};
+  Object.keys(somas).forEach(function (p) {
+    var s = somas[p];
+    marcas[p] = Object.keys(s).sort(function (a, b) { return s[b] - s[a]; })[0];
+  });
+  return { marcas: marcas, abertos: abertos };
+}
+
+function resumoOperacao(op) {
+  var pedidos = op.pedidos || {}, marcas = op.marcas || {};
+  var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, marcas: {}, semConferir: { itens: 0, pedidos: 0 }, semColeta: { itens: 0, pedidos: 0, checkout: 0, colmeia: 0 },
+    single: 0, multi: 0,   // itens por tipo de pedido (Classificação Tipo Pedido)
+    etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, single: 0, multi: 0, marcas: {} }; }),
+    idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0, single: 0, multi: 0 }; }),
+    opEm: op.opEm || null, nfEm: op.nfEm || null };
+  // Idade em DIAS ÚTEIS, mesma regra do Report E-commerce (diferencaDiasUteis): seg a sex sem feriados.
+  var ref = new Date(op.opEm || Date.now()), cacheIdade = {};
+  function idadeDias(imp) {
+    var d = new Date(imp), k = paraDataISOLocal(d);
+    if (cacheIdade[k] == null) cacheIdade[k] = Math.max(0, diferencaDiasUteis(d, ref));
+    return cacheIdade[k];
+  }
+  Object.keys(pedidos).forEach(function (p) {
+    var e = pedidos[p], etapa = r.etapas[e[0]], itens = e[1], imp = e[2], marca = marcas[p] || "Sem marca";
+    r.itens += itens; r.pedidos++;
+    etapa.itens += itens; etapa.pedidos++;
+    var tp = e[5] === "M" ? "multi" : e[5] === "S" ? "single" : null;
+    if (tp) { r[tp] += itens; etapa[tp] += itens; }
+    etapa.marcas[marca] = (etapa.marcas[marca] || 0) + itens;
+    r.marcas[marca] = (r.marcas[marca] || 0) + itens;
+    if (!marcas[p]) r.semMarca += itens;
+    if (e[3]) { r.semConferir.itens += itens; r.semConferir.pedidos++; }
+    if (e[4]) { r.semColeta.itens += itens; r.semColeta.pedidos++; r.semColeta[e[4] === 2 ? "colmeia" : "checkout"] += itens; }
+    if (imp) {
+      if (r.maisAntigo === null || imp < r.maisAntigo) { r.maisAntigo = imp; r.maisAntigoPedido = p; }
+      var faixa = r.idade[Math.min(3, idadeDias(imp))];
+      faixa.itens += itens; faixa.pedidos++;
+      if (tp) faixa[tp] += itens;
+    }
+  });
+  r.maisAntigoDias = r.maisAntigo === null ? null : idadeDias(r.maisAntigo);
+  r.expedicao = resumoExpedicao(op);
+  return r;
+}
+
+// ---- Expedição no snapshot "operacao" ----
+// op.expNfs  = { dia: { idNF: [usuario, minuto, peças] } } das notas embarcadas nos 2 dias mais recentes
+//              (cada Kardex JUNTA com o que já tinha, então um Kardex parcial não apaga o dia)
+// op.expDias = resumo congelado dos dias que saíram dos 2 crus (até 31 dias)
+// op.nfInfo  = { t: [transportadoras], n: { idNF: [índice da transportadora, "S"|"M"|""] } } das notas
+//              EM CARGA/OR (vão embarcar) + as notas já embarcadas em op.expNfs
+// op.expPrev = previsão da expedição, calculada na hora em que o Kardex chegou
+var EXP_SEM_INFO = "Aguardando Itens de NF";
+function lerInfoNf(op) {
+  var ni = op.nfInfo || {}, t = ni.t || [], o = {};
+  Object.keys(ni.n || {}).forEach(function (id) { var x = ni.n[id]; o[id] = [t[x[0]], x[1]]; });
+  return o;
+}
+function agregarExpedicaoDia(data, nfs, info) {
+  var a = { data: data, pecas: 0, pedidos: 0, horas: new Array(24).fill(0), usuarios: {}, transp: {}, tipo: { checkout: [0, 0], colmeia: [0, 0], semInfo: [0, 0] } };
+  Object.keys(nfs || {}).forEach(function (id) {
+    var x = nfs[id]; if (!x) return;
+    var p = x[2] || 0, inf = info[id];
+    a.pecas += p; a.pedidos++;
+    a.horas[Math.min(23, Math.floor(x[1] / 60))] += p;   // depois da meia-noite (T02) entra na última coluna
+    var u = a.usuarios[x[0]] || (a.usuarios[x[0]] = [0, 0]); u[0] += p; u[1]++;
+    var nt = inf ? (inf[0] || "Sem transportadora") : EXP_SEM_INFO, t = a.transp[nt] || (a.transp[nt] = [0, 0]); t[0] += p; t[1]++;
+    var k = !inf ? "semInfo" : inf[1] === "M" ? "colmeia" : inf[1] === "S" ? "checkout" : "semInfo";
+    a.tipo[k][0] += p; a.tipo[k][1]++;
+  });
+  return a;
+}
+function resumoExpedicao(op) {
+  if (!op.expNfs && !op.expDias) return null;
+  var info = lerInfoNf(op), porDia = {};
+  (op.expDias || []).forEach(function (d) { porDia[d.data] = d; });
+  Object.keys(op.expNfs || {}).forEach(function (dia) { porDia[dia] = agregarExpedicaoDia(dia, op.expNfs[dia], info); });
+  var dias = Object.keys(porDia).sort().slice(-31).map(function (k) { return porDia[k]; });
+  return { dias: dias, previsao: op.expPrev || null, kardexEm: op.kardexEm || null };
+}
+function juntarExpedicao(op, exp, agora) {
+  var raw = op.expNfs || {};
+  (exp.estornadas || []).forEach(function (id) { Object.keys(raw).forEach(function (d) { delete raw[d][id]; }); });
+  Object.keys(exp.dias || {}).forEach(function (dia) {
+    var alvo = raw[dia] || (raw[dia] = {});
+    Object.keys(exp.dias[dia]).forEach(function (id) {
+      Object.keys(raw).forEach(function (d) { if (d !== dia) delete raw[d][id]; });   // reprocessada em outro dia: fica só no último
+      alvo[id] = exp.dias[dia][id];
+    });
+  });
+  // Só os 2 dias mais recentes ficam crus; os outros viram resumo congelado.
+  var dias = Object.keys(raw).sort(), info = lerInfoNf(op), congelados = {};
+  (op.expDias || []).forEach(function (d) { congelados[d.data] = d; });
+  dias.slice(0, -2).forEach(function (d) { congelados[d] = agregarExpedicaoDia(d, raw[d], info); delete raw[d]; });
+  op.expDias = Object.keys(congelados).sort().slice(-31).map(function (k) { return congelados[k]; });
+  op.expNfs = raw;
+  // Previsão (dia + nesta hora) com o que acabou de chegar.
+  var hoje = diaOperacionalIngest(agora), lista = (resumoExpedicao(op) || { dias: [] }).dias;
+  var porMin = {};
+  Object.keys(raw[hoje] || {}).forEach(function (id) { var x = raw[hoje][id]; if (x) porMin[x[1]] = (porMin[x[1]] || 0) + (x[2] || 0); });
+  var deHoje = lista.filter(function (d) { return d.data === hoje; })[0];
+  op.expPrev = previsaoDoDia(lista.map(function (d) { return { data: d.data, horas: d.horas }; }), agora, deHoje ? deHoje.pecas : 0, 1, porMin);
+}
+function guardarInfoNf(op, novo, opIds) {
+  var emRaw = {};
+  Object.keys(op.expNfs || {}).forEach(function (d) { Object.keys(op.expNfs[d]).forEach(function (id) { emRaw[id] = 1; }); });
+  var velho = lerInfoNf(op), nomes = [], idx = {}, n = {};
+  function poe(id, t, c) { if (!(t in idx)) { idx[t] = nomes.length; nomes.push(t); } n[id] = [idx[t], c]; }
+  // OP só acrescenta (não apaga nada). O Itens de NF limpa: ficam as embarcadas nos dias crus + o que ele mesmo traz abaixo.
+  Object.keys(velho).forEach(function (id) { if (opIds || emRaw[id]) poe(id, velho[id][0], velho[id][1]); });
+  // EM CARGA/OR = vai embarcar; PROCESSADA recente = pode ter embarcado depois do último Kardex (ele ainda vai chegar)
+  var corte = new Date(); corte.setDate(corte.getDate() - 3); corte = paraDataISOLocal(corte);
+  Object.keys(novo).forEach(function (id) {
+    var x = novo[id];
+    if (!x[0] && n[id]) return;   // sem transportadora: não apaga a que já está guardada
+    if (x[2] === "OP" || x[2].indexOf("EM CARGA") === 0 || emRaw[id] || (x[2] === "PROCESSADA" && (x[3] || "") >= corte)) poe(id, x[0], x[1]);
+  });
+  op.nfInfo = { t: nomes, n: n };
+}
+
+// Junta o que chegou (pedidos do OP, marcas/infos do Itens de NF, expedição do Kardex) e regrava o resumo.
+async function atualizarOperacao(novo) {
+  var exp = novo.expedicao, info = novo.nfInfo, linhasNf = novo.linhasItensNf;
+  var op = await lerSnapshot("operacao");
+  Object.keys(novo).forEach(function (k) { if (k !== "expedicao" && k !== "nfInfo" && k !== "linhasItensNf") op[k] = novo[k]; });
+  if (linhasNf) {   // Itens de NF: marca pelo nome do produto, depois pela Embalas já gravada
+    var rm = processarMarcasItensNf(linhasNf, op.embalas);
+    // guarda as marcas dos pedidos em operação + os ainda abertos no Itens de NF (assim o próximo OP já acha a marca)
+    var m = {};
+    Object.keys(rm.marcas).forEach(function (p) { if ((op.pedidos && op.pedidos[p]) || rm.abertos[p]) m[p] = rm.marcas[p]; });
+    op.marcas = m;
+    info = processarInfoNf(linhasNf);
+  }
+  if (exp) juntarExpedicao(op, exp, new Date());
+  if (info) guardarInfoNf(op, info, novo.pedidos ? info : null);
+  op.resumo = resumoOperacao(op);
+  await salvarSnapshot("operacao", op);
+  return op.resumo;
+}
+
 // =========================================================================
 // 5) MONTAGEM DOS PAYLOADS (Map -> array ordenado, formato que index.html espera)
 // =========================================================================
@@ -1028,12 +1393,150 @@ function diaMapParaArray(mapaDia) {
   arr.sort(function (a, b) { return a.data.localeCompare(b.data); });
   return arr;
 }
+// Peças por minuto pesam: ficam só nos 4 dias mais recentes (as horas continuam nos 31).
+function podarMinutos(lista) {
+  return lista.map(function (d, i) {
+    if (i >= lista.length - 4 || (!d.checkoutMin && !d.colmeiaMin)) return d;
+    var c = Object.assign({}, d); delete c.checkoutMin; delete c.colmeiaMin; return c;
+  });
+}
+// Por hora (analítico): o arquivo só substitui os dias que são dele pela coluna Data. Tarefas que
+// começaram num dia anterior (poucas peças) não apagam o hora a hora completo desse dia já salvo.
+function mesclarHoras(anterior, novos, diasDoArquivo) {
+  var salvos = new Set((anterior || []).map(function (d) { return d.data; }));
+  return mesclarDias(anterior, (novos || []).filter(function (d) { return diasDoArquivo.has(d.data) || !salvos.has(d.data); }));
+}
+function diasDasPecas(pecas) {
+  var s = new Set(); ["checkout", "colmeia"].forEach(function (t) { (pecas[t] || new Map()).forEach(function (m, dia) { s.add(dia); }); }); return s;
+}
 function mesclarDias(anterior, novoArray) {
   var mapa = new Map((anterior || []).map(function (d) { return [d.data, d]; }));
   (novoArray || []).forEach(function (d) { mapa.set(d.data, d); });
   return Array.from(mapa.values()).sort(function (a, b) { return a.data.localeCompare(b.data); });
 }
 function somaMapa(mapa) { var s = 0; mapa.forEach(function (v) { s += v; }); return s; }
+
+// ---- Curva de planejamento (telão): previsão do dia e da próxima hora ----
+// Dia operacional: entre 00h e 01h ainda é o dia anterior (o T02 vai até 00h16).
+function diaOperacionalIngest(agora) {
+  var d = new Date(agora); if (d.getHours() < 1) d.setDate(d.getDate() - 1);
+  return paraDataISOLocal(d);
+}
+function somaArr(a) { return (a || []).reduce(function (s, v) { return s + (v || 0); }, 0); }
+// Operação do dia: do início do T01 (05h00) ao fim do T02 (00h16); almoço do T01 e janta do T02 não contam.
+var OPERACAO_FIM_MIN = 24 * 60 + 16, OPERACAO_PAUSAS = [[11 * 60 + 30, 12 * 60 + 30], [18 * 60 + 40, 19 * 60 + 40]];
+// Minutos trabalhados entre dois minutos do dia (sem as pausas).
+function minutosDeOperacao(de, ate) {
+  var t = Math.max(0, ate - de);
+  OPERACAO_PAUSAS.forEach(function (p) { t -= Math.max(0, Math.min(ate, p[1]) - Math.max(de, p[0])); });
+  return Math.max(0, t);
+}
+// Previsão da hora em andamento ("nesta hora"): o que já saiu na hora + média por minuto × minutos
+// trabalhados que faltam nela. Média por minuto = a da própria hora, a partir de 10 min trabalhados nela;
+// antes disso, a dos últimos 15 min trabalhados (pega o fim da hora anterior). Pausas não contam.
+// porMinuto = { minuto do dia operacional (passa de 1440 depois da meia-noite): peças }
+function previsaoDaHora(porMinuto, minAgora, fator) {
+  fator = fator || 1;
+  var ini = Math.floor(minAgora / 60) * 60, fimH = Math.min(ini + 60, OPERACAO_FIM_MIN);
+  var chaves = Object.keys(porMinuto || {});
+  function soma(de, ate) { var s = 0; chaves.forEach(function (k) { var m = +k; if (m >= de && m < ate) s += porMinuto[k] || 0; }); return s; }
+  var feito = soma(ini, minAgora + 1);
+  var decorridos = minutosDeOperacao(ini, minAgora), faltam = minutosDeOperacao(minAgora, fimH), media;
+  if (decorridos >= 10) media = feito / decorridos;
+  else {
+    var de = minAgora; while (de > 0 && minutosDeOperacao(de, minAgora) < 15) de--;
+    media = soma(de, minAgora) / 15;
+  }
+  return Math.round((feito + media * faltam) * fator);
+}
+// Minutos do analítico (Data/Hora Fim, soma dos usuários) no dia operacional: { minuto: peças }.
+// As tarefas que começaram depois da meia-noite estão no dia seguinte e entram como 1440+.
+function diaSeguinteISO(iso) { var p = iso.split("-"); return paraDataISOLocal(new Date(+p[0], +p[1] - 1, +p[2] + 1)); }
+function minutosDoAnaliticoIngest(analitico, dia, tipos) {
+  var out = {}, seg = diaSeguinteISO(dia);
+  (analitico || []).forEach(function (d) {
+    var desloc = d.data === dia ? 0 : d.data === seg ? 1440 : null;
+    if (desloc === null) return;
+    tipos.forEach(function (t) {
+      var porU = d[t + "Min"] || {};
+      Object.keys(porU).forEach(function (u) { (porU[u] || []).forEach(function (mp) {
+        var m = mp[0] + desloc; if (desloc && mp[0] >= 60) return;
+        out[m] = (out[m] || 0) + (mp[1] || 0);
+      }); });
+    });
+  });
+  return out;
+}
+// Previsão do dia e da hora em andamento, pelo que já foi feito HOJE:
+//   média por hora = peças das horas completas de hoje ÷ horas trabalhadas nelas (desde a 1ª hora com produção)
+//   previsão do dia = realizado + média por hora × horas trabalhadas que faltam até 00h16
+//   nesta hora      = previsaoDaHora (média por minuto da hora atual)
+// Começo do turno (menos de 1 hora de produção hoje): usa o dia anterior no mesmo horário —
+//   previsão = realizado + o que o dia anterior fez daqui até o fim.
+// horasPorDia = [{data, horas:[24]}] · realizadoDia = total do dia mostrado na tela · fator = ajuste (colmeia na conferência)
+// porMinuto = peças por minuto de hoje (ver previsaoDaHora)
+function previsaoDoDia(horasPorDia, agora, realizadoDia, fator, porMinuto) {
+  agora = agora || new Date(); fator = fator || 1;
+  var dia = diaOperacionalIngest(agora);
+  var lista = horasPorDia || [];
+  var hojeH = (lista.filter(function (d) { return d.data === dia; })[0] || {}).horas || new Array(24).fill(0);
+  var real = realizadoDia != null ? realizadoDia : somaArr(hojeH);
+  // minuto atual no dia operacional (depois da meia-noite continua contando: 24h05 = 1445)
+  var minAgora = agora.getHours() * 60 + agora.getMinutes() + (paraDataISOLocal(agora) === dia ? 0 : 1440);
+  var r = { data: dia, realizado: real, calculadoEm: agora.getTime() };
+  if (minAgora >= OPERACAO_FIM_MIN) { r.previsto = real; r.hora = null; r.nestaHora = 0; r.base = "fim"; return r; }
+  var H = Math.floor(minAgora / 60);
+  var primeira = hojeH.findIndex(function (v) { return v > 0; });
+  var feitoCompleto = 0; for (var h = Math.max(0, primeira); h < Math.min(H, 24); h++) feitoCompleto += hojeH[h] || 0;
+  var minCompletos = primeira >= 0 ? minutosDeOperacao(primeira * 60, Math.min(H, 24) * 60) : 0;
+  var minRestantes = minutosDeOperacao(minAgora, OPERACAO_FIM_MIN);
+  r.hora = H % 24;
+  r.nestaHora = porMinuto ? previsaoDaHora(porMinuto, minAgora, fator) : null;
+  if (minCompletos >= 60 && feitoCompleto > 0) {
+    var porHora = feitoCompleto / (minCompletos / 60);
+    r.base = "hoje";
+    r.previsto = Math.round(real + porHora * minRestantes / 60 * fator);
+    return r;
+  }
+  // começo do turno: o dia anterior com produção, no mesmo horário
+  var ant = lista.filter(function (d) { return d.data < dia && somaArr(d.horas) > 0; }).pop();
+  if (!ant) return r;   // sem base: a tela mostra "—"
+  var fracH = (minAgora % 60) / 60, daquiAteFim = 0, antAteAgora = 0;
+  for (var k = 0; k < 24; k++) {
+    if (k < H) antAteAgora += ant.horas[k] || 0;
+    else daquiAteFim += (ant.horas[k] || 0) * (k === H ? 1 - fracH : 1);
+  }
+  if (antAteAgora > 0) antAteAgora += (ant.horas[H] || 0) * fracH;
+  // Nenhuma peça hoje e o dia anterior já produzia até este horário: dia sem operação, previsão 0.
+  if (real === 0 && antAteAgora > 0) { r.base = "sem produção hoje"; r.previsto = 0; r.nestaHora = 0; return r; }
+  r.base = "dia anterior (" + ant.data + ")";
+  r.previsto = Math.round(real + daquiAteFim * fator);
+  return r;
+}
+// Horas do analítico (soma de todos os usuários) por dia: [{data, horas:[24]}]
+function horasDoAnaliticoIngest(analitico, tipos) {
+  return (analitico || []).map(function (d) {
+    var h = new Array(24).fill(0);
+    tipos.forEach(function (t) { Object.keys(d[t] || {}).forEach(function (u) { (d[t][u] || []).forEach(function (v, i) { h[i] += v || 0; }); }); });
+    return { data: d.data, horas: h };
+  });
+}
+function totalDoDia(series, dia) {
+  var s = 0;
+  series.forEach(function (sr) { (sr || []).forEach(function (d) { if (String(d.data).slice(0, 10) === dia) Object.keys(d.itens || {}).forEach(function (n) { s += d.itens[n] || 0; }); }); });
+  return s;
+}
+// Separação (checkout + colmeia, com hora) e Conferência (curva do checkout; a colmeia segue o mesmo ritmo, na proporção de hoje).
+function atualizarPrevisoesOutbound(snap) {
+  var agora = new Date(), dia = diaOperacionalIngest(agora), sep = snap.separacao, conf = snap.conferencia;
+  if (sep && sep.analitico) sep.previsao = previsaoDoDia(horasDoAnaliticoIngest(sep.analitico, ["checkout", "colmeia"]), agora,
+    totalDoDia([sep.checkoutDia, sep.colmeiaDia], dia), 1, minutosDoAnaliticoIngest(sep.analitico, dia, ["checkout", "colmeia"]));
+  if (conf && conf.analitico) {
+    var hc = horasDoAnaliticoIngest(conf.analitico, ["checkout"]);
+    var chk = totalDoDia([conf.confCheckoutDia], dia), tot = totalDoDia([conf.confCheckoutDia, conf.confColmeiaUnitDia], dia);
+    conf.previsao = previsaoDoDia(hc, agora, tot, chk > 0 ? tot / chk : 1, minutosDoAnaliticoIngest(conf.analitico, dia, ["checkout"]));
+  }
+}
 function mapParaSerieDia(mapa, campoValor) {
   var arr = Array.from(mapa.entries()).map(function (e) { var o = { data: e[0] }; o[campoValor] = e[1]; return o; });
   arr.sort(function (a, b) { return a.data.localeCompare(b.data); });
@@ -1047,7 +1550,7 @@ function caixaUpload(id, titulo, descricao, aceitaMultiplos, desabilitado) {
   var dis = desabilitado ? " disabled" : "";
   var avisoDesabilitado = desabilitado ? ' <em>(fora do ciclo de contagens — ative o interruptor acima para abastecer)</em>' : "";
   return '<div class="panel' + (desabilitado ? " panel-disabled" : "") + '" id="' + id + '-card"><div class="panel-head"><div><p class="kicker">Upload</p><h4>' + titulo + ' <span class="badge-feito" id="' + id + '-badge" hidden>✓ Feito</span></h4></div></div>' +
-    '<div class="upload-box"><p>' + descricao + avisoDesabilitado + '</p>' +
+    '<div class="upload-box">' + (desabilitado ? '<p>' + avisoDesabilitado + '</p>' : '') +
     '<input type="file" id="' + id + '" ' + (aceitaMultiplos ? "multiple" : "") + dis + ' accept=".tsv,.txt,.xlsx,.xlsb,.xls">' +
     '<button class="btn"' + dis + ' onclick="window.ProdutividadeIngest.processar(\'' + id + '\')">Enviar</button>' +
     '<div class="upload-status" id="' + id + '-status"></div></div></div>';
@@ -1166,7 +1669,6 @@ function cartaoCicloInventario(ativo) {
   return '<div class="panel">' +
     '<div class="panel-head"><div><p class="kicker">Config geral</p><h4>Ciclo de contagens de Inventário</h4></div></div>' +
     '<div class="upload-box" style="align-items:center">' +
-    '<p>Liga quando o time está em ciclo de contagens; desliga quando não está (ex.: fora de temporada). Fica valendo até alguém trocar aqui — não precisa marcar de novo a cada acesso.</p>' +
     '<label class="switch"><input type="checkbox" id="toggle-ciclo-inventario" ' + (ativo ? "checked" : "") + ' onchange="window.ProdutividadeIngest.alternarCicloInventario(this.checked)">' +
     '<span class="switch-track"><span class="switch-thumb"></span></span>' +
     '<span class="switch-label">' + (ativo ? "Em ciclo" : "Sem ciclo") + '</span></label>' +
@@ -1196,7 +1698,7 @@ function cartaoMetaInventario(cfg) {
     '<span>Prod./pessoa Calçados</span><input type="number" class="date-box" id="meta-prod-calc" style="width:90px" min="0" value="' + (cfg.prodCalcados || 4500) + '">' +
     '<span>Prod./pessoa Vestuário</span><input type="number" class="date-box" id="meta-prod-vest" style="width:90px" min="0" value="' + (cfg.prodVestuario || 1500) + '"></div>' +
     '<button class="btn" onclick="window.ProdutividadeIngest.salvarMetaInventario()">Salvar</button>' +
-    '<div class="upload-status" id="meta-inv-status">Meta Dia atual: ' + (meta ? meta.toLocaleString("pt-BR") + " itens/dia" : "— (informe o headcount)") + '. Vale para os próximos dias enviados; dias já enviados sem meta também são preenchidos.</div>' +
+    '<div class="upload-status" id="meta-inv-status">Meta Dia atual: ' + (meta ? meta.toLocaleString("pt-BR") + " itens/dia" : "— (informe o headcount)") + '.</div>' +
     '</div></div>';
 }
 
@@ -1235,6 +1737,47 @@ var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
 var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"]];
 var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Rosa", "--t5"], 6: ["Roxo", "--t6"] };
 var COMP_NUM_TIMES = [1, 2, 3, 4, 5, 6];
+// Black Friday: presença de cada pessoa por dia, na mesma planilha dos times (uma coluna por dia).
+// P = presente · F = falta (atestado também conta como falta) · A = atraso.
+var COMP_DIAS_BLACK = [["2026-11-27", "27/11"], ["2026-11-28", "28/11"], ["2026-11-29", "29/11"]];
+var COMP_CAB_ABA = ["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Observação", "Líder"].concat(COMP_DIAS_BLACK.map(function (d) { return d[1]; }));
+function presencaDeTexto(t) {
+  var n = normalizarTexto(t);
+  if (!n) return null;
+  if (/^(P|PRESENTE|OK|X)$/.test(n)) return "P";
+  if (/^(A|ATRASO|ATRASADO)$/.test(n)) return "A";
+  if (/^(F|FALTA|FALTOU|AUSENTE|ATESTADO|AT|J|JUSTIFICADA)$/.test(n)) return "F";
+  return null;
+}
+// Nome da aba = cor do time (Vermelho, Azul...). Devolve 1–6 ou null.
+function timeDaAba(nome) {
+  var n = normalizarTexto(nome);
+  for (var k = 1; k <= 6; k++) if (normalizarTexto(COMP_TIMES[k][0]) === n) return k;
+  return null;
+}
+function linhaAbaTime(l) {
+  var obs = l.observacao || (/colmeia$/.test(l.atividade) ? "Colmeia" : "");
+  return [l.nome || "", l.usuario_wms, l.sigla || siglaAtividade(l.atividade), l.turno, l.piso || "", obs, l.lider ? "S" : "N"]
+    .concat(COMP_DIAS_BLACK.map(function (d) { return (l.presenca || {})[d[0]] || ""; }));
+}
+// Uma aba por cor (todas as cores, mesmo vazias) + aba Legenda, que o envio ignora.
+function planilhaPorCores(linhasPorTime) {
+  var wb = XLSX.utils.book_new();
+  COMP_NUM_TIMES.forEach(function (n) {
+    var ws = XLSX.utils.aoa_to_sheet([COMP_CAB_ABA].concat(juntarAtividades(linhasPorTime[n] || []).map(linhaAbaTime)));
+    ws["!cols"] = [{ wch: 28 }, { wch: 22 }, { wch: 9 }, { wch: 10 }, { wch: 6 }, { wch: 12 }, { wch: 6 }, { wch: 7 }, { wch: 7 }, { wch: 7 }];
+    XLSX.utils.book_append_sheet(wb, ws, COMP_TIMES[n][0]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ["Como preencher"],
+    ["Cada aba é um time: o nome da aba é a cor do time (não renomeie)."],
+    ["Atividade: S = Separação · C = Conferência · C/S = faz as duas (uma linha só por pessoa). Também aceita Embalagem e Embarque."],
+    ["Turno: " + COMP_TURNOS.join(", ")],
+    ["Piso: 1 a 4 (vazio na colmeia) · Observação: vazio ou Colmeia · Líder: S ou N"],
+    ["Presença (27/11, 28/11, 29/11): P = presente · F = falta (atestado conta como falta) · A = atraso · vazio = ainda não lançado"],
+  ]), "Legenda");
+  return wb;
+}
 var compAdm = { turno: "1º Turno", time: 1, editando: null, linhas: [], indice: null };
 
 function htmlSeguro(t) {
@@ -1244,6 +1787,34 @@ function rotuloAtividade(a) {
   var base = String(a || "").replace(/_.*/, "");
   var r = COMP_ATIVS.filter(function (x) { return x[0] === base; })[0];
   return r ? r[1] : a;
+}
+// Sigla da planilha de times: S = Separação, C = Conferência (as outras atividades vão por extenso).
+function siglaAtividade(a) {
+  var base = String(a || "").replace(/_.*/, "");
+  return base === "sep" ? "S" : base === "conf" ? "C" : rotuloAtividade(a);
+}
+// Mesma pessoa, turno e time com Separação e Conferência = uma linha "C/S" na planilha.
+function juntarAtividades(linhas) {
+  var porChave = new Map(), saida = [];
+  linhas.forEach(function (l) {
+    var k = l.usuario_wms + "|" + l.turno + "|" + l.time, s = siglaAtividade(l.atividade);
+    var j = porChave.get(k);
+    if (j && (s === "C" || s === "S") && (j.sigla === "C" || j.sigla === "S") && j.sigla !== s) { j.sigla = "C/S"; return; }
+    if (j && j.sigla === s) return;
+    var nova = Object.assign({}, l, { sigla: s });
+    if (s === "C" || s === "S") porChave.set(k, nova);
+    saida.push(nova);
+  });
+  return saida;
+}
+// Atividades de uma célula: "S", "C", "C/S" (ou S/C, CS, Ambas) e os nomes por extenso.
+function atividadesDeTexto(t) {
+  var n = normalizarTexto(t).replace(/\s+/g, "");
+  if (/^(C\/S|S\/C|CS|SC|C\+S|S\+C|CES|SEC|AMBAS|AMBOS|AS2|ASDUAS)$/.test(n) || (n.indexOf("SEPARA") !== -1 && n.indexOf("CONFER") !== -1)) return ["sep", "conf"];
+  if (n === "S") return ["sep"];
+  if (n === "C") return ["conf"];
+  var a = atividadeDeTexto(t);
+  return a ? [a] : [];
 }
 // Atividade genérica da planilha. "Conferência Colmeia" (formato antigo) vira Conferência + Observação Colmeia.
 function atividadeDeTexto(t) {
@@ -1279,8 +1850,8 @@ var OPC_LIDER = [["false", "Membro"], ["true", "Líder"]];
 function tabelaClassificacoesCompeticao() {
   var col = function (itens) { return itens.map(htmlSeguro).join("<br>"); };
   return '<div class="tbl-wrap"><table class="comp-classif"><thead><tr><th>Atividade</th><th>Turno</th><th>Piso</th><th>Time</th><th>Observação</th><th>Líder</th></tr></thead><tbody><tr>' +
-    "<td>" + col(COMP_ATIVS.map(function (a) { return a[1]; })) + "</td><td>" + col(COMP_TURNOS) + "</td><td>" + col(["1", "2", "3", "4", "(vazio)"]) + "</td>" +
-    "<td>" + col(COMP_NUM_TIMES.map(function (n) { return "0" + n + " · " + COMP_TIMES[n][0]; })) + "</td><td>" + col(["(vazio)", "Colmeia"]) + "</td><td>" + col(["S", "N"]) + "</td></tr></tbody></table></div>";
+    "<td>" + col(["S (Separação)", "C (Conferência)", "C/S (as duas)"]) + "</td><td>" + col(COMP_TURNOS) + "</td><td>" + col(["1", "2", "3", "4"]) + "</td>" +
+    "<td>" + col(COMP_NUM_TIMES.map(function (n) { return "0" + n + " · " + COMP_TIMES[n][0]; })) + "</td><td>" + col(["Colmeia"]) + "</td><td>" + col(["S", "N"]) + "</td></tr></tbody></table></div>";
 }
 
 async function renderCompeticaoAdmin(recarregarBase) {
@@ -1332,7 +1903,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
       '<div class="panel" style="display:flex; flex-direction:column; gap:10px">' +
         '<div class="panel-head"><div><p class="kicker">' + htmlSeguro(compAdm.turno) + '</p><h4>Time 0' + compAdm.time + " · " + COMP_TIMES[compAdm.time][0] + "</h4></div></div>" +
         '<div class="comp-add"><input id="comp-novo-usuario" placeholder="Usuário WMS (ex.: NOME.SOBRENOME)" aria-label="Usuário WMS">' +
-          '<select id="comp-novo-atv" aria-label="Atividade">' + opcoes(COMP_ATIVS, "sep") + '</select><select id="comp-novo-piso" aria-label="Piso">' + opcoes(OPC_PISO, "") + "</select>" +
+          '<select id="comp-novo-atv" aria-label="Atividade">' + opcoes([["sep+conf", "C/S (as duas)"]].concat(COMP_ATIVS), "sep") + '</select><select id="comp-novo-piso" aria-label="Piso">' + opcoes(OPC_PISO, "") + "</select>" +
           '<select id="comp-novo-obs" aria-label="Observação">' + opcoes(OPC_OBS, "") + '</select><select id="comp-novo-lider" aria-label="Líder">' + opcoes(OPC_LIDER, "false") + "</select>" +
           '<button class="btn" id="comp-btn-add">Adicionar</button></div>' +
         '<div class="upload-status" id="comp-membro-status"></div>' + '<div class="comp-lista-membros">' + htmlMembros + "</div>" +
@@ -1340,7 +1911,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     "</div>" +
     '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
       '<div class="panel-head"><div><p class="kicker">Upload</p><h4>Planilha de escalação dos times <span class="badge-feito" id="comp-planilha-badge" hidden>✓ Feito</span></h4></div></div>' +
-      '<div class="upload-box"><p>Colunas: <strong>Nome, Usuário WMS, Atividade, Turno, Piso, Time, Observação, Líder</strong>.</p>' +
+      '<div class="upload-box">' +
       '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button><button class="btn ghost" id="comp-btn-exportar">Exportar times atuais</button>' +
       '<div class="upload-status" id="comp-planilha-status"></div></div>' +
       tabelaClassificacoesCompeticao() + "</div></div>";
@@ -1360,16 +1931,20 @@ async function renderCompeticaoAdmin(recarregarBase) {
     if (!digitado) { avisoMembro("Informe o usuário do WMS.", "pendente"); return; }
     var base = idx.get(normalizarUsuarioWMS(digitado));
     var piso = document.getElementById("comp-novo-piso").value;
+    var atvSel = document.getElementById("comp-novo-atv").value;
     var registro = {
       // Grava o usuário digitado: o usuario_wms da Base de Ativos é um palpite (1º + 2º nome) e costuma diferir do WMS.
       usuario_wms: normalizarUsuarioWMS(digitado), nome: base ? base.nome : null,
-      turno: compAdm.turno, atividade: document.getElementById("comp-novo-atv").value, time: compAdm.time,
+      turno: compAdm.turno, atividade: atvSel, time: compAdm.time,
       piso: piso ? Number(piso) : null, setor: null,
       observacao: document.getElementById("comp-novo-obs").value || null,
       lider: document.getElementById("comp-novo-lider").value === "true",
       atualizado_em: new Date().toISOString(),
     };
-    var { error } = await supabaseClient.from("competicao_times").upsert(registro, { onConflict: "usuario_wms,atividade,turno" });
+    var registros = atvSel === "sep+conf"
+      ? ["sep", "conf"].map(function (a) { return Object.assign({}, registro, { atividade: a }); })
+      : [registro];
+    var { error } = await supabaseClient.from("competicao_times").upsert(registros, { onConflict: "usuario_wms,atividade,turno" });
     if (error) { avisoMembro("Erro: " + error.message, "erro"); return; }
     await recarregar();
     avisoMembro(base ? "Membro adicionado." : "Adicionado, mas este usuário não está na Base de Ativos — confira o nome.", base ? "ok" : "pendente");
@@ -1401,38 +1976,34 @@ async function renderCompeticaoAdmin(recarregarBase) {
     });
   });
 
-  // Modelo com uma linha de exemplo para cada combinação de Atividade × Observação × Líder.
+  // Modelo: mesmas abas por cor, com uma linha de exemplo para cada combinação de Atividade × Observação × Líder.
   document.getElementById("comp-btn-modelo").addEventListener("click", function () {
-    var aoa = [["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Time", "Observação", "Líder"]];
-    var k = 0;
+    var porTime = {}, k = 0;
     COMP_ATIVS.forEach(function (a) {
       var obsPossiveis = (a[0] === "sep" || a[0] === "conf") ? ["", "Colmeia"] : [""];
       obsPossiveis.forEach(function (obs) {
         ["S", "N"].forEach(function (lid) {
           var time = obs ? (k % 2 ? 6 : 5) : (k % 4) + 1;
-          aoa.push(["Colaborador " + (k + 1), "NOME.SOBRENOME" + (k + 1), a[1], COMP_TURNOS[k % COMP_TURNOS.length], obs ? "" : (time <= 4 ? time : ""), "0" + time, obs, lid]);
+          (porTime[time] = porTime[time] || []).push({ nome: "Colaborador " + (k + 1), usuario_wms: "NOME.SOBRENOME" + (k + 1), atividade: a[0], turno: COMP_TURNOS[k % COMP_TURNOS.length],
+            piso: obs ? "" : time, observacao: obs || null, lider: lid === "S", presenca: k % 3 ? { "2026-11-27": "P" } : { "2026-11-27": "F" } });
           k++;
         });
       });
     });
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
-    XLSX.writeFile(wb, "modelo_competicao_times.xlsx");
+    ["sep", "conf"].forEach(function (a) {   // exemplo de quem faz as duas: vira uma linha "C/S"
+      (porTime[1] = porTime[1] || []).push({ nome: "Colaborador C/S", usuario_wms: "NOME.AMBAS", atividade: a, turno: "1º Turno", piso: 1, observacao: null, lider: false, presenca: { "2026-11-27": "P" } });
+    });
+    XLSX.writeFile(planilhaPorCores(porTime), "modelo_competicao_times.xlsx");
   });
-  // Exporta a escalação atual (todos os turnos) no mesmo formato da planilha de abastecimento.
+  // Exporta a escalação atual (todos os turnos), uma aba por cor, pronta para editar e reenviar.
   document.getElementById("comp-btn-exportar").addEventListener("click", function () {
     var ordemTurno = function (x) { return COMP_TURNOS.indexOf(x); };
-    var linhas = compAdm.linhas.slice().sort(function (a, b) {
-      return ordemTurno(a.turno) - ordemTurno(b.turno) || a.time - b.time || (b.lider ? 1 : 0) - (a.lider ? 1 : 0) || rotuloAtividade(a.atividade).localeCompare(rotuloAtividade(b.atividade)) || a.usuario_wms.localeCompare(b.usuario_wms);
-    });
-    var aoa = [["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Time", "Observação", "Líder"]].concat(linhas.map(function (l) {
-      var obs = l.observacao || (/colmeia$/.test(l.atividade) ? "Colmeia" : "");
-      return [l.nome || "", l.usuario_wms, rotuloAtividade(l.atividade), l.turno, l.piso || "", "0" + l.time, obs, l.lider ? "S" : "N"];
-    }));
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Times");
+    var porTime = {};
+    compAdm.linhas.slice().sort(function (a, b) {
+      return ordemTurno(a.turno) - ordemTurno(b.turno) || (b.lider ? 1 : 0) - (a.lider ? 1 : 0) || rotuloAtividade(a.atividade).localeCompare(rotuloAtividade(b.atividade)) || a.usuario_wms.localeCompare(b.usuario_wms);
+    }).forEach(function (l) { (porTime[l.time] = porTime[l.time] || []).push(l); });
     var hoje = new Date();
-    XLSX.writeFile(wb, "times_competicao_" + hoje.getFullYear() + String(hoje.getMonth() + 1).padStart(2, "0") + String(hoje.getDate()).padStart(2, "0") + ".xlsx");
+    XLSX.writeFile(planilhaPorCores(porTime), "times_competicao_" + hoje.getFullYear() + String(hoje.getMonth() + 1).padStart(2, "0") + String(hoje.getDate()).padStart(2, "0") + ".xlsx");
   });
   document.getElementById("comp-btn-planilha").addEventListener("click", async function () {
     var input = document.getElementById("comp-planilha");
@@ -1446,39 +2017,285 @@ async function renderCompeticaoAdmin(recarregarBase) {
     } catch (e) { console.error(e); definirStatus("comp-planilha", "Erro: " + e.message, "erro"); }
   });
   restaurarStatusAbastecimento();
+  renderPontosBlack();
+}
+
+// =========================================================================
+// MISSÃO BLACK — lançamento de pontos (vistoria, desafios, ajustes) e horas de ouro.
+// Valores em regras-black.js. Nada é editado ou apagado: correção = estorno (lançamento inverso).
+// =========================================================================
+var pb = { dia: null, turno: null, time: 1 };
+async function renderPontosBlack() {
+  var RB = window.RegrasBlack;
+  var caixas = { vistoria: document.getElementById("pb-bloco-vistoria"), gincanas: document.getElementById("pb-bloco-gincanas"),
+    ajuste: document.getElementById("pb-bloco-ajuste"), ouro: document.getElementById("pb-bloco-ouro") };
+  if (!RB || !caixas.vistoria) return;
+  var ta = RB.turnoAtual(new Date());
+  if (!pb.dia) { pb.dia = ta.dia; pb.turno = ta.turno; }
+  var dias = RB.DIAS.map(function (d) { return [d[0], d[1] + " · " + d[2]]; });
+  if (!RB.DIAS.some(function (d) { return d[0] === pb.dia; })) dias.unshift([pb.dia, fmtDataBRIngest(pb.dia) + " (teste)"]);
+  var times = COMP_NUM_TIMES.map(function (n) { return [n, COMP_TIMES[n][0] + (n >= 5 ? " (colmeia)" : "")]; });
+  var f = function (v) { return RB.pts(v, pb.time); };
+
+  var rL = await supabaseClient.from("competicao_pontos").select("*").eq("dia", pb.dia).eq("turno", pb.turno).order("criado_em", { ascending: false });
+  var rO = await supabaseClient.from("competicao_hora_ouro").select("*").eq("dia", pb.dia).eq("turno", pb.turno).order("hora");
+  var semTabela = (rL.error && /competicao_pontos/.test(rL.error.message)) || (rO.error && /competicao_hora_ouro/.test(rO.error.message));
+  var lanc = rL.data || [], ouros = rO.data || [];
+
+  // Peças comuns aos 4 cartões
+  var campo = function (rotulo, html) { return '<label class="pb-campo">' + rotulo + html + "</label>"; };
+  var linhaCampos = function (html) { return '<div class="comp-add" style="align-items:flex-end">' + html + "</div>"; };
+  var seletores = function (comTime) {
+    return linhaCampos(campo("Dia", '<select data-pb="dia">' + opcoes(dias, pb.dia) + "</select>") + campo("Turno", '<select data-pb="turno">' + opcoes(COMP_TURNOS, pb.turno) + "</select>") +
+      (comTime ? campo("Time", '<select data-pb="time">' + opcoes(times, pb.time) + "</select>") : ""));
+  };
+  var tabelaLanc = function (cat) {
+    var ls = lanc.filter(function (l) { return l.categoria === cat; });
+    if (!ls.length) return "";
+    return '<div class="tbl-wrap"><table class="comp-classif"><thead><tr><th>Hora</th><th>Time</th><th>Item</th><th>Pontos</th><th>Motivo</th><th>Por</th><th></th></tr></thead><tbody>' +
+      ls.map(function (l) {
+        var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        return "<tr><td>" + hr + "</td><td>" + COMP_TIMES[l.time][0] + "</td><td>" + htmlSeguro(l.item || "") + '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos +
+          "</td><td>" + htmlSeguro(l.motivo || "") + "</td><td>" + htmlSeguro((l.registrado_email || "").replace(/@.*/, "")) + '</td><td><button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></td></tr>';
+      }).join("") + "</tbody></table></div>";
+  };
+  var cartao = function (k, titulo, corpo, botaoTopo) {
+    return '<div class="panel" style="display:flex; flex-direction:column; gap:12px"><div class="panel-head"><div><p class="kicker">Missão Black</p><h4>' + titulo + "</h4></div>" + (botaoTopo || "") + "</div>" +
+      (semTabela ? '<div class="upload-status erro">Tabelas de pontos não encontradas no banco (sql/black_pontos.sql).</div>' : "") +
+      corpo + '<div class="upload-status" id="pb-status-' + k + '"></div></div>';
+  };
+
+  // Vistoria
+  var porGrav = {};
+  RB.CHECKLIST.forEach(function (c, i) { (porGrav[c.grav] = porGrav[c.grav] || []).push('<label class="pb-item"><input type="number" min="0" max="9" value="0" data-i="' + i + '"> ' + htmlSeguro(c.item) + "</label>"); });
+  var checklist = Object.keys(RB.GRAVIDADES).map(function (g) {
+    return '<div class="pb-grav"><b>' + RB.GRAVIDADES[g].rot + " · " + f(RB.GRAVIDADES[g].pts) + " pts cada</b>" + (porGrav[g] || []).join("") + "</div>";
+  }).join("");
+  caixas.vistoria.innerHTML = cartao("vistoria", "Vistoria", seletores(true) +
+    '<div class="pb-check" style="grid-template-columns:repeat(auto-fit, minmax(240px, 1fr))">' + checklist + "</div>" +
+    '<label class="pb-item"><input type="checkbox" id="pb-limpa"> Vistoria sem apontamento (+' + f(RB.P.vistoriaLimpa) + ")</label>" +
+    linhaCampos(campo("Observação", '<input id="pb-vis-obs" placeholder="local, corredor, quem viu">') + '<button class="btn" id="pb-btn-vistoria">Lançar vistoria</button>') +
+    tabelaLanc("vistoria"));
+
+  // Gincanas: mesmo valor para os 6 times (colmeia × fator)
+  var gincanas = (RB.DESAFIOS[pb.dia] || []).concat(RB.GINCANAS || [], ["Outra gincana"]);
+  caixas.gincanas.innerHTML = cartao("gincanas", "Gincanas", seletores(false) +
+    linhaCampos(campo("Gincana", '<select id="pb-desafio">' + opcoes(gincanas, gincanas[0]) + "</select>") +
+      campo("Pontos (colmeia × " + String(RB.FATOR_COLMEIA).replace(".", ",") + ")", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">')) +
+      '<div><button class="btn" id="pb-btn-desafio">Lançar para todos os times</button></div>' +
+    tabelaLanc("desafio"));
+
+  // Ajuste de pontuação (+ extração da planilha)
+  caixas.ajuste.innerHTML = cartao("ajuste", "Ajuste de pontuação", seletores(true) +
+    linhaCampos(campo("Pontos (negativo desconta)", '<input id="pb-aj-pts" type="number" placeholder="ex.: -30 ou 50">') +
+      campo("Motivo (obrigatório)", '<input id="pb-aj-motivo">')) + '<div><button class="btn" id="pb-btn-ajuste">Lançar ajuste</button></div>' +
+    tabelaLanc("ajuste"));
+  var cxExtrair = document.getElementById("pb-bloco-extrair");
+  if (cxExtrair) cxExtrair.innerHTML = '<div class="pb-extrair"><span class="upload-status" id="pb-status-extrair"></span><button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições</button></div>';
+
+  // Horas de ouro
+  var T = RB.TURNOS[pb.turno] || RB.TURNOS["1º Turno"], horas = [];
+  for (var h = Math.floor(T.ini / 60); h < Math.ceil(T.fim / 60); h++) horas.push([h % 24, String(h % 24).padStart(2, "0") + "h00–" + String((h + 1) % 24).padStart(2, "0") + "h00"]);
+  caixas.ouro.innerHTML = cartao("ouro", "Horas de Ouro", seletores(false) +
+    linhaCampos(campo("Hora", '<select id="pb-ouro-hora">' + opcoes(horas, horas[0] && horas[0][0]) + "</select>") +
+      campo("Meta/h por time · piso", '<input id="pb-ouro-piso" type="number" value="260">') +
+      campo("Meta/h por time · colmeia", '<input id="pb-ouro-col" type="number" value="160">')) + '<div><button class="btn" id="pb-btn-ouro">Agendar</button></div>' +
+    (ouros.length ? '<div class="pb-ouros">' + ouros.map(function (o) { return "<span>" + String(o.hora).padStart(2, "0") + "h · piso " + o.meta_piso + " · colmeia " + o.meta_colmeia + ' <button class="btn ghost pb-ouro-del" data-id="' + o.id + '">Remover</button></span>'; }).join("") + "</div>" : ""));
+
+  // Eventos
+  var aviso = function (k, t, c) { var a = document.getElementById("pb-status-" + k); if (a) { a.textContent = t; a.className = "upload-status" + (c ? " " + c : ""); } };
+  Object.keys(caixas).forEach(function (k) {
+    caixas[k].querySelectorAll("[data-pb]").forEach(function (s) {
+      s.addEventListener("change", function () { var c = s.getAttribute("data-pb"); pb[c] = c === "time" ? Number(s.value) : s.value; renderPontosBlack(); });
+    });
+  });
+  document.getElementById("pb-btn-extrair").addEventListener("click", async function () {
+    aviso("extrair", "Montando a planilha…", "pendente");
+    try { aviso("extrair", await extrairPontosBlack(), "ok"); } catch (e) { console.error(e); aviso("extrair", "Erro ao extrair: " + e.message, "erro"); }
+  });
+  var email = async function () { var r = await supabaseClient.auth.getSession(); return r.data && r.data.session ? r.data.session.user.email : null; };
+  var gravar = async function (k, linhas, ok) {
+    var em = await email();
+    linhas.forEach(function (l) { l.dia = pb.dia; l.turno = pb.turno; l.registrado_email = em; if (!l.time) l.time = pb.time; });
+    var r = await supabaseClient.from("competicao_pontos").insert(linhas);
+    if (r.error) { aviso(k, "Erro: " + r.error.message, "erro"); return; }
+    await renderPontosBlack(); aviso(k, ok, "ok");
+  };
+  document.getElementById("pb-btn-vistoria").addEventListener("click", function () {
+    var obs = document.getElementById("pb-vis-obs").value.trim(), linhas = [];
+    caixas.vistoria.querySelectorAll(".pb-check input[data-i]").forEach(function (inp) {
+      var q = Math.max(0, Math.min(9, parseInt(inp.value, 10) || 0)), c = RB.CHECKLIST[Number(inp.getAttribute("data-i"))];
+      if (q) linhas.push({ categoria: "vistoria", item: RB.GRAVIDADES[c.grav].rot + ": " + c.item + (q > 1 ? " (×" + q + ")" : ""), pontos: f(c.pts) * q, motivo: obs || null });
+    });
+    var limpa = document.getElementById("pb-limpa").checked;
+    if (limpa && linhas.length) { aviso("vistoria", "Marque itens OU vistoria sem apontamento, não os dois.", "pendente"); return; }
+    if (limpa) linhas.push({ categoria: "vistoria", item: "Vistoria sem apontamento", pontos: f(RB.P.vistoriaLimpa), motivo: obs || null });
+    if (!linhas.length) { aviso("vistoria", "Marque pelo menos um item (ou vistoria sem apontamento).", "pendente"); return; }
+    var tot = linhas.reduce(function (a, l) { return a + l.pontos; }, 0);
+    if (!confirm("Lançar vistoria do time " + COMP_TIMES[pb.time][0] + ": " + (tot > 0 ? "+" : "") + tot + " pontos?")) return;
+    gravar("vistoria", linhas, "✓ Vistoria lançada: " + (tot > 0 ? "+" : "") + tot + " pontos para o " + COMP_TIMES[pb.time][0] + ".");
+  });
+  document.getElementById("pb-btn-desafio").addEventListener("click", function () {
+    var nome = document.getElementById("pb-desafio").value, v = parseInt(document.getElementById("pb-des-pts").value, 10);
+    if (!v) { aviso("gincanas", "Informe os pontos.", "pendente"); return; }
+    var linhas = COMP_NUM_TIMES.map(function (n) { return { time: n, categoria: "desafio", item: nome, pontos: RB.pts(v, n), motivo: null }; });
+    if (!confirm("Lançar \"" + nome + "\" para os 6 times: " + v + " pontos no piso e " + RB.pts(v, 5) + " na colmeia?")) return;
+    gravar("gincanas", linhas, "✓ Gincana lançada para os 6 times.");
+  });
+  document.getElementById("pb-btn-ajuste").addEventListener("click", function () {
+    var v = parseInt(document.getElementById("pb-aj-pts").value, 10), m = document.getElementById("pb-aj-motivo").value.trim();
+    if (!v || !m) { aviso("ajuste", "Informe os pontos e o motivo.", "pendente"); return; }
+    gravar("ajuste", [{ categoria: "ajuste", item: "Ajuste manual", pontos: v, motivo: m }], "✓ Ajuste lançado.");
+  });
+  var chaveCat = { vistoria: "vistoria", desafio: "gincanas", ajuste: "ajuste" };
+  Object.keys(caixas).forEach(function (k) {
+    caixas[k].querySelectorAll(".pb-estorno").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var l = lanc.filter(function (x) { return x.id === b.getAttribute("data-id"); })[0];
+        if (!l || !confirm("Estornar " + l.pontos + " pontos do " + COMP_TIMES[l.time][0] + " (" + (l.item || l.categoria) + ")?")) return;
+        gravar(chaveCat[l.categoria] || k, [{ time: l.time, categoria: l.categoria, item: "Estorno: " + (l.item || ""), pontos: -l.pontos, motivo: "Estorno do lançamento das " + new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }], "✓ Estorno lançado.");
+      });
+    });
+  });
+  document.getElementById("pb-btn-ouro").addEventListener("click", async function () {
+    var r = await supabaseClient.from("competicao_hora_ouro").insert({ dia: pb.dia, turno: pb.turno, hora: Number(document.getElementById("pb-ouro-hora").value),
+      meta_piso: parseInt(document.getElementById("pb-ouro-piso").value, 10) || 0, meta_colmeia: parseInt(document.getElementById("pb-ouro-col").value, 10) || 0 });
+    if (r.error) { aviso("ouro", "Erro: " + r.error.message, "erro"); return; }
+    await renderPontosBlack(); aviso("ouro", "✓ Hora de ouro agendada.", "ok");
+  });
+  caixas.ouro.querySelectorAll(".pb-ouro-del").forEach(function (b) {
+    b.addEventListener("click", async function () {
+      if (!confirm("Remover esta hora de ouro?")) return;
+      var r = await supabaseClient.from("competicao_hora_ouro").delete().eq("id", b.getAttribute("data-id"));
+      if (r.error) { aviso("ouro", "Erro: " + r.error.message, "erro"); return; }
+      await renderPontosBlack(); aviso("ouro", "✓ Hora de ouro removida.", "ok");
+    });
+  });
+}
+
+// Planilha "Descontos e Adições de Pontos por Time": mesma conta do placar (RegrasBlack.placarDoDia).
+// Dias da Black já passados × turnos com escalação; antes da Black, o dia e o turno escolhidos (prévia).
+async function extrairPontosBlack() {
+  var RB = window.RegrasBlack;
+  var r = await Promise.all([
+    supabaseClient.from("dashboard_snapshots").select("dados").eq("pagina", "outbound").maybeSingle(),
+    supabaseClient.from("competicao_times").select("*"),
+    supabaseClient.from("competicao_pontos").select("*").order("criado_em"),
+    supabaseClient.from("competicao_hora_ouro").select("*").order("dia").order("hora"),
+  ]);
+  r.forEach(function (x) { if (x.error) throw new Error(x.error.message); });
+  var snap = (r[0].data && r[0].data.dados) || {}, cad = r[1].data || [], lanc = r[2].data || [], ouros = r[3].data || [];
+  var hoje = RB.turnoAtual(new Date()).dia;
+  var dias = RB.DIAS.map(function (d) { return d[0]; }).filter(function (d) { return d <= hoje; });
+  var pares = [];
+  if (!dias.length) pares.push([pb.dia, pb.turno]);
+  else dias.forEach(function (d) { COMP_TURNOS.forEach(function (t) { if (cad.some(function (x) { return x.turno === t; })) pares.push([d, t]); }); });
+
+  var nomeTime = function (n) { return COMP_TIMES[n] ? COMP_TIMES[n][0] : "Time " + n; };
+  var abaTimes = [["Dia", "Turno", "Time", "Grupo", "Peças", "Meta do dia", "Produtividade", "Escalados", "Presentes", "Atrasos", "Assiduidade",
+    "Desafios", "Vistoria", "Meta batida", "Bateu a meta às", "Antecipada", "Hora de ouro", "Destaque", "Ajustes", "Total do dia"]];
+  var abaPessoas = [["Dia", "Turno", "Time", "Nome", "Usuário WMS", "Atividade", "Peças separação", "Peças conferência", "Peças total", "Presença", "Destaque", "Pontos de destaque"]];
+  var abaOuro = [["Dia", "Turno", "Hora", "Time", "Meta da hora", "Peças na hora", "Hora terminou", "Bateu", "Bônus (peças em dobro)"]];
+  var porTurno = {};
+  pares.forEach(function (par) {
+    var dia = par[0], turno = par[1], cadT = cad.filter(function (x) { return x.turno === turno; });
+    var c = RB.calcularCompeticao(snap, cadT, dia);
+    var pl = RB.placarDoDia({ c: c, snap: snap, cadastro: cadT, dia: dia, turno: turno, agora: new Date(),
+      lanc: lanc.filter(function (l) { return l.dia === dia && l.turno === turno; }),
+      ouro: ouros.filter(function (o) { return o.dia === dia && o.turno === turno; }) });
+    (porTurno[turno] = porTurno[turno] || []).push(pl);
+    var dBR = fmtDataBRIngest(dia);
+    pl.linhas.forEach(function (x) {
+      abaTimes.push([dBR, turno, nomeTime(x.n), x.colmeia ? "Colmeia" : "Piso", x.pecas, x.meta, x.produtividade, x.escalados, x.presentes, x.atrasos, x.assiduidade,
+        x.desafios, x.segQual, x.metaBatida, x.minutoMeta == null ? "" : String(Math.floor(x.minutoMeta / 60) % 24).padStart(2, "0") + ":" + String(x.minutoMeta % 60).padStart(2, "0"),
+        x.antecipada, x.ouro, x.destaque, x.ajustes, x.total]);
+      x.ouroDetalhe.forEach(function (o) {
+        abaOuro.push([dBR, turno, String(o.hora).padStart(2, "0") + "h00", nomeTime(x.n), o.meta, o.feitas, o.terminou ? "Sim" : "Não", o.bateu ? "Sim" : "Não", o.bateu ? o.feitas : 0]);
+      });
+      // Colaboradores: quem produziu (lista da corrida) + quem está escalado e não produziu.
+      var t = c.times[x.n - 1], vistos = {};
+      var linhasCad = juntarAtividades(cadT.filter(function (l) { return l.time === x.n; }));
+      var cadDe = function (u) { return linhasCad.filter(function (l) { return l.usuario_wms === u; }); };
+      var linhaPessoa = function (usuario, nome, sep, conf) {
+        var lc = cadDe(usuario), pres = "";
+        lc.forEach(function (l) { if (l.presenca && l.presenca[dia]) pres = l.presenca[dia]; });
+        var dest = x.destaques.filter(function (d) { return d.nome === (nome || usuario) && ((d.funcao === "Separação" && d.pecas === sep) || (d.funcao === "Conferência" && d.pecas === conf)); });
+        abaPessoas.push([dBR, turno, nomeTime(x.n), nome || "", usuario, lc.map(function (l) { return l.sigla; }).join(", "), sep, conf, sep + conf, pres,
+          dest.map(function (d) { return d.funcao; }).join(" e "), dest.length * RB.pts(RB.P.destaque, x.n)]);
+      };
+      t.lista.forEach(function (m) { vistos[m.usuario] = 1; linhaPessoa(m.usuario, m.nome, m.sep, m.conf); });
+      linhasCad.forEach(function (l) { if (!vistos[l.usuario_wms]) { vistos[l.usuario_wms] = 1; linhaPessoa(l.usuario_wms, l.nome, 0, 0); } });
+    });
+  });
+  var abaAcum = [["Turno", "Time", "Dias", "Dias com 100% de presença", "Trinca Perfeita", "Total acumulado"]];
+  Object.keys(porTurno).forEach(function (turno) {
+    var ac = RB.acumulado(porTurno[turno]);
+    Object.keys(ac).sort(function (a, b) { return ac[b].total - ac[a].total; }).forEach(function (n) {
+      abaAcum.push([turno, nomeTime(Number(n)), ac[n].dias, ac[n].dias100, ac[n].trinca, ac[n].total]);
+    });
+  });
+  var abaLanc = [["Dia", "Turno", "Time", "Categoria", "Item", "Pontos", "Motivo", "Lançado por", "Lançado em"]];
+  lanc.forEach(function (l) {
+    abaLanc.push([fmtDataBRIngest(l.dia), l.turno, nomeTime(l.time), l.categoria, l.item || "", l.pontos, l.motivo || "",
+      (l.registrado_email || "").replace(/@.*/, ""), new Date(l.criado_em).toLocaleString("pt-BR")]);
+  });
+
+  var wb = XLSX.utils.book_new();
+  [["Times", abaTimes, 14], ["Acumulado", abaAcum, 16], ["Colaboradores", abaPessoas, 16], ["Lançamentos", abaLanc, 16], ["Horas de ouro", abaOuro, 14]].forEach(function (a) {
+    var ws = XLSX.utils.aoa_to_sheet(a[1]);
+    ws["!cols"] = a[1][0].map(function (h) { return { wch: Math.max(a[2], String(h).length + 2) }; });
+    XLSX.utils.book_append_sheet(wb, ws, a[0]);
+  });
+  var agora = new Date(), carimbo = agora.getFullYear() + String(agora.getMonth() + 1).padStart(2, "0") + String(agora.getDate()).padStart(2, "0") + "_" + String(agora.getHours()).padStart(2, "0") + String(agora.getMinutes()).padStart(2, "0");
+  XLSX.writeFile(wb, "pontos_black_" + carimbo + ".xlsx");
+  return "✓ Planilha gerada: " + pares.length + " dia(s)/turno(s)" + (dias.length ? "" : " (prévia de " + fmtDataBRIngest(pb.dia) + " · " + pb.turno + ")") +
+    " · " + (abaPessoas.length - 1) + " linha(s) de colaborador · " + lanc.length + " lançamento(s).";
 }
 
 // A planilha substitui a escalação inteira dos turnos que ela traz (todas as atividades); os outros turnos ficam como estão.
+// Abas da planilha de times: as que têm nome de cor viram o time; sem nenhuma, vale a 1ª aba (formato antigo, coluna Time).
+async function lerAbasCompeticao(file) {
+  var nome = file.name.toLowerCase();
+  if (nome.endsWith(".tsv") || nome.endsWith(".txt")) return [{ aba: null, time: null, rows: await parseArquivoGenerico(file) }];
+  var wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  var abasCor = wb.SheetNames.filter(function (n) { return timeDaAba(n); });
+  if (!abasCor.length) return [{ aba: null, time: null, rows: XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" }) }];
+  return abasCor.map(function (n) { return { aba: n, time: timeDaAba(n), rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: "", raw: false }) }; });
+}
+
 async function processarPlanilhaCompeticao(file, idx) {
-  var rows = await parseArquivoGenerico(file);
+  var abas = await lerAbasCompeticao(file);
   var validos = new Map(), erros = [], foraBase = 0;
-  rows.forEach(function (row, i) {
-    var linha = i + 2;
+  abas.forEach(function (aba) { aba.rows.forEach(function (row, i) {
+    var linha = (aba.aba ? aba.aba + " " : "") + (i + 2);
     var usuarioRaw = String(obterCampo(row, ["Usuário WMS", "Usuario WMS", "Usuário", "Usuario"]) || "").trim();
     if (!usuarioRaw && !String(obterCampo(row, ["Nome"]) || "").trim()) return; // linha vazia
     var base = usuarioRaw ? idx.get(normalizarUsuarioWMS(usuarioRaw)) : null;
     var textoAtv = obterCampo(row, ["Atividade"]);
-    var atividade = atividadeDeTexto(textoAtv);
+    var atividades = atividadesDeTexto(textoAtv);
     var turno = turnoDeTexto(obterCampo(row, ["Turno"]) || (base && base.turno) || "");
     var piso = inteiroDe(obterCampo(row, ["Piso", "Andar"]), 1, 4);
-    var time = inteiroDe(obterCampo(row, ["Time"]), 1, 6);
+    var time = aba.time || inteiroDe(obterCampo(row, ["Time"]), 1, 6);
     var obsTxt = normalizarTexto(obterCampo(row, ["Observação", "Observacao", "Obs"]));
     var observacao = (obsTxt.indexOf("COLMEIA") !== -1 || normalizarTexto(textoAtv).indexOf("COLMEIA") !== -1) ? "Colmeia" : null;
     var lider = /^(S|SIM|X|TRUE|1)$/.test(normalizarTexto(obterCampo(row, ["Líder", "Lider"])));
     var falta = [];
     if (!usuarioRaw) falta.push("usuário WMS");
-    if (!atividade) falta.push("atividade");
+    if (!atividades.length) falta.push("atividade (S, C ou C/S)");
     if (!turno) falta.push("turno");
-    if (!time) falta.push("time (01 a 06)");
+    if (!time) falta.push("time (aba com o nome da cor)");
     if (falta.length) { erros.push("linha " + linha + " (" + (usuarioRaw || "sem usuário") + "): " + falta.join(", ")); return; }
     if (!base) foraBase++;
     var usuario = normalizarUsuarioWMS(usuarioRaw); // o da planilha, não o palpite da Base de Ativos
-    validos.set(usuario + "|" + atividade + "|" + turno, {
-      usuario_wms: usuario, nome: base ? base.nome : (String(obterCampo(row, ["Nome"]) || "").trim() || null),
-      turno: turno, atividade: atividade, setor: null, piso: piso || null, time: time,
-      observacao: observacao, lider: lider, atualizado_em: new Date().toISOString(),
+    var presenca = presencaDaLinha(row), nome = base ? base.nome : (String(obterCampo(row, ["Nome"]) || "").trim() || null);
+    atividades.forEach(function (atividade) {   // C/S = um registro de Separação e outro de Conferência
+      validos.set(usuario + "|" + atividade + "|" + turno, {
+        usuario_wms: usuario, nome: nome,
+        turno: turno, atividade: atividade, setor: null, piso: piso || null, time: time,
+        observacao: observacao, lider: lider, presenca: presenca, atualizado_em: new Date().toISOString(),
+      });
     });
-  });
+  }); });
   var registros = Array.from(validos.values());
   if (!registros.length) throw new Error(erros.length ? "Nenhuma linha válida. " + erros.slice(0, 3).join(" · ") : "A planilha não tem linhas.");
   var turnos = Array.from(new Set(registros.map(function (r) { return r.turno; })));
@@ -1489,18 +2306,26 @@ async function processarPlanilhaCompeticao(file, idx) {
     if (ins.error) throw new Error("Falha ao gravar os times: " + ins.error.message);
   }
   var lideres = registros.filter(function (r) { return r.lider; }).length;
-  var resumo = "✓ " + registros.length + " membro(s) gravado(s) em " + turnos.length + " turno(s) · " + lideres + " líder(es)";
+  var comPresenca = registros.filter(function (r) { return Object.keys(r.presenca).length; }).length;
+  var resumo = "✓ " + registros.length + " membro(s) gravado(s) em " + turnos.length + " turno(s) · " + lideres + " líder(es)" + (abas[0].aba ? " · " + abas.length + " aba(s) de time" : "") + (comPresenca ? " · presença de " + comPresenca + " pessoa(s)" : "");
   if (foraBase) resumo += " · " + foraBase + " fora da Base de Ativos";
   if (erros.length) resumo += " · " + erros.length + " linha(s) ignorada(s): " + erros.slice(0, 3).join("; ");
   return { texto: resumo, classe: erros.length ? "pendente" : "ok" };
+}
+
+// Colunas 27/11, 28/11, 29/11 -> {"2026-11-27":"P", ...} (só os dias preenchidos).
+function presencaDaLinha(row) {
+  var p = {};
+  COMP_DIAS_BLACK.forEach(function (d) { var v = presencaDeTexto(obterCampo(row, [d[1]])); if (v) p[d[0]] = v; });
+  return p;
 }
 
 function fmtDataBRIngest(iso) { var p = String(iso).slice(0, 10).split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : iso; }
 
 // Agrupa uploads por setor (igual à navegação lateral), com espaçamento e
 // título entre os grupos — em vez de todos os cards jogados em sequência.
-function grupoAbastecimento(titulo, itensHtml) {
-  return '<div class="grupo-abastecimento"><div class="grupo-titulo">' + titulo + '</div><div class="grupo-itens">' + itensHtml.join("") + '</div></div>';
+function grupoAbastecimento(titulo, itensHtml, id) {
+  return '<div class="grupo-abastecimento"' + (id ? ' id="' + id + '"' : "") + '><div class="grupo-titulo">' + titulo + '</div><div class="grupo-itens">' + itensHtml.join("") + '</div></div>';
 }
 
 async function renderAbastecimento() {
@@ -1511,31 +2336,32 @@ async function renderAbastecimento() {
   var snapEstoque = await lerSnapshot("estoque");
   var metaCfg = snapEstoque.inventario && snapEstoque.inventario.metaConfig;
   el.innerHTML =
-    cartaoCicloInventario(cicloAtivo) +
-    // Esses 3 relatórios são exportados do WMS sem filtro — cada um sozinho já
-    // cobre mais de um setor, então abastece uma vez só em vez de tirar o
-    // mesmo relatório de novo com filtros diferentes pra cada tela.
     grupoAbastecimento("Compartilhados entre setores", [
       caixaUpload("up-kardex-geral", "Kardex (sem filtro)", "Alimenta <strong>Pendente de fechamento</strong> (Outbound), <strong>Pula</strong> (Gestão de Estoque) e <strong>Armazenagem</strong> (Inbound) — mesmo relatório, o sistema separa pelo Tipo do Local e pelo prefixo do Local."),
       caixaUpload("up-gerenciador-or-geral", "Gerenciador de OR (sem filtro)", "Alimenta <strong>Recebimento</strong> (Inbound) e <strong>Vinculação</strong> (Reversa) — mesmo relatório, o sistema separa pelo Tipo do Recebimento."),
       caixaUpload("up-controle-nf-geral", "Controle de Nota Fiscal (sem filtro)", "Alimenta <strong>Cancelamentos WMS</strong> (Gestão de Estoque) e <strong>Integração</strong> (Reversa) — mesmo relatório, o sistema separa pela Operação/Status."),
-    ]) +
+    ], "adm-compartilhados") +
     grupoAbastecimento("Outbound", [
       caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
+      caixaUpload("up-itens-nf-saida", "Itens de NF de Saída", "Alimenta as <strong>marcas</strong> da tela <strong>Operação agora</strong> do telão (junto com o Acompanhamento_Op). Data inicial = pedido mais antigo em tela."),
+      caixaUpload("up-embalas", "Embalas (base de embalagem)", "Artigo → <strong>Marca</strong> para os produtos sem a marca no nome (Operação agora). Atualize quando a base semanal mudar."),
       caixaUpload("up-separacao-analitica", "Separação Analítica", "Alimenta <strong>Separação Checkout e Colmeia</strong> (ranking, gráfico por dia, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Uma linha por tarefa, com Data/Hora Início. Substitui a Produtividade de Separação."),
       caixaUpload("up-conferencia-analitica", "Conferência Analítica", "Alimenta <strong>Conferência Checkout</strong> (ranking, tempo trabalhado) e a <strong>produção por hora</strong> da Competição. Substitui a Conferência Checkout/Etiqueta."),
       caixaUpload("up-conf-colmeia", "Conferência Colmeia", "Alimenta <strong>Conferência Colmeia</strong>."),
-    ]) +
+    ], "adm-outbound") +
+    grupoAbastecimento("Movimentação", [renderFormPallets()], "adm-movimentacao") +
     grupoAbastecimento("Gestão de Estoque", [
+      cartaoCicloInventario(cicloAtivo),
       cartaoMetaInventario(metaCfg),
       caixaUpload("up-bipagens", "Bipagens (acumula o ciclo)", "Alimenta <strong>Inventário</strong> — curva real, heatmap e série diária. Selecione vários arquivos de uma vez; a data vem do início do nome (ex.: 2909 PISO 3B RUA 01 A 05).", true, !cicloAtivo),
       caixaUpload("up-diferenca-local", "Diferença por Local", "Divergências (ganhos/perdas) do ciclo de <strong>Inventário</strong>.", false, !cicloAtivo),
       caixaUpload("up-corte-pula-manual", "Base Geral Corte/Pula (planilha manual)", "Abas \"Pulas - Colmeia\" e \"Corte Físico - Checkout Express\" — alimenta os totais tratados e o ranking de agressores."),
       caixaUpload("up-corte-tela", "Corte em Tela", "Alimenta o KPI <strong>Cortes em tela</strong>."),
       caixaUpload("up-corte-resolvido", "Corte Resolvido", "Alimenta <strong>Cortes aceitos</strong> e <strong>Cortes no endereço</strong>."),
-    ]) +
-    grupoAbastecimento("Competição", ['<div id="bloco-competicao-admin"><div class="panel">Carregando…</div></div>']) +
-    grupoAbastecimento("Manual", [renderFormPallets()]);
+    ], "adm-estoque") +
+    grupoAbastecimento("Times da competição", ['<div id="bloco-competicao-admin"><div class="panel">Carregando…</div></div>'], "adm-times") +
+    grupoAbastecimento("Vistoria", ['<div id="pb-bloco-vistoria"></div>'], "adm-vistoria") +
+    grupoAbastecimento("Ajustes", ['<div id="pb-bloco-extrair"></div><div class="pb-ajustes"><div id="pb-bloco-gincanas"></div><div id="pb-bloco-ajuste"></div><div id="pb-bloco-ouro"></div></div>'], "adm-ajustes");
   restaurarStatusAbastecimento();
   renderCompeticaoAdmin(true);
 }
@@ -1594,7 +2420,7 @@ async function renderAtivos() {
     '<div class="duo"><div><table class="op"><tr><th>Setor</th><th class="num">Colaboradores</th></tr>' + linhasTabela(porSetor) + "</table></div>" +
     '<div><table class="op"><tr><th>Turno</th><th class="num">Colaboradores</th></tr>' + linhasTabela(porTurno) + "</table></div></div>" +
     caixaUpload("up-base-ativos", "Base de Ativos (planilha RH)", "Colunas: Código, Nome, Estabelecimento, Cargo, Lotação, Jornada, Horário, Admissão, Situação, Gestor, Setor. Usuário sem cadastro nunca é descartado — aparece como \"não cadastrado\" nos relatórios.") +
-    '<p class="fonte">Atenção: a base tem "Gestão de Estoque" e "Gestão de estoque" como setores distintos — o ingest normaliza para exibição, mas vale corrigir na origem.</p></div>';
+    '</div>';
 }
 
 // -------------------------------------------------------------------------
@@ -1696,24 +2522,36 @@ async function processar(id) {
         // Hora a hora da armazenagem normal (telão): os dias do arquivo substituem os salvos, guarda até 31 dias.
         normalHoraDia: mesclarDias(armAnterior.normalHoraDia, Array.from(r5.normalHora.entries()).map(function (e) { return { data: e[0], horas: e[1] }; })).slice(-31),
       };
+      var diaOp5 = diaOperacionalIngest(new Date());
+      atual5.armazenagem.previsao = previsaoDoDia(atual5.armazenagem.normalHoraDia, new Date(),
+        totalDoDia([atual5.armazenagem.normalDia], diaOp5), 1, minutosOperacionais(r5.normalMin, diaOp5));
       atual5.recebimento = atual5.recebimento || {};
       atual5.recebimento.normal = Object.assign({}, atual5.recebimento.normal, { itensArmazenados: r5.totalNormal });
       atual5.recebimento.reversa = Object.assign({}, atual5.recebimento.reversa, { itensArmazenados: r5.totalReversa });
       await salvarSnapshot("inbound", atual5);
 
-      definirStatus(id, "✓ Kardex processado: Pendente de fechamento (Outbound), Pula (Estoque) e Armazenagem (Inbound).", "ok");
+      // Expedição (telão) é um extra: se falhar, o resto do Kardex já está gravado.
+      var textoExp;
+      try {
+        var rExp = processarExpedicaoKardex(rows);
+        var resExp = await atualizarOperacao({ expedicao: rExp, kardexEm: Date.now() });
+        var expHoje = ((resExp.expedicao || {}).dias || []).filter(function (d) { return d.data === diaOp5; })[0];
+        textoExp = "Expedição hoje: " + (expHoje ? expHoje.pedidos.toLocaleString("pt-BR") + " pedidos, " + expHoje.pecas.toLocaleString("pt-BR") + " peças" : "nada ainda");
+      } catch (eExp) { console.error(eExp); textoExp = "Expedição NÃO gravada: " + eExp.message; }
+
+      definirStatus(id, "✓ Kardex processado: Pendente de fechamento (Outbound), Pula (Estoque), Armazenagem (Inbound) e " + textoExp + ".", "ok");
     }
 
     else if (id === "up-separacao-analitica") {
       var rowsSA = await parseArquivoGenerico(input.files[0]);
       var acS = processarSeparacaoAnalitica(rowsSA);
-      var diasS = diasHoraParaArray(acS.horas);
+      var diasS = diasHoraParaArray(acS.horas, acS.minutos);
       if (!diasS.length) throw new Error("Nenhuma linha válida: confira se o arquivo traz Data/Hora Início, Região Destino e Usuário.");
       var atualSA = await lerSnapshot("outbound");
       atualSA.separacao = atualSA.separacao || {};
       var sepA = atualSA.separacao;
       // Os dias do arquivo substituem os já salvos; os demais ficam (guarda até 31 dias de hora a hora).
-      sepA.analitico = mesclarDias(sepA.analitico, diasS).slice(-31);
+      sepA.analitico = podarMinutos(mesclarHoras(sepA.analitico, diasS, diasDasPecas(acS.pecas)).slice(-31));
       sepA.checkoutDia = mesclarDias(sepA.checkoutDia, diaMapParaArray(acS.pecas.checkout));
       sepA.colmeiaDia = mesclarDias(sepA.colmeiaDia, diaMapParaArray(acS.pecas.colmeia));
       sepA.checkoutSegDia = mesclarDias(sepA.checkoutSegDia, diaMapParaArray(acS.seg.checkout));
@@ -1735,6 +2573,7 @@ async function processar(id) {
       var geralSA = new Map(acS.totais.checkout);
       acS.totais.colmeia.forEach(function (v, k) { geralSA.set(k, (geralSA.get(k) || 0) + v); });
       sepA.ranking.geral = mapParaRanking(geralSA);
+      atualizarPrevisoesOutbound(atualSA);
       await salvarSnapshot("outbound", atualSA);
       definirStatus(id, "✓ Separação Analítica processada: " + diasS.length + " dia(s), de " + fmtDataBRIngest(diasS[0].data) + (diasS.length > 1 ? " a " + fmtDataBRIngest(diasS[diasS.length - 1].data) : "") + " (Checkout + Colmeia, por dia e por hora).", "ok");
     }
@@ -1742,16 +2581,17 @@ async function processar(id) {
     else if (id === "up-conferencia-analitica") {
       var rowsCA = await parseArquivoGenerico(input.files[0]);
       var acC = processarConferenciaAnalitica(rowsCA);
-      var diasC = diasHoraParaArray(acC.horas);
+      var diasC = diasHoraParaArray(acC.horas, acC.minutos);
       if (!diasC.length) throw new Error("Nenhuma linha válida: confira se o arquivo traz Data/Hora Início e Conferênte.");
       var atualCA = await lerSnapshot("outbound");
       atualCA.conferencia = atualCA.conferencia || {};
       var confA = atualCA.conferencia;
-      confA.analitico = mesclarDias(confA.analitico, diasC).slice(-31);
+      confA.analitico = podarMinutos(mesclarHoras(confA.analitico, diasC, diasDasPecas(acC.pecas)).slice(-31));
       confA.confCheckoutDia = mesclarDias(confA.confCheckoutDia, diaMapParaArray(acC.pecas.checkout));
       confA.confCheckoutSegDia = mesclarDias(confA.confCheckoutSegDia, diaMapParaArray(acC.seg.checkout));
       confA.confCheckout = mapParaRanking(acC.totais.checkout);
       confA.totalCheckout = somaMapa(acC.totais.checkout);
+      atualizarPrevisoesOutbound(atualCA);
       await salvarSnapshot("outbound", atualCA);
       definirStatus(id, "✓ Conferência Analítica processada: " + diasC.length + " dia(s), de " + fmtDataBRIngest(diasC[0].data) + (diasC.length > 1 ? " a " + fmtDataBRIngest(diasC[diasC.length - 1].data) : "") + " (por dia e por hora).", "ok");
     }
@@ -1764,11 +2604,13 @@ async function processar(id) {
       atual4.conferencia = atual4.conferencia || {};
       atual4.conferencia.confColmeiaUnitDia = mesclarDias(atual4.conferencia.confColmeiaUnitDia, diaMapParaArray(r4.unitDia));
       atual4.conferencia.confColmeiaVolDia = mesclarDias(atual4.conferencia.confColmeiaVolDia, diaMapParaArray(r4.volDia));
+      atual4.conferencia.colmeiaMarcas = marcarColmeia(atual4.conferencia.colmeiaMarcas, r4.unitDia);
       var lista4 = Array.from(mapa4.entries()).map(function (e) { return { nome: e[0], unitaria: e[1].unitaria, volumes: e[1].volumes }; });
       lista4.sort(function (a, b) { return b.unitaria - a.unitaria; });
       atual4.conferencia.confColmeia = lista4;
       atual4.conferencia.totalColmeiaUnit = lista4.reduce(function (s, x) { return s + x.unitaria; }, 0);
       atual4.conferencia.totalColmeiaVol = lista4.reduce(function (s, x) { return s + x.volumes; }, 0);
+      atualizarPrevisoesOutbound(atual4);
       await salvarSnapshot("outbound", atual4);
       definirStatus(id, "✓ Conferência Colmeia processada.", "ok");
     }
@@ -1792,7 +2634,29 @@ async function processar(id) {
       // DEPOIS deste Acompanhamento_Op, ele recalcula comCorte usando esta lista.
       atualAcOp.separacao.pedidosEmSeparacao = rAcOp.emSeparacao.pedidos;
       await salvarSnapshot("outbound", atualAcOp);
-      definirStatus(id, "✓ Acompanhamento_Op processado (Itens em separação + Aguardando geração de onda).", "ok");
+      // Operação agora (telão) é um extra: se falhar, os KPIs acima já estão gravados.
+      var textoOp;
+      try {
+        var resOp = await atualizarOperacao({ pedidos: processarOperacaoOp(rowsAcOp), nfInfo: infoNfDoOp(rowsAcOp), opEm: Date.now() });
+        textoOp = "Operação agora: " + resOp.itens.toLocaleString("pt-BR") + " itens em " + resOp.pedidos + " pedidos";
+      } catch (eOp) { console.error(eOp); textoOp = "Operação agora NÃO gravada: " + eOp.message; }
+      definirStatus(id, "✓ Acompanhamento_Op processado (Itens em separação + Aguardando geração de onda · " + textoOp + ").", "ok");
+    }
+
+    else if (id === "up-embalas") {
+      // Base de embalagem (Embalas, atualizada toda semana): Artigo -> MARCA, usada quando o nome do produto não traz a marca.
+      var mapaEmb = processarEmbalas(await parseArquivoGenerico(input.files[0]));
+      var nEmb = Object.keys(mapaEmb).length;
+      if (!nEmb) throw new Error("Nenhum artigo com marca: confira se o arquivo tem as colunas Artigo (ou SKU) e MARCA.");
+      await atualizarOperacao({ embalas: mapaEmb, embalasEm: Date.now() });
+      definirStatus(id, "✓ Embalas: " + nEmb.toLocaleString("pt-BR") + " artigos com marca (vale a partir do próximo Itens de NF).", "ok");
+    }
+
+    else if (id === "up-itens-nf-saida") {
+      var rowsNf = await parseArquivoGenerico(input.files[0]);
+      // marcas (Operação agora) + transportadora e SINGLE/MULTI das notas (Expedição)
+      var resNf = await atualizarOperacao({ linhasItensNf: rowsNf, nfEm: Date.now() });
+      definirStatus(id, "✓ Itens de NF de Saída processado (marcas da Operação agora; " + resNf.semMarca.toLocaleString("pt-BR") + " itens ainda sem marca).", "ok");
     }
 
     else if (id === "up-gerenciador-or-geral") {
@@ -1962,6 +2826,12 @@ window.ProdutividadeIngest = {
   lancarPallet: lancarPallet,
   alternarCicloInventario: alternarCicloInventario,
   salvarMetaInventario: salvarMetaInventario,
+  // Robô: "Importado em" (ms) do pedido em aberto mais antigo de um Acompanhamento OP.
+  maisAntigoOp: async function (file) {
+    var p = processarOperacaoOp(await parseArquivoGenerico(file)), m = null;
+    Object.keys(p).forEach(function (k) { var t = p[k][2]; if (t && (m === null || t < m)) m = t; });
+    return m;
+  },
 };
 
 })();

@@ -17,13 +17,15 @@
   - Não altera nada no banco: só lê.
 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="regras-black.js"></script>
 <style>
 html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 *{box-sizing:border-box}
 /* ---------- palco 1500×844 (16:9) escalado para qualquer TV ---------- */
 #palco{position:absolute;left:50%;top:50%;width:1500px;height:844px;transform-origin:50% 50%;display:flex;flex-direction:column;
   --bg:#0F1623;--bg-card:#192032;--bg-input:#1E2A3D;--border:#253048;--text:#E8EBF2;--text-muted:#7C8BA8;--text-label:#9BAAC4;
-  --accent:#297ADF;--accent-light:#7FB2EC;--olive:#45C645;--amber:#F6BD00;--red:#E0334F;
+  --cc:#297ADF;--cc2:#7FB2EC;--cc-t:#fff;
+  --accent:#297ADF;--accent-light:#7FB2EC;--olive:#45C645;--amber:#F6BD00;--orange:#F5A524;--red:#E0334F;
   --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;
   --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;
   background:var(--bg);color:var(--text);font-size:16px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}
@@ -48,9 +50,9 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .comp-tk.ult{border-bottom:1px solid var(--border); border-radius:0 0 8px 8px;}
 .comp-tk.prim.ult{border-radius:8px;}
 .comp-largada{position:absolute; left:4%; top:0; bottom:0; border-left:2px dashed color-mix(in srgb, var(--text-muted) 60%, transparent);}
-.comp-chegada{position:absolute; left:97%; top:0; height:42px; width:14px; margin-left:-7px; z-index:1; background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/14px 14px;}
-.comp-rastro{position:absolute; left:4%; bottom:6px; height:5px; width:calc((93% - 100px) * var(--p) + 112px - var(--w)); border-radius:3px; background:linear-gradient(90deg, transparent, var(--c));}
-.comp-carro{position:absolute; left:calc(4% + 100px + (93% - 100px) * var(--p)); bottom:3px; width:var(--w); height:var(--h); margin-left:calc(var(--w) * -1); z-index:2;}
+.comp-chegada{position:absolute; left:93%; top:0; height:42px; width:14px; margin-left:-7px; z-index:1; background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/14px 14px;}
+.comp-rastro{position:absolute; left:4%; bottom:6px; height:5px; width:calc((89% - 100px) * var(--p) + 112px - var(--w)); border-radius:3px; background:linear-gradient(90deg, transparent, var(--c));}
+.comp-carro{position:absolute; left:calc(4% + 100px + (89% - 100px) * var(--p)); bottom:3px; width:var(--w); height:var(--h); margin-left:calc(var(--w) * -1); z-index:2;}
 .comp-carro img{display:block; width:100%; height:100%; transform:scaleX(-1); position:relative; z-index:2; animation:comp-treme .16s steps(2) infinite;}
 @keyframes comp-treme{50%{translate:0 -1px;}}
 .comp-fumaca{position:absolute; right:calc(100% - 8px); bottom:-1px; width:62px; height:26px; overflow:visible; z-index:1; pointer-events:none; transform-origin:100% 100%; animation:comp-pulsa var(--vel,1s) ease-in-out infinite alternate;}
@@ -78,15 +80,46 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .fh{display:flex;align-items:center;gap:24px;padding:8px 22px;border-bottom:1px solid var(--border);flex:none}
 .fh .lg{display:flex;align-items:center;gap:14px}.fh .lg img{height:46px;width:auto;display:block}.fh .lg small{color:var(--text-muted);font-weight:700;font-size:13px;letter-spacing:.12em;border-left:1px solid var(--border);padding-left:14px}
 .fh .selo{font-size:13px}
+.fh .sem-hoje{font-size:13px;font-weight:800;color:var(--amber);margin-right:-14px}.fh .sem-hoje[hidden]{display:none}
 .fh .tt{flex:1;font-size:22px;font-weight:700}
 .fsb{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
 .fsb:hover{background:rgba(127,140,170,.26)}
 .fsb[hidden]{display:none}
 body.ocioso,body.ocioso *{cursor:none!important}
 .fh .lv{font-size:12px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:99px;padding:2px 10px}
-.fh .ck{text-align:right;font-size:12px;color:var(--text-muted)}.fh .ck div{font-size:24px;font-weight:700;color:var(--text)}
+.fh .ck{text-align:right;font-size:12px;color:var(--text-muted);position:relative}.fh .ck #hora{font-size:24px;font-weight:700;color:var(--text)}
+.fh .ck #data{cursor:pointer;display:inline-flex;align-items:center;gap:7px;margin-top:3px;padding:2px 10px;border:1px solid var(--border);border-radius:99px;color:var(--text-label);font-weight:600;text-transform:capitalize}
+.fh .ck #data::after{content:"";border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--cc2)}
+.fh .ck #data:hover,.fh .ck #data.aberto{border-color:var(--cc2);color:var(--text)}
+/* Calendário do dia exibido: card escuro com os detalhes na cor da tela aberta (--cc forte, --cc2 clara, --cc-t texto) */
+.cal{position:absolute;right:0;top:calc(100% + 8px);z-index:60;width:304px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px 12px;text-align:left;box-shadow:0 14px 34px rgba(0,0,0,.5);font-family:"Segoe UI",Roboto,Arial,sans-serif}
+.cal[hidden]{display:none}
+.cal .kk{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--cc2)}
+.cal .cab{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px;padding-bottom:9px;border-bottom:1px solid var(--cc)}
+.cal .mes{font-size:18px;font-weight:700;color:var(--text)}
+.cal .nav{background:none;border:1px solid var(--border);color:var(--text-label);width:30px;height:30px;border-radius:6px;cursor:pointer;font:inherit;font-size:18px;line-height:1}
+.cal .nav:hover:not(:disabled){border-color:var(--cc2);color:var(--cc2)}.cal .nav:disabled{opacity:.25;cursor:default}
+.cal .grade{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .sm{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);padding:2px 0 4px}
+.cal .d{position:relative;height:34px;border-radius:6px;border:1px solid transparent;background:none;color:var(--text);font:inherit;font-size:14px;font-weight:600;cursor:pointer;padding:0}
+.cal .d:hover:not(:disabled){background:var(--bg-input);border-color:var(--border)}
+.cal .d:disabled{color:#38445C;cursor:default}
+.cal .d.hoje{border-color:var(--cc);color:var(--cc2)}
+.cal .d.sel{background:var(--cc);border-color:var(--cc);color:var(--cc-t);font-weight:800}
+.cal .d.dado::after{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--cc2)}
+.cal .d.sel.dado::after{background:var(--cc-t)}
+.cal .rod{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)}
+.cal .rod i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--cc2);margin-right:6px;vertical-align:2px}
+.cal .rod button{font:inherit;font-weight:700;font-size:12px;color:var(--cc2);background:none;border:1px solid var(--cc2);border-radius:99px;padding:4px 14px;cursor:pointer}
+.cal .rod button:hover{background:var(--cc);color:var(--cc-t)}
+.fh .lv.passado{color:var(--amber);border-color:var(--amber)}
+.fh .volta{font-size:12px}
 .main{flex:1;min-height:0;padding:12px 22px 0;display:flex;flex-direction:column;position:relative}
-.tela{display:none;flex-direction:column;flex:1;min-height:0;justify-content:center}.tela.on{display:flex}
+.tela{display:none;flex-direction:column;flex:1;min-height:0;justify-content:center}.tela.on{display:flex;animation:telaEntra .7s cubic-bezier(.2,.8,.2,1) both}
+.tela.saindo{animation:telaSai .35s ease-in both}
+@keyframes telaEntra{from{opacity:0;transform:translateX(28px)}}
+@keyframes telaSai{to{opacity:0;transform:translateX(-28px)}}
+@media (prefers-reduced-motion:reduce){.tela.on,.tela.saindo{animation:none}}
 .panel{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px 18px}
 .panel-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}.panel-head h4{margin:0;font-size:14px}
 /* pista maior para a TV */
@@ -106,11 +139,14 @@ body.ocioso,body.ocioso *{cursor:none!important}
 
 /* ---------- telas B e D: KPIs, gráfico por hora e top 5 ---------- */
 .kpis{display:grid;gap:14px;margin-bottom:14px}
-.kpis.c4{grid-template-columns:repeat(4,1fr)}.kpis.c3{grid-template-columns:repeat(3,1fr)}
+.kpis.c5{grid-template-columns:repeat(5,1fr)}.kpis.c4{grid-template-columns:repeat(4,1fr)}.kpis.c3{grid-template-columns:repeat(3,1fr)}
+.kpis.c5 .kpi .v{font-size:42px}
 .kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;gap:4px;border-top:4px solid var(--kc,var(--border))}
 .kpi .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
 .kpi .v{font-size:46px;font-weight:800;line-height:1;color:var(--vc,var(--text))}
-.kpi .s{font-size:15px;color:var(--text-muted)}
+.kpi .v small{font-size:20px;font-weight:700;color:var(--text-muted);margin-left:8px}
+.kpi .v{white-space:nowrap}.kpis.c5 .kpi .v small{font-size:17px;margin-left:6px}
+.kpi .s{font-size:15px;color:var(--text-muted)}.kpi .s b{color:var(--vc,var(--kc,var(--text)));font-weight:800}
 .linhas{flex:1;min-height:0;display:grid;gap:14px}
 .linha{display:grid;grid-template-columns:3fr 1fr;gap:14px;min-height:0}
 .painel{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
@@ -118,20 +154,45 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .grafico{display:grid;grid-template-rows:1fr auto;gap:6px;min-height:0}
 .colunas{position:relative;display:flex;align-items:flex-end;gap:10px;min-height:0}
 .colunas span{flex:1;position:relative;background:var(--cor);border-radius:5px 5px 0 0;min-height:2px}
-.colunas span.agora{background:var(--cor2)}
+.colunas span.agora{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 7px,transparent 7px 14px)}
 .colunas em{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:4px;font-style:normal;font-weight:800;font-size:16px;white-space:nowrap;background:var(--bg-card);padding:0 5px;border-radius:4px;z-index:2}
 .horas{display:flex;gap:10px}.horas i{flex:1;text-align:center;font-style:normal;font-size:14px;color:var(--text-muted)}
 .media{position:absolute;left:0;right:0;border-top:2px dashed var(--amber);z-index:1}
 .media small{position:absolute;left:0;top:-22px;font-size:14px;color:var(--amber);background:var(--bg-card);padding:0 5px;border-radius:4px}
+/* Expedição: colunas amarelas, então a média fica branca para aparecer */
+.media-clara .media{border-top-color:var(--text)}.media-clara .media small{color:var(--text)}
 .semhora{display:grid;place-items:center;color:var(--text-muted);font-size:18px;text-align:center}
 .top5{display:grid;align-content:start;gap:6px}
 .top5 div{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;font-size:18px;border-bottom:1px solid var(--border);padding-bottom:6px}
 .top5 .p{font-weight:800;color:var(--text-muted)}.top5 b{font-size:20px}
 .top5 .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+/* ---------- tela C: operação agora (itens por etapa e marca) ---------- */
+.etapas{display:grid;align-content:space-around;gap:10px;min-height:0}
+#telaC .linha > .painel:first-child{grid-template-rows:auto 1fr auto}
+.etapa{display:grid;grid-template-columns:190px 1fr 130px 130px;gap:16px;align-items:center}
+.etapa .nm{font-size:20px;font-weight:700;white-space:nowrap}
+.etapa .trilho{height:46px;background:var(--bg-input);border-radius:8px;overflow:hidden}
+.etapa .barra{height:100%;background:var(--accent);border-radius:8px}
+.etapa .tot{text-align:right;font-size:30px;font-weight:800}.etapa .tot small{display:block;font-size:13px;color:var(--text-muted);font-weight:600}
+.etapa .tot.ped{color:var(--text-label)}
+.etapa.cab .nm{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
+.etapas.compacta{gap:6px}.etapas.compacta .trilho{height:30px}.etapas.compacta .etapa .tot{font-size:24px}.etapas.compacta .etapa .nm{font-size:17px}
+.etapa.cab .nm .semt{font-size:12px;letter-spacing:0;text-transform:none;color:var(--text-muted);font-weight:600}
+.etapa.total{border-top:1px solid var(--border);padding-top:10px;margin-top:4px}.etapa.total .nm{color:var(--text-label)}
+.etapa.cab .tot{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
+.pizza{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px;justify-items:center;min-height:0}
+.pizza svg{height:100%;max-height:300px;min-height:0;aspect-ratio:1}
+.pizza .leg{display:grid;gap:8px;width:100%}
+.pizza .leg div{display:grid;grid-template-columns:14px 1fr auto auto;gap:10px;align-items:center;font-size:18px}
+.pizza .leg i{width:14px;height:14px;border-radius:4px;background:var(--m)}.pizza .leg b{font-size:20px}.pizza .leg em{font-style:normal;color:var(--text-muted);width:48px;text-align:right}
+
+.ouro{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:15;display:flex;gap:18px;align-items:center;padding:8px 24px;border-radius:999px;background:#F6BD00;color:#14181F;font-size:20px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.ouro[hidden]{display:none}.ouro #ouroRel{font-size:26px;font-variant-numeric:tabular-nums}
+
 /* ---------- faixa de baixo em loop contínuo ---------- */
 .loopbar{position:relative;overflow:hidden;background:#05080E;border-top:1px solid var(--border);height:46px;display:flex;align-items:center;flex:none;margin-top:12px}
-.loopbar .giro{position:absolute;left:0;top:0;height:3px;width:0;background:var(--accent);z-index:1}
+.loopbar .giro{position:absolute;left:0;top:0;height:3px;width:100%;transform:scaleX(0);transform-origin:0 50%;background:var(--accent);z-index:1;will-change:transform}
 .loopbar .giro[hidden]{display:none}
 .loop{display:flex;width:max-content;animation:loopa var(--dur,55s) linear infinite}
 .loop .g{display:flex;align-items:center;flex:none}
@@ -176,10 +237,13 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv">● AO VIVO</span><div class="ck"><div id="hora">--:--</div><span id="data"></span></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
+  <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
-    <section class="tela on" id="telaA" data-titulo="Corrida Maluca" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
+    <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
+    <section class="tela" id="telaA" data-titulo="Corrida Maluca" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
     <section class="tela" id="telaB" data-titulo="Separação e Conferência" data-giro="90" data-fonte="outbound"></section>
+    <section class="tela" id="telaE" data-titulo="Expedição" data-giro="90" data-fonte="operacao"></section>
     <section class="tela" id="telaD" data-titulo="Armazenagem" data-giro="60" data-fonte="inbound"></section>
   </div>
   <div class="loopbar"><i class="giro" id="barra" hidden></i><div class="loop" id="loop"></div></div>
@@ -200,6 +264,9 @@ body.ocioso,body.ocioso *{cursor:none!important}
 var Q = new URLSearchParams(location.search);
 var GIRO_S = +Q.get('giro') || 90;          // segundos por tela
 var REFRESH_S = +Q.get('refresh') || 60;    // segundos entre buscas no banco
+// ?modo=operacao: link da TV da operação — mesmas telas e mesmo banco, SEM a Corrida Maluca, hora de ouro,
+// comemoração de meta e destaques dos times na faixa de baixo.
+var MODO_OPERACAO = Q.get('modo') === 'operacao';
 var RECARREGA_H = 6;                        // recarga completa da página (pega versão nova, libera memória)
 var COMEMORA_MS = 25000, PARADO_MS = 3000;  // comemoração inteira e tempo do carro parado na vaga
 var SUPABASE_URL = 'https://vehfchdfbukrbcedciiy.supabase.co';
@@ -207,11 +274,33 @@ var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 var DOMINIO_LOGIN = '@vulcabras.com';
 var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'telao-produtividade' } });
 
+/* ================= DIA EXIBIDO ================= */
+// Padrão: o dia operacional de hoje. Dá para escolher outro clicando na data embaixo do relógio,
+// com as setas ↑/↓ ou por ?dia=aaaa-mm-dd. Escolha pelo telão volta sozinha para hoje depois de 30 min.
+var diaEscolhido = /^\d{4}-\d{2}-\d{2}$/.test(Q.get('dia') || '') ? Q.get('dia') : null, escolhidoEm = Date.now();
+function hojeOp(){ return RegrasBlack.diaOperacional(new Date()); }
+function diaTela(){ return diaEscolhido && diaEscolhido < hojeOp() ? diaEscolhido : hojeOp(); }
+function ehHoje(){ return diaTela() === hojeOp(); }
+function somaDias(iso, n){ var p = iso.split('-'), d = new Date(+p[0], +p[1]-1, +p[2] + n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function escolheDia(iso){
+  diaEscolhido = iso && iso < hojeOp() ? iso : null; escolhidoEm = Date.now();
+  if (typeof carregar === 'function') carregar();
+}
+setInterval(function(){ if (diaEscolhido && Date.now() - escolhidoEm > 30*60000 && diaEscolhido !== Q.get('dia')) escolheDia(null); }, 60000);
+// Dia mostrado numa tela: o escolhido no calendário; senão hoje, se hoje já tem dado; senão o último dia
+// anterior com dado (o topo mostra "⚠ Sem dados de hoje"). temDado(dia) diz se a tela tem produção no dia.
+function diaComFallback(temDado, dias){
+  var d = diaTela();
+  if (!ehHoje() || temDado(d)) return d;
+  return dias.filter(function(x){ return x < d && temDado(x); }).sort().pop() || d;
+}
+function diasDasSeries(series){ var s = {}; series.forEach(function(sr){ (sr||[]).forEach(function(x){ s[String(x.data).slice(0,10)] = 1; }); }); return Object.keys(s); }
+function rotDia(dia){ var p = dia.split('-'), d = new Date(+p[0], +p[1]-1, +p[2]); return d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' }); }
+
 /* ================= TIMES (mesmos do index.html) ================= */
 var TIMES_COR = { 1:{nome:'Vermelho',c:'--t1',s:'--t1-soft',hex:'#EF5B5B'}, 2:{nome:'Azul',c:'--t2',s:'--t2-soft',hex:'#4C95F0'}, 3:{nome:'Verde',c:'--t3',s:'--t3-soft',hex:'#45C665',escuro:true},
                   4:{nome:'Amarelo',c:'--t4',s:'--t4-soft',hex:'#F6C400',escuro:true}, 5:{nome:'Rosa',c:'--t5',s:'--t5-soft',hex:'#EC4FA0'}, 6:{nome:'Roxo',c:'--t6',s:'--t6-soft',hex:'#A773EA'} };
-var NUM_TIMES = [1,2,3,4,5,6], TIMES_COLMEIA = { 5:true, 6:true };
-var META_DIA_TIME = { 1:2000, 2:2000, 3:2000, 4:2000, 5:1200, 6:1200 };
+var META_DIA_TIME = RegrasBlack.META_DIA_TIME;   // provisória (regras-black.js)
 var CARROS = { 1:{h:34, ar:2.33}, 2:{h:40, ar:1.30}, 3:{h:40, ar:1.06}, 4:{h:25, ar:3.82}, 5:{h:38, ar:1.59}, 6:{h:32, ar:2.58} };
 var CARRO_ESCALA = 1.18;   // carros um pouco maiores que no site, porque as raias da TV são mais altas
 var FUMACA_SVG = document.querySelector('.m-smk').innerHTML;
@@ -222,68 +311,25 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ re
 var CONECTIVOS = ['DE','DA','DO','DAS','DOS','E'];
 function nomeCurto(n){ var t = String(n||'').trim().split(/\s+/).filter(function(x){ return x && CONECTIVOS.indexOf(x.toUpperCase()) === -1; }); return t.length <= 1 ? n : t[0]+' '+t[t.length-1]; }
 function nomeBonito(u){ return String(u||'').split(/[.\s]+/).filter(Boolean).map(function(x){ return x.charAt(0).toUpperCase()+x.slice(1).toLowerCase(); }).join(' '); }
-function chaveUsuario(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/,/g,'.').trim().toUpperCase(); }
-function chavesDoMembro(r){
-  var ks = [chaveUsuario(r.usuario_wms), chaveUsuario(r.nome)];
-  var t = chaveUsuario(r.nome).split(/\s+/).filter(function(x){ return x && CONECTIVOS.indexOf(x) === -1; });
-  if (t.length > 1) { t.slice(1).reverse().forEach(function(x){ ks.push(t[0]+'.'+x); }); if (t.length > 2) ks.push(t[0]+'.'+t[1].charAt(0)+'.'+t[t.length-1]); }
-  return ks.filter(function(k, i){ return k && ks.indexOf(k) === i; });
-}
-
-/* ================= CONTA DA COMPETIÇÃO (cópia do index.html, filtros fixos do padrão) ================= */
-// Filtro "Dia": de cada série, só o último dia que existe nela (igual ao filtrarSerieporGrupo do site).
-function ultimoDia(serie){ if (!serie || !serie.length) return []; var o = serie.slice().sort(function(a,b){ return String(a.data).localeCompare(String(b.data)); }); return o.slice(-1); }
-function producaoDaFonte(snap, fonte){
-  var o = snap || {}, sep = o.separacao || {}, conf = o.conferencia || {};
-  var f = { sep_checkout:{v:sep.checkoutDia}, sep_colmeia:{v:sep.colmeiaDia}, conf_checkout:{v:conf.confCheckoutDia}, conf_colmeia:{v:conf.confColmeiaUnitDia} }[fonte];
-  var m = new Map(); m.datas = [];
-  ultimoDia(f.v).forEach(function(d){ m.datas.push(String(d.data).slice(0,10)); Object.keys(d.itens||{}).forEach(function(n){ var k = chaveUsuario(n); m.set(k, (m.get(k)||0) + (d.itens[n]||0)); }); });
-  return { valores:m, datas:m.datas, temDados: !!(f.v && f.v.length) };
-}
-function grupoDoCadastro(r){ return /^sep/.test(r.atividade) ? 'sep' : 'conf'; }
-function obsColmeia(r){ return r.observacao === 'Colmeia' || r.atividade === 'conf_colmeia' || r.atividade === 'sep_colmeia'; }
-function opsDoCadastro(r){ return (!r.lider && (TIMES_COLMEIA[r.time] || obsColmeia(r))) ? ['colmeia'] : ['checkout','colmeia']; }
-function calcularCompeticao(snap, cadastro){
-  var ops = ['checkout','colmeia'], grupos = ['sep','conf'], prod = {};
-  ['sep_checkout','sep_colmeia','conf_checkout','conf_colmeia'].forEach(function(f){ prod[f] = producaoDaFonte(snap, f); });
-  var times = NUM_TIMES.map(function(n){ return { n:n, cor:TIMES_COR[n], colmeia:!!TIMES_COLMEIA[n], membros:new Map() }; });
-  var linhas = cadastro.filter(function(r){ return times[r.time-1]; });
-  var exatos = {}; linhas.forEach(function(r){ exatos[chaveUsuario(r.usuario_wms)] = r.usuario_wms; });
-  function achar(r, mapa){ var achada = null; chavesDoMembro(r).some(function(k, i){ if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false; if (mapa.has(k)) { achada = k; return true; } return false; }); return achada; }
-  var porCadastro = new Map();
-  linhas.forEach(function(r){ var k = r.usuario_wms+'|'+grupoDoCadastro(r); if (!porCadastro.has(k)) porCadastro.set(k, r); });
-  porCadastro.forEach(function(r){
-    var t = times[r.time-1], g = grupoDoCadastro(r);
-    var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, grupos:{} };
-    m.grupos[g] = true;
-    opsDoCadastro(r).forEach(function(o){ var f = g+'_'+o, k = achar(r, prod[f].valores); if (k) m[g] += prod[f].valores.get(k) || 0; });
-    if (r.lider && !t.membros.has(r.usuario_wms) && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
-    t.membros.set(r.usuario_wms, m);
-  });
-  var datas = {};
-  times.forEach(function(t){
-    t.lista = Array.from(t.membros.values()).filter(function(m){ return m.grupos.sep || m.grupos.conf; }).map(function(m){ m.valor = m.sep + m.conf; return m; }).sort(function(a,b){ return b.valor - a.valor; });
-    t.sep = t.lista.reduce(function(s,m){ return s+m.sep; },0); t.conf = t.lista.reduce(function(s,m){ return s+m.conf; },0); t.total = t.sep + t.conf;
-  });
-  grupos.forEach(function(g){ ops.forEach(function(o){ prod[g+'_'+o].datas.forEach(function(d){ datas[d] = 1; }); }); });
-  [times.filter(function(t){ return !t.colmeia; }), times.filter(function(t){ return t.colmeia; })].forEach(function(gr){
-    gr.slice().sort(function(a,b){ return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.total - a.total; }).forEach(function(t, i){ t.pos = t.lista.length ? i+1 : null; });
-  });
-  var dias = Math.max(1, Object.keys(datas).length);
-  times.forEach(function(t){ t.meta = META_DIA_TIME[t.n] * dias; });
-  var dia = Object.keys(datas).sort().pop() || null;
-  var temDados = grupos.some(function(g){ return ops.some(function(o){ return prod[g+'_'+o].temDados; }); });
-  return { times:times, dia:dia, temDados:temDados };
+/* ================= CONTA DA COMPETIÇÃO (regras-black.js, filtros fixos do padrão) ================= */
+var ultimoDia = RegrasBlack.ultimoDia;
+function calcularCompeticao(snap, cadastro, diaAlvo){
+  var c = RegrasBlack.calcularCompeticao(snap, cadastro, diaAlvo);
+  c.times.forEach(function(t){ t.cor = TIMES_COR[t.n]; });
+  return c;
 }
 
 /* ================= TELA A · PLACAR DOS TIMES ================= */
-var pAnterior = {}, RAIA = 60, ultimoC = null;   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
+var pAnterior = {}, RAIA = 60, ultimoC = null;
+// Posição do carro na pista: 1 = bico na linha de chegada; meta batida passa um pouco dela.
+var P_META_BATIDA = 1.06;
+function pPista(t){ return !t.meta ? 0 : t.total >= t.meta ? P_META_BATIDA : t.total/t.meta; }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
 function pistaHtml(c){
   function raias(lista){
     lista = lista.slice().sort(function(a,b){ return b.total - a.total || a.n - b.n; });
     return lista.map(function(t, i){
-      var pct = t.meta ? Math.min(1, t.total/t.meta) : 0, x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0;
-      var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = CARROS[t.n], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - pct*.45).toFixed(2)+'s';
+      var pct = pPista(t), x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0;
+      var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = CARROS[t.n], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - Math.min(1,pct)*.45).toFixed(2)+'s';
       var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
       return '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
         '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
@@ -312,13 +358,14 @@ function cardsHtml(c){
 }
 function renderTelaA(c){
   var el = document.getElementById('telaA');
+  if (MODO_OPERACAO) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // TV da operação: sem Corrida
   if (!c.temDados) { el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência ainda.<br>Abasteça a base no site do Produtividade.</div>'; return; }
   el.innerHTML = pistaHtml(c) + cardsHtml(c);
   // os carros andam da posição anterior até a nova, como no site
   requestAnimationFrame(function(){ requestAnimationFrame(function(){
     el.querySelectorAll('.comp-carro[data-p], .comp-rastro[data-p]').forEach(function(e){ e.style.setProperty('--p', e.getAttribute('data-p')); });
   }); });
-  c.times.forEach(function(t){ pAnterior[t.n] = t.meta ? Math.min(1, t.total/t.meta) : 0; });
+  c.times.forEach(function(t){ pAnterior[t.n] = pPista(t); });
   ultimoC = c; requestAnimationFrame(ajustaAltura);
 }
 // Distribui a altura que sobra na tela: a maior parte vai para as raias (6 raias) e o resto fica de respiro.
@@ -341,7 +388,9 @@ function somaObj(o){ return Object.keys(o).reduce(function(s,k){ return s + (o[k
 function juntaObj(a, b){ var m = {}; [a,b].forEach(function(o){ Object.keys(o).forEach(function(k){ m[k] = (m[k]||0) + o[k]; }); }); return m; }
 function horasDoAnalitico(serie, dia, tipos){ var h = new Array(24).fill(0); (serie||[]).forEach(function(x){ if (String(x.data).slice(0,10) !== dia) return; tipos.forEach(function(t){ Object.keys(x[t]||{}).forEach(function(u){ (x[t][u]||[]).forEach(function(v,i){ h[i] += v||0; }); }); }); }); return h; }
 function hoje(){ return hojeISO(); }
-function kpiHtml(rot, valor, sub, kc, vc){ return '<div class="kpi" style="'+(kc?'--kc:'+kc+';':'')+(vc?'--vc:'+vc:'')+'"><span class="k">'+rot+'</span><span class="v">'+valor+'</span><span class="s">'+sub+'</span></div>'; }
+// O número segue a cor da barra de destaque (kc) quando não vem cor própria (vc). un = unidade ao lado do número.
+function qt(n){ return '<b>'+fmt(n)+'</b>'; }   // quantidade embaixo do card, na cor de destaque
+function kpiHtml(rot, valor, sub, kc, vc, un){ vc = vc || kc; return '<div class="kpi" style="'+(kc?'--kc:'+kc+';':'')+(vc?'--vc:'+vc:'')+'"><span class="k">'+rot+'</span><span class="v">'+valor+(un?'<small>'+un+'</small>':'')+'</span><span class="s">'+sub+'</span></div>'; }
 // Gráfico de colunas por hora, com rótulo em cada coluna e a média das horas completas.
 function graficoHoras(horas, dia, cor, cor2, rotMedia){
   var ini = horas.findIndex(function(v){ return v > 0; }), fim = 23 - horas.slice().reverse().findIndex(function(v){ return v > 0; });
@@ -349,71 +398,232 @@ function graficoHoras(horas, dia, cor, cor2, rotMedia){
   var faixa = horas.slice(ini, fim+1), agora = new Date().getHours(), emAndamento = dia === hoje() && fim === agora;
   var completas = emAndamento ? faixa.slice(0, -1) : faixa, media = completas.length ? Math.round(completas.reduce(function(a,b){ return a+b; },0) / completas.length) : 0;
   var mx = Math.max.apply(null, faixa.concat([media])) * 1.18 || 1;
-  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%"><em>'+fmt(v)+'</em></span>'; }).join('');
+  // escala de cor só com as horas completas (a hora em andamento ainda está pela metade)
+  var base = completas.length ? completas : faixa, maior = Math.max.apply(null, base) || 1, menor = Math.min.apply(null, base), forte = escurece(cor, .3);
+  var cols = faixa.map(function(v, i){ return '<span class="'+(emAndamento && i === faixa.length-1 ? 'agora' : '')+'" style="height:'+(v/mx*100).toFixed(1)+'%;background-color:'+tomCalor(cor2, forte, maior > menor ? (v - menor)/(maior - menor) : 1)+'"><em>'+fmt(v)+'</em></span>'; }).join('');
   var hrs = faixa.map(function(v, i){ return '<i>'+String(ini+i).padStart(2,'0')+'h</i>'; }).join('');
   var ml = media ? '<div class="media" style="bottom:'+(media/mx*100).toFixed(1)+'%"><small>média '+fmt(media)+'/h</small></div>' : '';
   return { html:'<div class="grafico" style="--cor:'+cor+';--cor2:'+cor2+'"><div class="colunas">'+cols+ml+'</div><div class="horas">'+hrs+'</div></div>', ultima:{ hora:ini+faixa.length-1, valor:faixa[faixa.length-1], completa: emAndamento ? (faixa.length > 1 ? { hora:ini+faixa.length-2, valor:faixa[faixa.length-2] } : null) : { hora:fim, valor:faixa[faixa.length-1] } }, media:media };
 }
-function top5Html(obj, nomeDe){ var l = Object.keys(obj).map(function(n){ return { n:n, v:obj[n] }; }).filter(function(x){ return x.v > 0; }).sort(function(a,b){ return b.v - a.v; }).slice(0,5);
+// Heatmap nos tons da tela: do tom claro (pouco) à cor forte (muito).
+function rgbDe(hex){ var n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function escurece(hex, f){ return '#'+rgbDe(hex).map(function(x){ return Math.round(x*(1 - f)).toString(16).padStart(2, '0'); }).join(''); }
+function tomCalor(claro, forte, t){ var a = rgbDe(claro), b = rgbDe(forte); t = Math.max(0, Math.min(1, t || 0));
+  return 'rgb('+a.map(function(x, i){ return Math.round(x + (b[i] - x)*t); }).join(',')+')'; }
+function top5Html(obj, nomeDe, cor, cor2){ var l = Object.keys(obj).map(function(n){ return { n:n, v:obj[n] }; }).filter(function(x){ return x.v > 0; }).sort(function(a,b){ return b.v - a.v; }).slice(0,5);
   if (!l.length) return '<div class="semhora">Sem registros no dia</div>';
-  return '<div class="top5">'+l.map(function(x, i){ return '<div><span class="p">'+(i+1)+'</span><span class="nm">'+esc(nomeDe(x.n))+'</span><b>'+fmt(x.v)+'</b></div>'; }).join('')+'</div>'; }
+  var INTENS = [1, .8, .62, .46, .32];   // intensidade da cor pela posição
+  return '<div class="top5">'+l.map(function(x, i){ var st = ' style="color:'+cor+';opacity:'+INTENS[i]+'"';
+    return '<div><span class="p"'+st+'>'+(i+1)+'</span><span class="nm">'+esc(nomeDe(x.n))+'</span><b'+st+'>'+fmt(x.v)+'</b></div>'; }).join('')+'</div>'; }
 function nomeWms(u){ return nomeCurto(nomeBonito(u)); }
 var COR_SEP = '#297ADF', COR_SEP2 = '#7DB8FF', COR_CONF = '#2EC4B6', COR_CONF2 = '#8CEBDF', COR_ARM = '#297ADF', COR_ARM2 = '#45C645';
 
-function renderTelaB(snap){
+// Card de previsão: número grande = previsão do dia; embaixo = o que vamos entregar NESTA hora
+// (calculadas no ingest.js a cada envio). dia = dia mostrado na tela.
+function kpiPrevisao(rot, prev, realizado, kc, vc, dia){
+  if (dia !== hojeOp()) return kpiHtml(rot, fmt(realizado), 'dia encerrado', kc, vc, 'peças');
+  if (!prev || prev.data !== dia) return kpiHtml(rot, '—', 'aguardando o próximo envio', kc, vc);
+  if (prev.previsto == null) return kpiHtml(rot, '—', 'sem base ainda', kc, vc);
+  var sub = prev.hora == null ? 'fim do dia'
+    : prev.nestaHora == null ? 'nesta hora: —'
+    : prev.hora !== new Date().getHours() ? 'nesta hora: aguardando envio'
+    : 'nesta hora ('+String(prev.hora).padStart(2,'0')+'h): '+qt(prev.nestaHora);
+  return kpiHtml(rot, fmt(Math.max(prev.previsto, realizado)), sub, kc, vc, 'peças no dia');
+}
+function rotuloDia(base, dia){ return base + (dia === hojeOp() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)); }
+
+// Dia das telas de Separação e Conferência (Corrida, Tela B e faixa): hoje ou, sem dado hoje, o último dia com dado.
+function diaOutbound(snap){
+  var sep = (snap||{}).separacao || {}, conf = (snap||{}).conferencia || {};
+  var series = [sep.checkoutDia, sep.colmeiaDia, conf.confCheckoutDia, conf.confColmeiaUnitDia];
+  var temDado = function(d){ return series.some(function(sr){ return somaObj(itensDoDia(sr, d)) > 0; }); };
+  diasComDado = {}; diasDasSeries(series).forEach(function(d){ if (temDado(d)) diasComDado[d] = 1; });
+  return diaComFallback(temDado, diasDasSeries(series));
+}
+var diasComDado = {};
+function renderTelaB(snap, opRes, dia){
   var el = document.getElementById('telaB'), sep = (snap||{}).separacao || {}, conf = (snap||{}).conferencia || {};
-  var dia = diaMaisRecente([sep.checkoutDia, sep.colmeiaDia, conf.confCheckoutDia, conf.confColmeiaUnitDia]);
-  if (!dia) { el.dataset.vazia = '1'; el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência.</div>'; return; }
-  el.dataset.vazia = '';
+  if (!sep.checkoutDia && !conf.confCheckoutDia) { el.dataset.vazia = '1'; el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência.</div>'; return; }
+  el.dataset.vazia = ''; el.dataset.dia = dia;
   var sc = itensDoDia(sep.checkoutDia, dia), sm = itensDoDia(sep.colmeiaDia, dia), cc = itensDoDia(conf.confCheckoutDia, dia), cm = itensDoDia(conf.confColmeiaUnitDia, dia);
   var tSep = somaObj(sc) + somaObj(sm), tConf = somaObj(cc) + somaObj(cm);
   var gS = graficoHoras(horasDoAnalitico(sep.analitico, dia, ['checkout','colmeia']), dia, COR_SEP, COR_SEP2);
   var gC = graficoHoras(horasDoAnalitico(conf.analitico, dia, ['checkout']), dia, COR_CONF, COR_CONF2);
-  var rS = gS && gS.ultima.completa, rC = gC && gC.ultima.completa;
-  el.innerHTML = '<div class="kpis c4">'+
-    kpiHtml('Separado'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tSep), 'peças · Checkout '+fmt(somaObj(sc))+' · Colmeia '+fmt(somaObj(sm)), COR_SEP, COR_SEP2)+
-    kpiHtml('Conferido'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(tConf), 'peças · Checkout '+fmt(somaObj(cc))+' · Colmeia '+fmt(somaObj(cm)), COR_CONF, COR_CONF)+
-    kpiHtml('Ritmo na última hora', rS ? fmt(rS.valor) : '—', rS ? 'separadas às '+String(rS.hora).padStart(2,'0')+'h'+(rC ? ' · conferidas '+fmt(rC.valor) : '') : 'sem hora completa ainda', null, 'var(--olive)')+
-    kpiHtml('Separado sem conferir', fmt(Math.max(0, tSep - tConf)), 'peças aguardando conferência', null, 'var(--amber)')+
+  // Separado sem conferir: foto atual do Acompanhamento OP (ENVIADO PARA FATURAMENTO sem "Conferido em").
+  var sc2 = opRes && opRes.semConferir;
+  var kSem = !ehHoje() ? kpiHtml('Separado sem conferir', '—', 'só no dia de hoje', 'var(--amber)', 'var(--amber)')
+    : sc2 ? kpiHtml('Separado sem conferir', fmt(sc2.itens), qt(sc2.pedidos)+' pedidos', 'var(--amber)', 'var(--amber)', 'peças')
+    : kpiHtml('Separado sem conferir', '—', 'aguardando o próximo Acompanhamento OP', 'var(--amber)', 'var(--amber)');
+  var semHora = dia === hojeOp() ? 'Sem produção hoje ainda' : 'Sem produção neste dia';
+  el.innerHTML = '<div class="kpis c5">'+
+    kpiHtml(rotuloDia('Separado', dia), fmt(tSep), 'Checkout '+qt(somaObj(sc))+' · Colmeia '+qt(somaObj(sm)), COR_SEP, COR_SEP2, 'peças')+
+    kpiHtml(rotuloDia('Conferido', dia), fmt(tConf), 'Checkout '+qt(somaObj(cc))+' · Colmeia '+qt(somaObj(cm)), COR_CONF, COR_CONF, 'peças')+
+    kSem+
+    kpiPrevisao('Previsão separação', sep.previsao, tSep, COR_SEP, COR_SEP2, dia)+
+    kpiPrevisao('Previsão conferência', conf.previsao, tConf, COR_CONF, COR_CONF, dia)+
   '</div><div class="linhas" style="grid-template-rows:1fr 1fr">'+
-    '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">Abasteça a Separação Analítica para ver por hora</div>')+'</div>'+
-      '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms)+'</div></div>'+
-    '<div class="linha"><div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Conferência Checkout · peças por hora</span>'+(gC ? gC.html : '<div class="semhora">Abasteça a Conferência Analítica para ver por hora</div>')+'</div>'+
-      '<div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Top 5 conferentes</span>'+top5Html(juntaObj(cc, cm), nomeWms)+'</div></div>'+
+    '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">'+semHora+'</div>')+'</div>'+
+      '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms, COR_SEP, COR_SEP2)+'</div></div>'+
+    '<div class="linha"><div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Conferência Checkout · peças por hora</span>'+(gC ? gC.html : '<div class="semhora">'+semHora+'</div>')+'</div>'+
+      '<div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Top 5 conferentes</span>'+top5Html(juntaObj(cc, cm), nomeWms, COR_CONF, COR_CONF2)+'</div></div>'+
   '</div>';
 }
 
 function renderTelaD(snapIn){
-  var el = document.getElementById('telaD'), arm = (snapIn||{}).armazenagem || {};
-  var dia = diaMaisRecente([arm.normalDia]);
-  if (!dia) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // sem armazenagem: a tela sai do giro
+  var el = document.getElementById('telaD'), arm = (snapIn||{}).armazenagem;
+  if (!arm || !arm.normalDia) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // sem Kardex nenhum: a tela sai do giro
   el.dataset.vazia = '';
+  var dia = diaComFallback(function(d){ return somaObj(itensDoDia(arm.normalDia, d)) + somaObj(itensDoDia(arm.reversaDia, d)) > 0; }, diasDasSeries([arm.normalDia, arm.reversaDia]));
+  el.dataset.dia = dia;
   var pessoas = itensDoDia(arm.normalDia, dia), rev = itensDoDia(arm.reversaDia, dia), total = somaObj(pessoas);
   var hd = (arm.normalHoraDia||[]).filter(function(x){ return String(x.data).slice(0,10) === dia; })[0];
-  var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_ARM2) : null, r = g && g.ultima.completa;
+  var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_SEP2) : null;
   el.innerHTML = '<div class="kpis c3">'+
-    kpiHtml('Peças armazenadas'+(dia === hoje() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)), fmt(total), 'peças · reversa '+fmt(somaObj(rev)), COR_ARM, null)+
-    kpiHtml('Armazenadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', null, null)+
-    kpiHtml('Ritmo na última hora', r ? fmt(r.valor) : '—', r ? 'peças às '+String(r.hora).padStart(2,'0')+'h' : 'por hora a partir do próximo envio do Kardex', null, 'var(--olive)')+
+    kpiHtml(rotuloDia('Peças armazenadas', dia), fmt(total), qt(somaObj(rev))+' itens de reversa', COR_ARM, null, 'peças')+
+    kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', 'var(--orange)', null)+
+    kpiPrevisao('Previsão do dia', arm.previsao, total, 'var(--olive)', 'var(--olive)', dia)+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
-    '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">O gráfico por hora aparece no próximo envio do Kardex de Endereço</div>')+'</div>'+
-    '<div class="painel"><span class="k">Top 5 armazenadores</span>'+top5Html(pessoas, function(n){ return nomeCurto(nomeBonito(n)); })+'</div>'+
+    '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">'+(dia === hojeOp() ? 'Sem armazenagem hoje ainda' : 'Sem armazenagem neste dia')+'</div>')+'</div>'+
+    '<div class="painel"><span class="k">Top 5 armazenadores</span>'+top5Html(pessoas, function(n){ return nomeCurto(nomeBonito(n)); }, COR_ARM, COR_SEP2)+'</div>'+
   '</div></div>';
 }
 
+/* ================= TELA C · OPERAÇÃO AGORA (itens) ================= */
+// Resumo pronto do ingest.js (snapshot "operacao"): só formata.
+var COR_MARCA = { 'Olympikus':'#297ADF', 'Mizuno':'#DFBD41', 'Under Armour':'#C8102E', 'Opanka':'#2EC4B6', 'Sem marca':'#5B6578' };
+var NOME_ETAPA = ['Gerar onda', 'Em separação', 'Aguardando NF', 'Conferir', 'Despachar'];
+function marcasDe(obj){
+  var ordem = Object.keys(COR_MARCA);
+  return Object.keys(obj||{}).filter(function(m){ return obj[m] > 0; }).sort(function(a,b){ return (ordem.indexOf(a)+1 || 99) - (ordem.indexOf(b)+1 || 99); });
+}
+function idadeTexto(ms){
+  var h = Math.max(0, (Date.now() - ms) / 3600000);
+  return h < 24 ? Math.floor(h)+' h em tela' : Math.floor(h/24)+' d '+Math.floor(h%24)+' h em tela';
+}
+function pizzaHtml(porMarca, total){
+  var R = 70, C = 2*Math.PI*R, acc = 0, ms = marcasDe(porMarca);
+  var fatias = ms.map(function(m){
+    var f = porMarca[m]/total, s = '<circle r="'+R+'" cx="90" cy="90" fill="none" stroke="'+(COR_MARCA[m]||'#8E9BB5')+'" stroke-width="34" stroke-dasharray="'+(f*C).toFixed(1)+' '+C.toFixed(1)+'" stroke-dashoffset="'+(-acc*C).toFixed(1)+'" transform="rotate(-90 90 90)"/>';
+    acc += f; return s;
+  }).join('');
+  var leg = ms.map(function(m){
+    return '<div style="--m:'+(COR_MARCA[m]||'#8E9BB5')+'"><i></i><span>'+esc(m)+'</span><b>'+fmt(porMarca[m])+'</b><em>'+Math.round(porMarca[m]/total*100)+'%</em></div>';
+  }).join('');
+  return '<div class="pizza"><svg viewBox="0 0 180 180">'+fatias+
+    '<text x="90" y="92" text-anchor="middle" fill="#E8EBF2" font-size="26" font-weight="800">'+fmt(total)+'</text>'+
+    '<text x="90" y="112" text-anchor="middle" fill="#7C8BA8" font-size="12">itens</text></svg><div class="leg">'+leg+'</div></div>';
+}
+function renderTelaC(res){
+  var el = document.getElementById('telaC');
+  // sem Acompanhamento OP, ou com um dia passado escolhido (o OP é só a foto de agora): a tela sai do giro
+  if (!res || !res.pedidos || !ehHoje()) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }
+  el.dataset.vazia = '';
+  var maxE = Math.max.apply(null, res.etapas.map(function(e){ return e.itens; }).concat(1));
+  var velhos = res.idade[2].itens + res.idade[3].itens;
+  var hAnt = res.maisAntigo ? (Date.now() - res.maisAntigo) / 3600000 : 0, dAnt = res.maisAntigo ? new Date(res.maisAntigo) : null;
+  // Linha: ETAPA | BARRA | ITENS | PEDIDOS (barra de uma cor só)
+  var etapas = res.etapas.map(function(e, i){
+    return '<div class="etapa"><span class="nm">'+NOME_ETAPA[i]+'</span>'+
+      '<div class="trilho"><div class="barra" style="width:'+(e.itens/maxE*100).toFixed(2)+'%"></div></div>'+
+      '<span class="tot">'+fmt(e.itens)+'</span>'+
+      '<span class="tot ped">'+fmt(e.pedidos)+'</span></div>';
+  }).join('');
+  // Pedidos importados há 2+ dias: vem do ingest a partir do próximo envio do Acompanhamento OP
+  var velhosPed = res.idade[2].pedidos == null ? null : res.idade[2].pedidos + res.idade[3].pedidos;
+  // vermelho quando há atraso (barra e número juntos); âmbar/verde quando está em dia
+  // idade em dias úteis (mesma regra do Report E-commerce); sem o campo novo, cai nas horas corridas
+  var duAnt = res.maisAntigoDias != null ? res.maisAntigoDias : Math.floor(hAnt / 24);
+  var corAnt = duAnt >= 2 ? 'var(--red)' : duAnt >= 1 ? 'var(--amber)' : 'var(--olive)', corVelhos = velhos ? 'var(--red)' : 'var(--olive)';
+  // embaixo do número: itens Single · Multi (Classificação Tipo Pedido); OP antigo sem o campo mostra os pedidos
+  function tipos(o, ped){ return o && o.single != null ? 'Single '+qt(o.single)+' · Multi '+qt(o.multi) : qt(ped)+' pedidos'; }
+  var velhosTipo = res.idade[2].single == null ? null : { single: res.idade[2].single + res.idade[3].single, multi: res.idade[2].multi + res.idade[3].multi };
+  el.innerHTML = '<div class="kpis c4">'+
+    kpiHtml('Itens em operação', fmt(res.itens), tipos(res, res.pedidos), 'var(--accent)', null, 'itens')+
+    kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), tipos(res.etapas[0], res.etapas[0].pedidos), 'var(--amber)', null, 'itens')+
+    kpiHtml('Mais antigo em tela', dAnt ? dAnt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dAnt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—',
+      dAnt ? (res.maisAntigoDias != null ? (duAnt === 0 ? 'importado hoje' : duAnt+(duAnt === 1 ? ' dia útil' : ' dias úteis')+' em tela') : idadeTexto(res.maisAntigo))+' · pedido '+esc(res.maisAntigoPedido) : 'sem data de importação', corAnt, corAnt)+
+    kpiHtml('Importados há 2+ dias úteis', fmt(velhos), velhosTipo ? tipos(velhosTipo) : velhosPed == null ? '' : qt(velhosPed)+' pedidos', corVelhos, corVelhos, 'itens')+
+  '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
+    '<div class="painel"><div class="etapa cab"><span class="nm">Itens por etapa</span><span></span><span class="tot">Itens</span><span class="tot">Pedidos</span></div><div class="etapas">'+etapas+'</div>'+
+      '<div class="etapa total"><span class="nm">Total geral</span><span></span><span class="tot">'+fmt(res.itens)+'</span><span class="tot ped">'+fmt(res.pedidos)+'</span></div></div>'+
+    '<div class="painel"><span class="k">Itens por marca</span>'+pizzaHtml(res.marcas, res.itens)+'</div>'+
+  '</div></div>';
+}
+
+/* ================= TELA E · EXPEDIÇÃO (embarque na doca) ================= */
+// Resumo pronto do ingest.js (operacao.resumo.expedicao): Kardex DOCA + transportadora/classificação do Itens de NF.
+var COR_EXP = '#F6BD00', COR_EXP2 = '#FCE38A';   // dourado da marca (tons de amarelo)
+function nomeTransp(t){
+  var n = String(t||'').replace(/\b(LTDA|S\.?\/?A|EIRELI|ME|EPP|LOGISTICA|TRANSPORTES?)\b\.?/gi, ' ').replace(/[.,]+/g, ' ').trim();
+  return nomeBonito(n || t);
+}
+function renderTelaE(opRes){
+  var exp = opRes && opRes.expedicao, el = document.getElementById('telaE'), lista = (exp && exp.dias) || [];
+  if (!lista.length) { el.dataset.vazia = '1'; el.dataset.dia = ''; el.innerHTML = ''; return; }   // sem Kardex de expedição ainda: sai do giro
+  el.dataset.vazia = '';
+  var porDia = {}; lista.forEach(function(d){ porDia[d.data] = d; });
+  var dia = diaComFallback(function(d){ return porDia[d] && porDia[d].pedidos > 0; }, Object.keys(porDia));
+  el.dataset.dia = dia;
+  var d = porDia[dia] || { pecas:0, pedidos:0, horas:new Array(24).fill(0), usuarios:{}, transp:{}, tipo:{ checkout:[0,0], colmeia:[0,0], semInfo:[0,0] } };
+  var pessoas = {}; Object.keys(d.usuarios).forEach(function(u){ if (u !== 'SILT') pessoas[u] = d.usuarios[u][0]; });   // SILT = sistema: conta no total, fora do ranking
+  var g = graficoHoras(d.horas, dia, COR_EXP, COR_EXP2);
+  var semT = d.transp['Aguardando Itens de NF'];   // embarcadas que ainda não têm transportadora: aviso no título, fora da lista
+  var tr = Object.keys(d.transp).filter(function(t){ return t !== 'Aguardando Itens de NF'; }).map(function(t){ return { n:t, p:d.transp[t][0], q:d.transp[t][1] }; }).sort(function(a,b){ return b.p - a.p; });
+  var maxT = Math.max.apply(null, tr.map(function(x){ return x.p; }).concat(1));
+  var linhas = tr.map(function(x){
+    return '<div class="etapa"><span class="nm">'+esc(nomeTransp(x.n))+'</span>'+
+      '<div class="trilho"><div class="barra" style="width:'+(x.p/maxT*100).toFixed(2)+'%;background:'+COR_EXP+'"></div></div>'+
+      '<span class="tot">'+fmt(x.p)+'</span><span class="tot ped">'+fmt(x.q)+'</span></div>';
+  }).join('');
+  el.innerHTML = '<div class="kpis c4">'+
+    kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+' · Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças')+
+    // Conferido sem expedição: foto atual do Acompanhamento OP (FATURADO com "Faturado em" e sem Carga)
+    (dia !== hojeOp() ? kpiHtml('Conferido sem expedição', '—', 'só no dia de hoje', COR_EXP2, COR_EXP2)
+      : opRes.semColeta && opRes.semColeta.checkout != null ? kpiHtml('Conferido sem expedição', fmt(opRes.semColeta.itens), 'Checkout '+qt(opRes.semColeta.checkout)+' · Colmeia '+qt(opRes.semColeta.colmeia), COR_EXP2, COR_EXP2, 'itens')
+      : kpiHtml('Conferido sem expedição', '—', 'aguardando o próximo Acompanhamento OP', COR_EXP2, COR_EXP2))+
+    kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', '#DFBD41', null)+
+    kpiPrevisao('Previsão do dia', exp.previsao, d.pecas, COR_EXP, COR_EXP, dia)+
+  '</div><div class="linhas" style="grid-template-rows:1.25fr 1fr">'+
+    '<div class="linha"><div class="painel media-clara" style="--pc:'+COR_EXP+'"><span class="k">Expedição · peças por hora</span>'+(g ? g.html : '<div class="semhora">'+(dia === hojeOp() ? 'Sem expedição hoje ainda' : 'Sem expedição neste dia')+'</div>')+'</div>'+
+      '<div class="painel" style="--pc:'+COR_EXP+'"><span class="k">Top 5 operadores</span>'+top5Html(pessoas, nomeWms, COR_EXP, COR_EXP2)+'</div></div>'+
+    '<div class="painel"><div class="etapa cab"><span class="nm" style="color:'+COR_EXP+'">Por transportadora'+(semT ? ' <small class="semt">· '+fmt(semT[1])+' pedidos aguardando transportadora</small>' : '')+'</span><span></span><span class="tot">Peças</span><span class="tot">Pedidos</span></div><div class="etapas'+(tr.length > 3 ? ' compacta' : '')+'">'+(linhas || '<div class="semhora">Sem expedição neste dia</div>')+'</div></div>'+
+  '</div>';
+}
+
+/* ================= HORA DE OURO (agendada no Abastecimento > Pontos da Black) ================= */
+var turnoTela = null;   // turno mostrado no telão (null = escalação sem turno do horário: mostra todos)
+// Faixa dourada no topo durante a hora de ouro agendada (dia + turno + hora).
+var ouroAtivo = null;
+function atualizaOuro(){
+  var b = document.getElementById('ouro');
+  if (!ouroAtivo) { b.hidden = true; return; }
+  var agora = new Date(), fim = new Date(agora); fim.setHours(ouroAtivo.hora + 1, 0, 0, 0);
+  var s = Math.max(0, Math.round((fim - agora) / 1000));
+  if (!s || agora.getHours() !== ouroAtivo.hora) { b.hidden = true; return; }
+  b.hidden = false;
+  document.getElementById('ouroTxt').textContent = 'peças valem 2× · meta da hora: piso '+fmt(ouroAtivo.meta_piso)+' · colmeia '+fmt(ouroAtivo.meta_colmeia);
+  document.getElementById('ouroRel').textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+setInterval(atualizaOuro, 1000);
+
 /* ================= FAIXA DE BAIXO (loop contínuo) ================= */
 var faixaAtual = '';
-function renderFaixa(c, snap){
+function renderFaixa(c, snap, dia, opRes){
   var itens = [];
-  ordemPista(c).forEach(function(t){
+  if (!MODO_OPERACAO) ordemPista(c).forEach(function(t){
     var m = t.lista[0];
     if (m && m.valor) itens.push('<span class="ti" style="--c:var('+t.cor.c+')"><i></i><b>Time 0'+t.n+' · '+t.cor.nome+'</b> destaque: '+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+' <span class="v">'+fmt(m.valor)+'</span> peças</span>');
   });
   var sep = 0, conf = 0;
-  ['checkoutDia','colmeiaDia'].forEach(function(k){ ultimoDia(((snap||{}).separacao||{})[k]).forEach(function(d){ Object.keys(d.itens||{}).forEach(function(n){ sep += d.itens[n]||0; }); }); });
-  ['confCheckoutDia','confColmeiaUnitDia'].forEach(function(k){ ultimoDia(((snap||{}).conferencia||{})[k]).forEach(function(d){ Object.keys(d.itens||{}).forEach(function(n){ conf += d.itens[n]||0; }); }); });
-  itens.push('<span class="ti ger"><b>Separado no dia</b> <span class="v">'+fmt(sep)+'</span> peças</span>');
-  itens.push('<span class="ti ger"><b>Conferido no dia</b> <span class="v">'+fmt(conf)+'</span> peças</span>');
+  ['checkoutDia','colmeiaDia'].forEach(function(k){ sep += somaObj(itensDoDia(((snap||{}).separacao||{})[k], dia)); });
+  ['confCheckoutDia','confColmeiaUnitDia'].forEach(function(k){ conf += somaObj(itensDoDia(((snap||{}).conferencia||{})[k], dia)); });
+  itens.push('<span class="ti ger" style="--c:'+COR_SEP+'"><b>Separado no dia</b> <span class="v">'+fmt(sep)+'</span> peças</span>');
+  itens.push('<span class="ti ger" style="--c:'+COR_CONF+'"><b>Conferido no dia</b> <span class="v">'+fmt(conf)+'</span> peças</span>');
+  if (MODO_OPERACAO) {   // na TV da operação a faixa traz os totais gerais no lugar dos times
+    var ex = ((opRes||{}).expedicao||{}).dias || [], dx = ex.filter(function(x){ return x.data === dia; })[0];
+    if (dx) itens.push('<span class="ti ger" style="--c:'+COR_EXP+'"><b>Expedido no dia</b> <span class="v">'+fmt(dx.pecas)+'</span> peças</span>');
+    if (opRes && opRes.itens) itens.push('<span class="ti ger" style="--c:var(--accent)"><b>Itens em operação</b> <span class="v">'+fmt(opRes.itens)+'</span> itens</span>');
+  }
   var g = '<div class="g">'+itens.join('')+'</div>';
   if (g === faixaAtual) return;               // mesmo conteúdo: não reinicia a animação
   faixaAtual = g;
@@ -428,7 +638,7 @@ function renderFaixa(c, snap){
 /* ================= COMEMORAÇÃO ================= */
 var audio = new Audio('tv/comemoracao.mp3'); audio.preload = 'auto'; audio.volume = 1;
 var fila = [], comemorando = false, mold = document.getElementById('mold');
-function chaveComemoracao(dia, n){ return 'telao_comemorou_'+dia+'_'+n; }
+function chaveComemoracao(dia, n){ return 'telao_comemorou_'+dia+'_'+(turnoTela ? turnoTela.replace(/\W/g,'')+'_' : '')+n; }
 function jaComemorou(dia, n){ try { return !!localStorage.getItem(chaveComemoracao(dia, n)); } catch(e){ return false; } }
 function marcaComemorou(dia, n){ try { localStorage.setItem(chaveComemoracao(dia, n), '1'); } catch(e){} }
 function hojeISO(){ var d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -438,7 +648,7 @@ var primeiraLeitura = true;
 // é marcado como comemorado, sem festa, para não abrir uma fila de comemorações.
 function verificaMetas(c){
   var primeira = primeiraLeitura; primeiraLeitura = false;
-  if (!c.dia || c.dia !== hojeISO()) return;
+  if (!c.dia || c.dia !== hojeOp() || !ehHoje()) return;
   c.times.forEach(function(t){
     if (t.meta && t.total >= t.meta && !jaComemorou(c.dia, t.n)) {
       marcaComemorou(c.dia, t.n);
@@ -514,38 +724,102 @@ var telas = Array.prototype.slice.call(document.querySelectorAll('.tela')), atua
 function telasAtivas(){ return telas.filter(function(t){ return !t.dataset.vazia; }); }
 function proximaTela(passo){ var n = telas.length; for (var k = 1; k <= n; k++){ var j = (atual + passo*k + n*k) % n; if (!telas[j].dataset.vazia) return j; } return atual; }
 function giroDe(i){ return (Q.get('giro') ? GIRO_S : (+telas[i].getAttribute('data-giro') || GIRO_S)) * 1000; }
+// Troca com transição: a tela atual esmaece (.saindo) e só então a próxima entra.
+var trocaPendente = null;
 function mostraTela(i){
+  var velha = telas[atual];
   atual = i; inicioTela = Date.now();
+  clearTimeout(trocaPendente);
+  telas.forEach(function(t){ t.classList.remove('saindo'); });
+  if (velha && velha !== telas[i] && velha.classList.contains('on') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    velha.classList.add('saindo');
+    trocaPendente = setTimeout(function(){ velha.classList.remove('saindo'); entraTela(i); }, 350);
+  } else entraTela(i);
+}
+// Cor dos detalhes do calendário e da data em cada tela: [forte, clara, texto sobre a forte]
+var COR_CAL = { telaC:['#297ADF','#7FB2EC','#fff'], telaA:['#EF5B5B','#F59A9A','#fff'], telaB:['#2EC4B6','#8CEBDF','#0E1626'],
+                telaE:['#F6BD00','#FCE38A','#142032'], telaD:['#F5A524','#FBCB7A','#142032'] };
+function entraTela(i){
   telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
+  var cc = COR_CAL[telas[i].id] || COR_CAL.telaC, pal = document.getElementById('palco');
+  pal.style.setProperty('--cc', cc[0]); pal.style.setProperty('--cc2', cc[1]); pal.style.setProperty('--cc-t', cc[2]);
   document.getElementById('titulo').textContent = telas[i].getAttribute('data-titulo');
   document.getElementById('barra').hidden = telasAtivas().length < 2;   // com uma tela só não há o que girar
   relogio();
   if (telas[i].id === 'telaA') requestAnimationFrame(ajustaAltura);
 }
+// Barra do giro redesenhada a cada quadro: anda contínua, sem pulos.
+(function anima(){
+  document.getElementById('barra').style.transform = 'scaleX(' + Math.min(1, (Date.now() - inicioTela) / giroDe(atual)) + ')';
+  requestAnimationFrame(anima);
+})();
 setInterval(function(){
   var dec = (Date.now() - inicioTela) / giroDe(atual);
-  document.getElementById('barra').style.width = Math.min(100, dec*100) + '%';
   if (telasAtivas().length > 1 && dec >= 1 && !comemorando) mostraTela(proximaTela(1));
 }, 500);
 document.addEventListener('keydown', function(e){   // para quem estiver ao lado da TV
   if (comemorando) { encerraComemoracao(); return; }   // qualquer tecla encerra a comemoração
   if (e.key === 'ArrowRight') mostraTela(proximaTela(1));
   if (e.key === 'ArrowLeft') mostraTela(proximaTela(-1));
+  if (e.key === 'ArrowDown') escolheDia(somaDias(diaTela(), -1));   // dia anterior
+  if (e.key === 'ArrowUp') escolheDia(somaDias(diaTela(), 1));      // dia seguinte (até hoje)
 });
+// Calendário do dia exibido (no lugar do calendário nativo do Chrome, que não segue a identidade).
+(function(){
+  var cal = document.getElementById('cal'), lbl = document.getElementById('data'), mesCal = null;
+  var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  function iso(a, m, d){ return a+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+  function desenha(){
+    var hj = hojeOp(), sel = diaTela(), a = mesCal[0], m = mesCal[1];
+    var ini = new Date(a, m, 1).getDay(), n = new Date(a, m+1, 0).getDate(), temProx = (m === 11 ? iso(a+1, 0, 1) : iso(a, m+1, 1)) <= hj;
+    var h = '<div class="kk">Dia exibido</div><div class="cab"><button type="button" class="nav" data-mes="-1" aria-label="Mês anterior">‹</button>'+
+      '<span class="mes">'+MESES[m]+' de '+a+'</span><button type="button" class="nav" data-mes="1" aria-label="Próximo mês"'+(temProx ? '' : ' disabled')+'>›</button></div>'+
+      '<div class="grade">'+['D','S','T','Q','Q','S','S'].map(function(x){ return '<span class="sm">'+x+'</span>'; }).join('');
+    for (var b = 0; b < ini; b++) h += '<span></span>';
+    for (var d = 1; d <= n; d++) {
+      var k = iso(a, m, d), cls = 'd'+(k === hj ? ' hoje' : '')+(k === sel ? ' sel' : '')+(diasComDado[k] ? ' dado' : '');
+      h += '<button type="button" class="'+cls+'" data-dia="'+k+'"'+(k > hj ? ' disabled' : '')+'>'+d+'</button>';
+    }
+    cal.innerHTML = h + '</div><div class="rod"><span><i></i>dia com produção</span><button type="button" data-dia="'+hj+'">Hoje</button></div>';
+  }
+  function fecha(){ cal.hidden = true; lbl.classList.remove('aberto'); }
+  lbl.addEventListener('click', function(e){
+    e.stopPropagation();
+    if (!cal.hidden) { fecha(); return; }
+    var p = diaTela().split('-'); mesCal = [+p[0], +p[1]-1];
+    desenha(); cal.hidden = false; lbl.classList.add('aberto');
+  });
+  cal.addEventListener('click', function(e){
+    e.stopPropagation();
+    var b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.mes) { var m = mesCal[1] + (+b.dataset.mes); mesCal = [mesCal[0] + Math.floor(m/12), (m%12+12)%12]; desenha(); return; }
+    if (b.dataset.dia) { escolheDia(b.dataset.dia === hojeOp() ? null : b.dataset.dia); fecha(); }
+  });
+  document.addEventListener('click', fecha);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') fecha(); });
+  document.getElementById('btnHoje').addEventListener('click', function(e){ e.stopPropagation(); escolheDia(null); });
+})();
 
 /* ================= RELÓGIO, SELO E ESCALA ================= */
 var atualizadoEm = {}, falhou = false;   // data de atualização de cada snapshot (outbound, inbound)
 function relogio(){
   var d = new Date();
   document.getElementById('hora').textContent = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-  document.getElementById('data').textContent = d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
+  var dia = diaTela(), passado = !ehHoje();
+  document.getElementById('data').textContent = rotDia(dia);
+  var lv = document.getElementById('aoVivo');
+  lv.textContent = passado ? '⚠ EXIBINDO ' + rotDia(dia).toUpperCase() : '● AO VIVO';
+  lv.classList.toggle('passado', passado);
+  document.getElementById('btnHoje').hidden = !passado;
+  var dTela = telas[atual] ? telas[atual].dataset.dia : '';
+  document.getElementById('semHoje').hidden = passado || !dTela || dTela >= hojeOp();
   var s = document.getElementById('selo');
   var ultimoDado = atualizadoEm[telas[atual] ? telas[atual].getAttribute('data-fonte') : 'outbound'];
   if (!ultimoDado) return;
   var min = (Date.now() - ultimoDado.getTime()) / 60000, hh = ultimoDado.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
   var dd = ultimoDado.toDateString() === d.toDateString() ? '' : ' de ' + ultimoDado.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
   s.textContent = '● Dado de ' + hh + dd + (falhou ? ' · sem conexão' : '');
-  s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 30 ? 'atencao' : 'ok');
+  s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 60 ? 'atencao' : 'ok');   // robô atualiza a cada 45 min
 }
 setInterval(relogio, 15000); relogio();
 // O palco tem 1500 px de base e estica na outra direção até preencher a janela inteira,
@@ -574,6 +848,18 @@ function mexeu(){ document.body.classList.remove('ocioso'); clearTimeout(ocioso)
 document.addEventListener('mousemove', mexeu); mexeu();
 addEventListener('resize', function(){ escala(); requestAnimationFrame(ajustaAltura); }); escala();
 setTimeout(function(){ location.reload(); }, RECARREGA_H*3600*1000);
+// Versão nova publicada (deploy na Vercel): confere a cada 5 min e recarrega sozinho, sem precisar de F5.
+(function(){
+  var versao = null;
+  function confere(){
+    fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' }).then(function(r){ return r.ok ? r.text() : null; }).then(function(t){
+      if (!t) return;
+      if (versao === null) { versao = t; return; }
+      if (t !== versao && !comemorando) location.reload();
+    }).catch(function(){});
+  }
+  confere(); setInterval(confere, 5*60000);
+})();
 if (navigator.wakeLock) { var pedeWake = function(){ navigator.wakeLock.request('screen').catch(function(){}); }; pedeWake(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) pedeWake(); }); }
 
 /* ================= DADOS ================= */
@@ -581,14 +867,31 @@ async function carregar(){
   try {
     var r = await Promise.all([
       sb.from('dashboard_snapshots').select('pagina, dados, atualizado_em').in('pagina', ['outbound','inbound']),
-      sb.from('competicao_times').select('*')
+      sb.from('competicao_times').select('*'),
+      sb.from('dashboard_snapshots').select('resumo:dados->resumo, atualizado_em').eq('pagina', 'operacao').maybeSingle(),
+      sb.from('competicao_hora_ouro').select('dia, turno, hora, meta_piso, meta_colmeia')
     ]);
     if (r[0].error || r[1].error) throw (r[0].error || r[1].error);
     var pg = {}; (r[0].data || []).forEach(function(l){ pg[l.pagina] = l; if (l.atualizado_em) atualizadoEm[l.pagina] = new Date(l.atualizado_em); });
     var snap = (pg.outbound || {}).dados || {}, snapIn = (pg.inbound || {}).dados || {};
     falhou = false;
-    var c = calcularCompeticao(snap, r[1].data || []);
-    renderTelaA(c); renderTelaB(snap); renderTelaD(snapIn); renderFaixa(c, snap); verificaMetas(c);
+    // Times por turno: mostra o turno do horário; se ninguém estiver escalado nele, mostra a escalação inteira.
+    var cadAll = r[1].data || [], ta = RegrasBlack.turnoAtual(new Date());
+    var cadT = cadAll.filter(function(x){ return x.turno === ta.turno; });
+    if (!cadT.length) cadT = cadAll;
+    turnoTela = cadT === cadAll ? null : ta.turno;
+    var rotTurno = turnoTela ? ' · ' + RegrasBlack.TURNOS[turnoTela].rot.split(' · ')[0] : '';
+    document.getElementById('telaA').setAttribute('data-titulo', 'Corrida Maluca' + rotTurno);
+    var diaOut = diaOutbound(snap);
+    document.getElementById('telaA').dataset.dia = diaOut;
+    var c = calcularCompeticao(snap, cadT, diaOut);
+    var ouros = r[3].error ? [] : (r[3].data || []);
+    var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
+    ouroAtivo = MODO_OPERACAO || !ehHoje() ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
+    atualizaOuro();
+    var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
+    if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
+    renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap, diaOut, op && op.resumo); if (!MODO_OPERACAO) verificaMetas(c);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho
@@ -608,7 +911,7 @@ async function iniciar(){
   mostraTela(0);
   await carregar();
   setInterval(carregar, REFRESH_S*1000);
-  var teste = +Q.get('comemorar');
+  var teste = MODO_OPERACAO ? 0 : +Q.get('comemorar');
   if (TIMES_COR[teste]) { fila.push({ n:teste, pecas:META_DIA_TIME[teste] }); proximaComemoracao(); }
 }
 document.getElementById('loginForm').addEventListener('submit', async function(e){
