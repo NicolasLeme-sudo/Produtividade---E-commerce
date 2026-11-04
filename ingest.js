@@ -1249,7 +1249,7 @@ function resumoOperacao(op) {
     return cacheIdade[k];
   }
   Object.keys(pedidos).forEach(function (p) {
-    var e = pedidos[p], etapa = r.etapas[e[0]], itens = e[1], imp = e[2], marca = marcas[p] || "Sem marca";
+    var e = pedidos[p], etapa = r.etapas[e[0]], itens = e[1], imp = e[2], marca = marcas[p] || "Olympikus";   // sem produto no Itens de NF: mesma reserva da regra de marca
     r.itens += itens; r.pedidos++;
     etapa.itens += itens; etapa.pedidos++;
     var tp = e[5] === "M" ? "multi" : e[5] === "S" ? "single" : null;
