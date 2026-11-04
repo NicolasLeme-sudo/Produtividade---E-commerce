@@ -276,7 +276,11 @@ async function iniciar(cfg, log, opcoes) {
   if (!cfg.WMS_USUARIO || !cfg.WMS_SENHA) throw new Error("Preencha WMS_USUARIO e WMS_SENHA no arquivo .env");
   if (!cfg.PASTA || !fs.existsSync(cfg.PASTA)) throw new Error("Pasta não encontrada: " + cfg.PASTA + " (confira PASTA no .env)");
   const { chromium } = require("playwright");
+  // MOSTRAR_NAVEGADOR=nao no .env (ou --escondido): o Chrome do robô abre sem janela nenhuma (headless).
   const visivel = String(cfg.MOSTRAR_NAVEGADOR || "sim").toLowerCase() !== "nao" && !process.argv.includes("--escondido");
+  // INTERVALO_MIN no .env: todos os relatórios a cada N minutos (sem ele: rápidos a cada 5, lentos a cada 10).
+  const nMin = Number(cfg.INTERVALO_MIN) || 0;
+  const intervalo = nMin > 0 ? { rapido: nMin * MIN, lento: nMin * MIN } : INTERVALO;
   // Usa SÓ o Chrome aberto pelo atalho "abrir-chrome-robo.bat" (porta 9222). Nunca abre outro Chrome.
   // Só um baixador por vez (dois disputam o Chrome e os downloads).
   const trava = path.join(__dirname, "baixar.lock");
@@ -302,8 +306,8 @@ async function iniciar(cfg, log, opcoes) {
       } catch (e) {
         if (!tentouAbrir) {
           tentouAbrir = true;
-          log("Abrindo o Chrome do robô (atalho abrir-chrome-robo.bat)");
-          require("child_process").spawn("cmd.exe", ["/c", path.join(__dirname, "abrir-chrome-robo.bat")], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+          log("Abrindo o Chrome do robô (atalho abrir-chrome-robo.bat" + (visivel ? ")" : ", escondido: sem janela)"));
+          require("child_process").spawn("cmd.exe", ["/c", path.join(__dirname, "abrir-chrome-robo.bat")].concat(visivel ? [] : ["escondido"]), { detached: true, stdio: "ignore", windowsHide: true }).unref();
           await new Promise(function (r) { setTimeout(r, 6000); });
           continue;
         }
@@ -330,7 +334,8 @@ async function iniciar(cfg, log, opcoes) {
     if (sobras.length && sobras.length === contexto.pages().length) await contexto.newPage();
     for (const pg of sobras) { try { await pg.close(); } catch (e) {} }
     const reaproveitadas = Object.keys(abas);
-    log("Baixador ligado no Chrome do atalho, WMS como " + cfg.WMS_USUARIO + (reaproveitadas.length ? " · reaproveitando " + reaproveitadas.length + " aba(s) abertas" : ""));
+    log("Baixador ligado no Chrome do atalho, WMS como " + cfg.WMS_USUARIO + (reaproveitadas.length ? " · reaproveitando " + reaproveitadas.length + " aba(s) abertas" : "") +
+      (nMin > 0 ? " · atualiza a cada " + nMin + " min" : "") + (visivel ? "" : " · Chrome escondido"));
   }
   await conectar();
   const doUsuario = true;
@@ -432,7 +437,7 @@ async function iniciar(cfg, log, opcoes) {
   for (;;) {
     for (const g of ["rapido", "lento"]) {          // rápido tem prioridade
       if (Date.now() >= proximo[g]) {
-        proximo[g] = Date.now() + INTERVALO[g];
+        proximo[g] = Date.now() + intervalo[g];
         await grupo(g);
       }
     }

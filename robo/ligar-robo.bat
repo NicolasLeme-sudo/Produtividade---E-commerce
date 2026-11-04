@@ -10,6 +10,7 @@ git pull origin main
 call npm.cmd install --no-audit --no-fund
 echo === robo ligado (feche esta janela para desligar) ===
 node robo.js
+if /I "%~1"=="escondido" exit /b
 echo.
 echo Robo desligado. Para ligar de novo: duplo clique em ligar-robo.bat
 pause
