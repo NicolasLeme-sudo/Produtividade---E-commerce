@@ -1,0 +1,11 @@
+{
+  "name": "Operação · E-commerce",
+  "short_name": "Operação",
+  "start_url": "/tv.html?modo=operacao",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0F1A33",
+  "theme_color": "#0F1A33",
+  "icons": [{ "src": "/logo-mark.png", "sizes": "378x359", "type": "image/png", "purpose": "any" }]
+}

@@ -4,11 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Celular: "Adicionar à Tela de Início" abre o telão sem as barras do navegador (iPhone não aceita tela cheia em página) -->
-<link rel="manifest" href="/tv.webmanifest">
+<link rel="manifest" href="/tv.webmanifest" id="manifesto">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Telão">
+<meta name="apple-mobile-web-app-title" content="Telão" id="tituloApp">
+<script>// Link da operação: o ícone da Tela de Início abre direto no modo operação (outro manifesto e outro nome)
+if (/[?&]modo=operacao\b/.test(location.search)) { document.getElementById('manifesto').href = '/tv-operacao.webmanifest'; document.getElementById('tituloApp').content = 'Operação'; }</script>
 <meta name="theme-color" content="#0F1A33">
 <link rel="apple-touch-icon" href="/logo-mark.png">
 <title>Telão · Produtividade E-commerce</title>
