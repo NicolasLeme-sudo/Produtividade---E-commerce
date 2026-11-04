@@ -1132,6 +1132,23 @@ function etapaDoPedido(row) {
   return tem("Processado em") ? -1 : 4;   // conferido, aguardando coleta (processado = despachado, sai)
 }
 
+// ---- Dias úteis: cópia da regra do Report E-commerce (report-ecommerce/ingest.js) ----
+// Seg a sex, sem os feriados oficiais (nacional + municipal de Extrema-MG). Atualizar a lista todo ano.
+var FERIADOS_2026 = new Set(["2026-01-01", "2026-04-18", "2026-04-21", "2026-05-01", "2026-05-22", "2026-09-07",
+  "2026-09-18", "2026-10-12", "2026-11-02", "2026-11-15", "2026-11-20", "2026-12-25"]);
+function ehDiaUtil(date) {
+  var dow = date.getDay();
+  if (dow === 0 || dow === 6) return false;
+  return !FERIADOS_2026.has(paraDataISOLocal(date));
+}
+// Dias úteis completos entre duas datas (como no Backlog FIFO do Report): hoje ou ontem = 0/1, 2+ = fora do prazo.
+function diferencaDiasUteis(dataInicial, dataFinal) {
+  var d = new Date(dataInicial.getFullYear(), dataInicial.getMonth(), dataInicial.getDate());
+  var fim = new Date(dataFinal.getFullYear(), dataFinal.getMonth(), dataFinal.getDate()), contados = 0;
+  while (d <= fim) { if (ehDiaUtil(d)) contados++; d.setDate(d.getDate() + 1); }
+  return contados - 1;
+}
+
 // Pedido -> [etapa, itens, importado em (ms), separado sem conferir (1/0)]
 // Separado sem conferir = status ENVIADO PARA FATURAMENTO e "Conferido em" vazio: a separação
 // terminou, mas o pedido ainda não passou no caixa de faturamento (lá vira FATURADO com a data).
@@ -1182,7 +1199,13 @@ function resumoOperacao(op) {
     etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, marcas: {} }; }),
     idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0 }; }),
     opEm: op.opEm || null, nfEm: op.nfEm || null };
-  var ref = new Date(op.opEm || Date.now()); ref.setHours(0, 0, 0, 0);
+  // Idade em DIAS ÚTEIS, mesma regra do Report E-commerce (diferencaDiasUteis): seg a sex sem feriados.
+  var ref = new Date(op.opEm || Date.now()), cacheIdade = {};
+  function idadeDias(imp) {
+    var d = new Date(imp), k = paraDataISOLocal(d);
+    if (cacheIdade[k] == null) cacheIdade[k] = Math.max(0, diferencaDiasUteis(d, ref));
+    return cacheIdade[k];
+  }
   Object.keys(pedidos).forEach(function (p) {
     var e = pedidos[p], etapa = r.etapas[e[0]], itens = e[1], imp = e[2], marca = marcas[p] || "Sem marca";
     r.itens += itens; r.pedidos++;
@@ -1193,11 +1216,11 @@ function resumoOperacao(op) {
     if (e[3]) { r.semConferir.itens += itens; r.semConferir.pedidos++; }
     if (imp) {
       if (r.maisAntigo === null || imp < r.maisAntigo) { r.maisAntigo = imp; r.maisAntigoPedido = p; }
-      var d = new Date(imp); d.setHours(0, 0, 0, 0);
-      var faixa = r.idade[Math.max(0, Math.min(3, Math.round((ref - d) / 86400000)))];
+      var faixa = r.idade[Math.min(3, idadeDias(imp))];
       faixa.itens += itens; faixa.pedidos++;
     }
   });
+  r.maisAntigoDias = r.maisAntigo === null ? null : idadeDias(r.maisAntigo);
   r.expedicao = resumoExpedicao(op);
   return r;
 }

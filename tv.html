@@ -520,13 +520,15 @@ function renderTelaC(res){
   // Pedidos importados há 2+ dias: vem do ingest a partir do próximo envio do Acompanhamento OP
   var velhosPed = res.idade[2].pedidos == null ? null : res.idade[2].pedidos + res.idade[3].pedidos;
   // vermelho quando há atraso (barra e número juntos); âmbar/verde quando está em dia
-  var corAnt = hAnt >= 48 ? 'var(--red)' : hAnt >= 24 ? 'var(--amber)' : 'var(--olive)', corVelhos = velhos ? 'var(--red)' : 'var(--olive)';
+  // idade em dias úteis (mesma regra do Report E-commerce); sem o campo novo, cai nas horas corridas
+  var duAnt = res.maisAntigoDias != null ? res.maisAntigoDias : Math.floor(hAnt / 24);
+  var corAnt = duAnt >= 2 ? 'var(--red)' : duAnt >= 1 ? 'var(--amber)' : 'var(--olive)', corVelhos = velhos ? 'var(--red)' : 'var(--olive)';
   el.innerHTML = '<div class="kpis c4">'+
     kpiHtml('Itens em operação', fmt(res.itens), qt(res.pedidos)+' pedidos', 'var(--accent)', null, 'itens')+
     kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), qt(res.etapas[0].pedidos)+' pedidos', 'var(--amber)', null, 'itens')+
     kpiHtml('Mais antigo em tela', dAnt ? dAnt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dAnt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—',
-      dAnt ? idadeTexto(res.maisAntigo)+' · pedido '+esc(res.maisAntigoPedido) : 'sem data de importação', corAnt, corAnt)+
-    kpiHtml('Importados há 2+ dias', fmt(velhos), velhosPed == null ? '' : qt(velhosPed)+' pedidos', corVelhos, corVelhos, 'itens')+
+      dAnt ? (res.maisAntigoDias != null ? (duAnt === 0 ? 'importado hoje' : duAnt+(duAnt === 1 ? ' dia útil' : ' dias úteis')+' em tela') : idadeTexto(res.maisAntigo))+' · pedido '+esc(res.maisAntigoPedido) : 'sem data de importação', corAnt, corAnt)+
+    kpiHtml('Importados há 2+ dias úteis', fmt(velhos), velhosPed == null ? '' : qt(velhosPed)+' pedidos', corVelhos, corVelhos, 'itens')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
     '<div class="painel"><div class="etapa cab"><span class="nm">Itens por etapa</span><span></span><span class="tot">Itens</span><span class="tot">Pedidos</span></div><div class="etapas">'+etapas+'</div></div>'+
     '<div class="painel"><span class="k">Itens por marca</span>'+pizzaHtml(res.marcas, res.itens)+'</div>'+

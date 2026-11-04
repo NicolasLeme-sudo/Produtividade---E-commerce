@@ -37,7 +37,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 - Telas em rodízio, nesta ordem (pula tela sem dado): C Operação agora 90 s · A Corrida Maluca 120 s (times do turno do horário) · B Separação e Conferência 90 s · E Expedição 90 s · D Armazenagem por hora 60 s.
 - Troca de tela com transição (sai esmaecendo 0,35 s, entra deslizando 0,7 s); barra do giro contínua (requestAnimationFrame).
 - Pista: largada 4 %, chegada 93 %; meta batida põe o carro em `P_META_BATIDA` = 1,06 (passa um pouco da linha).
-- Tela C: lê só `dados->resumo` do snapshot `operacao` (gravado pelo ingest.js com Acompanhamento OP + Itens de NF de Saída). Itens por etapa × marca (etapas iguais ao `calcularStatus` do Report), pizza por marca, mais antigo em tela, importados há 2+ dias. Marca pela descrição do produto (mesma regra do Report; sem palavra-chave = Olympikus). Cores: Olympikus `#297ADF`, Mizuno `#DFBD41`, Under Armour `#C8102E`.
+- Tela C: lê só `dados->resumo` do snapshot `operacao` (gravado pelo ingest.js com Acompanhamento OP + Itens de NF de Saída). Itens por etapa × marca (etapas iguais ao `calcularStatus` do Report), pizza por marca, mais antigo em tela, importados há 2+ dias úteis (mesma regra do Report E-commerce: `diferencaDiasUteis`, seg–sex sem `FERIADOS_2026` de Extrema-MG; atualizar a lista todo ano). Marca pela descrição do produto (mesma regra do Report; sem palavra-chave = Olympikus). Cores: Olympikus `#297ADF`, Mizuno `#DFBD41`, Under Armour `#C8102E`.
 - Dados a cada 60 s; recarrega a página a cada 6 h; wakeLock; setas trocam tela; botão Tela cheia some em tela cheia.
 - Selo de atualização: verde < 30 min, âmbar < 2 h, vermelho acima.
 - Parâmetros: `?giro=`, `?refresh=`, `?comemorar=N`, `?dia=aaaa-mm-dd`.
