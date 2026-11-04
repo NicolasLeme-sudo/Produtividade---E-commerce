@@ -146,7 +146,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .kpi .v{font-size:46px;font-weight:800;line-height:1;color:var(--vc,var(--text))}
 .kpi .v small{font-size:20px;font-weight:700;color:var(--text-muted);margin-left:8px}
 .kpi .v{white-space:nowrap}.kpis.c5 .kpi .v small{font-size:17px;margin-left:6px}
-.kpi .s{font-size:15px;color:var(--text-muted)}.kpi .s b{color:var(--vc,var(--kc,var(--text)));font-weight:800}
+.kpi .s{font-size:21px;color:var(--text-muted)}.kpi .s b{color:var(--vc,var(--kc,var(--text)));font-weight:800}
 .linhas{flex:1;min-height:0;display:grid;gap:14px}
 .linha{display:grid;grid-template-columns:3fr 1fr;gap:14px;min-height:0}
 .painel{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
@@ -507,7 +507,7 @@ function pizzaHtml(porMarca, total){
     acc += f; return s;
   }).join('');
   var leg = ms.map(function(m){
-    return '<div style="--m:'+(COR_MARCA[m]||'#8E9BB5')+'"><i></i><span>'+esc(m)+'</span><b>'+fmt(porMarca[m])+'</b><em>'+Math.round(porMarca[m]/total*100)+'%</em></div>';
+    return '<div style="--m:'+(COR_MARCA[m]||'#8E9BB5')+'"><i></i><span>'+esc(m === 'Sem marca' ? 'Aguardando NF' : m)+'</span><b>'+fmt(porMarca[m])+'</b><em>'+Math.round(porMarca[m]/total*100)+'%</em></div>';
   }).join('');
   return '<div class="pizza"><svg viewBox="0 0 180 180">'+fatias+
     '<text x="90" y="92" text-anchor="middle" fill="#E8EBF2" font-size="26" font-weight="800">'+fmt(total)+'</text>'+
