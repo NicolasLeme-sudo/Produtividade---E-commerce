@@ -473,6 +473,7 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
   var totalNormal = 0, totalReversa = 0;
   var normalDia = new Map(), reversaDia = new Map();
   var normalHora = new Map();   // data -> [24] peças armazenadas por hora (só armazenagem normal)
+  var normalMin = new Map();    // data -> { minuto do dia: peças } (previsão "nesta hora"; não é gravado)
 
   rows.forEach(function (row) {
     var dataBruta = obterCampo(row, ["Data"]);
@@ -502,6 +503,8 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
         var horas = normalHora.get(dataISO) || new Array(24).fill(0);
         horas[hora] += delta;
         normalHora.set(dataISO, horas);
+        var minuto = minutoDoValor(dataBruta);
+        if (minuto !== null) { var mm = normalMin.get(dataISO) || {}; mm[minuto] = (mm[minuto] || 0) + delta; normalMin.set(dataISO, mm); }
       }
     } else if (prefixo === "S") {
       porUsuarioReversa.set(colaborador.nome, (porUsuarioReversa.get(colaborador.nome) || 0) + delta);
@@ -510,7 +513,67 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
     }
   });
 
-  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora };
+  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora, normalMin: normalMin };
+}
+// Minuto do dia (0-1439) da coluna Data: "dd/mm/yyyy HH:mm:ss", serial do Excel ou Date. Sem hora = null.
+function minutoDoValor(valor) {
+  if (valor === null || valor === undefined || valor === "") return null;
+  if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor.getHours() * 60 + valor.getMinutes();
+  if (typeof valor === "number") { var fr = valor - Math.floor(valor); return fr > 0 ? Math.min(1439, Math.floor(fr * 1440 + 1e-6)) : null; }
+  var m = String(valor).match(/\s(\d{1,2}):(\d{2})/);
+  return m ? Math.min(1439, Number(m[1]) * 60 + Number(m[2])) : null;
+}
+// { data: {minuto: peças} } do calendário -> minutos do dia operacional (00h–01h do dia seguinte entra como 1440+).
+function minutosOperacionais(porData, dia) {
+  var out = Object.assign({}, porData.get(dia) || {}), seg = porData.get(diaSeguinteISO(dia)) || {};
+  Object.keys(seg).forEach(function (k) { if (+k < 60) out[+k + 1440] = (out[+k + 1440] || 0) + seg[k]; });
+  return out;
+}
+
+// ---- Expedição (embarque) pelo Kardex ----
+// Bipagem na doca: Tipo do Local DOCA + Complementar "NOTA FISCAL PROCESSADA, RETIRADO ESTOQUE PARA
+// NOTAFISCAL ID:<id>". O id é o idNotaFiscal do Itens de NF (1 nota = 1 pedido). Vale o ÚLTIMO evento
+// de cada nota: processada = embarcada (usuário e horário desse evento; peças = Estoque Antes − Após das
+// linhas desse momento); estorno ("PROCESSAMENTO DE NOTA FISCAL ESTORNADO") ou cancelamento depois = não conta.
+// Dia operacional: 00h–01h ainda é o dia anterior (minuto 1440+).
+// Retorna { dias: { dia: { idNF: [usuario, minuto, peças] } }, estornadas: [idNF] }
+function processarExpedicaoKardex(rows) {
+  var ev = {};
+  rows.forEach(function (row) {
+    if (normalizarTexto(obterCampo(row, ["Tipo do Local"])) !== "DOCA") return;
+    var comp = normalizarTexto(obterCampo(row, ["Complementar"]));
+    var m = /NOTAFISCAL ID:\s*(\d+)/.exec(comp);
+    if (!m) return;
+    var tipo = comp.indexOf("NOTA FISCAL PROCESSADA, RETIRADO ESTOQUE") === 0 ? "P"
+      : (comp.indexOf("ESTORNADO, ADICIONADO ESTOQUE") !== -1 || comp.indexOf("CANCELADA, REMOVIDO ESTOQUE") !== -1) ? "E" : null;
+    if (!tipo) return;
+    var ms = dataHoraParaMs(obterCampo(row, ["Data"]));
+    if (ms === null) return;
+    var pecas = tipo === "P" ? numero(obterCampo(row, ["Estoque Antes"])) - numero(obterCampo(row, ["Estoque Após", "Estoque Apos"])) : 0;
+    (ev[m[1]] || (ev[m[1]] = [])).push([ms, tipo, String(obterCampo(row, ["Usuário", "Usuario"]) || "").trim().toUpperCase(), pecas]);
+  });
+  var out = { dias: {}, estornadas: [] };
+  Object.keys(ev).forEach(function (id) {
+    var l = ev[id].sort(function (a, b) { return a[0] - b[0] || (a[1] === "E" ? 1 : -1); }), ult = l[l.length - 1];
+    if (ult[1] !== "P") { out.estornadas.push(id); return; }
+    var pecas = l.reduce(function (s, x) { return s + (x[1] === "P" && x[0] === ult[0] ? x[3] : 0); }, 0);
+    var d = new Date(ult[0]), min = d.getHours() * 60 + d.getMinutes();
+    if (d.getHours() < 1) { d.setDate(d.getDate() - 1); min += 1440; }
+    var dia = paraDataISOLocal(d);
+    (out.dias[dia] || (out.dias[dia] = {}))[id] = [ult[2] || "(sem usuário)", min, pecas];
+  });
+  return out;
+}
+// Itens de NF -> { idNF: [transportadora, "S" | "M" | "", status] } (SINGLE = checkout, MULTI = colmeia)
+function processarInfoNf(rows) {
+  var info = {};
+  rows.forEach(function (row) {
+    var id = String(obterCampo(row, ["idNotaFiscal"]) || "").trim();
+    if (!id || info[id]) return;
+    var cl = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"]));
+    info[id] = [String(obterCampo(row, ["Transportadora"]) || "").trim(), cl.indexOf("MULTI") !== -1 ? "M" : cl.indexOf("SINGLE") !== -1 ? "S" : "", normalizarTexto(obterCampo(row, ["Status"]))];
+  });
+  return info;
 }
 
 // ---- 5) Conferência Colmeia ----
@@ -1135,17 +1198,90 @@ function resumoOperacao(op) {
       faixa.itens += itens; faixa.pedidos++;
     }
   });
+  r.expedicao = resumoExpedicao(op);
   return r;
 }
 
-// Junta o que chegou (pedidos do OP ou marcas do Itens de NF) e regrava o resumo.
+// ---- Expedição no snapshot "operacao" ----
+// op.expNfs  = { dia: { idNF: [usuario, minuto, peças] } } das notas embarcadas nos 2 dias mais recentes
+//              (cada Kardex JUNTA com o que já tinha, então um Kardex parcial não apaga o dia)
+// op.expDias = resumo congelado dos dias que saíram dos 2 crus (até 31 dias)
+// op.nfInfo  = { t: [transportadoras], n: { idNF: [índice da transportadora, "S"|"M"|""] } } das notas
+//              EM CARGA/OR (vão embarcar) + as notas já embarcadas em op.expNfs
+// op.expPrev = previsão da expedição, calculada na hora em que o Kardex chegou
+var EXP_SEM_INFO = "Aguardando Itens de NF";
+function lerInfoNf(op) {
+  var ni = op.nfInfo || {}, t = ni.t || [], o = {};
+  Object.keys(ni.n || {}).forEach(function (id) { var x = ni.n[id]; o[id] = [t[x[0]], x[1]]; });
+  return o;
+}
+function agregarExpedicaoDia(data, nfs, info) {
+  var a = { data: data, pecas: 0, pedidos: 0, horas: new Array(24).fill(0), usuarios: {}, transp: {}, tipo: { checkout: [0, 0], colmeia: [0, 0], semInfo: [0, 0] } };
+  Object.keys(nfs || {}).forEach(function (id) {
+    var x = nfs[id]; if (!x) return;
+    var p = x[2] || 0, inf = info[id];
+    a.pecas += p; a.pedidos++;
+    a.horas[Math.min(23, Math.floor(x[1] / 60))] += p;   // depois da meia-noite (T02) entra na última coluna
+    var u = a.usuarios[x[0]] || (a.usuarios[x[0]] = [0, 0]); u[0] += p; u[1]++;
+    var nt = inf ? (inf[0] || "Sem transportadora") : EXP_SEM_INFO, t = a.transp[nt] || (a.transp[nt] = [0, 0]); t[0] += p; t[1]++;
+    var k = !inf ? "semInfo" : inf[1] === "M" ? "colmeia" : inf[1] === "S" ? "checkout" : "semInfo";
+    a.tipo[k][0] += p; a.tipo[k][1]++;
+  });
+  return a;
+}
+function resumoExpedicao(op) {
+  if (!op.expNfs && !op.expDias) return null;
+  var info = lerInfoNf(op), porDia = {};
+  (op.expDias || []).forEach(function (d) { porDia[d.data] = d; });
+  Object.keys(op.expNfs || {}).forEach(function (dia) { porDia[dia] = agregarExpedicaoDia(dia, op.expNfs[dia], info); });
+  var dias = Object.keys(porDia).sort().slice(-31).map(function (k) { return porDia[k]; });
+  return { dias: dias, previsao: op.expPrev || null, kardexEm: op.kardexEm || null };
+}
+function juntarExpedicao(op, exp, agora) {
+  var raw = op.expNfs || {};
+  (exp.estornadas || []).forEach(function (id) { Object.keys(raw).forEach(function (d) { delete raw[d][id]; }); });
+  Object.keys(exp.dias || {}).forEach(function (dia) {
+    var alvo = raw[dia] || (raw[dia] = {});
+    Object.keys(exp.dias[dia]).forEach(function (id) {
+      Object.keys(raw).forEach(function (d) { if (d !== dia) delete raw[d][id]; });   // reprocessada em outro dia: fica só no último
+      alvo[id] = exp.dias[dia][id];
+    });
+  });
+  // Só os 2 dias mais recentes ficam crus; os outros viram resumo congelado.
+  var dias = Object.keys(raw).sort(), info = lerInfoNf(op), congelados = {};
+  (op.expDias || []).forEach(function (d) { congelados[d.data] = d; });
+  dias.slice(0, -2).forEach(function (d) { congelados[d] = agregarExpedicaoDia(d, raw[d], info); delete raw[d]; });
+  op.expDias = Object.keys(congelados).sort().slice(-31).map(function (k) { return congelados[k]; });
+  op.expNfs = raw;
+  // Previsão (dia + nesta hora) com o que acabou de chegar.
+  var hoje = diaOperacionalIngest(agora), lista = (resumoExpedicao(op) || { dias: [] }).dias;
+  var porMin = {};
+  Object.keys(raw[hoje] || {}).forEach(function (id) { var x = raw[hoje][id]; if (x) porMin[x[1]] = (porMin[x[1]] || 0) + (x[2] || 0); });
+  var deHoje = lista.filter(function (d) { return d.data === hoje; })[0];
+  op.expPrev = previsaoDoDia(lista.map(function (d) { return { data: d.data, horas: d.horas }; }), agora, deHoje ? deHoje.pecas : 0, 1, porMin);
+}
+function guardarInfoNf(op, novo) {
+  var emRaw = {};
+  Object.keys(op.expNfs || {}).forEach(function (d) { Object.keys(op.expNfs[d]).forEach(function (id) { emRaw[id] = 1; }); });
+  var velho = lerInfoNf(op), nomes = [], idx = {}, n = {};
+  function poe(id, t, c) { if (!(t in idx)) { idx[t] = nomes.length; nomes.push(t); } n[id] = [idx[t], c]; }
+  Object.keys(velho).forEach(function (id) { if (emRaw[id]) poe(id, velho[id][0], velho[id][1]); });
+  Object.keys(novo).forEach(function (id) { var x = novo[id]; if (x[2].indexOf("EM CARGA") === 0 || emRaw[id]) poe(id, x[0], x[1]); });
+  op.nfInfo = { t: nomes, n: n };
+}
+
+// Junta o que chegou (pedidos do OP, marcas/infos do Itens de NF, expedição do Kardex) e regrava o resumo.
 async function atualizarOperacao(novo) {
-  var op = Object.assign(await lerSnapshot("operacao"), novo);
+  var exp = novo.expedicao, info = novo.nfInfo;
+  var op = await lerSnapshot("operacao");
+  Object.keys(novo).forEach(function (k) { if (k !== "expedicao" && k !== "nfInfo") op[k] = novo[k]; });
   if (novo.marcas && op.pedidos) {   // guarda só as marcas dos pedidos em operação (snapshot pequeno)
     var m = {};
     Object.keys(op.pedidos).forEach(function (p) { if (novo.marcas[p]) m[p] = novo.marcas[p]; });
     op.marcas = m;
   }
+  if (exp) juntarExpedicao(op, exp, new Date());
+  if (info) guardarInfoNf(op, info);
   op.resumo = resumoOperacao(op);
   await salvarSnapshot("operacao", op);
   return op.resumo;
@@ -1216,14 +1352,51 @@ function minutosDeOperacao(de, ate) {
   OPERACAO_PAUSAS.forEach(function (p) { t -= Math.max(0, Math.min(ate, p[1]) - Math.max(de, p[0])); });
   return Math.max(0, t);
 }
-// Previsão do dia e da próxima hora, pelo que já foi feito HOJE:
+// Previsão da hora em andamento ("nesta hora"): o que já saiu na hora + média por minuto × minutos
+// trabalhados que faltam nela. Média por minuto = a da própria hora, a partir de 10 min trabalhados nela;
+// antes disso, a dos últimos 15 min trabalhados (pega o fim da hora anterior). Pausas não contam.
+// porMinuto = { minuto do dia operacional (passa de 1440 depois da meia-noite): peças }
+function previsaoDaHora(porMinuto, minAgora, fator) {
+  fator = fator || 1;
+  var ini = Math.floor(minAgora / 60) * 60, fimH = Math.min(ini + 60, OPERACAO_FIM_MIN);
+  var chaves = Object.keys(porMinuto || {});
+  function soma(de, ate) { var s = 0; chaves.forEach(function (k) { var m = +k; if (m >= de && m < ate) s += porMinuto[k] || 0; }); return s; }
+  var feito = soma(ini, minAgora + 1);
+  var decorridos = minutosDeOperacao(ini, minAgora), faltam = minutosDeOperacao(minAgora, fimH), media;
+  if (decorridos >= 10) media = feito / decorridos;
+  else {
+    var de = minAgora; while (de > 0 && minutosDeOperacao(de, minAgora) < 15) de--;
+    media = soma(de, minAgora) / 15;
+  }
+  return Math.round((feito + media * faltam) * fator);
+}
+// Minutos do analítico (Data/Hora Fim, soma dos usuários) no dia operacional: { minuto: peças }.
+// As tarefas que começaram depois da meia-noite estão no dia seguinte e entram como 1440+.
+function diaSeguinteISO(iso) { var p = iso.split("-"); return paraDataISOLocal(new Date(+p[0], +p[1] - 1, +p[2] + 1)); }
+function minutosDoAnaliticoIngest(analitico, dia, tipos) {
+  var out = {}, seg = diaSeguinteISO(dia);
+  (analitico || []).forEach(function (d) {
+    var desloc = d.data === dia ? 0 : d.data === seg ? 1440 : null;
+    if (desloc === null) return;
+    tipos.forEach(function (t) {
+      var porU = d[t + "Min"] || {};
+      Object.keys(porU).forEach(function (u) { (porU[u] || []).forEach(function (mp) {
+        var m = mp[0] + desloc; if (desloc && mp[0] >= 60) return;
+        out[m] = (out[m] || 0) + (mp[1] || 0);
+      }); });
+    });
+  });
+  return out;
+}
+// Previsão do dia e da hora em andamento, pelo que já foi feito HOJE:
 //   média por hora = peças das horas completas de hoje ÷ horas trabalhadas nelas (desde a 1ª hora com produção)
 //   previsão do dia = realizado + média por hora × horas trabalhadas que faltam até 00h16
-//   próxima hora    = média por hora × parte trabalhada da próxima hora
+//   nesta hora      = previsaoDaHora (média por minuto da hora atual)
 // Começo do turno (menos de 1 hora de produção hoje): usa o dia anterior no mesmo horário —
-//   previsão = realizado + o que o dia anterior fez daqui até o fim; próxima hora = o que ele fez nessa hora.
+//   previsão = realizado + o que o dia anterior fez daqui até o fim.
 // horasPorDia = [{data, horas:[24]}] · realizadoDia = total do dia mostrado na tela · fator = ajuste (colmeia na conferência)
-function previsaoDoDia(horasPorDia, agora, realizadoDia, fator) {
+// porMinuto = peças por minuto de hoje (ver previsaoDaHora)
+function previsaoDoDia(horasPorDia, agora, realizadoDia, fator, porMinuto) {
   agora = agora || new Date(); fator = fator || 1;
   var dia = diaOperacionalIngest(agora);
   var lista = horasPorDia || [];
@@ -1232,19 +1405,18 @@ function previsaoDoDia(horasPorDia, agora, realizadoDia, fator) {
   // minuto atual no dia operacional (depois da meia-noite continua contando: 24h05 = 1445)
   var minAgora = agora.getHours() * 60 + agora.getMinutes() + (paraDataISOLocal(agora) === dia ? 0 : 1440);
   var r = { data: dia, realizado: real, calculadoEm: agora.getTime() };
-  if (minAgora >= OPERACAO_FIM_MIN) { r.previsto = real; r.hora = null; r.proximaHora = 0; r.base = "fim"; return r; }
-  var H = Math.floor(minAgora / 60), prox = H + 1;
+  if (minAgora >= OPERACAO_FIM_MIN) { r.previsto = real; r.hora = null; r.nestaHora = 0; r.base = "fim"; return r; }
+  var H = Math.floor(minAgora / 60);
   var primeira = hojeH.findIndex(function (v) { return v > 0; });
   var feitoCompleto = 0; for (var h = Math.max(0, primeira); h < Math.min(H, 24); h++) feitoCompleto += hojeH[h] || 0;
   var minCompletos = primeira >= 0 ? minutosDeOperacao(primeira * 60, Math.min(H, 24) * 60) : 0;
   var minRestantes = minutosDeOperacao(minAgora, OPERACAO_FIM_MIN);
-  var minProx = minutosDeOperacao(prox * 60, Math.min((prox + 1) * 60, OPERACAO_FIM_MIN));
-  r.hora = prox <= 24 ? prox % 24 : null;
+  r.hora = H % 24;
+  r.nestaHora = porMinuto ? previsaoDaHora(porMinuto, minAgora, fator) : null;
   if (minCompletos >= 60 && feitoCompleto > 0) {
     var porHora = feitoCompleto / (minCompletos / 60);
     r.base = "hoje";
     r.previsto = Math.round(real + porHora * minRestantes / 60 * fator);
-    r.proximaHora = Math.round(porHora * minProx / 60 * fator);
     return r;
   }
   // começo do turno: o dia anterior com produção, no mesmo horário
@@ -1257,10 +1429,9 @@ function previsaoDoDia(horasPorDia, agora, realizadoDia, fator) {
   }
   if (antAteAgora > 0) antAteAgora += (ant.horas[H] || 0) * fracH;
   // Nenhuma peça hoje e o dia anterior já produzia até este horário: dia sem operação, previsão 0.
-  if (real === 0 && antAteAgora > 0) { r.base = "sem produção hoje"; r.previsto = 0; r.proximaHora = 0; return r; }
+  if (real === 0 && antAteAgora > 0) { r.base = "sem produção hoje"; r.previsto = 0; r.nestaHora = 0; return r; }
   r.base = "dia anterior (" + ant.data + ")";
   r.previsto = Math.round(real + daquiAteFim * fator);
-  r.proximaHora = Math.round((prox < 24 ? ant.horas[prox] || 0 : 0) * fator);
   return r;
 }
 // Horas do analítico (soma de todos os usuários) por dia: [{data, horas:[24]}]
@@ -1279,11 +1450,12 @@ function totalDoDia(series, dia) {
 // Separação (checkout + colmeia, com hora) e Conferência (curva do checkout; a colmeia segue o mesmo ritmo, na proporção de hoje).
 function atualizarPrevisoesOutbound(snap) {
   var agora = new Date(), dia = diaOperacionalIngest(agora), sep = snap.separacao, conf = snap.conferencia;
-  if (sep && sep.analitico) sep.previsao = previsaoDoDia(horasDoAnaliticoIngest(sep.analitico, ["checkout", "colmeia"]), agora, totalDoDia([sep.checkoutDia, sep.colmeiaDia], dia));
+  if (sep && sep.analitico) sep.previsao = previsaoDoDia(horasDoAnaliticoIngest(sep.analitico, ["checkout", "colmeia"]), agora,
+    totalDoDia([sep.checkoutDia, sep.colmeiaDia], dia), 1, minutosDoAnaliticoIngest(sep.analitico, dia, ["checkout", "colmeia"]));
   if (conf && conf.analitico) {
     var hc = horasDoAnaliticoIngest(conf.analitico, ["checkout"]);
     var chk = totalDoDia([conf.confCheckoutDia], dia), tot = totalDoDia([conf.confCheckoutDia, conf.confColmeiaUnitDia], dia);
-    conf.previsao = previsaoDoDia(hc, agora, tot, chk > 0 ? tot / chk : 1);
+    conf.previsao = previsaoDoDia(hc, agora, tot, chk > 0 ? tot / chk : 1, minutosDoAnaliticoIngest(conf.analitico, dia, ["checkout"]));
   }
 }
 function mapParaSerieDia(mapa, campoValor) {
@@ -2270,14 +2442,24 @@ async function processar(id) {
         // Hora a hora da armazenagem normal (telão): os dias do arquivo substituem os salvos, guarda até 31 dias.
         normalHoraDia: mesclarDias(armAnterior.normalHoraDia, Array.from(r5.normalHora.entries()).map(function (e) { return { data: e[0], horas: e[1] }; })).slice(-31),
       };
+      var diaOp5 = diaOperacionalIngest(new Date());
       atual5.armazenagem.previsao = previsaoDoDia(atual5.armazenagem.normalHoraDia, new Date(),
-        totalDoDia([atual5.armazenagem.normalDia], diaOperacionalIngest(new Date())));
+        totalDoDia([atual5.armazenagem.normalDia], diaOp5), 1, minutosOperacionais(r5.normalMin, diaOp5));
       atual5.recebimento = atual5.recebimento || {};
       atual5.recebimento.normal = Object.assign({}, atual5.recebimento.normal, { itensArmazenados: r5.totalNormal });
       atual5.recebimento.reversa = Object.assign({}, atual5.recebimento.reversa, { itensArmazenados: r5.totalReversa });
       await salvarSnapshot("inbound", atual5);
 
-      definirStatus(id, "✓ Kardex processado: Pendente de fechamento (Outbound), Pula (Estoque) e Armazenagem (Inbound).", "ok");
+      // Expedição (telão) é um extra: se falhar, o resto do Kardex já está gravado.
+      var textoExp;
+      try {
+        var rExp = processarExpedicaoKardex(rows);
+        var resExp = await atualizarOperacao({ expedicao: rExp, kardexEm: Date.now() });
+        var expHoje = ((resExp.expedicao || {}).dias || []).filter(function (d) { return d.data === diaOp5; })[0];
+        textoExp = "Expedição hoje: " + (expHoje ? expHoje.pedidos.toLocaleString("pt-BR") + " pedidos, " + expHoje.pecas.toLocaleString("pt-BR") + " peças" : "nada ainda");
+      } catch (eExp) { console.error(eExp); textoExp = "Expedição NÃO gravada: " + eExp.message; }
+
+      definirStatus(id, "✓ Kardex processado: Pendente de fechamento (Outbound), Pula (Estoque), Armazenagem (Inbound) e " + textoExp + ".", "ok");
     }
 
     else if (id === "up-separacao-analitica") {
@@ -2383,7 +2565,8 @@ async function processar(id) {
 
     else if (id === "up-itens-nf-saida") {
       var rowsNf = await parseArquivoGenerico(input.files[0]);
-      var resNf = await atualizarOperacao({ marcas: processarMarcasItensNf(rowsNf), nfEm: Date.now() });
+      // marcas (Operação agora) + transportadora e SINGLE/MULTI das notas (Expedição)
+      var resNf = await atualizarOperacao({ marcas: processarMarcasItensNf(rowsNf), nfInfo: processarInfoNf(rowsNf), nfEm: Date.now() });
       definirStatus(id, "✓ Itens de NF de Saída processado (marcas da Operação agora; " + resNf.semMarca.toLocaleString("pt-BR") + " itens ainda sem marca).", "ok");
     }
 

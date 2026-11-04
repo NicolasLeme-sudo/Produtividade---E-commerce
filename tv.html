@@ -79,6 +79,7 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .fh{display:flex;align-items:center;gap:24px;padding:8px 22px;border-bottom:1px solid var(--border);flex:none}
 .fh .lg{display:flex;align-items:center;gap:14px}.fh .lg img{height:46px;width:auto;display:block}.fh .lg small{color:var(--text-muted);font-weight:700;font-size:13px;letter-spacing:.12em;border-left:1px solid var(--border);padding-left:14px}
 .fh .selo{font-size:13px}
+.fh .sem-hoje{font-size:13px;font-weight:800;color:var(--amber);margin-right:-14px}.fh .sem-hoje[hidden]{display:none}
 .fh .tt{flex:1;font-size:22px;font-weight:700}
 .fsb{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
 .fsb:hover{background:rgba(127,140,170,.26)}
@@ -206,12 +207,13 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado"></span><input type="date" id="dataInp" tabindex="-1" aria-label="Dia mostrado"></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado"></span><input type="date" id="dataInp" tabindex="-1" aria-label="Dia mostrado"></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
-    <section class="tela on" id="telaA" data-titulo="Corrida Maluca" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
+    <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
+    <section class="tela" id="telaA" data-titulo="Corrida Maluca" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
     <section class="tela" id="telaB" data-titulo="Separação e Conferência" data-giro="90" data-fonte="outbound"></section>
-    <section class="tela" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
+    <section class="tela" id="telaE" data-titulo="Expedição" data-giro="90" data-fonte="operacao"></section>
     <section class="tela" id="telaD" data-titulo="Armazenagem" data-giro="60" data-fonte="inbound"></section>
   </div>
   <div class="loopbar"><i class="giro" id="barra" hidden></i><div class="loop" id="loop"></div></div>
@@ -252,6 +254,14 @@ function escolheDia(iso){
   if (typeof carregar === 'function') carregar();
 }
 setInterval(function(){ if (diaEscolhido && Date.now() - escolhidoEm > 30*60000 && diaEscolhido !== Q.get('dia')) escolheDia(null); }, 60000);
+// Dia mostrado numa tela: o escolhido no calendário; senão hoje, se hoje já tem dado; senão o último dia
+// anterior com dado (o topo mostra "⚠ Sem dados de hoje"). temDado(dia) diz se a tela tem produção no dia.
+function diaComFallback(temDado, dias){
+  var d = diaTela();
+  if (!ehHoje() || temDado(d)) return d;
+  return dias.filter(function(x){ return x < d && temDado(x); }).sort().pop() || d;
+}
+function diasDasSeries(series){ var s = {}; series.forEach(function(sr){ (sr||[]).forEach(function(x){ s[String(x.data).slice(0,10)] = 1; }); }); return Object.keys(s); }
 function rotDia(dia){ var p = dia.split('-'), d = new Date(+p[0], +p[1]-1, +p[2]); return d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' }); }
 
 /* ================= TIMES (mesmos do index.html) ================= */
@@ -374,20 +384,30 @@ function top5Html(obj, nomeDe, cor, cor2){ var l = Object.keys(obj).map(function
 function nomeWms(u){ return nomeCurto(nomeBonito(u)); }
 var COR_SEP = '#297ADF', COR_SEP2 = '#7DB8FF', COR_CONF = '#2EC4B6', COR_CONF2 = '#8CEBDF', COR_ARM = '#297ADF', COR_ARM2 = '#45C645';
 
-// Card de previsão: número grande = previsão do dia; embaixo = próxima hora (calculadas no ingest.js a cada envio).
-function kpiPrevisao(rot, prev, realizado, kc, vc){
-  if (!ehHoje()) return kpiHtml(rot, fmt(realizado), 'dia encerrado', kc, vc, 'peças');
-  if (!prev || prev.data !== diaTela()) return kpiHtml(rot, '—', 'aguardando o próximo envio', kc, vc);
+// Card de previsão: número grande = previsão do dia; embaixo = o que vamos entregar NESTA hora
+// (calculadas no ingest.js a cada envio). dia = dia mostrado na tela.
+function kpiPrevisao(rot, prev, realizado, kc, vc, dia){
+  if (dia !== hojeOp()) return kpiHtml(rot, fmt(realizado), 'dia encerrado', kc, vc, 'peças');
+  if (!prev || prev.data !== dia) return kpiHtml(rot, '—', 'aguardando o próximo envio', kc, vc);
   if (prev.previsto == null) return kpiHtml(rot, '—', 'sem base ainda', kc, vc);
-  return kpiHtml(rot, fmt(Math.max(prev.previsto, realizado)), prev.hora != null ? 'próx. hora '+String(prev.hora).padStart(2,'0')+'h: '+qt(prev.proximaHora) : 'fim do dia', kc, vc, 'peças');
+  var sub = prev.hora == null ? 'fim do dia'
+    : prev.nestaHora == null ? 'nesta hora: —'
+    : prev.hora !== new Date().getHours() ? 'nesta hora: aguardando envio'
+    : 'nesta hora ('+String(prev.hora).padStart(2,'0')+'h): '+qt(prev.nestaHora);
+  return kpiHtml(rot, fmt(Math.max(prev.previsto, realizado)), sub, kc, vc, 'peças');
 }
 function rotuloDia(base, dia){ return base + (dia === hojeOp() ? ' hoje' : ' em '+dia.slice(8,10)+'/'+dia.slice(5,7)); }
 
-function renderTelaB(snap, opRes){
+// Dia das telas de Separação e Conferência (Corrida, Tela B e faixa): hoje ou, sem dado hoje, o último dia com dado.
+function diaOutbound(snap){
+  var sep = (snap||{}).separacao || {}, conf = (snap||{}).conferencia || {};
+  var series = [sep.checkoutDia, sep.colmeiaDia, conf.confCheckoutDia, conf.confColmeiaUnitDia];
+  return diaComFallback(function(d){ return series.some(function(sr){ return somaObj(itensDoDia(sr, d)) > 0; }); }, diasDasSeries(series));
+}
+function renderTelaB(snap, opRes, dia){
   var el = document.getElementById('telaB'), sep = (snap||{}).separacao || {}, conf = (snap||{}).conferencia || {};
   if (!sep.checkoutDia && !conf.confCheckoutDia) { el.dataset.vazia = '1'; el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência.</div>'; return; }
-  el.dataset.vazia = '';
-  var dia = diaTela();
+  el.dataset.vazia = ''; el.dataset.dia = dia;
   var sc = itensDoDia(sep.checkoutDia, dia), sm = itensDoDia(sep.colmeiaDia, dia), cc = itensDoDia(conf.confCheckoutDia, dia), cm = itensDoDia(conf.confColmeiaUnitDia, dia);
   var tSep = somaObj(sc) + somaObj(sm), tConf = somaObj(cc) + somaObj(cm);
   var gS = graficoHoras(horasDoAnalitico(sep.analitico, dia, ['checkout','colmeia']), dia, COR_SEP, COR_SEP2);
@@ -397,13 +417,13 @@ function renderTelaB(snap, opRes){
   var kSem = !ehHoje() ? kpiHtml('Separado sem conferir', '—', 'só no dia de hoje', 'var(--amber)', 'var(--amber)')
     : sc2 ? kpiHtml('Separado sem conferir', fmt(sc2.itens), qt(sc2.pedidos)+' pedidos aguardando conferência', 'var(--amber)', 'var(--amber)', 'peças')
     : kpiHtml('Separado sem conferir', '—', 'aguardando o próximo Acompanhamento OP', 'var(--amber)', 'var(--amber)');
-  var semHora = ehHoje() ? 'Sem produção hoje ainda' : 'Sem produção neste dia';
+  var semHora = dia === hojeOp() ? 'Sem produção hoje ainda' : 'Sem produção neste dia';
   el.innerHTML = '<div class="kpis c5">'+
     kpiHtml(rotuloDia('Separado', dia), fmt(tSep), 'Checkout '+qt(somaObj(sc))+' · Colmeia '+qt(somaObj(sm)), COR_SEP, COR_SEP2, 'peças')+
     kpiHtml(rotuloDia('Conferido', dia), fmt(tConf), 'Checkout '+qt(somaObj(cc))+' · Colmeia '+qt(somaObj(cm)), COR_CONF, COR_CONF, 'peças')+
     kSem+
-    kpiPrevisao('Previsão separação', sep.previsao, tSep, COR_SEP, COR_SEP2)+
-    kpiPrevisao('Previsão conferência', conf.previsao, tConf, COR_CONF, COR_CONF)+
+    kpiPrevisao('Previsão separação', sep.previsao, tSep, COR_SEP, COR_SEP2, dia)+
+    kpiPrevisao('Previsão conferência', conf.previsao, tConf, COR_CONF, COR_CONF, dia)+
   '</div><div class="linhas" style="grid-template-rows:1fr 1fr">'+
     '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">'+semHora+'</div>')+'</div>'+
       '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms, COR_SEP, COR_SEP2)+'</div></div>'+
@@ -416,16 +436,17 @@ function renderTelaD(snapIn){
   var el = document.getElementById('telaD'), arm = (snapIn||{}).armazenagem;
   if (!arm || !arm.normalDia) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // sem Kardex nenhum: a tela sai do giro
   el.dataset.vazia = '';
-  var dia = diaTela();
+  var dia = diaComFallback(function(d){ return somaObj(itensDoDia(arm.normalDia, d)) + somaObj(itensDoDia(arm.reversaDia, d)) > 0; }, diasDasSeries([arm.normalDia, arm.reversaDia]));
+  el.dataset.dia = dia;
   var pessoas = itensDoDia(arm.normalDia, dia), rev = itensDoDia(arm.reversaDia, dia), total = somaObj(pessoas);
   var hd = (arm.normalHoraDia||[]).filter(function(x){ return String(x.data).slice(0,10) === dia; })[0];
   var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_SEP2) : null;
   el.innerHTML = '<div class="kpis c3">'+
     kpiHtml(rotuloDia('Peças armazenadas', dia), fmt(total), qt(somaObj(rev))+' itens de reversa', COR_ARM, null, 'peças')+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', 'var(--orange)', null)+
-    kpiPrevisao('Previsão do dia', arm.previsao, total, 'var(--olive)', 'var(--olive)')+
+    kpiPrevisao('Previsão do dia', arm.previsao, total, 'var(--olive)', 'var(--olive)', dia)+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
-    '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">'+(ehHoje() ? 'Sem armazenagem hoje ainda' : 'Sem armazenagem neste dia')+'</div>')+'</div>'+
+    '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">'+(dia === hojeOp() ? 'Sem armazenagem hoje ainda' : 'Sem armazenagem neste dia')+'</div>')+'</div>'+
     '<div class="painel"><span class="k">Top 5 armazenadores</span>'+top5Html(pessoas, function(n){ return nomeCurto(nomeBonito(n)); }, COR_ARM, COR_SEP2)+'</div>'+
   '</div></div>';
 }
@@ -486,6 +507,43 @@ function renderTelaC(res){
   '</div></div>';
 }
 
+/* ================= TELA E · EXPEDIÇÃO (embarque na doca) ================= */
+// Resumo pronto do ingest.js (operacao.resumo.expedicao): Kardex DOCA + transportadora/classificação do Itens de NF.
+var COR_EXP = '#F39C3D', COR_EXP2 = '#FFC98A';
+function nomeTransp(t){
+  var n = String(t||'').replace(/\b(LTDA|S\.?\/?A|EIRELI|ME|EPP|LOGISTICA|TRANSPORTES?)\b\.?/gi, ' ').replace(/[.,]+/g, ' ').trim();
+  return nomeBonito(n || t);
+}
+function renderTelaE(exp){
+  var el = document.getElementById('telaE'), lista = (exp && exp.dias) || [];
+  if (!lista.length) { el.dataset.vazia = '1'; el.dataset.dia = ''; el.innerHTML = ''; return; }   // sem Kardex de expedição ainda: sai do giro
+  el.dataset.vazia = '';
+  var porDia = {}; lista.forEach(function(d){ porDia[d.data] = d; });
+  var dia = diaComFallback(function(d){ return porDia[d] && porDia[d].pedidos > 0; }, Object.keys(porDia));
+  el.dataset.dia = dia;
+  var d = porDia[dia] || { pecas:0, pedidos:0, horas:new Array(24).fill(0), usuarios:{}, transp:{}, tipo:{ checkout:[0,0], colmeia:[0,0], semInfo:[0,0] } };
+  var pessoas = {}; Object.keys(d.usuarios).forEach(function(u){ if (u !== 'SILT') pessoas[u] = d.usuarios[u][0]; });   // SILT = sistema: conta no total, fora do ranking
+  var g = graficoHoras(d.horas, dia, COR_EXP, COR_EXP2);
+  var tr = Object.keys(d.transp).map(function(t){ return { n:t, p:d.transp[t][0], q:d.transp[t][1] }; }).sort(function(a,b){ return b.p - a.p; });
+  var maxT = Math.max.apply(null, tr.map(function(x){ return x.p; }).concat(1));
+  var linhas = tr.map(function(x){
+    return '<div class="etapa"><span class="nm">'+esc(x.n === 'Aguardando Itens de NF' ? x.n : nomeTransp(x.n))+'</span>'+
+      '<div class="trilho"><div class="barra" style="width:'+(x.p/maxT*100).toFixed(2)+'%;background:'+COR_EXP+'"></div></div>'+
+      '<span class="tot">'+fmt(x.p)+'</span><span class="tot ped">'+fmt(x.q)+'</span></div>';
+  }).join('');
+  var porPed = d.pedidos ? Math.round(d.pecas / d.pedidos * 100) / 100 : 0;
+  el.innerHTML = '<div class="kpis c4">'+
+    kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+' · Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças')+
+    kpiHtml('Pedidos expedidos', fmt(d.pedidos), d.pedidos ? qt(porPed)+' peças por pedido' : 'nenhum pedido no dia', COR_EXP2, COR_EXP2, 'pedidos')+
+    kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', 'var(--orange)', null)+
+    kpiPrevisao('Previsão do dia', exp.previsao, d.pecas, COR_EXP, COR_EXP, dia)+
+  '</div><div class="linhas" style="grid-template-rows:1.25fr 1fr">'+
+    '<div class="linha"><div class="painel" style="--pc:'+COR_EXP+'"><span class="k">Expedição · peças por hora</span>'+(g ? g.html : '<div class="semhora">'+(dia === hojeOp() ? 'Sem expedição hoje ainda' : 'Sem expedição neste dia')+'</div>')+'</div>'+
+      '<div class="painel" style="--pc:'+COR_EXP+'"><span class="k">Top 5 operadores</span>'+top5Html(pessoas, nomeWms, COR_EXP, COR_EXP2)+'</div></div>'+
+    '<div class="painel"><div class="etapa cab"><span class="nm" style="color:'+COR_EXP+'">Por transportadora</span><span></span><span class="tot">Peças</span><span class="tot">Pedidos</span></div><div class="etapas">'+(linhas || '<div class="semhora">Sem expedição neste dia</div>')+'</div></div>'+
+  '</div>';
+}
+
 /* ================= HORA DE OURO (agendada no Abastecimento > Pontos da Black) ================= */
 var turnoTela = null;   // turno mostrado no telão (null = escalação sem turno do horário: mostra todos)
 // Faixa dourada no topo durante a hora de ouro agendada (dia + turno + hora).
@@ -504,14 +562,13 @@ setInterval(atualizaOuro, 1000);
 
 /* ================= FAIXA DE BAIXO (loop contínuo) ================= */
 var faixaAtual = '';
-function renderFaixa(c, snap){
+function renderFaixa(c, snap, dia){
   var itens = [];
   ordemPista(c).forEach(function(t){
     var m = t.lista[0];
     if (m && m.valor) itens.push('<span class="ti" style="--c:var('+t.cor.c+')"><i></i><b>Time 0'+t.n+' · '+t.cor.nome+'</b> destaque: '+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+' <span class="v">'+fmt(m.valor)+'</span> peças</span>');
   });
   var sep = 0, conf = 0;
-  var dia = diaTela();
   ['checkoutDia','colmeiaDia'].forEach(function(k){ sep += somaObj(itensDoDia(((snap||{}).separacao||{})[k], dia)); });
   ['confCheckoutDia','confColmeiaUnitDia'].forEach(function(k){ conf += somaObj(itensDoDia(((snap||{}).conferencia||{})[k], dia)); });
   itens.push('<span class="ti ger"><b>Separado no dia</b> <span class="v">'+fmt(sep)+'</span> peças</span>');
@@ -673,6 +730,8 @@ function relogio(){
   lv.textContent = passado ? '⚠ EXIBINDO ' + rotDia(dia).toUpperCase() : '● AO VIVO';
   lv.classList.toggle('passado', passado);
   document.getElementById('btnHoje').hidden = !passado;
+  var dTela = telas[atual] ? telas[atual].dataset.dia : '';
+  document.getElementById('semHoje').hidden = passado || !dTela || dTela >= hojeOp();
   var s = document.getElementById('selo');
   var ultimoDado = atualizadoEm[telas[atual] ? telas[atual].getAttribute('data-fonte') : 'outbound'];
   if (!ultimoDado) return;
@@ -730,14 +789,16 @@ async function carregar(){
     turnoTela = cadT === cadAll ? null : ta.turno;
     var rotTurno = turnoTela ? ' · ' + RegrasBlack.TURNOS[turnoTela].rot.split(' · ')[0] : '';
     document.getElementById('telaA').setAttribute('data-titulo', 'Corrida Maluca' + rotTurno);
-    var c = calcularCompeticao(snap, cadT, diaTela());
+    var diaOut = diaOutbound(snap);
+    document.getElementById('telaA').dataset.dia = diaOut;
+    var c = calcularCompeticao(snap, cadT, diaOut);
     var ouros = r[3].error ? [] : (r[3].data || []);
     var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
     ouroAtivo = !ehHoje() ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
     atualizaOuro();
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
-    renderTelaA(c); renderTelaB(snap, op && op.resumo); renderTelaC(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap); verificaMetas(c);
+    renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo && op.resumo.expedicao); renderTelaD(snapIn); renderFaixa(c, snap, diaOut); verificaMetas(c);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho
