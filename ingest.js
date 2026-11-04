@@ -1236,7 +1236,7 @@ function processarMarcasItensNf(rows, embalas) {
 
 function resumoOperacao(op) {
   var pedidos = op.pedidos || {}, marcas = op.marcas || {};
-  var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, marcas: {}, semConferir: { itens: 0, pedidos: 0 }, semColeta: { itens: 0, pedidos: 0, checkout: 0, colmeia: 0 },
+  var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, semMarcaPedidos: [], marcas: {}, semConferir: { itens: 0, pedidos: 0 }, semColeta: { itens: 0, pedidos: 0, checkout: 0, colmeia: 0 },
     single: 0, multi: 0,   // itens por tipo de pedido (Classificação Tipo Pedido)
     etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, single: 0, multi: 0, marcas: {} }; }),
     idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0, single: 0, multi: 0 }; }),
@@ -1256,7 +1256,7 @@ function resumoOperacao(op) {
     if (tp) { r[tp] += itens; etapa[tp] += itens; }
     etapa.marcas[marca] = (etapa.marcas[marca] || 0) + itens;
     r.marcas[marca] = (r.marcas[marca] || 0) + itens;
-    if (!marcas[p]) r.semMarca += itens;
+    if (!marcas[p]) { r.semMarca += itens; if (r.semMarcaPedidos.length < 10) r.semMarcaPedidos.push(p); }
     if (e[3]) { r.semConferir.itens += itens; r.semConferir.pedidos++; }
     if (e[4]) { r.semColeta.itens += itens; r.semColeta.pedidos++; r.semColeta[e[4] === 2 ? "colmeia" : "checkout"] += itens; }
     if (imp) {
@@ -1354,7 +1354,10 @@ async function atualizarOperacao(novo) {
   if (linhasNf) {   // Itens de NF: marca pelo nome do produto, depois pela Embalas já gravada
     var rm = processarMarcasItensNf(linhasNf, op.embalas);
     // guarda as marcas dos pedidos em operação + os ainda abertos no Itens de NF (assim o próximo OP já acha a marca)
-    var m = {};
+    // começa pelas marcas já conhecidas dos pedidos que seguem em operação: um pedido que saiu do
+    // Itens de NF desta rodada (ex.: fora do período baixado) não perde a marca e não vira "Aguardando NF"
+    var m = {}, ant = op.marcas || {};
+    Object.keys(ant).forEach(function (p) { if (op.pedidos && op.pedidos[p]) m[p] = ant[p]; });
     Object.keys(rm.marcas).forEach(function (p) { if ((op.pedidos && op.pedidos[p]) || rm.abertos[p]) m[p] = rm.marcas[p]; });
     op.marcas = m;
     info = processarInfoNf(linhasNf);
@@ -2656,7 +2659,7 @@ async function processar(id) {
       var rowsNf = await parseArquivoGenerico(input.files[0]);
       // marcas (Operação agora) + transportadora e SINGLE/MULTI das notas (Expedição)
       var resNf = await atualizarOperacao({ linhasItensNf: rowsNf, nfEm: Date.now() });
-      definirStatus(id, "✓ Itens de NF de Saída processado (marcas da Operação agora; " + resNf.semMarca.toLocaleString("pt-BR") + " itens ainda sem marca).", "ok");
+      definirStatus(id, "✓ Itens de NF de Saída processado (marcas da Operação agora; " + resNf.semMarca.toLocaleString("pt-BR") + " itens ainda sem marca" + (resNf.semMarcaPedidos && resNf.semMarcaPedidos.length ? ": pedidos " + resNf.semMarcaPedidos.join(", ") : "") + ").", "ok");
     }
 
     else if (id === "up-gerenciador-or-geral") {
