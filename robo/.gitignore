@@ -8,3 +8,4 @@ robo-saida.log
 erros/
 *.parcial
 baixar.lock
+robo.lock
