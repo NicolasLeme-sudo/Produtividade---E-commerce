@@ -1170,8 +1170,8 @@ function processarOperacaoOp(rows) {
   return pedidos;
 }
 
-// Marca do produto: 1) palavra-chave no nome (mesma regra do Report E-commerce); 2) sem palavra-chave,
-// a base Embalas (Artigo -> MARCA, card up-embalas); 3) sem as duas, Olympikus.
+// Marca do produto: 1) base Embalas pelo Artigo do código (Artigo -> MARCA, card up-embalas); 2) fora da
+// Embalas, palavra-chave no nome (mesma regra do Report E-commerce); 3) sem as duas, Olympikus.
 var MARCA_DA_LETRA = { O: "Olympikus", M: "Mizuno", U: "Under Armour", P: "Opanka" };
 function marcaPorNome(descricao) {
   var d = normalizarTexto(descricao);
@@ -1182,11 +1182,10 @@ function marcaPorNome(descricao) {
   return null;
 }
 function marcaPorDescricao(descricao, codigo, embalas) {
-  var m = marcaPorNome(descricao);
-  if (m) return m;
   var art = String(codigo || "").trim().split("_")[0];
-  return (embalas && MARCA_DA_LETRA[embalas[art]]) || "Olympikus";
+  return (embalas && MARCA_DA_LETRA[embalas[art]]) || marcaPorNome(descricao) || "Olympikus";
 }
+
 // Embalas (base de embalagem, aba Base Final) -> { Artigo: letra da marca }
 function processarEmbalas(rows) {
   var mapa = {};
