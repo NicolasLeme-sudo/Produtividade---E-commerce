@@ -544,8 +544,8 @@ function nomeTransp(t){
   var n = String(t||'').replace(/\b(LTDA|S\.?\/?A|EIRELI|ME|EPP|LOGISTICA|TRANSPORTES?)\b\.?/gi, ' ').replace(/[.,]+/g, ' ').trim();
   return nomeBonito(n || t);
 }
-function renderTelaE(exp){
-  var el = document.getElementById('telaE'), lista = (exp && exp.dias) || [];
+function renderTelaE(opRes){
+  var exp = opRes && opRes.expedicao, el = document.getElementById('telaE'), lista = (exp && exp.dias) || [];
   if (!lista.length) { el.dataset.vazia = '1'; el.dataset.dia = ''; el.innerHTML = ''; return; }   // sem Kardex de expedição ainda: sai do giro
   el.dataset.vazia = '';
   var porDia = {}; lista.forEach(function(d){ porDia[d.data] = d; });
@@ -561,10 +561,12 @@ function renderTelaE(exp){
       '<div class="trilho"><div class="barra" style="width:'+(x.p/maxT*100).toFixed(2)+'%;background:'+COR_EXP+'"></div></div>'+
       '<span class="tot">'+fmt(x.p)+'</span><span class="tot ped">'+fmt(x.q)+'</span></div>';
   }).join('');
-  var porPed = d.pedidos ? Math.round(d.pecas / d.pedidos * 100) / 100 : 0;
   el.innerHTML = '<div class="kpis c4">'+
     kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+' · Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças')+
-    kpiHtml('Pedidos expedidos', fmt(d.pedidos), d.pedidos ? qt(porPed)+' peças por pedido' : 'nenhum pedido no dia', COR_EXP2, COR_EXP2, 'pedidos')+
+    // Faturado sem coleta: foto atual do Acompanhamento OP (FATURADO com "Faturado em" e sem Carga)
+    (dia !== hojeOp() ? kpiHtml('Faturado sem coleta', '—', 'só no dia de hoje', COR_EXP2, COR_EXP2)
+      : opRes.semColeta && opRes.semColeta.checkout != null ? kpiHtml('Faturado sem coleta', fmt(opRes.semColeta.itens), 'Checkout '+qt(opRes.semColeta.checkout)+' · Colmeia '+qt(opRes.semColeta.colmeia), COR_EXP2, COR_EXP2, 'itens')
+      : kpiHtml('Faturado sem coleta', '—', 'aguardando o próximo Acompanhamento OP', COR_EXP2, COR_EXP2))+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', '#DFBD41', null)+
     kpiPrevisao('Previsão do dia', exp.previsao, d.pecas, COR_EXP, COR_EXP, dia)+
   '</div><div class="linhas" style="grid-template-rows:1.25fr 1fr">'+
@@ -853,7 +855,7 @@ async function carregar(){
     atualizaOuro();
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
-    renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo && op.resumo.expedicao); renderTelaD(snapIn); renderFaixa(c, snap, diaOut); verificaMetas(c);
+    renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap, diaOut); verificaMetas(c);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho

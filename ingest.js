@@ -1149,9 +1149,11 @@ function diferencaDiasUteis(dataInicial, dataFinal) {
   return contados - 1;
 }
 
-// Pedido -> [etapa, itens, importado em (ms), separado sem conferir (1/0)]
+// Pedido -> [etapa, itens, importado em (ms), separado sem conferir (1/0), faturado sem coleta (0 = não, 1 = checkout/SINGLE, 2 = colmeia/MULTI)]
 // Separado sem conferir = status ENVIADO PARA FATURAMENTO e "Conferido em" vazio: a separação
 // terminou, mas o pedido ainda não passou no caixa de faturamento (lá vira FATURADO com a data).
+// Faturado sem coleta = status FATURADO com "Faturado em" e coluna Carga vazia: conferido e faturado, mas
+// ainda não entrou em nenhuma coleta (ao embarcar vira PROCESSADA no Itens de NF e sai do OP).
 function processarOperacaoOp(rows) {
   var pedidos = {};
   rows.forEach(function (row) {
@@ -1160,7 +1162,10 @@ function processarOperacaoOp(rows) {
     if (!pedido || etapa < 0) return;
     var conferidoEm = obterCampo(row, ["Conferido em"]);
     var semConf = normalizarTexto(obterCampo(row, ["Status da Nota Fiscal"])) === "ENVIADO PARA FATURAMENTO" && (conferidoEm == null || String(conferidoEm).trim() === "") ? 1 : 0;
-    pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"])), semConf];
+    var vazio = function (col) { var v = obterCampo(row, [col]); return v == null || String(v).trim() === ""; };
+    var semColeta = normalizarTexto(obterCampo(row, ["Status da Nota Fiscal"])) === "FATURADO" && !vazio("Faturado em") && vazio("Carga")
+      ? (normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"])).indexOf("MULTI") !== -1 ? 2 : 1) : 0;
+    pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"])), semConf, semColeta];
   });
   return pedidos;
 }
@@ -1195,7 +1200,7 @@ function processarMarcasItensNf(rows) {
 
 function resumoOperacao(op) {
   var pedidos = op.pedidos || {}, marcas = op.marcas || {};
-  var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, marcas: {}, semConferir: { itens: 0, pedidos: 0 },
+  var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, marcas: {}, semConferir: { itens: 0, pedidos: 0 }, semColeta: { itens: 0, pedidos: 0, checkout: 0, colmeia: 0 },
     etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, marcas: {} }; }),
     idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0 }; }),
     opEm: op.opEm || null, nfEm: op.nfEm || null };
@@ -1214,6 +1219,7 @@ function resumoOperacao(op) {
     r.marcas[marca] = (r.marcas[marca] || 0) + itens;
     if (!marcas[p]) r.semMarca += itens;
     if (e[3]) { r.semConferir.itens += itens; r.semConferir.pedidos++; }
+    if (e[4]) { r.semColeta.itens += itens; r.semColeta.pedidos++; r.semColeta[e[4] === 2 ? "colmeia" : "checkout"] += itens; }
     if (imp) {
       if (r.maisAntigo === null || imp < r.maisAntigo) { r.maisAntigo = imp; r.maisAntigoPedido = p; }
       var faixa = r.idade[Math.min(3, idadeDias(imp))];
