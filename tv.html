@@ -88,29 +88,29 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .fh .lv{font-size:12px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:99px;padding:2px 10px}
 .fh .ck{text-align:right;font-size:12px;color:var(--text-muted);position:relative}.fh .ck #hora{font-size:24px;font-weight:700;color:var(--text)}
 .fh .ck #data{cursor:pointer;display:inline-flex;align-items:center;gap:7px;margin-top:3px;padding:2px 10px;border:1px solid var(--border);border-radius:99px;color:var(--text-label);font-weight:600;text-transform:capitalize}
-.fh .ck #data::after{content:"";border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--amber)}
-.fh .ck #data:hover,.fh .ck #data.aberto{border-color:var(--amber);color:var(--text)}
-/* Calendário do dia exibido (identidade Vulcabras: card escuro, kicker e linha dourados) */
+.fh .ck #data::after{content:"";border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--accent-light)}
+.fh .ck #data:hover,.fh .ck #data.aberto{border-color:var(--accent-light);color:var(--text)}
+/* Calendário do dia exibido (identidade Vulcabras: card escuro, tons de azul) */
 .cal{position:absolute;right:0;top:calc(100% + 8px);z-index:60;width:304px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px 12px;text-align:left;box-shadow:0 14px 34px rgba(0,0,0,.5);font-family:"Segoe UI",Roboto,Arial,sans-serif}
 .cal[hidden]{display:none}
-.cal .kk{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--amber)}
-.cal .cab{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px;padding-bottom:9px;border-bottom:1px solid rgba(246,189,0,.5)}
+.cal .kk{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--accent-light)}
+.cal .cab{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px;padding-bottom:9px;border-bottom:1px solid rgba(41,122,223,.55)}
 .cal .mes{font-size:18px;font-weight:700;color:var(--text)}
 .cal .nav{background:none;border:1px solid var(--border);color:var(--text-label);width:30px;height:30px;border-radius:6px;cursor:pointer;font:inherit;font-size:18px;line-height:1}
-.cal .nav:hover:not(:disabled){border-color:var(--amber);color:var(--amber)}.cal .nav:disabled{opacity:.25;cursor:default}
+.cal .nav:hover:not(:disabled){border-color:var(--accent-light);color:var(--accent-light)}.cal .nav:disabled{opacity:.25;cursor:default}
 .cal .grade{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
 .cal .sm{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);padding:2px 0 4px}
 .cal .d{position:relative;height:34px;border-radius:6px;border:1px solid transparent;background:none;color:var(--text);font:inherit;font-size:14px;font-weight:600;cursor:pointer;padding:0}
 .cal .d:hover:not(:disabled){background:var(--bg-input);border-color:var(--border)}
 .cal .d:disabled{color:#38445C;cursor:default}
-.cal .d.hoje{border-color:var(--amber);color:var(--amber)}
-.cal .d.sel{background:var(--amber);border-color:var(--amber);color:#142032;font-weight:800}
-.cal .d.dado::after{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--amber)}
-.cal .d.sel.dado::after{background:#142032}
+.cal .d.hoje{border-color:var(--accent);color:var(--accent-light)}
+.cal .d.sel{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:800}
+.cal .d.dado::after{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--accent-light)}
+.cal .d.sel.dado::after{background:#fff}
 .cal .rod{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)}
-.cal .rod i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--amber);margin-right:6px;vertical-align:2px}
-.cal .rod button{font:inherit;font-weight:700;font-size:12px;color:var(--amber);background:none;border:1px solid var(--amber);border-radius:99px;padding:4px 14px;cursor:pointer}
-.cal .rod button:hover{background:var(--amber);color:#142032}
+.cal .rod i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent-light);margin-right:6px;vertical-align:2px}
+.cal .rod button{font:inherit;font-weight:700;font-size:12px;color:var(--accent-light);background:none;border:1px solid var(--accent-light);border-radius:99px;padding:4px 14px;cursor:pointer}
+.cal .rod button:hover{background:var(--accent);color:#fff}
 .fh .lv.passado{color:var(--amber);border-color:var(--amber)}
 .fh .volta{font-size:12px}
 .main{flex:1;min-height:0;padding:12px 22px 0;display:flex;flex-direction:column;position:relative}
