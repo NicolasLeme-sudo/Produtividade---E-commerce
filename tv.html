@@ -99,8 +99,8 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 #titulo{display:inline-block}
 #titulo.troca{animation:tituloEntra .6s cubic-bezier(.2,.8,.2,1)}
 @keyframes tituloEntra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.navt button{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:inherit;font-size:26px;font-weight:700;line-height:1;padding:0 0 4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-.navt button:hover{color:var(--text);border-color:var(--text-muted)}
+.navt button{width:34px;height:34px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 55%, transparent);background:color-mix(in srgb, var(--cc,#297ADF) 14%, transparent);color:var(--cc,#297ADF);font-family:inherit;font-size:20px;font-weight:800;line-height:1;padding:0 0 2px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .3s,border-color .3s,color .3s}
+.navt button:hover{background:color-mix(in srgb, var(--cc,#297ADF) 30%, transparent);border-color:var(--cc,#297ADF)}
 .fsb{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
 .dica-tc{position:fixed;top:70px;right:16px;z-index:60;max-width:360px;background:var(--bg-card);border:1px solid var(--border);border-top:4px solid var(--accent);border-radius:10px;padding:14px 16px;font-size:15px;line-height:1.6;box-shadow:0 10px 30px rgba(0,0,0,.45)}
 .dica-tc>b:first-child{display:block;font-size:16px;margin-bottom:6px}.dica-tc small{display:block;margin-top:8px;color:var(--text-muted);font-size:12px}
@@ -184,9 +184,10 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .colunas{position:relative;display:flex;align-items:flex-end;gap:10px;min-height:0}
 .colunas span{flex:1;position:relative;background:var(--cor);border-radius:5px 5px 0 0;min-height:2px}
 .colunas span.anima{transition:height .9s cubic-bezier(.2,.8,.2,1)}
-.colunas span.novo em{animation:valorNovo 1.6s ease-out}
-@keyframes valorNovo{0%{transform:translateX(-50%) scale(1.35);color:var(--cor2,#fff)}100%{transform:translateX(-50%) scale(1)}}
-@media (prefers-reduced-motion: reduce){.colunas span.anima{transition:none}.colunas span.novo em,#titulo.troca{animation:none}}
+.colunas span.entra{animation:colunaEntra .9s cubic-bezier(.2,.8,.2,1)}
+@keyframes colunaEntra{from{opacity:0;transform:translateY(16px) scaleX(.6)}to{opacity:1;transform:none}}
+.colunas span.conta em{color:var(--cor2,#fff)}
+@media (prefers-reduced-motion: reduce){.colunas span.anima{transition:none}.colunas span.entra,#titulo.troca{animation:none}}
 .colunas span.agora{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 7px,transparent 7px 14px)}
 .colunas em{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:4px;font-style:normal;font-weight:800;font-size:16px;white-space:nowrap;background:var(--bg-card);padding:0 5px;border-radius:4px;z-index:2}
 .horas{display:flex;gap:10px}.horas i{flex:1;text-align:center;font-style:normal;font-size:14px;color:var(--text-muted)}
@@ -270,7 +271,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lsaquo;</button><span id="titulo">Corrida Maluca</span><button type="button" id="telaProx" aria-label="Próxima tela">&rsaquo;</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lt;</button><span id="titulo">Corrida Maluca</span><button type="button" id="telaProx" aria-label="Próxima tela">&gt;</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
@@ -438,18 +439,31 @@ function animaGraficos(){
     g.querySelectorAll('.colunas span[data-h]').forEach(function(sp){
       var h = sp.dataset.h; agora[h] = [sp.style.height, sp.textContent];
       if (antes && antes[h] && antes[h][0] === sp.style.height && antes[h][1] === sp.textContent) return;   // nada mudou nesta hora
-      sp.dataset.alvo = sp.style.height; sp.dataset.atualiza = antes && (!antes[h] || antes[h][1] !== sp.textContent) ? '1' : '';   // destaque só no número que mudou
+      sp.dataset.alvo = sp.style.height;
+      if (antes && !antes[h]) sp.dataset.efeito = 'entra';                                   // hora nova: a coluna aparece
+      else if (antes && antes[h][1] !== sp.textContent) sp.dataset.efeito = antes[h][1];     // valor mudou: conta a partir do antigo
       sp.style.height = antes && antes[h] ? antes[h][0] : '0%';          // parte do tamanho antigo (ou do zero)
     });
     g._chave = chave; g._agora = agora;
     if (t.classList.contains('on')) tocaAnimacao(g);                     // tela escondida: espera ela entrar
   });
 }
+// Número rolando como contagem: do valor antigo até o novo em ~1 s (formato pt-BR).
+function contaNumero(sp, antigoTxt){
+  var em = sp.querySelector('em'); if (!em) return;
+  var de = +String(antigoTxt).replace(/\D/g, '') || 0, ate = +em.textContent.replace(/\D/g, '') || 0, t0 = performance.now(), dur = 1000;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || de === ate) return;
+  sp.classList.add('conta');
+  (function passo(t){ var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    em.textContent = fmt(Math.round(de + (ate - de) * e));
+    if (p < 1) requestAnimationFrame(passo); else sp.classList.remove('conta'); })(t0);
+}
 function tocaAnimacao(g){
   memoriaColunas[g._chave] = g._agora;
   var sps = g.querySelectorAll('.colunas span[data-alvo]');
   requestAnimationFrame(function(){ requestAnimationFrame(function(){ sps.forEach(function(sp){
-    sp.classList.add('anima'); if (sp.dataset.atualiza) sp.classList.add('novo');
+    sp.classList.add('anima'); var ef = sp.dataset.efeito; delete sp.dataset.efeito;
+    if (ef === 'entra') sp.classList.add('entra'); else if (ef) contaNumero(sp, ef);
     sp.style.height = sp.dataset.alvo; delete sp.dataset.alvo; }); }); });
 }
 new MutationObserver(animaGraficos).observe(document.documentElement, { childList:true, subtree:true });
