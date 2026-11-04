@@ -1,0 +1,11 @@
+{
+  "name": "Telão · Produtividade E-commerce",
+  "short_name": "Telão",
+  "start_url": "/tv.html",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0F1A33",
+  "theme_color": "#0F1A33",
+  "icons": [{ "src": "/logo-mark.png", "sizes": "378x359", "type": "image/png", "purpose": "any" }]
+}

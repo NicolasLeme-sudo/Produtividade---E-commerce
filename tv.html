@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Celular: "Adicionar à Tela de Início" abre o telão sem as barras do navegador (iPhone não aceita tela cheia em página) -->
+<link rel="manifest" href="/tv.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Telão">
+<meta name="theme-color" content="#0F1A33">
+<link rel="apple-touch-icon" href="/logo-mark.png">
 <title>Telão · Produtividade E-commerce</title>
 <link rel="icon" href="/logo-mark.png" type="image/png">
 <!--
@@ -83,6 +91,8 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .fh .sem-hoje{font-size:20px;font-weight:800;color:var(--amber);margin-right:-14px}.fh .sem-hoje[hidden]{display:none}
 .fh .tt{flex:1;font-size:22px;font-weight:700}
 .fsb{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
+.dica-tc{position:fixed;top:70px;right:16px;z-index:60;max-width:360px;background:var(--bg-card);border:1px solid var(--border);border-top:4px solid var(--accent);border-radius:10px;padding:14px 16px;font-size:15px;line-height:1.6;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.dica-tc>b:first-child{display:block;font-size:16px;margin-bottom:6px}.dica-tc small{display:block;margin-top:8px;color:var(--text-muted);font-size:12px}
 .fsb:hover{background:rgba(127,140,170,.26)}
 .fsb[hidden]{display:none}
 body.ocioso,body.ocioso *{cursor:none!important}
@@ -243,7 +253,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt" id="titulo">Corrida Maluca</span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
@@ -866,14 +876,18 @@ function escala(){
 function telaCheiaAtiva(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
 function atualizaBotaoTC(){
   var b = document.getElementById('btnTelaCheia');
-  if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) { b.hidden = true; return; }
+  if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) { b.hidden = modoApp(); return; }   // iPhone: o botão ensina a instalar
   b.hidden = telaCheiaAtiva();                     // em tela cheia o botão some, para a TV ficar limpa (Esc sai)
 }
 document.getElementById('btnTelaCheia').addEventListener('click', function(e){
   e.stopPropagation();
   var el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
-  if (f) { var p = f.call(el); if (p && p.catch) p.catch(function(){}); }
+  if (f && (document.fullscreenEnabled || document.webkitFullscreenEnabled)) { var p = f.call(el); if (p && p.catch) p.catch(function(){}); return; }
+  document.getElementById('dicaTC').hidden = false;   // navegador sem tela cheia (iPhone): mostra como instalar
 });
+// Aberto pelo ícone da Tela de Início: já está sem as barras do navegador
+function modoApp(){ return navigator.standalone === true || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches; }
+document.getElementById('dicaTC').addEventListener('click', function(e){ e.stopPropagation(); this.hidden = true; });
 document.addEventListener('fullscreenchange', atualizaBotaoTC); document.addEventListener('webkitfullscreenchange', atualizaBotaoTC);
 atualizaBotaoTC();
 var ocioso = null;
