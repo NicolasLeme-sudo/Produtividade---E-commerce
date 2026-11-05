@@ -64,6 +64,7 @@ td.hl{font-weight:700;color:var(--gold)}
 .shot{display:flex;flex-direction:column;gap:12px;min-height:0}
 .shot img{width:100%;max-height:560px;object-fit:contain;object-position:top left;border:1px solid var(--line);border-radius:14px;background:#0F1623}
 .shot span{font-size:22px;color:var(--muted)}
+table.cmp.mt td{padding:18px 18px;font-size:28px} table.cmp.mt td small.mp{display:block;font-size:18px;color:var(--muted);font-weight:400}
 table.cmp td{padding:13px 18px;font-size:26px} table.cmp td.neg{color:var(--red)} table.cmp tr.tot td{border-top:2px solid var(--gold);border-bottom:0;font-weight:700;font-size:30px}
 /* apresentação enxuta (03/11) */
 .tl{display:grid;grid-template-columns:repeat(5,1fr);position:relative;margin-top:40px;margin-bottom:36px}
@@ -152,6 +153,22 @@ S.push(slide('A campanha', 'Um time de cada cor, <em>em cada turno</em>',
   '</div></div>',
   RODAPE));
 
+// 3b · metas (oficiais por turno e atividade → meta do time, em regras-black.js META_TURNO)
+var MT = R.META_TURNO, f0 = function(v){ return '<b>' + fmt(v[0]) + '</b><small class="mp">' + v[1] + ' pessoas</small>'; };
+var METAS = [['T01 · 05h00–14h48','8h48',[11000,21],[7000,21],[4000,18],MT['1º Turno']],
+  ['T02 · 14h48–00h16','8h28',[8000,16],[5000,15],[3000,13],MT['2º Turno']],
+  ['ADM · 07h55–17h33','8h38',null,null,null,MT['ADM']]];
+S.push(slide('Metas', 'Meta do dia <em>por turno e por time</em>',
+  '<table class="cmp mt"><tr><th>Turno</th><th>Horas trabalhadas</th><th>Separação</th><th>Conf. Single</th><th>Conf. Multi</th><th>Time checkout</th><th>Time colmeia</th></tr>' +
+    METAS.map(function(m){ return '<tr><td><b>' + m[0] + '</b></td><td>' + m[1] + '</td>' +
+      [m[2], m[3], m[4]].map(function(v){ return '<td>' + (v ? f0(v) : '<span style="color:var(--muted)">—</span>') + '</td>'; }).join('') +
+      '<td class="hl">' + fmt(m[5].piso) + '</td><td class="hl">' + fmt(m[5].colmeia) + '</td></tr>'; }).join('') +
+    '<tr class="tot"><td>Dia</td><td></td><td>' + fmt(19000) + '</td><td>' + fmt(12000) + '</td><td>' + fmt(7000) + '</td><td colspan="2" style="color:var(--muted);font-weight:400">sep. 19.000 · conf. 19.000</td></tr>' +
+  '</table>' +
+  '<p class="nota">Horas sem o almoço/janta. <b>Checkout</b> (times 1–4) = Separação + Conferência Single ÷ 4 · <b>Colmeia</b> (times 5–6) = Conferência Multi ÷ 2. ' +
+  'ADM: proporcional ao 1º turno pelas pessoas (16) e horas. Por pessoa e hora: separação ≈ 59 · conf. single ≈ 38 · conf. multi ≈ 26 peças.</p>',
+  'Meta do time = peças de separação + conferência dos membros no dia'));
+
 // 4 · cronograma e atrações
 var DIAS_C = [['20/11 · sex','Pré-Black',['Entrega das camisetas','Apresentação da gamificação','Folha de regras nos pisos'],null,[]],
   ['27/11 · sex','Largada Black',['Abertura oficial','Fala do diretor e do gerente','Vídeo motivacional'],R.DESAFIOS['2026-11-27'],['DJ','Café de abertura']],
@@ -211,7 +228,7 @@ S.push(slide('Reconhecimento e próximos passos', 'Quem leva <em>e o que falta d
       '<div><h3>Vistoria nota 10</h3><p>Mais vistorias sem apontamento.</p></div>' +
       '<div><h3>Prêmios instantâneos</h3><p>Brindes e Golden Tickets ao longo dos 3 dias.</p></div>' +
     '</div>' +
-    '<div class="lev"><div class="n">→</div><div><h3>Próximos passos</h3>' + li(['Metas oficiais por time (hoje: 2.000 checkout · 1.200 colmeia)','Escalação final com presença (planilha por cor)','Vistoriadores e agenda das horas de ouro']) + '</div></div>' +
+    '<div class="lev"><div class="n">→</div><div><h3>Próximos passos</h3>' + li(['Escalação final com presença (planilha por cor)','Vistoriadores e agenda das horas de ouro']) + '</div></div>' +
   '</div>',
   RODAPE));
 

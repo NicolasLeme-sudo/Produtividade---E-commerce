@@ -345,7 +345,7 @@ function rotDia(dia){ var p = dia.split('-'), d = new Date(+p[0], +p[1]-1, +p[2]
 /* ================= TIMES (mesmos do index.html) ================= */
 var TIMES_COR = { 1:{nome:'Vermelho',c:'--t1',s:'--t1-soft',hex:'#EF5B5B'}, 2:{nome:'Azul',c:'--t2',s:'--t2-soft',hex:'#4C95F0'}, 3:{nome:'Verde',c:'--t3',s:'--t3-soft',hex:'#45C665',escuro:true},
                   4:{nome:'Amarelo',c:'--t4',s:'--t4-soft',hex:'#F6C400',escuro:true}, 5:{nome:'Rosa',c:'--t5',s:'--t5-soft',hex:'#EC4FA0'}, 6:{nome:'Roxo',c:'--t6',s:'--t6-soft',hex:'#A773EA'} };
-var META_DIA_TIME = RegrasBlack.META_DIA_TIME;   // provisória (regras-black.js)
+var META_DIA_TIME = RegrasBlack.META_DIA_TIME;   // meta do 1º turno (regras-black.js META_TURNO)
 var CARROS = { 1:{h:34, ar:2.33}, 2:{h:40, ar:1.30}, 3:{h:40, ar:1.06}, 4:{h:25, ar:3.82}, 5:{h:38, ar:1.59}, 6:{h:32, ar:2.58} };
 var CARRO_ESCALA = 1.18;   // carros um pouco maiores que no site, porque as raias da TV são mais altas
 var FUMACA_SVG = document.querySelector('.m-smk').innerHTML;
@@ -864,7 +864,7 @@ document.addEventListener('click', function(e){ if (comemorando && e.target.id !
     var b = e.target.closest('button[data-n]'); if (!b) return;
     pop.hidden = true;
     var n = +b.getAttribute('data-n');
-    fila.push({ n:n, pecas:META_DIA_TIME[n] }); proximaComemoracao();
+    fila.push({ n:n, pecas:RegrasBlack.metaDoTime(n, turnoTela ? [turnoTela] : null) }); proximaComemoracao();
   });
   document.addEventListener('click', function(){ pop.hidden = true; });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') pop.hidden = true; });

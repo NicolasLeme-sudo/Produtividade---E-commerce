@@ -1746,7 +1746,6 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     var piso = c.times.filter(function(t){ return !t.colmeia; }).sort(ord), col = c.times.filter(function(t){ return t.colmeia; }).sort(ord);
     return piso.concat(col);
   }
-  var META_DIA_TIME = { 1:2000, 2:2000, 3:2000, 4:2000, 5:1200, 6:1200 };
   var ROT_ATV = { sep:'Separação', conf:'Conferência', ambos:'Separação + Conferência' };
   var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque' };
   var CRIT_COMP = {
@@ -1914,7 +1913,9 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       grupo.slice().sort(function(a,b){ return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.score - a.score; }).forEach(function(t, i){ t.pos = t.lista.length ? i+1 : null; });
     });
     var dias = Math.max(1, datasPeriodo.length);
-    times.forEach(function(t){ t.meta = META_DIA_TIME[t.n] * dias; });
+    // Meta por turno (regras-black.js): um turno = a meta dele; "Todos" = soma dos turnos da escalação
+    var turnosMeta = turnoSel === 'Todos' ? RegrasBlack.turnosDoCadastro(competicaoTimes) : [turnoSel];
+    times.forEach(function(t){ t.meta = RegrasBlack.metaDoTime(t.n, turnosMeta) * dias; });
     var temDados = grupos.some(function(g){ return ops.some(function(o){ return prod[g+'_'+o].temDados; }); });
     return { times:times, temHora:temHora, fora:fora, datasPeriodo:datasPeriodo, exatos:exatos, temDados:temDados, grupos:grupos, ops:ops };
   }

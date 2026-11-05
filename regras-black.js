@@ -112,7 +112,29 @@ function chaveUsu(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/
    Usada pelo telão (Corrida) e pela planilha "Extrair descontos e adições" (ingest.js).
    O index.html tem a versão dele, com os filtros da tela. */
 var NUM_TIMES = [1, 2, 3, 4, 5, 6], TIMES_COLMEIA = { 5: true, 6: true };
-var META_DIA_TIME = { 1: 2000, 2: 2000, 3: 2000, 4: 2000, 5: 1200, 6: 1200 };   // provisória
+// Meta do time por dia, por turno (peças de separação + conferência). Base (05/11): metas oficiais da Black
+// (19.000 sep. e 19.000 conf. por dia) segmentadas por atividade:
+//   1º turno: Separação 11.000 (21 pessoas) · Conf. Single 7.000 (21) · Conf. Multi 4.000 (18)
+//   2º turno: Separação  8.000 (16 pessoas) · Conf. Single 5.000 (15) · Conf. Multi 3.000 (13)
+// Piso (times 1–4) = Separação + Conf. Single ÷ 4 · Colmeia (times 5–6) = Conf. Multi ÷ 2.
+// ADM (16 pessoas, 8h38 sem almoço; fora da tabela oficial) = meta do 1º turno × 16/60 pessoas × 8h38/8h48,
+// arredondada para cima de 50 em 50.
+var META_TURNO = {
+  '1º Turno': { piso: 4500, colmeia: 2000 },
+  '2º Turno': { piso: 3250, colmeia: 1500 },
+  'ADM':      { piso: 1200, colmeia: 550 }
+};
+// Meta do time n somando os turnos do filtro (um turno = a meta dele; "Todos" = soma dos turnos da escalação).
+function metaDoTime(n, turnos) {
+  var lista = (turnos && turnos.length ? turnos : ['1º Turno']).filter(function (t) { return META_TURNO[t]; });
+  if (!lista.length) lista = ['1º Turno'];
+  return lista.reduce(function (s, t) { return s + META_TURNO[t][TIMES_COLMEIA[n] ? 'colmeia' : 'piso']; }, 0);
+}
+function turnosDoCadastro(cadastro) {
+  var v = {}; (cadastro || []).forEach(function (r) { if (r.turno) v[r.turno] = 1; });
+  return Object.keys(v);
+}
+var META_DIA_TIME = { 1: metaDoTime(1), 2: metaDoTime(2), 3: metaDoTime(3), 4: metaDoTime(4), 5: metaDoTime(5), 6: metaDoTime(6) };   // 1º turno (compatibilidade)
 var CONECTIVOS = ['DE', 'DA', 'DO', 'DAS', 'DOS', 'E'];
 function chavesDoMembro(r) {
   var ks = [chaveUsu(r.usuario_wms), chaveUsu(r.nome)];
@@ -161,7 +183,8 @@ function calcularCompeticao(snap, cadastro, diaAlvo) {
     gr.slice().sort(function (a, b) { return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.total - a.total; }).forEach(function (t, i) { t.pos = t.lista.length ? i + 1 : null; });
   });
   var dias = Math.max(1, Object.keys(datas).length);
-  times.forEach(function (t) { t.meta = META_DIA_TIME[t.n] * dias; });
+  var turnosMeta = turnosDoCadastro(cadastro);
+  times.forEach(function (t) { t.meta = metaDoTime(t.n, turnosMeta) * dias; });
   var dia = Object.keys(datas).sort().pop() || null;
   var temDados = grupos.some(function (g) { return ops.some(function (o) { return prod[g + '_' + o].temDados; }); });
   return { times: times, dia: dia, temDados: temDados };
@@ -333,6 +356,6 @@ global.RegrasBlack = {
   DIAS: DIAS, TURNOS: TURNOS, P: P, FATOR_COLMEIA: FATOR_COLMEIA, GRAVIDADES: GRAVIDADES, CHECKLIST: CHECKLIST,
   DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
   placarDoDia: placarDoDia, minutosTrabalhados: minutosTrabalhados, acumulado: acumulado, isoLocal: isoLocal,
-  META_DIA_TIME: META_DIA_TIME, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
+  META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, metaDoTime: metaDoTime, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
 };
 })(typeof window !== 'undefined' ? window : globalThis);

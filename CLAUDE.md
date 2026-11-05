@@ -16,7 +16,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 ## Competição / Corrida Maluca
 - Conta em `calcularCompeticao` (index.html, com os filtros da tela). Versão de filtros fixos em `RegrasBlack.calcularCompeticao` (regras-black.js), usada pelo telão e pela planilha de pontos. Filtros fixos: último dia, turno Todos, separação+conferência, checkout+colmeia.
 - Times: 1 Vermelho `#EF5B5B`, 2 Azul `#4C95F0`, 3 Verde `#45C665`, 4 Amarelo `#F6C400`, 5 Rosa `#EC4FA0`, 6 Roxo `#A773EA`. Times 5 e 6 = colmeia.
-- Meta/dia (provisória, falta a oficial): times 1–4 = 2000 peças, 5–6 = 1200. Constante `META_DIA_TIME`.
+- Meta/dia por turno (05/11, metas oficiais da Black segmentadas): `META_TURNO` em regras-black.js — T01 checkout 4.500 / colmeia 2.000 · T02 3.250 / 1.500 · ADM 1.200 / 550. Checkout = (Separação + Conf. Single) ÷ 4; colmeia = Conf. Multi ÷ 2 (T01: sep 11.000/21 pessoas, single 7.000/21, multi 4.000/18; T02: 8.000/16, 5.000/15, 3.000/13). ADM = T01 × 16/60 pessoas × 8h38/8h48. `metaDoTime(n, turnos)`: filtro "Todos" soma os turnos da escalação. Horas sem almoço: T01 8h48, T02 8h28, ADM 8h38.
 - Cards abaixo da pista seguem a mesma ordem das posições (`timesOrdemPista`), também no index.html.
 - Membros em `competicao_times` (usuario_wms, atividade, turno, time, presenca jsonb). Planilha de escalação: **uma aba por time com o nome da cor** (Vermelho…Roxo, + aba Legenda ignorada); colunas Nome, Usuário WMS, Atividade (**S**, **C** ou **C/S** = uma linha por pessoa; no banco C/S vira 2 registros sep+conf), Turno, Piso, Observação, Líder, 27/11, 28/11, 29/11 (P/F/A; atestado = F). Formato antigo (1 aba com coluna Time) ainda é aceito. "Exportar times atuais" gera o arquivo no formato novo.
 
@@ -28,7 +28,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 
 ## Pastas e entregas da Black
 - Arquivos que o Nicolas manda para eu ler: `C:\Leitura de Arquivos`. Entregas que eu gero: `C:\Entrega de Arquivos`.
-- Apresentação à coordenação (6 slides, sem telão): `docs/black/apresentacao.html` → `python docs/black/embutir.py "C:/Entrega de Arquivos/Missao_Black_Apresentacao.html"`.
+- Apresentação à coordenação (9 slides, com o de Metas; sem telão): `docs/black/apresentacao.html` → `python docs/black/embutir.py "C:/Entrega de Arquivos/Missao_Black_Apresentacao.html"`.
 - Para imprimir: `docs/black/checklist-vistoria.html` (2 fichas por A4) e `docs/black/regras.html` (3 págs.) → `node docs/black/gerar-pdfs.js "C:\Entrega de Arquivos"`.
 - Demonstração de meta batida no telão: botão **🏆 Meta batida** no topo (ao lado de Tela cheia; escolhe o time e toca moldura + carro + som; some com o mouse parado; não aparece no `?modo=operacao`; não marca nada) ou `tv.html?comemorar=N` (N = time).
 
@@ -76,4 +76,4 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 2. ~~**Fase B**~~ ✅ validada em 04/11 (14h30–14h51, 20 min sem interrupção: 4 ciclos rápidos + 2 lentos, 24 arquivos enviados, 0 erros, reaproveitou as 6 abas): `baixar.js` deixa **6 abas do WMS** no Google Chrome (cada uma com login próprio; o robô guarda a referência de cada aba), filtros preenchidos uma vez; no ciclo só clica no atualizar da tela (`#DynamicGrid_refresh` em Separação/Packing/Colmeia/Itens NF, `#AdvancedNavegationBar_refresh` em OP/Kardex), espera a máscara de carregando sumir (até 18 s) e exporta para PASTA como `Exportacao_<relatorio>_<hora>.tsv`. Rápido a cada 5 min: Separação, Packing (= Conferência), Colmeia. Lento a cada 10 min: OP, Itens de NF, Kardex. Refaz a aba na virada do dia (00h–01h a data inicial é ontem, por causa do T02), quando o pedido mais antigo do OP muda (Itens NF começa nesse dia; regra em `ProdutividadeIngest.maisAntigoOp`) ou em erro (print em `robo/erros/`). Login que falha pausa 30 min. Ligado pelo `robo.js` quando `WMS_USUARIO` está no .env. Usuário WMS: nicolas.leme.
 3. (Opcional) Agendador de Tarefas rodando `ligar-robo.bat` no logon; desligar suspensão do notebook; telão em tela cheia no mesmo notebook.
 4. **Tela C** ✅ feita em 29/10 (tv.html + ingest.js + robô). Página `operacao` liberada em `dashboard_snapshots` em 30/10 (CHECK `dashboard_snapshots_pagina_check`). A tela só entra no giro depois do primeiro envio do Acompanhamento OP (+ Itens de NF para as marcas).
-5. Metas oficiais por time; teste na TV 75"; trocar senhas expostas após a Black.
+5. ~~Metas oficiais por time~~ ✅ 05/11; teste na TV 75"; trocar senhas expostas após a Black.
