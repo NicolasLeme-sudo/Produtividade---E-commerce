@@ -225,6 +225,7 @@ async function vigiar(cfg) {
   const destino = path.join(pasta, "telao-enviados");
   const mover = String(cfg.MOVER_ENVIADOS || "sim").toLowerCase() !== "nao";
   const inicio = Date.now(), tamanhos = {}, estado = lerEstado();
+  const soDoRobo = !!cfg.WMS_USUARIO, DO_ROBO = /^Exportacao_[a-z]+_\d{6}\.tsv$/i;
   let ocupado = false;
   limpeza(cfg); setInterval(function () { limpeza(cfg); }, 6 * 3600 * 1000);   // ao ligar e a cada 6 h
   log("Vigiando " + pasta + " · baixe os relatórios do WMS normalmente. Ctrl+C para parar.");
@@ -249,9 +250,16 @@ async function vigiar(cfg) {
         if (st.mtimeMs < inicio - 2 * 60 * 1000 || estado[chave]) continue;     // só arquivos novos (até 2 min antes de ligar)
         if (tamanhos[n] !== st.size) { tamanhos[n] = st.size; continue; }      // ainda baixando: espera o tamanho parar
         estado[chave] = new Date().toISOString(); salvarEstado(estado);
+        // Com o baixador ligado, só envia os arquivos dele (Exportacao_<relatorio>_<hora>.tsv) e a Embalas:
+        // relatório baixado à mão (ex.: para o Report) fica em Downloads, sem ir ao banco.
+        if (soDoRobo && !DO_ROBO.test(n) && !(identificar(arq).rel || {}).naoMover) {
+          log("Deixado em Downloads: " + n + " (baixado à mão; o robô só envia os arquivos que ele mesmo baixa)");
+          continue;
+        }
         let ok = false;
         try { ok = await enviar(arq, cfg); } catch (e) { log("ERRO ao enviar " + n + ": " + e.message); }
-        if (ok && mover && !(identificar(arq).rel || {}).naoMover) {   // Embalas fica em Downloads
+        // Arquivo do robô sai de Downloads mesmo com erro (ex.: vazio no começo do turno); Embalas fica.
+        if ((ok || DO_ROBO.test(n)) && mover && !(identificar(arq).rel || {}).naoMover) {
           try { fs.mkdirSync(destino, { recursive: true }); fs.renameSync(arq, path.join(destino, n)); } catch (e) { log("Não consegui mover " + n + ": " + e.message); }
         }
       }
