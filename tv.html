@@ -173,9 +173,10 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .linha{display:grid;grid-template-columns:3fr 1fr;gap:14px;min-height:0}
 .painel{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
 .painel .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--pc,var(--text-muted))}
-.grafico{min-height:0;position:relative;overflow:hidden}
+.grafico{min-height:0;min-width:0;position:relative;overflow:hidden}
+.painel{min-width:0}
 .grafico .trilho{display:grid;grid-template-rows:1fr auto;gap:6px;height:100%;min-width:100%}
-.gwrap{display:grid;grid-template-rows:1fr auto;gap:8px;min-height:0}
+.gwrap{display:grid;grid-template-rows:1fr auto;gap:8px;min-height:0;min-width:0}
 .grafico.rola{overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.grafico.rola::-webkit-scrollbar{display:none}
 .barra{position:relative;height:8px;border-radius:4px;background:rgba(127,140,170,.2)}
 .barra{cursor:pointer;touch-action:none}.barra::before{content:"";position:absolute;inset:-8px 0}
@@ -874,6 +875,7 @@ function entraTela(i){
     rolagemUsuario = {};   // tela nova: todos os gráficos voltam para a hora mais recente
     telas[i].querySelectorAll('.grafico').forEach(function(g){ if (g._agora) tocaAnimacao(g); });   // dado que chegou com a tela escondida
     telas[i].querySelectorAll('.grafico.rola').forEach(function(g){ g.scrollLeft = g.scrollWidth; });
+    setTimeout(function(){ telas[i].querySelectorAll('.grafico.rola').forEach(function(g){ if (!(chaveGrafico(g) in rolagemUsuario)) g.scrollLeft = g.scrollWidth; }); }, 900);   // de novo, depois da transição e das animações
   });
 }
 // Barra do giro redesenhada a cada quadro: anda contínua, sem pulos.
