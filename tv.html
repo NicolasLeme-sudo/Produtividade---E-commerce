@@ -536,7 +536,7 @@ var COR_SEP = '#297ADF', COR_SEP2 = '#7DB8FF', COR_CONF = '#2EC4B6', COR_CONF2 =
 // Card de previsão: número grande = previsão do dia; embaixo = o que vamos entregar NESTA hora
 // (calculadas no ingest.js a cada envio). dia = dia mostrado na tela.
 function kpiPrevisao(rot, prev, realizado, kc, vc, dia){
-  if (dia !== hojeOp()) return kpiHtml(rot, fmt(realizado), 'dia encerrado', kc, vc, 'peças');
+  if (dia !== hojeOp()) return kpiHtml(rotuloDia('Realizado', dia), fmt(realizado), 'dia encerrado', kc, vc, 'peças');   // dia passado: não é previsão
   if (!prev || prev.data !== dia) return kpiHtml(rot, '—', 'aguardando o próximo envio', kc, vc);
   if (prev.previsto == null) return kpiHtml(rot, '—', 'sem base ainda', kc, vc);
   var sub = prev.hora == null ? 'fim do dia'
@@ -951,8 +951,12 @@ function relogio(){
   if (!ultimoDado) return;
   var min = (Date.now() - ultimoDado.getTime()) / 60000, hh = ultimoDado.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
   var dd = ultimoDado.toDateString() === d.toDateString() ? '' : ' de ' + ultimoDado.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+  if (!passado && dTela && dTela < hojeOp()) {   // tela mostrando o último dia com dado: o selo diz de que DIA é o dado, não a hora do envio
+    s.textContent = '● Dados de ' + dTela.slice(8,10) + '/' + dTela.slice(5,7) + (falhou ? ' · sem conexão' : '');
+    s.className = 'selo ' + (falhou ? 'velho' : 'atencao'); return;
+  }
   s.textContent = '● Dado de ' + hh + dd + (falhou ? ' · sem conexão' : '');
-  s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 60 ? 'atencao' : 'ok');   // robô atualiza a cada 45 min
+  s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 60 ? 'atencao' : 'ok');   // robô atualiza a cada 30–45 min
 }
 setInterval(relogio, 15000); relogio();
 // O palco tem 1500 px de base e estica na outra direção até preencher a janela inteira,
