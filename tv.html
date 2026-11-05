@@ -207,10 +207,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 /* Expedição: colunas amarelas, então a média fica branca para aparecer */
 .media-clara .media{border-top-color:var(--text)}.media-clara .media small{color:var(--text)}
 .semhora{display:grid;place-items:center;color:var(--text-muted);font-size:18px;text-align:center}
-.top5{display:grid;align-content:start;gap:6px}
-.top5 div{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;font-size:18px;border-bottom:1px solid var(--border);padding-bottom:6px}
-.top5 .p{font-weight:800;color:var(--text-muted)}.top5 b{font-size:20px}
-.top5 .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linha.cheia{grid-template-columns:1fr}   /* sem ranking de pessoas: o gráfico ocupa a linha toda */
 
 /* ---------- tela C: operação agora (itens por etapa e marca) ---------- */
 .etapas{display:grid;align-content:space-around;gap:10px;min-height:0}
@@ -353,8 +350,6 @@ var FUMACA_SVG = document.querySelector('.m-smk').innerHTML;
 /* ================= UTILITÁRIOS ================= */
 function fmt(n){ n = Number(n); return isFinite(n) ? n.toLocaleString('pt-BR') : '—'; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-var CONECTIVOS = ['DE','DA','DO','DAS','DOS','E'];
-function nomeCurto(n){ var t = String(n||'').trim().split(/\s+/).filter(function(x){ return x && CONECTIVOS.indexOf(x.toUpperCase()) === -1; }); return t.length <= 1 ? n : t[0]+' '+t[t.length-1]; }
 function nomeBonito(u){ return String(u||'').split(/[.\s]+/).filter(Boolean).map(function(x){ return x.charAt(0).toUpperCase()+x.slice(1).toLowerCase(); }).join(' '); }
 /* ================= CONTA DA COMPETIÇÃO (regras-black.js, filtros fixos do padrão) ================= */
 var ultimoDia = RegrasBlack.ultimoDia;
@@ -438,7 +433,7 @@ function qt(n){ return '<b>'+fmt(n)+'</b>'; }   // quantidade embaixo do card, n
 function kpiHtml(rot, valor, sub, kc, vc, un, extra){ vc = vc || kc; return '<div class="kpi" style="'+(kc?'--kc:'+kc+';':'')+(vc?'--vc:'+vc:'')+'"><span class="k">'+rot+'</span><span class="v">'+valor+(un?'<small>'+un+'</small>':'')+(extra||'')+'</span><span class="s">'+sub+'</span></div>'; }
 // Gráfico de colunas por hora: só as JANELA_HORAS últimas horas, a mais recente encostada à direita.
 // A 00h do próprio dia é o fim do T02 do dia anterior: sai do começo e a 00h do dia seguinte (h00) entra no fim.
-var JANELA_HORAS = 10;
+var JANELA_HORAS = 13;
 // Dado novo no gráfico: a coluna nova cresce do zero e a que mudou de valor sobe/desce até o novo tamanho.
 // Compara com o que a pessoa VIU por último (memória só muda quando a animação roda, com a tela na frente).
 var memoriaColunas = {};   // "tela:índice" -> { hora: [altura, valor] }
@@ -534,12 +529,7 @@ function rgbDe(hex){ var n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, 
 function escurece(hex, f){ return '#'+rgbDe(hex).map(function(x){ return Math.round(x*(1 - f)).toString(16).padStart(2, '0'); }).join(''); }
 function tomCalor(claro, forte, t){ var a = rgbDe(claro), b = rgbDe(forte); t = Math.max(0, Math.min(1, t || 0));
   return 'rgb('+a.map(function(x, i){ return Math.round(x + (b[i] - x)*t); }).join(',')+')'; }
-function top5Html(obj, nomeDe, cor, cor2){ var l = Object.keys(obj).map(function(n){ return { n:n, v:obj[n] }; }).filter(function(x){ return x.v > 0; }).sort(function(a,b){ return b.v - a.v; }).slice(0,5);
-  if (!l.length) return '<div class="semhora">Sem registros no dia</div>';
-  var INTENS = [1, .8, .62, .46, .32];   // intensidade da cor pela posição
-  return '<div class="top5">'+l.map(function(x, i){ var st = ' style="color:'+cor+';opacity:'+INTENS[i]+'"';
-    return '<div><span class="p"'+st+'>'+(i+1)+'</span><span class="nm">'+esc(nomeDe(x.n))+'</span><b'+st+'>'+fmt(x.v)+'</b></div>'; }).join('')+'</div>'; }
-function nomeWms(u){ return nomeCurto(nomeBonito(u)); }
+// Telão sem nome de colaborador (pedido 05/11): nada de ranking de pessoas, só gráficos.
 var COR_SEP = '#297ADF', COR_SEP2 = '#7DB8FF', COR_CONF = '#2EC4B6', COR_CONF2 = '#8CEBDF', COR_ARM = '#297ADF', COR_ARM2 = '#45C645';
 
 // Card de previsão: número grande = previsão do dia; embaixo = o que vamos entregar NESTA hora
@@ -586,10 +576,8 @@ function renderTelaB(snap, opRes, dia){
     kpiPrevisao('Previsão separação', sep.previsao, tSep, COR_SEP, COR_SEP2, dia)+
     kpiPrevisao('Previsão conferência', conf.previsao, tConf, COR_CONF, COR_CONF, dia)+
   '</div><div class="linhas" style="grid-template-rows:1fr 1fr">'+
-    '<div class="linha"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">'+semHora+'</div>')+'</div>'+
-      '<div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Top 5 separadores</span>'+top5Html(juntaObj(sc, sm), nomeWms, COR_SEP, COR_SEP2)+'</div></div>'+
-    '<div class="linha"><div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Conferência Checkout · peças por hora</span>'+(gC ? gC.html : '<div class="semhora">'+semHora+'</div>')+'</div>'+
-      '<div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Top 5 conferentes</span>'+top5Html(juntaObj(cc, cm), nomeWms, COR_CONF, COR_CONF2)+'</div></div>'+
+    '<div class="linha cheia"><div class="painel" style="--pc:'+COR_SEP2+'"><span class="k">Separação · peças por hora</span>'+(gS ? gS.html : '<div class="semhora">'+semHora+'</div>')+'</div></div>'+
+    '<div class="linha cheia"><div class="painel" style="--pc:'+COR_CONF+'"><span class="k">Conferência Checkout · peças por hora</span>'+(gC ? gC.html : '<div class="semhora">'+semHora+'</div>')+'</div></div>'+
   '</div>';
 }
 
@@ -610,9 +598,8 @@ function renderTelaD(snapIn){
     kpiHtml(rotuloDia('Peças armazenadas', dia), fmt(total), qt(somaObj(rev))+' itens de reversa', COR_ARM, null, 'peças', segHtml)+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', 'var(--orange)', null)+
     kpiPrevisao('Previsão do dia', arm.previsao, total, 'var(--olive)', 'var(--olive)', dia)+
-  '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
+  '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha cheia">'+
     '<div class="painel"><span class="k">Peças armazenadas por hora</span>'+(g ? g.html : '<div class="semhora">'+(dia === hojeOp() ? 'Sem armazenagem hoje ainda' : 'Sem armazenagem neste dia')+'</div>')+'</div>'+
-    '<div class="painel"><span class="k">Top 5 armazenadores</span>'+top5Html(pessoas, function(n){ return nomeCurto(nomeBonito(n)); }, COR_ARM, COR_SEP2)+'</div>'+
   '</div></div>';
 }
 
@@ -715,8 +702,7 @@ function renderTelaE(opRes){
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', '#DFBD41', null)+
     kpiPrevisao('Previsão do dia', exp.previsao, d.pecas, COR_EXP, COR_EXP, dia)+
   '</div><div class="linhas" style="grid-template-rows:1.25fr 1fr">'+
-    '<div class="linha"><div class="painel media-clara" style="--pc:'+COR_EXP+'"><span class="k">Expedição · peças por hora</span>'+(g ? g.html : '<div class="semhora">'+(dia === hojeOp() ? 'Sem expedição hoje ainda' : 'Sem expedição neste dia')+'</div>')+'</div>'+
-      '<div class="painel" style="--pc:'+COR_EXP+'"><span class="k">Top 5 operadores</span>'+top5Html(pessoas, nomeWms, COR_EXP, COR_EXP2)+'</div></div>'+
+    '<div class="linha cheia"><div class="painel media-clara" style="--pc:'+COR_EXP+'"><span class="k">Expedição · peças por hora</span>'+(g ? g.html : '<div class="semhora">'+(dia === hojeOp() ? 'Sem expedição hoje ainda' : 'Sem expedição neste dia')+'</div>')+'</div></div>'+
     '<div class="painel"><div class="etapa cab"><span class="nm" style="color:'+COR_EXP+'">Por transportadora'+(semT ? ' <small class="semt">· '+fmt(semT[1])+' pedidos aguardando transportadora</small>' : '')+'</span><span></span><span class="tot">Peças</span><span class="tot">Pedidos</span></div><div class="etapas'+(tr.length > 3 ? ' compacta' : '')+'">'+(linhas || '<div class="semhora">Sem expedição neste dia</div>')+'</div></div>'+
   '</div>';
 }
@@ -742,8 +728,7 @@ var faixaAtual = '';
 function renderFaixa(c, snap, dia, opRes){
   var itens = [];
   if (!MODO_OPERACAO) ordemPista(c).forEach(function(t){
-    var m = t.lista[0];
-    if (m && m.valor) itens.push('<span class="ti" style="--c:var('+t.cor.c+')"><i></i><b>Time 0'+t.n+' · '+t.cor.nome+'</b> destaque: '+esc(nomeCurto(nomeBonito(m.nome||m.usuario)))+' <span class="v">'+fmt(m.valor)+'</span> peças</span>');
+    if (t.total) itens.push('<span class="ti" style="--c:var('+t.cor.c+')"><i></i><b>Time 0'+t.n+' · '+t.cor.nome+'</b> <span class="v">'+fmt(t.total)+'</span> peças</span>');   // só o time, sem nome de pessoa
   });
   var sep = 0, conf = 0;
   ['checkoutDia','colmeiaDia'].forEach(function(k){ sep += somaObj(itensDoDia(((snap||{}).separacao||{})[k], dia)); });
