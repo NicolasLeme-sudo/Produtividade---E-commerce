@@ -107,6 +107,14 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .dica-tc>b:first-child{display:block;font-size:16px;margin-bottom:6px}.dica-tc small{display:block;margin-top:8px;color:var(--text-muted);font-size:12px}
 .fsb:hover{background:rgba(127,140,170,.26)}
 .fsb[hidden]{display:none}
+/* Botão de demonstração da comemoração: some com o mouse parado (body.ocioso), como o cursor */
+.demo-meta{position:relative;display:inline-flex;transition:opacity .4s}.demo-meta[hidden]{display:none}
+body.ocioso .demo-meta{opacity:0;pointer-events:none}
+.dm-pop{position:absolute;right:0;top:calc(100% + 8px);z-index:60;display:grid;grid-template-columns:1fr 1fr;gap:8px;width:280px;padding:12px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.5)}
+.dm-pop[hidden]{display:none}
+.dm-pop button{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;background:rgba(127,140,170,.12);border:1px solid rgba(127,140,170,.3);color:var(--text);font-family:inherit;font-size:14px;font-weight:700}
+.dm-pop button:hover{background:rgba(127,140,170,.26)}
+.dm-pop button i{width:14px;height:14px;border-radius:50%;background:var(--tc);flex:none}
 body.ocioso,body.ocioso *{cursor:none!important}
 .fh .lv{font-size:12px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:99px;padding:2px 10px}
 .fh .ck{text-align:right;font-size:12px;color:var(--text-muted);position:relative}.fh .ck #hora{font-size:24px;font-weight:700;color:var(--text)}
@@ -274,7 +282,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lt;</button><span id="titulo">Corrida Maluca</span><button type="button" id="telaProx" aria-label="Próxima tela">&gt;</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lt;</button><span id="titulo">Corrida Maluca</span><button type="button" id="telaProx" aria-label="Próxima tela">&gt;</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="demo-meta" id="demoMeta" hidden><button type="button" class="fsb" id="btnDemoMeta" aria-haspopup="menu">🏆 Meta batida</button><span class="dm-pop" id="dmPop" hidden role="menu"></span></span><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
@@ -841,6 +849,26 @@ function comemora(item){
 }
 var encerraComemoracao = function(){};
 document.addEventListener('click', function(e){ if (comemorando && e.target.id !== 'somBtn') encerraComemoracao(); });
+// Botão "Meta batida" (apresentação): escolhe o time e toca a comemoração completa (moldura, carro e som).
+// Não marca nada no banco nem na TV: é só demonstração. Fora da TV da operação (lá não tem Corrida).
+(function(){
+  if (MODO_OPERACAO) return;
+  var box = document.getElementById('demoMeta'), pop = document.getElementById('dmPop');
+  box.hidden = false;
+  pop.innerHTML = Object.keys(TIMES_COR).map(function(n){
+    return '<button type="button" role="menuitem" data-n="'+n+'" style="--tc:'+TIMES_COR[n].hex+'"><i></i>Time '+TIMES_COR[n].nome+'</button>';
+  }).join('');
+  document.getElementById('btnDemoMeta').addEventListener('click', function(e){ e.stopPropagation(); pop.hidden = !pop.hidden; });
+  pop.addEventListener('click', function(e){
+    e.stopPropagation();
+    var b = e.target.closest('button[data-n]'); if (!b) return;
+    pop.hidden = true;
+    var n = +b.getAttribute('data-n');
+    fila.push({ n:n, pecas:META_DIA_TIME[n] }); proximaComemoracao();
+  });
+  document.addEventListener('click', function(){ pop.hidden = true; });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') pop.hidden = true; });
+})();
 
 /* ================= GIRO DAS TELAS ================= */
 var telas = Array.prototype.slice.call(document.querySelectorAll('.tela')), atual = 0, inicioTela = Date.now();

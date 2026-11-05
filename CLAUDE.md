@@ -30,7 +30,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 - Arquivos que o Nicolas manda para eu ler: `C:\Leitura de Arquivos`. Entregas que eu gero: `C:\Entrega de Arquivos`.
 - Apresentação à coordenação (6 slides, sem telão): `docs/black/apresentacao.html` → `python docs/black/embutir.py "C:/Entrega de Arquivos/Missao_Black_Apresentacao.html"`.
 - Para imprimir: `docs/black/checklist-vistoria.html` (2 fichas por A4) e `docs/black/regras.html` (3 págs.) → `node docs/black/gerar-pdfs.js "C:\Entrega de Arquivos"`.
-- Demonstração de meta batida no telão: `tv.html?comemorar=N` (N = time).
+- Demonstração de meta batida no telão: botão **🏆 Meta batida** no topo (ao lado de Tela cheia; escolhe o time e toca moldura + carro + som; some com o mouse parado; não aparece no `?modo=operacao`; não marca nada) ou `tv.html?comemorar=N` (N = time).
 
 ## Telão (tv.html)
 - Login `@vulcabras.com`; usuário do telão com perfil `gestao` (sessão persistente, `storageKey: telao-produtividade`).
