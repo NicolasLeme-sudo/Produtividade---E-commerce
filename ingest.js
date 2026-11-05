@@ -467,7 +467,8 @@ function horaDoValor(valor) {
   return m ? Math.min(23, Number(m[1])) : null;
 }
 
-function processarKardexEndereco(rows, indiceBaseAtivos) {
+function processarKardexEndereco(rows, indiceBaseAtivos, embalas) {
+  var segDia = {};              // data -> { C: peças de calçados, V: peças de vestuário } (armazenagem normal)
   var porUsuarioNormal = new Map();
   var porUsuarioReversa = new Map();
   var totalNormal = 0, totalReversa = 0;
@@ -498,6 +499,10 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
       porUsuarioNormal.set(colaborador.nome, (porUsuarioNormal.get(colaborador.nome) || 0) + delta);
       totalNormal += delta;
       somarNoDia(normalDia, dataISO, colaborador.nome, delta);
+      if (dataISO) {
+        var sgd = segDia[dataISO] || (segDia[dataISO] = { C: 0, V: 0 });
+        sgd[segmentoDoProduto(obterCampo(row, ["Código do Produto", "Codigo do Produto"]), obterCampo(row, ["Produto"]), embalas)] += delta;
+      }
       var hora = horaDoValor(dataBruta);
       if (dataISO && hora !== null) {
         var horas = normalHora.get(dataISO) || new Array(24).fill(0);
@@ -513,7 +518,7 @@ function processarKardexEndereco(rows, indiceBaseAtivos) {
     }
   });
 
-  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora, normalMin: normalMin };
+  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora, normalMin: normalMin, segDia: segDia };
 }
 // Minuto do dia (0-1439) da coluna Data: "dd/mm/yyyy HH:mm:ss", serial do Excel ou Date. Sem hora = null.
 function minutoDoValor(valor) {
@@ -1198,7 +1203,19 @@ function marcaPorNome(descricao) {
 }
 function marcaPorDescricao(descricao, codigo, embalas) {
   var art = String(codigo || "").trim().split("_")[0];
-  return (embalas && MARCA_DA_LETRA[embalas[art]]) || marcaPorNome(descricao) || "Olympikus";
+  return (embalas && MARCA_DA_LETRA[String(embalas[art] || "").charAt(0)]) || marcaPorNome(descricao) || "Olympikus";
+}
+
+// Segmento do produto (armazenagem no telão): só Calçados (C, com chinelos e chuteiras) ou Vestuário (V, com
+// meias e acessórios). 1) Embalas pelo Artigo (2ª letra do valor gravado); 2) palavra-chave no nome; 3) Calçados.
+function segmentoDoProduto(codigo, descricao, embalas) {
+  var cod = String(codigo || "").trim();
+  var v = embalas ? String(embalas[cod.split("_")[0]] || embalas[cod.split("-")[0]] || "").charAt(1) : "";
+  if (v === "C" || v === "V") return v;
+  var d = normalizarTexto(descricao);
+  if (/TENIS|CHUTEIRA|CHINELO|SANDALIA|SAPATILHA|SAPATO|\bBOTA\b|\bSLIDE\b/.test(d)) return "C";
+  if (/\bMEIA|CAMIS|BERMUDA|SHORT|\bCALCA|JAQUETA|BLUSA|REGATA|\bTOP\b|LEGGING|\bBONE\b|MOCHILA|BOLSA|VISEIRA|MANGUITO|SQUEEZE|GARRAFA|POCHETE|AGASALHO|MOLETOM|VENTO|\bSAIA\b|VESTIDO|MACAQU|SUTIA|CUECA|\bLUVA|GORRO|TOALHA|SACOLA|\bBOLA\b|CANELEIRA|MEIAO/.test(d)) return "V";
+  return "C";
 }
 
 // Embalas (base de embalagem, aba Base Final) -> { Artigo: letra da marca }
@@ -1208,7 +1225,10 @@ function processarEmbalas(rows) {
     var art = String(obterCampo(row, ["Artigo"]) || "").trim() || String(obterCampo(row, ["SKU"]) || "").trim().split("_")[0];
     var m = normalizarTexto(obterCampo(row, ["MARCA", "Marca"]));
     var letra = m.indexOf("MIZUNO") !== -1 ? "M" : m.indexOf("UNDER") !== -1 ? "U" : m.indexOf("OPANKA") !== -1 ? "P" : m.indexOf("OLYMPIKUS") !== -1 ? "O" : null;
-    if (art && letra) mapa[art] = letra;
+    // Valor = letra da marca ("-" sem marca) + letra do segmento: C (calçados, chinelos) ou V (vestuários, meias, acessórios)
+    var s = normalizarTexto(obterCampo(row, ["SEGMENTO", "Segmento"]));
+    var seg = !s ? "" : /VESTU|MEIA|ACESS/.test(s) ? "V" : "C";
+    if (art && (letra || seg)) mapa[art] = (letra || "-") + seg;
   });
   return mapa;
 }
@@ -2514,9 +2534,18 @@ async function processar(id) {
       await salvarSnapshot("estoque", atualEstoque);
 
       // Mesmas linhas, agora filtradas por prefixo de Local (H/I/J/S) -> Armazenagem
-      var r5 = processarKardexEndereco(rows, indice);
+      // Segmento (Calçados/Vestuário) da armazenagem: base Embalas guardada no snapshot operacao (só esse campo)
+      var embSeg = null;
+      try {
+        var qEmb = await supabaseClient.from("dashboard_snapshots").select("emb:dados->embalas").eq("pagina", "operacao").maybeSingle();
+        embSeg = (qEmb.data && qEmb.data.emb) || null;
+      } catch (eEmb) { console.error(eEmb); }
+      var r5 = processarKardexEndereco(rows, indice, embSeg);
       var atual5 = await lerSnapshot("inbound");
       var armAnterior = atual5.armazenagem || {};
+      // Os dias do arquivo substituem os salvos; guarda os 31 mais recentes
+      var segDia5 = Object.assign({}, armAnterior.segDia || {}, r5.segDia);
+      Object.keys(segDia5).sort().slice(0, -31).forEach(function (d) { delete segDia5[d]; });
       atual5.armazenagem = {
         normal: mapParaRanking(r5.porUsuarioNormal), reversa: mapParaRanking(r5.porUsuarioReversa),
         totalNormal: r5.totalNormal, totalReversa: r5.totalReversa,
@@ -2524,6 +2553,7 @@ async function processar(id) {
         reversaDia: mesclarDias(armAnterior.reversaDia, diaMapParaArray(r5.reversaDia)),
         // Hora a hora da armazenagem normal (telão): os dias do arquivo substituem os salvos, guarda até 31 dias.
         normalHoraDia: mesclarDias(armAnterior.normalHoraDia, Array.from(r5.normalHora.entries()).map(function (e) { return { data: e[0], horas: e[1] }; })).slice(-31),
+        segDia: segDia5,
       };
       var diaOp5 = diaOperacionalIngest(new Date());
       atual5.armazenagem.previsao = previsaoDoDia(atual5.armazenagem.normalHoraDia, new Date(),
@@ -2652,7 +2682,7 @@ async function processar(id) {
       var nEmb = Object.keys(mapaEmb).length;
       if (!nEmb) throw new Error("Nenhum artigo com marca: confira se o arquivo tem as colunas Artigo (ou SKU) e MARCA.");
       await atualizarOperacao({ embalas: mapaEmb, embalasEm: Date.now() });
-      definirStatus(id, "✓ Embalas: " + nEmb.toLocaleString("pt-BR") + " artigos com marca (vale a partir do próximo Itens de NF).", "ok");
+      definirStatus(id, "✓ Embalas: " + nEmb.toLocaleString("pt-BR") + " artigos com marca e segmento (vale a partir do próximo Itens de NF e Kardex).", "ok");
     }
 
     else if (id === "up-itens-nf-saida") {

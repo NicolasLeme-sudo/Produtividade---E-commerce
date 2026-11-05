@@ -167,6 +167,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .kpi .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
 .kpi .v{font-size:46px;font-weight:800;line-height:1;color:var(--vc,var(--text))}
 .kpi .v small{font-size:20px;font-weight:700;color:var(--text-muted);margin-left:8px}
+.kpi .v .seg{font-size:21px;font-weight:600;color:var(--text-muted);margin-left:18px}.kpi .v .seg b{color:var(--vc,var(--accent));font-weight:800}
 .kpi .v{white-space:nowrap}.kpis.c5 .kpi .v small{font-size:17px;margin-left:6px}
 .kpi .s{font-size:21px;color:var(--text-muted);white-space:nowrap;overflow:hidden}.kpi .s b{color:var(--vc,var(--kc,var(--text)));font-weight:800}
 .linhas{flex:1;min-height:0;display:grid;gap:14px}
@@ -228,7 +229,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 
 /* ---------- faixa de baixo em loop contínuo ---------- */
 .loopbar{position:relative;overflow:hidden;background:#05080E;border-top:1px solid var(--border);height:46px;display:flex;align-items:center;flex:none;margin-top:12px}
-.loopbar .giro{position:absolute;left:0;top:0;height:3px;width:100%;transform:scaleX(0);transform-origin:0 50%;background:var(--accent);z-index:1;will-change:transform}
+.loopbar .giro{position:absolute;left:0;top:0;height:3px;width:100%;transform:scaleX(0);transform-origin:0 50%;background:var(--cc,var(--accent));transition:background-color .35s;z-index:1;will-change:transform}
 .loopbar .giro[hidden]{display:none}
 .loop{display:flex;width:max-content;animation:loopa var(--dur,55s) linear infinite}
 .loop .g{display:flex;align-items:center;flex:none}
@@ -426,7 +427,7 @@ function horasDoAnalitico(serie, dia, tipos){ var h = new Array(24).fill(0); (se
 function hoje(){ return hojeISO(); }
 // O número segue a cor da barra de destaque (kc) quando não vem cor própria (vc). un = unidade ao lado do número.
 function qt(n){ return '<b>'+fmt(n)+'</b>'; }   // quantidade embaixo do card, na cor de destaque
-function kpiHtml(rot, valor, sub, kc, vc, un){ vc = vc || kc; return '<div class="kpi" style="'+(kc?'--kc:'+kc+';':'')+(vc?'--vc:'+vc:'')+'"><span class="k">'+rot+'</span><span class="v">'+valor+(un?'<small>'+un+'</small>':'')+'</span><span class="s">'+sub+'</span></div>'; }
+function kpiHtml(rot, valor, sub, kc, vc, un, extra){ vc = vc || kc; return '<div class="kpi" style="'+(kc?'--kc:'+kc+';':'')+(vc?'--vc:'+vc:'')+'"><span class="k">'+rot+'</span><span class="v">'+valor+(un?'<small>'+un+'</small>':'')+(extra||'')+'</span><span class="s">'+sub+'</span></div>'; }
 // Gráfico de colunas por hora: só as JANELA_HORAS últimas horas, a mais recente encostada à direita.
 // A 00h do próprio dia é o fim do T02 do dia anterior: sai do começo e a 00h do dia seguinte (h00) entra no fim.
 var JANELA_HORAS = 10;
@@ -594,8 +595,11 @@ function renderTelaD(snapIn){
   var hd = (arm.normalHoraDia||[]).filter(function(x){ return String(x.data).slice(0,10) === dia; })[0];
   var hd1 = (arm.normalHoraDia||[]).filter(function(x){ return String(x.data).slice(0,10) === somaDias(dia, 1); })[0];
   var g = hd ? graficoHoras(hd.horas, dia, COR_ARM, COR_SEP2, null, hd1 && hd1.horas ? hd1.horas[0] : 0) : null;
+  // Calçados (com chinelos e chuteiras) · Vestuário (com meias e acessórios), pela base Embalas (armazenagem.segDia)
+  var sg = (arm.segDia || {})[dia];
+  var segHtml = sg ? '<span class="seg">Calçados <b>'+fmt(sg.C||0)+'</b> · Vestuário <b>'+fmt(sg.V||0)+'</b></span>' : '';
   el.innerHTML = '<div class="kpis c3">'+
-    kpiHtml(rotuloDia('Peças armazenadas', dia), fmt(total), qt(somaObj(rev))+' itens de reversa', COR_ARM, null, 'peças')+
+    kpiHtml(rotuloDia('Peças armazenadas', dia), fmt(total), qt(somaObj(rev))+' itens de reversa', COR_ARM, null, 'peças', segHtml)+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas com armazenagem', 'var(--orange)', null)+
     kpiPrevisao('Previsão do dia', arm.previsao, total, 'var(--olive)', 'var(--olive)', dia)+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
