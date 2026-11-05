@@ -189,6 +189,36 @@ async function maisAntigoOp(arq) {
 function lerEstado() { try { return JSON.parse(fs.readFileSync(ARQ_ESTADO, "utf8")); } catch (e) { return {}; } }
 function salvarEstado(e) { try { fs.writeFileSync(ARQ_ESTADO, JSON.stringify(e, null, 1)); } catch (x) {} }
 
+/* ---------------- limpeza automática (libera espaço no computador) ---------------- */
+// Os dados já estão no banco: os arquivos enviados são só cópia. Apaga SÓ dentro de telao-enviados e robo\erros.
+const DIAS_ENVIADOS = 5, DIAS_ERROS = 2, LOG_MAX = 5 * 1024 * 1024, LOG_MANTER = 1024 * 1024;
+function apagaAntigos(pasta, dias) {
+  const limite = Date.now() - dias * 24 * 3600 * 1000; let n = 0, bytes = 0;
+  if (!fs.existsSync(pasta)) return { n: 0, bytes: 0 };
+  fs.readdirSync(pasta).forEach(function (nome) {
+    const arq = path.join(pasta, nome);
+    try { const st = fs.statSync(arq); if (st.isFile() && st.mtimeMs < limite) { fs.unlinkSync(arq); n++; bytes += st.size; } } catch (e) {}
+  });
+  return { n: n, bytes: bytes };
+}
+function limpeza(cfg) {
+  try {
+    const a = cfg.PASTA ? apagaAntigos(path.join(cfg.PASTA, "telao-enviados"), DIAS_ENVIADOS) : { n: 0, bytes: 0 };
+    const b = apagaAntigos(path.join(RAIZ, "erros"), DIAS_ERROS);
+    let logCortado = false;
+    try {   // log grande: guarda só o final
+      const st = fs.statSync(ARQ_LOG);
+      if (st.size > LOG_MAX) { const buf = fs.readFileSync(ARQ_LOG); fs.writeFileSync(ARQ_LOG, buf.subarray(buf.length - LOG_MANTER)); logCortado = true; }
+    } catch (e) {}
+    // estado.json: esquece arquivos com mais de 5 dias (ele só serve para não reenviar o mesmo arquivo)
+    const est = lerEstado(), limite = Date.now() - DIAS_ENVIADOS * 24 * 3600 * 1000; let tirou = 0;
+    Object.keys(est).forEach(function (k) { if (Date.parse(est[k]) < limite) { delete est[k]; tirou++; } });
+    if (tirou) salvarEstado(est);
+    const mb = (a.bytes + b.bytes) / 1048576;
+    if (a.n || b.n || logCortado) log("Limpeza: " + a.n + " relatório(s) com mais de " + DIAS_ENVIADOS + " dias e " + b.n + " print(s) de erro com mais de " + DIAS_ERROS + " dias apagados" + (logCortado ? ", log encurtado" : "") + " · " + mb.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " MB liberados");
+  } catch (e) { log("Limpeza não rodou: " + e.message); }
+}
+
 async function vigiar(cfg) {
   const pasta = cfg.PASTA;
   if (!pasta || !fs.existsSync(pasta)) throw new Error("Pasta não encontrada: " + pasta + " (confira PASTA no .env)");
@@ -196,6 +226,7 @@ async function vigiar(cfg) {
   const mover = String(cfg.MOVER_ENVIADOS || "sim").toLowerCase() !== "nao";
   const inicio = Date.now(), tamanhos = {}, estado = lerEstado();
   let ocupado = false;
+  limpeza(cfg); setInterval(function () { limpeza(cfg); }, 6 * 3600 * 1000);   // ao ligar e a cada 6 h
   log("Vigiando " + pasta + " · baixe os relatórios do WMS normalmente. Ctrl+C para parar.");
   await prepararIngest(cfg);
   // Com usuário do WMS no .env, o robô também baixa os relatórios sozinho.
