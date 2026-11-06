@@ -12,6 +12,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 | `tv/` | logo-vulcabras-cor.png (topo do telão; V colorido), logo-vulcabras.png, moldura-meta-batida.webp, comemoracao.mp3 |
 | `corrida/tN.gif` | Carros dos 6 times |
 | `robo/` | Robô que envia os relatórios do WMS ao banco sem abrir o site |
+| `docs/padrao-vulcabras/` | README do padrão visual (cores, fontes, medidas, componentes, PNGs em `img/`, esqueleto HTML) para quem cria página nova |
 
 ## Competição / Corrida Maluca
 - Conta em `calcularCompeticao` (index.html, com os filtros da tela). Versão de filtros fixos em `RegrasBlack.calcularCompeticao` (regras-black.js), usada pelo telão e pela planilha de pontos. Filtros fixos: último dia, turno Todos, separação+conferência, checkout+colmeia.
