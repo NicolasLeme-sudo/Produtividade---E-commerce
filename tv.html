@@ -414,7 +414,7 @@ function pistaHtml(c){
   function cards(lista){
     return lista.map(function(t){
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"', pm = t.meta ? Math.round(t.total/t.meta*100) : 0;
-      return '<div class="cr lt" data-k="c'+t.n+'"><div class="ct'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="l1"><i></i>Time 0'+t.n+' · '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
+      return '<div class="cr lt" data-k="c'+t.n+'"><div class="ct'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="l1"><i></i>Time '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
         '<div class="l2"><span>Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b></span><span><b>'+pm+'%</b> da meta</span></div></div></div>';
     }).join('');
   }
@@ -776,7 +776,7 @@ var faixaAtual = '';
 function renderFaixa(c, snap, dia, opRes){
   var itens = [];
   if (!MODO_OPERACAO) ordemPista(c).forEach(function(t){
-    if (t.total) itens.push('<span class="ti" style="--c:var('+t.cor.c+')"><i></i><b>Time 0'+t.n+' · '+t.cor.nome+'</b> <span class="v">'+fmt(t.total)+'</span> peças</span>');   // só o time, sem nome de pessoa
+    if (t.total) itens.push('<span class="ti" style="--c:var('+t.cor.c+')"><i></i><b>Time '+t.cor.nome+'</b> <span class="v">'+fmt(t.total)+'</span> peças</span>');   // só o time, sem nome de pessoa
   });
   var sep = 0, conf = 0;
   ['checkoutDia','colmeiaDia'].forEach(function(k){ sep += somaObj(itensDoDia(((snap||{}).separacao||{})[k], dia)); });
@@ -812,7 +812,7 @@ function mostraBaloes(){
     var b = filaBaloes.shift(), cor = TIMES_COR[b.n];
     if (!cor) continue;
     var el = document.createElement('div'); el.className = 'balao'; el.style.setProperty('--c', cor.hex);
-    el.innerHTML = '<div class="b1"><span><i></i>Time 0'+b.n+' · '+cor.nome+'</span><span class="bp">'+(b.pts > 0 ? '+' : '−')+fmt(Math.abs(b.pts))+' pts</span></div><div class="b2">'+esc(b.txt)+'</div>';
+    el.innerHTML = '<div class="b1"><span><i></i>Time '+cor.nome+'</span><span class="bp">'+(b.pts > 0 ? '+' : '−')+fmt(Math.abs(b.pts))+' pts</span></div><div class="b2">'+esc(b.txt)+'</div>';
     box.appendChild(el);
     setTimeout(function(e){ e.classList.add('sai'); setTimeout(function(){ e.remove(); mostraBaloes(); }, 400); }.bind(null, el), BALAO_MS);
   }
