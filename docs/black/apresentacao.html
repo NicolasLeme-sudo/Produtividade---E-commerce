@@ -7,7 +7,7 @@
 <script src="../../regras-black.js"></script>
 <style>
 :root{--navy:#031F44;--ink:#0B1626;--card:#16263C;--card2:#1D3048;--line:#2C4260;--fg:#F4F7FB;--muted:#93A5B8;--gold:#F6BD00;--red:#E03A4E;--steel:#4F6784;--sky:#A8D8F8;--green:#4CC38A;
-  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA}
+  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;--t7:#F28C28;--t8:#F2F2F2}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:#050C17;color:var(--fg);font-family:'Segoe UI',Tahoma,system-ui,sans-serif;overflow:hidden}
 #viewport{position:fixed;inset:0;overflow:hidden}
@@ -119,7 +119,7 @@ function col(n){ return Math.round(n * R.FATOR_COLMEIA); }
 function li(a){ return '<ul>' + a.map(function(x){ return '<li>' + x + '</li>'; }).join('') + '</ul>'; }
 function foot(t){ return '<div class="foot"><span>' + t + '</span><img class="vm" src="img/v-vulcabras.png" alt="Vulcabras"></div>'; }
 function slide(eb, titulo, corpo, rod){ return '<section class="slide"><div class="eyebrow">' + eb + '</div><h2>' + titulo + '</h2>' + corpo + foot(rod) + '</section>'; }
-var CORES = [['Vermelho','--t1'],['Azul','--t2'],['Verde','--t3'],['Amarelo','--t4'],['Rosa','--t5'],['Roxo','--t6']];
+var CORES = [['Vermelho','--t1'],['Azul','--t2'],['Verde','--t3'],['Amarelo','--t4'],['Laranja','--t7'],['Branco','--t8'],['Rosa','--t5'],['Roxo','--t6']];
 function chips(lista){ return '<div class="chips">' + lista.map(function(c){ return '<span class="chip" style="--c:var(' + c[1] + ')"><i></i>' + c[0] + '</span>'; }).join('') + '</div>'; }
 var RODAPE = 'Missão Black 2026 · 27 a 30 de novembro';
 
@@ -140,33 +140,30 @@ S.push(slide('Visão geral', 'Do aquecimento ao <em>time campeão</em>',
   '<div class="tl">' + MARCOS.map(function(m, k){
     return '<div class="tl-m' + (k > 0 && k < 4 ? ' on' : '') + '"><span class="tl-d">' + m[0] + '<small>' + m[1] + '</small></span><div class="tl-p"><i></i></div><h3>' + m[2] + '</h3>' + li(m[3]) + '</div>';
   }).join('') + '</div>' +
-  '<p class="lead">Três dias de competição entre <b>6 times: 4 no checkout e 2 na colmeia, em cada turno</b>. Os pontos de cada dia são apurados <b>na manhã seguinte</b>.</p>',
+  '<p class="lead">Três dias de competição entre <b>8 times: 4 no checkout (um por andar), 2 no vestuário e 2 na colmeia, em cada turno</b>. Os pontos de cada dia são apurados <b>na manhã seguinte</b>.</p>',
   RODAPE));
 
 // 3 · a campanha
 S.push(slide('A campanha', 'Um time de cada cor, <em>em cada turno</em>',
   '<div class="two"><div class="stack">' +
-    Object.keys(R.TURNOS).map(function(k){ var t = R.TURNOS[k].rot.split(' · '); return '<div class="pill"><span>' + t[0] + '</span><b>' + t[1] + '</b></div>'; }).join('') +
+    Object.keys(R.TURNOS).filter(function(k){ return R.META_TURNO[k]; }).map(function(k){ var t = R.TURNOS[k].rot.split(' · '); return '<div class="pill"><span>' + t[0] + '</span><b>' + t[1] + '</b></div>'; }).join('') +
   '</div><div class="stack">' +
-    '<div class="lev"><div class="n">4</div><div><h3>Times no checkout</h3><p>Separadores e conferentes em cada time. <b>Checkout disputa com checkout.</b></p><div style="margin-top:16px">' + chips(CORES.slice(0,4)) + '</div></div></div>' +
-    '<div class="lev"><div class="n">2</div><div><h3>Times na colmeia</h3><p>Mesma divisão. <b>Colmeia disputa com colmeia</b>, com meta e pontos fixos proporcionais (×' + String(R.FATOR_COLMEIA).replace('.',',') + ').</p><div style="margin-top:16px">' + chips(CORES.slice(4)) + '</div></div></div>' +
+    '<div class="lev"><div class="n">4</div><div><h3>Times no checkout</h3><p>Um time por andar, com separadores e conferentes. <b>Checkout disputa com checkout.</b></p><div style="margin-top:12px">' + chips(CORES.slice(0,4)) + '</div></div></div>' +
+    '<div class="lev"><div class="n">2</div><div><h3>Times no vestuário</h3><p>Uma caixa cada e metade da separação. <b>Vestuário disputa com vestuário.</b></p><div style="margin-top:12px">' + chips(CORES.slice(4,6)) + '</div></div></div>' +
+    '<div class="lev"><div class="n">2</div><div><h3>Times na colmeia</h3><p><b>Colmeia disputa com colmeia</b>, com pontos fixos proporcionais (×' + String(R.FATOR_COLMEIA).replace('.',',') + ').</p><div style="margin-top:12px">' + chips(CORES.slice(6)) + '</div></div></div>' +
   '</div></div>',
   RODAPE));
 
-// 3b · metas (oficiais por turno e atividade → meta do time, em regras-black.js META_TURNO)
-var MT = R.META_TURNO, f0 = function(v){ return '<b>' + fmt(v[0]) + '</b><small class="mp">' + v[1] + ' pessoas</small>'; };
-var METAS = [['T01 · 05h00–14h48','8h48',[11000,21],[7000,21],[4000,18],MT['1º Turno']],
-  ['T02 · 14h48–00h16','8h28',[8000,16],[5000,15],[3000,13],MT['2º Turno']],
-  ['ADM · 07h55–17h33','8h38',null,null,null,MT['ADM']]];
+// 3b · metas (planilha "Divisão black" → meta do time, em regras-black.js META_TURNO; mesma meta para o grupo todo)
+var MT = R.META_TURNO;
+var METAS = [['T01 · 05h00–14h48','8h48',12600,4000,MT['1º Turno']], ['T02 · 14h48–00h16','8h28',8400,3000,MT['2º Turno']]];
 S.push(slide('Metas', 'Meta do dia <em>por turno e por time</em>',
-  '<table class="cmp mt"><tr><th>Turno</th><th>Horas trabalhadas</th><th>Separação</th><th>Conf. Single</th><th>Conf. Multi</th><th>Time checkout</th><th>Time colmeia</th></tr>' +
-    METAS.map(function(m){ return '<tr><td><b>' + m[0] + '</b></td><td>' + m[1] + '</td>' +
-      [m[2], m[3], m[4]].map(function(v){ return '<td>' + (v ? f0(v) : '<span style="color:var(--muted)">—</span>') + '</td>'; }).join('') +
-      '<td class="hl">' + fmt(m[5].piso) + '</td><td class="hl">' + fmt(m[5].colmeia) + '</td></tr>'; }).join('') +
-    '<tr class="tot"><td>Dia</td><td></td><td>' + fmt(19000) + '</td><td>' + fmt(12000) + '</td><td>' + fmt(7000) + '</td><td colspan="2" style="color:var(--muted);font-weight:400">sep. 19.000 · conf. 19.000</td></tr>' +
+  '<table class="cmp mt"><tr><th>Turno</th><th>Horas trabalhadas</th><th>Separação do turno</th><th>Conferência por caixa</th><th>Colmeia</th><th>Time checkout</th><th>Time vestuário</th><th>Time colmeia</th></tr>' +
+    METAS.map(function(m){ return '<tr><td><b>' + m[0] + '</b></td><td>' + m[1] + '</td><td><b>' + fmt(m[2]) + '</b></td><td><b>' + fmt(1200) + '</b><small class="mp">vestuário ' + fmt(800) + '</small></td><td><b>' + fmt(m[3]) + '</b></td>' +
+      '<td class="hl">' + fmt(m[4].checkout) + '</td><td class="hl">' + fmt(m[4].vestuario) + '</td><td class="hl">' + fmt(m[4].colmeia) + '</td></tr>'; }).join('') +
   '</table>' +
-  '<p class="nota">Horas sem o almoço/janta. <b>Checkout</b> (times 1–4) = Separação + Conferência Single ÷ 4 · <b>Colmeia</b> (times 5–6) = Conferência Multi ÷ 2. ' +
-  'ADM: proporcional ao 1º turno pelas pessoas (16) e horas. Por pessoa e hora: separação ≈ 59 · conf. single ≈ 38 · conf. multi ≈ 26 peças.</p>',
+  '<p class="nota">Horas sem o almoço/janta. Mesma meta para todos os times do grupo. <b>Separação</b> do turno ÷ 5 áreas (4 andares + confecção; a confecção é dividida entre os 2 times do vestuário) + a conferência da caixa do time. ' +
+  '<b>Colmeia</b> = meta da colmeia ÷ 2. Piso com 2ª caixa: cada conferente conta 0,5 por peça.</p>',
   'Meta do time = peças de separação + conferência dos membros no dia'));
 
 // 4 · cronograma e atrações

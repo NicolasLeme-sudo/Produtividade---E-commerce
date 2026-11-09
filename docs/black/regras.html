@@ -101,17 +101,18 @@ var perde = [
 function lista(itens){ return '<ul class="lista">'+itens.map(function(i){ return '<li><span>'+i[0]+'</span><b>'+i[1]+'</b></li>'; }).join('')+'</ul>'; }
 var pg1 = '<section class="folha">'+topo('Missão Black Friday 2026 · 27, 28 e 29/11', 'Como o seu time pontua')+
   '<div class="corpo">'+
-    '<p class="apoio">São 4 times no checkout e 2 na colmeia, em cada turno. Produtividade, presença, desafios e organização valem pontos. A corrida dos times aparece ao vivo no telão; os pontos de cada dia são apurados na manhã seguinte.</p>'+
+    '<p class="apoio">São 8 times em cada turno: 4 no checkout (um por andar), 2 no vestuário e 2 na colmeia; cada grupo disputa só com o próprio grupo. Produtividade, presença, desafios e organização valem pontos. A corrida dos times aparece ao vivo no telão; os pontos de cada dia são apurados na manhã seguinte.</p>'+
     '<div class="duas"><div class="caixa ganha"><h3>Seu time ganha</h3>'+lista(ganha)+'</div><div class="caixa perde"><h3>Seu time perde</h3>'+lista(perde)+'</div></div>'+
     '<div class="ouro"><span class="sel">2×</span><div><p class="kicker" style="margin-bottom:2px">Hora que vale ouro</p><p>Anunciada de surpresa no telão. Se o time bater a meta daquela hora, <strong>todas as peças da hora valem o dobro</strong>. Só vale com qualidade e segurança.</p></div></div>'+
     '<p class="nota">Colmeia: os valores fixos valem '+fmt(R.FATOR_COLMEIA*100)+'% (a meta da colmeia é menor). A vistoria passa em horários aleatórios e o desconto é lançado na hora. Todo ponto lançado fica registrado com horário, motivo e quem lançou; dúvidas, fale com o líder do turno.</p>'+
   '</div>'+rodape('1')+'</section>';
 
 // ---------- Página 2: regulamento ----------
-var turnos = Object.keys(R.TURNOS).map(function(k){ return R.TURNOS[k].rot; }).join(' · ');
-var tabPontos = '<table><thead><tr><th>Bloco</th><th>Como conta</th><th class="num">Checkout</th><th class="num">Colmeia</th></tr></thead><tbody>'+
+var turnos = Object.keys(R.TURNOS).filter(function(k){ return R.META_TURNO[k]; }).map(function(k){ return R.TURNOS[k].rot; }).join(' · ');
+var M1 = R.META_TURNO['1º Turno'], M2 = R.META_TURNO['2º Turno'];
+var tabPontos = '<table><thead><tr><th>Bloco</th><th>Como conta</th><th class="num">Checkout e vestuário</th><th class="num">Colmeia</th></tr></thead><tbody>'+
   [['Produtividade','Cada peça separada ou conferida pelos membros do time no dia', P.porPeca+'/peça', P.porPeca+'/peça'],
-   ['Meta do dia','Total do time ≥ meta (checkout 2.000 · colmeia 1.200 peças)', sinal(P.metaBatida), sinal(col(P.metaBatida))],
+   ['Meta do dia','Total do time ≥ meta (T01: checkout '+fmt(M1.checkout)+' · vestuário '+fmt(M1.vestuario)+' · colmeia '+fmt(M1.colmeia)+' · T02: '+fmt(M2.checkout)+' · '+fmt(M2.vestuario)+' · '+fmt(M2.colmeia)+' peças)', sinal(P.metaBatida), sinal(col(P.metaBatida))],
    ['Meta antecipada','Por hora trabalhada entre a batida da meta e o fim do turno, contando os minutos; o almoço não conta', sinal(P.antecipadaHora)+'/h', sinal(col(P.antecipadaHora))+'/h'],
    ['Hora que vale ouro','Peças da hora contam em dobro se o time bater a meta da hora','2× peças','2× peças'],
    ['Assiduidade','Time todo presente; cada ausência tira a parte da pessoa', 'até '+fmt(P.assiduidadeMax), 'até '+fmt(col(P.assiduidadeMax))],
@@ -127,7 +128,7 @@ var cal = '<table><thead><tr><th>Dia</th><th>Tema</th><th>Desafios ('+fmt(R.PONT
 // ---------- Página 3: vistoria, exemplo e auditoria ----------
 var porGrav = {};
 R.CHECKLIST.forEach(function(c){ (porGrav[c.grav] = porGrav[c.grav] || []).push(c.item); });
-var tabVis = '<table><thead><tr><th>Gravidade</th><th>Itens observados</th><th class="num">Piso</th><th class="num">Colmeia</th></tr></thead><tbody>'+
+var tabVis = '<table><thead><tr><th>Gravidade</th><th>Itens observados</th><th class="num">Checkout e vestuário</th><th class="num">Colmeia</th></tr></thead><tbody>'+
   Object.keys(gravs).map(function(g){ return '<tr><td><b>'+gravs[g].rot+'</b></td><td>'+(porGrav[g]||[]).join('<br>')+'</td><td class="num neg">'+sinal(gravs[g].pts)+'</td><td class="num neg">'+sinal(col(gravs[g].pts))+'</td></tr>'; }).join('')+
   '<tr><td><b>Sem apontamento</b></td><td>Vistoria do dia sem nenhum item marcado</td><td class="num pos">'+sinal(P.vistoriaLimpa)+'</td><td class="num pos">'+sinal(col(P.vistoriaLimpa))+'</td></tr></tbody></table>';
 var ex = [['Produtividade','2.200 peças',2200],['Assiduidade','9 de 10 presentes, 1 atraso',430],['Desafios','Grito da equipe',100],['Vistoria','1 caixa aberta no picking',-50],

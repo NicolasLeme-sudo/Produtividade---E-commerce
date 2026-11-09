@@ -18,7 +18,7 @@ var TURNOS = {
   'ADM':      { ini: 7 * 60 + 55, fim: 17 * 60 + 33, almoco: [12 * 60 + 15, 13 * 60 + 15], rot: 'ADM · 07h55–17h33' }
 };
 
-// Pontos do piso (meta 2.000 peças/dia). A colmeia (meta 1.200) recebe os fixos × FATOR_COLMEIA.
+// Pontos fixos iguais para checkout e vestuário. A colmeia recebe os fixos × FATOR_COLMEIA.
 var FATOR_COLMEIA = 0.6;
 var P = {
   porPeca: 1,             // cada peça separada ou conferida
@@ -72,7 +72,7 @@ var GINCANAS_DESC = {
   'Grito de guerra do time': 'Cada time cria e apresenta o seu grito de guerra.'
 };
 
-function fator(time) { return time >= 5 ? FATOR_COLMEIA : 1; }   // times 5 e 6 = colmeia
+function fator(time) { return TIMES_COLMEIA[time] ? FATOR_COLMEIA : 1; }   // times 5 e 6 = colmeia
 function pts(valor, time) { return Math.round(valor * fator(time)); }
 function isoLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
@@ -91,16 +91,16 @@ function turnoAtual(agora, comAdm) {
 
 // Peças por hora (0–23) de cada membro, a partir dos analíticos do snapshot outbound.
 // chaves = { sep_checkout:'NOME.X', sep_colmeia:..., conf_checkout:... } (as achadas pela conta da competição).
-function horasDoMembro(snap, dia, chaves) {
+function horasDoMembro(snap, dia, chaves, fatores) {
   var h = new Array(24).fill(0), s = snap || {};
   [['separacao', 'checkout', 'sep_checkout'], ['separacao', 'colmeia', 'sep_colmeia'], ['conferencia', 'checkout', 'conf_checkout']].forEach(function (f) {
-    var k = chaves && chaves[f[2]];
+    var k = chaves && chaves[f[2]], fx = (fatores && fatores[f[2]]) || 1;
     if (!k) return;
     ((s[f[0]] || {}).analitico || []).forEach(function (d) {
       if (String(d.data).slice(0, 10) !== dia) return;
       var porUsu = d[f[1]] || {};
       Object.keys(porUsu).forEach(function (u) {
-        if (chaveUsu(u) === k) (porUsu[u] || []).forEach(function (v, i) { h[i] += v || 0; });
+        if (chaveUsu(u) === k) (porUsu[u] || []).forEach(function (v, i) { h[i] += (v || 0) * fx; });
       });
     });
   });
@@ -111,30 +111,51 @@ function chaveUsu(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/
 /* ---------- Conta da competição (filtros fixos: separação + conferência, checkout + colmeia) ----------
    Usada pelo telão (Corrida) e pela planilha "Extrair descontos e adições" (ingest.js).
    O index.html tem a versão dele, com os filtros da tela. */
-var NUM_TIMES = [1, 2, 3, 4, 5, 6], TIMES_COLMEIA = { 5: true, 6: true };
-// Meta do time por dia, por turno (peças de separação + conferência). Base (05/11): metas oficiais da Black
-// (19.000 sep. e 19.000 conf. por dia) segmentadas por atividade:
-//   1º turno: Separação 11.000 (21 pessoas) · Conf. Single 7.000 (21) · Conf. Multi 4.000 (18)
-//   2º turno: Separação  8.000 (16 pessoas) · Conf. Single 5.000 (15) · Conf. Multi 3.000 (13)
-// Piso (times 1–4) = Separação + Conf. Single ÷ 4 · Colmeia (times 5–6) = Conf. Multi ÷ 2.
-// ADM (16 pessoas, 8h38 sem almoço; fora da tabela oficial) = meta do 1º turno × 16/60 pessoas × 8h38/8h48,
-// arredondada para cima de 50 em 50.
+// Três corridas separadas (cada uma com o seu 1º, 2º…): Checkout (um time por andar), Vestuário e Colmeia.
+var GRUPOS = [
+  { id: 'checkout',  rot: 'Checkout',  times: [1, 2, 3, 4] },
+  { id: 'vestuario', rot: 'Vestuário', times: [7, 8] },
+  { id: 'colmeia',   rot: 'Colmeia',   times: [5, 6] }
+];
+var NUM_TIMES = [1, 2, 3, 4, 5, 6, 7, 8], TIMES_COLMEIA = { 5: true, 6: true }, TIMES_VESTUARIO = { 7: true, 8: true };
+function grupoDoTime(n) { return TIMES_COLMEIA[n] ? 'colmeia' : TIMES_VESTUARIO[n] ? 'vestuario' : 'checkout'; }
+// Meta do time por dia, por turno (peças de separação + conferência). Base (09/11): planilha "Divisão black",
+// mesma meta para todos os times do grupo, independente da quantidade de pessoas (a escalação é igualada).
+//   Separação do turno (T01 12.600 · T02 8.400) ÷ 5 áreas (Confecção + 4 andares); a parte da Confecção
+//   é dividida entre os 2 times do vestuário. Conferência por caixa: andar 1.200 · vestuário 800.
+//   Checkout = 2.520 + 1.200 (T01) · 1.680 + 1.200 (T02) · Vestuário = 1.260 + 800 · 840 + 800
+//   Colmeia = meta da colmeia ÷ 2 (T01 4.000 · T02 3.000). Sem ADM na Black.
 var META_TURNO = {
-  '1º Turno': { piso: 4500, colmeia: 2000 },
-  '2º Turno': { piso: 3250, colmeia: 1500 },
-  'ADM':      { piso: 1200, colmeia: 550 }
+  '1º Turno': { checkout: 3720, vestuario: 2060, colmeia: 2000 },
+  '2º Turno': { checkout: 2880, vestuario: 1640, colmeia: 1500 }
 };
+// Piso com 2 caixas de conferência: cada conferente desse time conta 0,5 por peça, para a soma das duas
+// caixas ficar na mesma régua dos outros andares. { turno: [times] } (posição ainda a confirmar).
+// Vale a partir do 1º dia da Black (antes disso o piso tem uma caixa só); dia = último dia da conta.
+var CAIXA_DUPLA = { '1º Turno': [4] }, FATOR_CAIXA_DUPLA = 0.5, CAIXA_DUPLA_DESDE = DIAS[0][0];
+function fatorConf(r, dia) {
+  if (!dia || dia < CAIXA_DUPLA_DESDE) return 1;
+  var l = CAIXA_DUPLA[r && r.turno];
+  return l && l.indexOf(r.time) !== -1 && !/^sep/.test(r.atividade) ? FATOR_CAIXA_DUPLA : 1;
+}
 // Meta do time n somando os turnos do filtro (um turno = a meta dele; "Todos" = soma dos turnos da escalação).
 function metaDoTime(n, turnos) {
   var lista = (turnos && turnos.length ? turnos : ['1º Turno']).filter(function (t) { return META_TURNO[t]; });
   if (!lista.length) lista = ['1º Turno'];
-  return lista.reduce(function (s, t) { return s + META_TURNO[t][TIMES_COLMEIA[n] ? 'colmeia' : 'piso']; }, 0);
+  return lista.reduce(function (s, t) { return s + META_TURNO[t][grupoDoTime(n)]; }, 0);
+}
+// Meta da hora de ouro: o lançamento traz piso e colmeia; o vestuário usa a do piso na proporção das metas do dia.
+function metaOuro(g, n, turno) {
+  if (TIMES_COLMEIA[n]) return g.meta_colmeia;
+  if (!TIMES_VESTUARIO[n]) return g.meta_piso;
+  var M = META_TURNO[turno] || META_TURNO['1º Turno'];
+  return Math.round(g.meta_piso * M.vestuario / M.checkout);
 }
 function turnosDoCadastro(cadastro) {
   var v = {}; (cadastro || []).forEach(function (r) { if (r.turno) v[r.turno] = 1; });
   return Object.keys(v);
 }
-var META_DIA_TIME = { 1: metaDoTime(1), 2: metaDoTime(2), 3: metaDoTime(3), 4: metaDoTime(4), 5: metaDoTime(5), 6: metaDoTime(6) };   // 1º turno (compatibilidade)
+var META_DIA_TIME = {}; NUM_TIMES.forEach(function (n) { META_DIA_TIME[n] = metaDoTime(n); });   // 1º turno (compatibilidade)
 var CONECTIVOS = ['DE', 'DA', 'DO', 'DAS', 'DOS', 'E'];
 function chavesDoMembro(r) {
   var ks = [chaveUsu(r.usuario_wms), chaveUsu(r.nome)];
@@ -159,7 +180,8 @@ function opsDoCadastro(r) { return (!r.lider && (TIMES_COLMEIA[r.time] || obsCol
 function calcularCompeticao(snap, cadastro, diaAlvo) {
   var ops = ['checkout', 'colmeia'], grupos = ['sep', 'conf'], prod = {};
   ['sep_checkout', 'sep_colmeia', 'conf_checkout', 'conf_colmeia'].forEach(function (f) { prod[f] = producaoDaFonte(snap, f, diaAlvo); });
-  var times = NUM_TIMES.map(function (n) { return { n: n, colmeia: !!TIMES_COLMEIA[n], membros: new Map() }; });
+  var diaRef = diaAlvo || Object.keys(prod).reduce(function (d, f) { return prod[f].datas.reduce(function (a, x) { return x > a ? x : a; }, d); }, '');
+  var times = NUM_TIMES.map(function (n) { return { n: n, colmeia: !!TIMES_COLMEIA[n], grupo: grupoDoTime(n), membros: new Map() }; });
   var linhas = (cadastro || []).filter(function (r) { return times[r.time - 1]; });
   var exatos = {}; linhas.forEach(function (r) { exatos[chaveUsu(r.usuario_wms)] = r.usuario_wms; });
   function achar(r, mapa) { var achada = null; chavesDoMembro(r).some(function (k, i) { if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false; if (mapa.has(k)) { achada = k; return true; } return false; }); return achada; }
@@ -167,19 +189,20 @@ function calcularCompeticao(snap, cadastro, diaAlvo) {
   linhas.forEach(function (r) { var k = r.usuario_wms + '|' + grupoDoCadastro(r); if (!porCadastro.has(k)) porCadastro.set(k, r); });
   porCadastro.forEach(function (r) {
     var t = times[r.time - 1], g = grupoDoCadastro(r);
-    var m = t.membros.get(r.usuario_wms) || { usuario: r.usuario_wms, nome: r.nome, sep: 0, conf: 0, grupos: {}, chaves: {} };
+    var m = t.membros.get(r.usuario_wms) || { usuario: r.usuario_wms, nome: r.nome, sep: 0, conf: 0, grupos: {}, chaves: {}, fator: {} };
     m.grupos[g] = true;
-    opsDoCadastro(r).forEach(function (o) { var f = g + '_' + o, k = achar(r, prod[f].valores); if (k) { m[g] += prod[f].valores.get(k) || 0; m.chaves[f] = k; } });
+    var fx = g === 'conf' ? fatorConf(r, diaRef) : 1;   // 2ª caixa do piso: conferência vale 0,5
+    opsDoCadastro(r).forEach(function (o) { var f = g + '_' + o, k = achar(r, prod[f].valores); if (k) { m[g] += (prod[f].valores.get(k) || 0) * fx; m.chaves[f] = k; if (fx !== 1) m.fator[f] = fx; } });
     if (r.lider && !t.membros.has(r.usuario_wms) && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
     t.membros.set(r.usuario_wms, m);
   });
   var datas = {};
   times.forEach(function (t) {
-    t.lista = Array.from(t.membros.values()).filter(function (m) { return m.grupos.sep || m.grupos.conf; }).map(function (m) { m.valor = m.sep + m.conf; return m; }).sort(function (a, b) { return b.valor - a.valor; });
+    t.lista = Array.from(t.membros.values()).filter(function (m) { return m.grupos.sep || m.grupos.conf; }).map(function (m) { m.sep = Math.round(m.sep); m.conf = Math.round(m.conf); m.valor = m.sep + m.conf; return m; }).sort(function (a, b) { return b.valor - a.valor; });
     t.sep = t.lista.reduce(function (s, m) { return s + m.sep; }, 0); t.conf = t.lista.reduce(function (s, m) { return s + m.conf; }, 0); t.total = t.sep + t.conf;
   });
   grupos.forEach(function (g) { ops.forEach(function (o) { prod[g + '_' + o].datas.forEach(function (d) { datas[d] = 1; }); }); });
-  [times.filter(function (t) { return !t.colmeia; }), times.filter(function (t) { return t.colmeia; })].forEach(function (gr) {
+  GRUPOS.map(function (G) { return times.filter(function (t) { return t.grupo === G.id; }); }).forEach(function (gr) {
     gr.slice().sort(function (a, b) { return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.total - a.total; }).forEach(function (t, i) { t.pos = t.lista.length ? i + 1 : null; });
   });
   var dias = Math.max(1, Object.keys(datas).length);
@@ -215,7 +238,8 @@ function minutoDaMeta(snap, dia, turno, t) {
       if (!k) return;
       Object.keys(porUsu).forEach(function (u) {
         if (chaveUsu(u) !== k) return;
-        (porUsu[u] || []).forEach(function (par) { if (desloc === 0 || par[0] < 120) eventos.push([par[0] + desloc, par[1]]); });
+        var fx = (m.fator && m.fator[chaveFonte]) || 1;
+        (porUsu[u] || []).forEach(function (par) { if (desloc === 0 || par[0] < 120) eventos.push([par[0] + desloc, par[1] * fx]); });
       });
     });
   }
@@ -233,7 +257,8 @@ function minutoDaMeta(snap, dia, turno, t) {
     t.lista.forEach(function (m) {
       var k = m.chaves && m.chaves.conf_colmeia;
       if (!k) return;
-      Object.keys(mk[1] || {}).forEach(function (u) { if (chaveUsu(u) === k) tot += mk[1][u] || 0; });
+      var fx = (m.fator && m.fator.conf_colmeia) || 1;
+      Object.keys(mk[1] || {}).forEach(function (u) { if (chaveUsu(u) === k) tot += (mk[1][u] || 0) * fx; });
     });
     marcas.push([mk[0], tot]);
   });
@@ -261,12 +286,12 @@ function placarDoDia(o) {
   var agoraMin = o.agora ? o.agora.getHours() * 60 + o.agora.getMinutes() : 24 * 60;
   var times = c.times.filter(function (t) { return t.lista.length || (o.cadastro || []).some(function (r) { return r.time === t.n; }); });
 
-  // destaques: top separador e top conferente do turno, em cada grupo (piso / colmeia)
+  // destaques: top separador e top conferente do turno, em cada grupo (checkout / vestuário / colmeia)
   var destaques = {};
-  [false, true].forEach(function (colmeia) {
+  GRUPOS.forEach(function (G) {
     ['sep', 'conf'].forEach(function (g) {
       var top = null;
-      times.filter(function (t) { return t.colmeia === colmeia; }).forEach(function (t) {
+      times.filter(function (t) { return t.grupo === G.id; }).forEach(function (t) {
         t.lista.forEach(function (m) { if (m[g] > 0 && (!top || m[g] > top.m[g])) top = { t: t.n, m: m }; });
       });
       if (top) (destaques[top.t] = destaques[top.t] || []).push({ funcao: g === 'sep' ? 'Separação' : 'Conferência', nome: top.m.nome || top.m.usuario, pecas: top.m[g] });
@@ -277,10 +302,10 @@ function placarDoDia(o) {
     var n = t.n;
     // horas do time (soma dos membros); se o analítico não cobre tudo (ex.: conferência colmeia), escala para o total do dia
     var horas = new Array(24).fill(0);
-    t.lista.forEach(function (m) { horasDoMembro(o.snap, dia, m.chaves).forEach(function (v, i) { horas[i] += v; }); });
+    t.lista.forEach(function (m) { horasDoMembro(o.snap, dia, m.chaves, m.fator).forEach(function (v, i) { horas[i] += v; }); });
     var somaH = horas.reduce(function (a, b) { return a + b; }, 0), esc = somaH && t.total > somaH ? t.total / somaH : 1;
 
-    var r = { n: n, cor: t.cor, colmeia: t.colmeia, pecas: t.total, meta: t.meta, detalhe: [] };
+    var r = { n: n, cor: t.cor, colmeia: t.colmeia, grupo: t.grupo, pecas: t.total, meta: t.meta, detalhe: [] };
     r.produtividade = Math.round(t.total * P.porPeca);
 
     // meta batida + antecipada: +antecipadaHora por hora antes do fim do turno, contando os minutos.
@@ -300,7 +325,7 @@ function placarDoDia(o) {
     // hora de ouro: peças da hora valem 2× se o time bater a meta da hora (só depois que a hora termina)
     r.ouro = 0; r.ouroDetalhe = [];
     (o.ouro || []).forEach(function (g) {
-      var meta = t.colmeia ? g.meta_colmeia : g.meta_piso, feitas = Math.round(horas[g.hora] * esc);
+      var meta = metaOuro(g, n, turno), feitas = Math.round(horas[g.hora] * esc);
       var terminou = !o.agora || dia < isoLocal(o.agora) || agoraMin >= (g.hora + 1) * 60;
       var bateu = terminou && feitas >= meta;
       if (bateu) r.ouro += feitas;
@@ -356,6 +381,7 @@ global.RegrasBlack = {
   DIAS: DIAS, TURNOS: TURNOS, P: P, FATOR_COLMEIA: FATOR_COLMEIA, GRAVIDADES: GRAVIDADES, CHECKLIST: CHECKLIST,
   DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
   placarDoDia: placarDoDia, minutosTrabalhados: minutosTrabalhados, acumulado: acumulado, isoLocal: isoLocal,
-  META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, metaDoTime: metaDoTime, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
+  META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, metaDoTime: metaDoTime, metaOuro: metaOuro, GRUPOS: GRUPOS, grupoDoTime: grupoDoTime,
+  NUM_TIMES: NUM_TIMES, TIMES_COLMEIA: TIMES_COLMEIA, TIMES_VESTUARIO: TIMES_VESTUARIO, CAIXA_DUPLA: CAIXA_DUPLA, fatorConf: fatorConf, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
 };
 })(typeof window !== 'undefined' ? window : globalThis);

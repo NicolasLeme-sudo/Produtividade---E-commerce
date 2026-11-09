@@ -43,6 +43,7 @@
   --t1:#EF5B5B; --t2:#4C95F0; --t3:#45C665; --t4:#F6C400;
   --t1-soft:#3A1A1E; --t2-soft:#16283F; --t3-soft:#173322; --t4-soft:#332B10;
   --t5:#EC4FA0; --t6:#A773EA; --t5-soft:#3A1530; --t6-soft:#281C3D;
+  --t7:#F28C28; --t8:#F2F2F2; --t7-soft:#3A2512; --t8-soft:#2C323D;
 }
 [data-tema="claro"] {
   --bg:#F3F4F7; --bg-card:#FFFFFF; --bg-sidebar:#132043; --bg-input:#F8F9FB;
@@ -54,6 +55,7 @@
   --t1:#D63A3A; --t2:#2F7DE1; --t3:#2FA84F; --t4:#E0B000;
   --t1-soft:#FBE6E6; --t2-soft:#E6F0FC; --t3-soft:#E3F4E8; --t4-soft:#FBF3D6;
   --t5:#D63384; --t6:#8A4FD1; --t5-soft:#FBE3EF; --t6-soft:#EFE6FB;
+  --t7:#E07A10; --t8:#8A94A3; --t7-soft:#FDEBD8; --t8-soft:#EEF0F3;
 }
 *, *::before, *::after { box-sizing:border-box; }
 html, body { height:100%; margin:0; }
@@ -321,7 +323,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   .kpi-2x{grid-column:auto;}
 }
 /* ---------- Competição ---------- */
-.comp-placar{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin-top:14px;}
+.comp-placar{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px;}
 .comp-nome-txt{min-width:0; line-height:1.25;}
 .comp-placar .comp-top{align-items:flex-start;}
 .comp-placar .comp-nome{align-items:flex-start;} .comp-placar .comp-dot{margin-top:3px;}
@@ -405,7 +407,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-trilho i{display:block; height:100%; background:var(--c); border-radius:7px;}
 .comp-barra b{text-align:right; font-variant-numeric:tabular-nums;}
 .comp-pct{display:inline-block; min-width:52px; margin-left:10px; font-weight:600; color:var(--text-muted);}
-.comp-equipes{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px;}
+.comp-equipes{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px;}
 .comp-eq{background:var(--bg-card); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-width:0;}
 .comp-eq-head{background:var(--cs); color:var(--c); font-weight:800; font-size:.78rem; padding:9px 12px; display:flex; justify-content:space-between;}
 .comp-eq ol{list-style:none; margin:0; padding:6px 0;}
@@ -1726,26 +1728,25 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 
 
   // ---------- Competição entre times ----------
-  // Times 01-04 são as equipes por piso; 05 e 06 são as equipes da Colmeia (só operação Colmeia).
+  // Times 01-04 são as equipes por andar (checkout); 07 e 08 são o vestuário (corrida própria);
+  // 05 e 06 são as equipes da Colmeia (só operação Colmeia).
   // Cada time tem líder (sem produção), separadores e conferentes; Embalagem e Embarque usam,
   // por enquanto, a produção da Conferência.
   var competicaoTimes = [];
   var compEstado = { turno:'Todos', atv:'ambos', ops:{ checkout:true, colmeia:true }, crit:'total', verTodos:{}, selHoras:{}, pPista:{}, rolagem:0 };
   var TIMES_COR = {
     1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'},
-    4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'}, 5:{nome:'Rosa', c:'--t5', s:'--t5-soft'}, 6:{nome:'Roxo', c:'--t6', s:'--t6-soft'}
+    4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'}, 5:{nome:'Rosa', c:'--t5', s:'--t5-soft'}, 6:{nome:'Roxo', c:'--t6', s:'--t6-soft'},
+    7:{nome:'Laranja', c:'--t7', s:'--t7-soft'}, 8:{nome:'Branco', c:'--t8', s:'--t8-soft'}
   };
-  var NUM_TIMES = [1,2,3,4,5,6];
-  var TIMES_COLMEIA = { 5:true, 6:true };
-  // Ordem dos cards e blocos na tela.
-  var ORDEM_CARDS = [1,2,3,4,5,6];
+  var NUM_TIMES = RegrasBlack.NUM_TIMES;
+  var TIMES_COLMEIA = RegrasBlack.TIMES_COLMEIA;
+  // Ordem dos cards e blocos na tela: checkout, vestuário e colmeia.
+  var ORDEM_CARDS = [1,2,3,4,7,8,5,6];
   function timesEmOrdem(c){ return ORDEM_CARDS.map(function(n){ return c.times[n-1]; }); }
-  // Mesma ordem da pista: equipes por piso e depois Colmeia, cada grupo do maior realizado para o menor.
-  function timesOrdemPista(c){
-    function ord(a,b){ return b.total - a.total || a.n - b.n; }
-    var piso = c.times.filter(function(t){ return !t.colmeia; }).sort(ord), col = c.times.filter(function(t){ return t.colmeia; }).sort(ord);
-    return piso.concat(col);
-  }
+  // Mesma ordem da pista: checkout, vestuário e colmeia, cada grupo do maior realizado para o menor.
+  function timesDoGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
+  function timesOrdemPista(c){ return [].concat.apply([], RegrasBlack.GRUPOS.map(function(g){ return timesDoGrupo(c, g.id); })); }
   var ROT_ATV = { sep:'Separação', conf:'Conferência', ambos:'Separação + Conferência' };
   var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque' };
   var CRIT_COMP = {
@@ -1827,7 +1828,8 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     var ops = opsSelecionadas(), grupos = gruposSelecionados();
     var prod = {};
     ['sep_checkout','sep_colmeia','conf_checkout','conf_colmeia','sep_geral'].forEach(function(f){ prod[f] = producaoDaFonte(f); });
-    var times = NUM_TIMES.map(function(n){ return { n:n, cor:TIMES_COR[n], colmeia:!!TIMES_COLMEIA[n], membros:new Map(), lideres:[], linhasPessoa:[] }; });
+    var diaRef = Object.keys(prod).reduce(function(d, f){ return (prod[f].datas || []).reduce(function(a, x){ return x > a ? x : a; }, d); }, '');   // último dia do filtro
+    var times = NUM_TIMES.map(function(n){ return { n:n, cor:TIMES_COR[n], colmeia:!!TIMES_COLMEIA[n], grupo:RegrasBlack.grupoDoTime(n), membros:new Map(), lideres:[], linhasPessoa:[] }; });
     var turnoSel = compEstado.turno;
     var linhas = competicaoTimes.filter(function(r){ return (turnoSel === 'Todos' || r.turno === turnoSel) && times[r.time-1]; });
     var exatos = {}; linhas.forEach(function(r){ exatos[chaveUsuario(r.usuario_wms)] = r.usuario_wms; });
@@ -1859,11 +1861,12 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, segSep:0, segConf:0, grupos:{}, atividades:{}, casados:[] };
       m.grupos[g] = true; m.atividades[String(r.atividade).replace(/_.*/,'')] = true;
       var opsR = opsDoCadastro(r).filter(function(o){ return ops.indexOf(o) !== -1; });
+      var fx = g === 'conf' ? RegrasBlack.fatorConf(r, diaRef) : 1;   // 2ª caixa do piso: conferência vale 0,5 a partir da Black (regras-black.js)
       opsR.forEach(function(o){
         var f = g+'_'+o, k = achar(r, prod[f].valores);
         if (!k) return;
         usadas[f].add(k);
-        m[g] += prod[f].valores.get(k) || 0;
+        m[g] += (prod[f].valores.get(k) || 0) * fx;
         if (k !== chaveUsuario(r.usuario_wms) && k !== chaveUsuario(r.nome) && m.casados.indexOf(k) === -1) m.casados.push(k);
       });
       // Tempo trabalhado: Separação usa o tempo geral quando conta as duas operações (sem somar horas sobrepostas).
@@ -1878,6 +1881,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       t.todosMembros = Array.from(t.membros.values());
       // Quem conta para o placar: membros de algum grupo do filtro de Atividade.
       t.lista = t.todosMembros.filter(function(m){ return grupos.some(function(g){ return m.grupos[g]; }); }).map(function(m){
+        m.sep = Math.round(m.sep); m.conf = Math.round(m.conf);
         m.valor = (grupos.indexOf('sep') !== -1 ? m.sep : 0) + (grupos.indexOf('conf') !== -1 ? m.conf : 0);
         m.seg = (grupos.indexOf('sep') !== -1 ? m.segSep : 0) + (grupos.indexOf('conf') !== -1 ? m.segConf : 0);
         return m;
@@ -1908,8 +1912,8 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       });
     }); });
     datasPeriodo = Object.keys(datasPeriodo).sort();
-    // Ranking separado para equipes por piso e equipes da Colmeia (metas diferentes).
-    [times.filter(function(t){ return !t.colmeia; }), times.filter(function(t){ return t.colmeia; })].forEach(function(grupo){
+    // Ranking separado por corrida: checkout, vestuário e colmeia (metas diferentes).
+    RegrasBlack.GRUPOS.map(function(G){ return times.filter(function(t){ return t.grupo === G.id; }); }).forEach(function(grupo){
       grupo.slice().sort(function(a,b){ return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.score - a.score; }).forEach(function(t, i){ t.pos = t.lista.length ? i+1 : null; });
     });
     var dias = Math.max(1, datasPeriodo.length);
@@ -2249,7 +2253,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 
   // ---------- pista de corrida: equipes por piso em cima, Colmeia embaixo, mesma linha de chegada ----------
   // Corredores (GIFs em /corrida): altura na raia e proporção largura/altura de cada um.
-  var CARROS = { 1:{h:34, ar:2.33}, 2:{h:40, ar:1.30}, 3:{h:40, ar:1.06}, 4:{h:25, ar:3.82}, 5:{h:38, ar:1.59}, 6:{h:32, ar:2.58} };
+  var CARROS = { 1:{h:34, ar:2.33}, 2:{h:40, ar:1.30}, 3:{h:40, ar:1.06}, 4:{h:25, ar:3.82}, 5:{h:38, ar:1.59}, 6:{h:32, ar:2.58}, 7:{h:38, ar:1.42}, 8:{h:44, ar:0.71} };
   var FUMACA_SVG = "<svg class=\"comp-fumaca\" viewBox=\"72 26 128 54\" aria-hidden=\"true\"><g class=\"corpo\"><clipPath id=\"fumaca-corte\"><path d=\"M199.0 78 L199.0 73.0 A5.6 5.6 0 0 0 190.0 72.0 A5.6 5.6 0 0 0 181.0 71.0 A5.6 5.6 0 0 0 172.0 70.0 A5.6 5.6 0 0 0 163.0 69.0 A5.7 5.7 0 0 0 154.0 67.5 A5.1 5.1 0 0 0 146.0 65.5 A5.5 5.5 0 0 0 139.0 60.0 A6.4 6.4 0 0 0 134.0 51.0 A6.7 6.7 0 0 0 128.0 42.0 A6.6 6.6 0 0 0 120.0 35.0 A6.7 6.7 0 0 0 110.0 31.0 A6.8 6.8 0 0 0 99.0 31.0 A6.7 6.7 0 0 0 89.0 35.0 A6.1 6.1 0 0 0 82.0 42.0 A6.1 6.1 0 0 0 78.0 51.0 A6.2 6.2 0 0 0 78.0 61.0 A5.9 5.9 0 0 0 81.0 70.0 A4.8 4.8 0 0 0 86.0 76.0 A2.8 2.8 0 0 0 90.0 78.0 Z\"/></clipPath><path d=\"M199.0 78 L199.0 73.0 A5.6 5.6 0 0 0 190.0 72.0 A5.6 5.6 0 0 0 181.0 71.0 A5.6 5.6 0 0 0 172.0 70.0 A5.6 5.6 0 0 0 163.0 69.0 A5.7 5.7 0 0 0 154.0 67.5 A5.1 5.1 0 0 0 146.0 65.5 A5.5 5.5 0 0 0 139.0 60.0 A6.4 6.4 0 0 0 134.0 51.0 A6.7 6.7 0 0 0 128.0 42.0 A6.6 6.6 0 0 0 120.0 35.0 A6.7 6.7 0 0 0 110.0 31.0 A6.8 6.8 0 0 0 99.0 31.0 A6.7 6.7 0 0 0 89.0 35.0 A6.1 6.1 0 0 0 82.0 42.0 A6.1 6.1 0 0 0 78.0 51.0 A6.2 6.2 0 0 0 78.0 61.0 A5.9 5.9 0 0 0 81.0 70.0 A4.8 4.8 0 0 0 86.0 76.0 A2.8 2.8 0 0 0 90.0 78.0 Z\" fill=\"#cdd5df\"/><g clip-path=\"url(#fumaca-corte)\"><path d=\"M199.0 78 L199.0 73.0 A5.6 5.6 0 0 0 190.0 72.0 A5.6 5.6 0 0 0 181.0 71.0 A5.6 5.6 0 0 0 172.0 70.0 A5.6 5.6 0 0 0 163.0 69.0 A5.7 5.7 0 0 0 154.0 67.5 A5.1 5.1 0 0 0 146.0 65.5 A5.5 5.5 0 0 0 139.0 60.0 A6.4 6.4 0 0 0 134.0 51.0 A6.7 6.7 0 0 0 128.0 42.0 A6.6 6.6 0 0 0 120.0 35.0 A6.7 6.7 0 0 0 110.0 31.0 A6.8 6.8 0 0 0 99.0 31.0 A6.7 6.7 0 0 0 89.0 35.0 A6.1 6.1 0 0 0 82.0 42.0 A6.1 6.1 0 0 0 78.0 51.0 A6.2 6.2 0 0 0 78.0 61.0 A5.9 5.9 0 0 0 81.0 70.0 A4.8 4.8 0 0 0 86.0 76.0 A2.8 2.8 0 0 0 90.0 78.0 Z\" fill=\"#fbfcfd\" transform=\"translate(-5 -6)\"/></g><path d=\"M199.0 78 L199.0 73.0 A5.6 5.6 0 0 0 190.0 72.0 A5.6 5.6 0 0 0 181.0 71.0 A5.6 5.6 0 0 0 172.0 70.0 A5.6 5.6 0 0 0 163.0 69.0 A5.7 5.7 0 0 0 154.0 67.5 A5.1 5.1 0 0 0 146.0 65.5 A5.5 5.5 0 0 0 139.0 60.0 A6.4 6.4 0 0 0 134.0 51.0 A6.7 6.7 0 0 0 128.0 42.0 A6.6 6.6 0 0 0 120.0 35.0 A6.7 6.7 0 0 0 110.0 31.0 A6.8 6.8 0 0 0 99.0 31.0 A6.7 6.7 0 0 0 89.0 35.0 A6.1 6.1 0 0 0 82.0 42.0 A6.1 6.1 0 0 0 78.0 51.0 A6.2 6.2 0 0 0 78.0 61.0 A5.9 5.9 0 0 0 81.0 70.0 A4.8 4.8 0 0 0 86.0 76.0 A2.8 2.8 0 0 0 90.0 78.0 Z\" fill=\"none\" stroke=\"#2c3340\" stroke-width=\"2.4\" stroke-linejoin=\"round\"/><path d=\"M126.1 45.1 A4.1 4.1 0 0 1 131.0 50.7\" fill=\"none\" stroke=\"#2c3340\" stroke-width=\"1.7\" stroke-linecap=\"round\"/><path d=\"M110.2 34.6 A4.1 4.1 0 0 1 117.3 36.4\" fill=\"none\" stroke=\"#2c3340\" stroke-width=\"1.7\" stroke-linecap=\"round\"/><path d=\"M91.6 37.4 A4.1 4.1 0 0 1 98.1 33.9\" fill=\"none\" stroke=\"#2c3340\" stroke-width=\"1.7\" stroke-linecap=\"round\"/><path d=\"M81.3 50.9 A3.7 3.7 0 0 1 83.2 44.5\" fill=\"none\" stroke=\"#2c3340\" stroke-width=\"1.7\" stroke-linecap=\"round\"/><path d=\"M83.3 67.8 A3.6 3.6 0 0 1 80.5 62.0\" fill=\"none\" stroke=\"#2c3340\" stroke-width=\"1.7\" stroke-linecap=\"round\"/></g><path d=\"M194 75.5 L112 75.5\" stroke=\"#9aa4b1\" stroke-width=\"1.4\" stroke-linecap=\"round\"/><path d=\"M180 72.5 L100 72.5\" stroke=\"#9aa4b1\" stroke-width=\"1.4\" stroke-linecap=\"round\"/><path d=\"M130 66 L92 66\" stroke=\"#9aa4b1\" stroke-width=\"1.4\" stroke-linecap=\"round\"/></svg>";
   function pistaHtml(c){
     function raias(lista){
@@ -2266,13 +2270,11 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
           '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>';
       }).join('');
     }
-    var piso = c.times.filter(function(t){ return !t.colmeia; }), col = c.times.filter(function(t){ return t.colmeia; });
     var totR = c.times.reduce(function(s,t){ return s + t.total; }, 0), totM = c.times.reduce(function(s,t){ return s + t.meta; }, 0);
     return '<div class="panel comp-pista"><div class="panel-head"><div><h4>Corrida Maluca das Equipes</h4></div></div>'+
       '<div class="comp-pista-grade">'+
         '<div class="comp-pista-hd"></div><div class="comp-pista-hd" style="text-align:center">Progresso da Corrida</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div>'+
-        '<div class="comp-pista-grupo">Equipes por piso</div>'+ raias(piso) +
-        '<div class="comp-pista-grupo">Colmeia</div>'+ raias(col) +
+        RegrasBlack.GRUPOS.map(function(g){ return '<div class="comp-pista-grupo">'+g.rot+'</div>'+ raias(timesDoGrupo(c, g.id)); }).join('') +
         '<div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div>'+
       '</div></div>';
   }
@@ -2302,7 +2304,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     });
   }
 
-  // Cards dos 6 times na mesma ordem da pista (piso e depois Colmeia, do maior realizado para o menor).
+  // Cards dos 8 times na mesma ordem da pista (checkout, vestuário e colmeia, do maior realizado para o menor).
   function placarHtml(c, crit){
     function vf(v){ return crit.pct ? Math.round(v)+'%' : fmt(Math.round(v)); }
     return '<div class="comp-placar">'+timesOrdemPista(c).map(function(t){
@@ -2319,7 +2321,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     }).join('')+'</div>';
   }
 
-  // Ranking em 18 blocos: Líderes, Conferentes e Separadores, cada faixa com os 6 times.
+  // Ranking em 24 blocos: Líderes, Conferentes e Separadores, cada faixa com os 8 times.
   function rankingTimesHtml(c){
     function bloco(t, chave, itens, rotuloQtde, valor, ehLider){
       var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';

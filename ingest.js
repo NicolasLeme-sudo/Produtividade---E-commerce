@@ -1758,8 +1758,10 @@ async function salvarMetaInventario() {
 // =========================================================================
 var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
 var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"]];
-var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Rosa", "--t5"], 6: ["Roxo", "--t6"] };
-var COMP_NUM_TIMES = [1, 2, 3, 4, 5, 6];
+var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Rosa", "--t5"], 6: ["Roxo", "--t6"], 7: ["Laranja", "--t7"], 8: ["Branco", "--t8"] };
+var COMP_NUM_TIMES = [1, 2, 3, 4, 7, 8, 5, 6];   // ordem das abas e listas: checkout, vestuário, colmeia
+// Grupo (corrida) de cada time, para os rótulos: times 5–6 colmeia, 7–8 vestuário.
+function grupoTimeRot(n) { return n === 5 || n === 6 ? "colmeia" : n === 7 || n === 8 ? "vestuário" : ""; }
 // Black Friday: presença de cada pessoa por dia, na mesma planilha dos times (uma coluna por dia).
 // P = presente · F = falta (atestado também conta como falta) · A = atraso.
 var COMP_DIAS_BLACK = [["2026-11-27", "27/11"], ["2026-11-28", "28/11"], ["2026-11-29", "29/11"]];
@@ -1772,10 +1774,10 @@ function presencaDeTexto(t) {
   if (/^(F|FALTA|FALTOU|AUSENTE|ATESTADO|AT|J|JUSTIFICADA)$/.test(n)) return "F";
   return null;
 }
-// Nome da aba = cor do time (Vermelho, Azul...). Devolve 1–6 ou null.
+// Nome da aba = cor do time (Vermelho, Azul... Laranja, Branco). Devolve 1–8 ou null.
 function timeDaAba(nome) {
   var n = normalizarTexto(nome);
-  for (var k = 1; k <= 6; k++) if (normalizarTexto(COMP_TIMES[k][0]) === n) return k;
+  for (var k = 1; k <= 8; k++) if (normalizarTexto(COMP_TIMES[k][0]) === n) return k;
   return null;
 }
 function linhaAbaTime(l) {
@@ -1796,7 +1798,8 @@ function planilhaPorCores(linhasPorTime) {
     ["Cada aba é um time: o nome da aba é a cor do time (não renomeie)."],
     ["Atividade: S = Separação · C = Conferência · C/S = faz as duas (uma linha só por pessoa). Também aceita Embalagem e Embarque."],
     ["Turno: " + COMP_TURNOS.join(", ")],
-    ["Piso: 1 a 4 (vazio na colmeia) · Observação: vazio ou Colmeia · Líder: S ou N"],
+    ["Piso: 1 a 4 (vazio na colmeia e no vestuário) · Observação: vazio ou Colmeia · Líder: S ou N"],
+    ["Times: Vermelho, Azul, Verde e Amarelo = checkout (um por andar) · Laranja e Branco = vestuário · Rosa e Roxo = colmeia"],
     ["Presença (27/11, 28/11, 29/11): P = presente · F = falta (atestado conta como falta) · A = atraso · vazio = ainda não lançado"],
   ]), "Legenda");
   return wb;
@@ -2057,7 +2060,7 @@ async function renderPontosBlack() {
   if (!pb.dia) { pb.dia = ta.dia; pb.turno = ta.turno; }
   var dias = RB.DIAS.map(function (d) { return [d[0], d[1] + " · " + d[2]]; });
   if (!RB.DIAS.some(function (d) { return d[0] === pb.dia; })) dias.unshift([pb.dia, fmtDataBRIngest(pb.dia) + " (teste)"]);
-  var times = COMP_NUM_TIMES.map(function (n) { return [n, COMP_TIMES[n][0] + (n >= 5 ? " (colmeia)" : "")]; });
+  var times = COMP_NUM_TIMES.map(function (n) { return [n, COMP_TIMES[n][0] + (grupoTimeRot(n) ? " (" + grupoTimeRot(n) + ")" : "")]; });
   var f = function (v) { return RB.pts(v, pb.time); };
 
   var rL = await supabaseClient.from("competicao_pontos").select("*").eq("dia", pb.dia).eq("turno", pb.turno).order("criado_em", { ascending: false });
@@ -2100,7 +2103,7 @@ async function renderPontosBlack() {
     linhaCampos(campo("Observação", '<input id="pb-vis-obs" placeholder="local, corredor, quem viu">') + '<button class="btn" id="pb-btn-vistoria">Lançar vistoria</button>') +
     tabelaLanc("vistoria"));
 
-  // Gincanas: mesmo valor para os 6 times (colmeia × fator)
+  // Gincanas: mesmo valor para os 8 times (colmeia × fator)
   var gincanas = (RB.DESAFIOS[pb.dia] || []).concat(RB.GINCANAS || [], ["Outra gincana"]);
   caixas.gincanas.innerHTML = cartao("gincanas", "Gincanas", seletores(false) +
     linhaCampos(campo("Gincana", '<select id="pb-desafio">' + opcoes(gincanas, gincanas[0]) + "</select>") +
@@ -2121,9 +2124,9 @@ async function renderPontosBlack() {
   for (var h = Math.floor(T.ini / 60); h < Math.ceil(T.fim / 60); h++) horas.push([h % 24, String(h % 24).padStart(2, "0") + "h00–" + String((h + 1) % 24).padStart(2, "0") + "h00"]);
   caixas.ouro.innerHTML = cartao("ouro", "Horas de Ouro", seletores(false) +
     linhaCampos(campo("Hora", '<select id="pb-ouro-hora">' + opcoes(horas, horas[0] && horas[0][0]) + "</select>") +
-      campo("Meta/h por time · piso", '<input id="pb-ouro-piso" type="number" value="260">') +
+      campo("Meta/h por time · checkout (vestuário na proporção)", '<input id="pb-ouro-piso" type="number" value="260">') +
       campo("Meta/h por time · colmeia", '<input id="pb-ouro-col" type="number" value="160">')) + '<div><button class="btn" id="pb-btn-ouro">Agendar</button></div>' +
-    (ouros.length ? '<div class="pb-ouros">' + ouros.map(function (o) { return "<span>" + String(o.hora).padStart(2, "0") + "h · piso " + o.meta_piso + " · colmeia " + o.meta_colmeia + ' <button class="btn ghost pb-ouro-del" data-id="' + o.id + '">Remover</button></span>'; }).join("") + "</div>" : ""));
+    (ouros.length ? '<div class="pb-ouros">' + ouros.map(function (o) { return "<span>" + String(o.hora).padStart(2, "0") + "h · checkout " + o.meta_piso + " · vestuário " + RB.metaOuro(o, 7, o.turno) + " · colmeia " + o.meta_colmeia + ' <button class="btn ghost pb-ouro-del" data-id="' + o.id + '">Remover</button></span>'; }).join("") + "</div>" : ""));
 
   // Eventos
   var aviso = function (k, t, c) { var a = document.getElementById("pb-status-" + k); if (a) { a.textContent = t; a.className = "upload-status" + (c ? " " + c : ""); } };
@@ -2162,8 +2165,8 @@ async function renderPontosBlack() {
     var nome = document.getElementById("pb-desafio").value, v = parseInt(document.getElementById("pb-des-pts").value, 10);
     if (!v) { aviso("gincanas", "Informe os pontos.", "pendente"); return; }
     var linhas = COMP_NUM_TIMES.map(function (n) { return { time: n, categoria: "desafio", item: nome, pontos: RB.pts(v, n), motivo: null }; });
-    if (!confirm("Lançar \"" + nome + "\" para os 6 times: " + v + " pontos no piso e " + RB.pts(v, 5) + " na colmeia?")) return;
-    gravar("gincanas", linhas, "✓ Gincana lançada para os 6 times.");
+    if (!confirm("Lançar \"" + nome + "\" para os 8 times: " + v + " pontos no checkout e no vestuário e " + RB.pts(v, 5) + " na colmeia?")) return;
+    gravar("gincanas", linhas, "✓ Gincana lançada para os 8 times.");
   });
   document.getElementById("pb-btn-ajuste").addEventListener("click", function () {
     var v = parseInt(document.getElementById("pb-aj-pts").value, 10), m = document.getElementById("pb-aj-motivo").value.trim();
@@ -2229,7 +2232,7 @@ async function extrairPontosBlack() {
     (porTurno[turno] = porTurno[turno] || []).push(pl);
     var dBR = fmtDataBRIngest(dia);
     pl.linhas.forEach(function (x) {
-      abaTimes.push([dBR, turno, nomeTime(x.n), x.colmeia ? "Colmeia" : "Piso", x.pecas, x.meta, x.produtividade, x.escalados, x.presentes, x.atrasos, x.assiduidade,
+      abaTimes.push([dBR, turno, nomeTime(x.n), { checkout: "Checkout", vestuario: "Vestuário", colmeia: "Colmeia" }[x.grupo] || "Checkout", x.pecas, x.meta, x.produtividade, x.escalados, x.presentes, x.atrasos, x.assiduidade,
         x.desafios, x.segQual, x.metaBatida, x.minutoMeta == null ? "" : String(Math.floor(x.minutoMeta / 60) % 24).padStart(2, "0") + ":" + String(x.minutoMeta % 60).padStart(2, "0"),
         x.antecipada, x.ouro, x.destaque, x.ajustes, x.total]);
       x.ouroDetalhe.forEach(function (o) {
@@ -2298,7 +2301,7 @@ async function processarPlanilhaCompeticao(file, idx) {
     var atividades = atividadesDeTexto(textoAtv);
     var turno = turnoDeTexto(obterCampo(row, ["Turno"]) || (base && base.turno) || "");
     var piso = inteiroDe(obterCampo(row, ["Piso", "Andar"]), 1, 4);
-    var time = aba.time || inteiroDe(obterCampo(row, ["Time"]), 1, 6);
+    var time = aba.time || inteiroDe(obterCampo(row, ["Time"]), 1, 8);
     var obsTxt = normalizarTexto(obterCampo(row, ["Observação", "Observacao", "Obs"]));
     var observacao = (obsTxt.indexOf("COLMEIA") !== -1 || normalizarTexto(textoAtv).indexOf("COLMEIA") !== -1) ? "Colmeia" : null;
     var lider = /^(S|SIM|X|TRUE|1)$/.test(normalizarTexto(obterCampo(row, ["Líder", "Lider"])));

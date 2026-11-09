@@ -38,8 +38,8 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
   --bg:#0F1623;--bg-card:#192032;--bg-input:#1E2A3D;--border:#253048;--text:#E8EBF2;--text-muted:#7C8BA8;--text-label:#9BAAC4;
   --cc:#297ADF;--cc2:#7FB2EC;--cc-t:#fff;
   --accent:#297ADF;--accent-light:#7FB2EC;--olive:#45C645;--amber:#F6BD00;--orange:#F5A524;--red:#E0334F;
-  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;
-  --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;
+  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;--t7:#F28C28;--t8:#F2F2F2;
+  --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;--t7-soft:#3A2512;--t8-soft:#2C323D;
   background:var(--bg);color:var(--text);font-size:16px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}
 
 /* ---------- CSS da pista e dos cards: copiado do index.html (Competição) ---------- */
@@ -166,6 +166,29 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .comp-pista-g1{text-align:left;letter-spacing:.08em}
 .comp-un{font-size:15px;font-weight:600;color:var(--text-muted);margin-left:6px}
 .vazio{flex:1;display:grid;place-items:center;color:var(--text-muted);font-size:22px;text-align:center}
+/* Corrida: cada linha = nome · pista · realizado/meta · card do time (o card fica à direita, na altura do carro) */
+.cl{display:grid;grid-template-columns:150px minmax(0,1fr) 190px 330px;column-gap:14px;align-items:center}
+.cl.lt{position:relative;will-change:transform}
+.cl .comp-chegada{background-position:0 var(--cy,0px)}
+.ct{height:calc(var(--raia,60px) - 6px);display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 14px;border-radius:8px;
+  background:color-mix(in srgb,var(--c) 9%,var(--bg-input));border:1px solid var(--border);border-left:5px solid var(--c);min-width:0}
+.ct.lider{box-shadow:0 0 0 1px var(--c) inset}
+.ct .l1{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:800;white-space:nowrap}
+.ct .l1 i{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.ct .l1 .comp-pos{margin-left:auto;font-size:13px}
+.ct .l2{font-size:14px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ct .l2 b{color:var(--text);font-weight:700}.ct .l2 .pc{color:var(--c)}
+.cl .comp-pista-grupo{grid-column:1 / -1}
+/* Balões de acompanhamento (pontos ganhos/perdidos e meta batida): discretos, na cor do time, 10 s cada */
+#baloes{position:absolute;right:22px;bottom:70px;z-index:18;display:flex;flex-direction:column;gap:8px;width:380px;pointer-events:none}
+.balao{background:color-mix(in srgb,var(--c) 14%,var(--bg-card));border:1px solid color-mix(in srgb,var(--c) 40%,var(--border));border-left:5px solid var(--c);border-radius:9px;padding:7px 14px;box-shadow:0 10px 30px rgba(0,0,0,.45);animation:balaoEntra .35s ease-out both}
+.balao.sai{animation:balaoSai .4s ease-in both}
+.balao .b1{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:15px;font-weight:800;color:var(--text)}
+.balao .b1 span:first-child{display:inline-flex;align-items:center;gap:8px}.balao .b1 i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.balao .bp{font-size:18px;font-weight:900;color:var(--c);white-space:nowrap}
+.balao .b2{font-size:13px;color:var(--text-label);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes balaoEntra{from{opacity:0;transform:translateX(30px)}}
+@keyframes balaoSai{to{opacity:0;transform:translateX(30px)}}
+@media (prefers-reduced-motion:reduce){.balao,.balao.sai{animation:none}}
 
 /* ---------- telas B e D: KPIs, gráfico por hora e top 5 ---------- */
 .kpis{display:grid;gap:14px;margin-bottom:14px}
@@ -288,6 +311,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
     <section class="tela" id="telaE" data-titulo="Expedição" data-giro="90" data-fonte="operacao"></section>
     <section class="tela" id="telaD" data-titulo="Armazenagem" data-giro="60" data-fonte="inbound"></section>
   </div>
+  <div id="baloes" aria-live="polite"></div>
   <div class="loopbar"><i class="giro" id="barra" hidden></i><div class="loop" id="loop"></div></div>
   <div class="mold" id="mold">
     <div class="m-dim"></div>
@@ -341,9 +365,10 @@ function rotDia(dia){ var p = dia.split('-'), d = new Date(+p[0], +p[1]-1, +p[2]
 
 /* ================= TIMES (mesmos do index.html) ================= */
 var TIMES_COR = { 1:{nome:'Vermelho',c:'--t1',s:'--t1-soft',hex:'#EF5B5B'}, 2:{nome:'Azul',c:'--t2',s:'--t2-soft',hex:'#4C95F0'}, 3:{nome:'Verde',c:'--t3',s:'--t3-soft',hex:'#45C665',escuro:true},
-                  4:{nome:'Amarelo',c:'--t4',s:'--t4-soft',hex:'#F6C400',escuro:true}, 5:{nome:'Rosa',c:'--t5',s:'--t5-soft',hex:'#EC4FA0'}, 6:{nome:'Roxo',c:'--t6',s:'--t6-soft',hex:'#A773EA'} };
+                  4:{nome:'Amarelo',c:'--t4',s:'--t4-soft',hex:'#F6C400',escuro:true}, 5:{nome:'Rosa',c:'--t5',s:'--t5-soft',hex:'#EC4FA0'}, 6:{nome:'Roxo',c:'--t6',s:'--t6-soft',hex:'#A773EA'},
+                  7:{nome:'Laranja',c:'--t7',s:'--t7-soft',hex:'#F28C28',escuro:true}, 8:{nome:'Branco',c:'--t8',s:'--t8-soft',hex:'#F2F2F2',escuro:true} };
 var META_DIA_TIME = RegrasBlack.META_DIA_TIME;   // meta do 1º turno (regras-black.js META_TURNO)
-var CARROS = { 1:{h:34, ar:2.33}, 2:{h:40, ar:1.30}, 3:{h:40, ar:1.06}, 4:{h:25, ar:3.82}, 5:{h:38, ar:1.59}, 6:{h:32, ar:2.58} };
+var CARROS = { 1:{h:34, ar:2.33}, 2:{h:40, ar:1.30}, 3:{h:40, ar:1.06}, 4:{h:25, ar:3.82}, 5:{h:38, ar:1.59}, 6:{h:32, ar:2.58}, 7:{h:38, ar:1.42}, 8:{h:44, ar:0.71} };
 var CARRO_ESCALA = 1.18;   // carros um pouco maiores que no site, porque as raias da TV são mais altas
 var FUMACA_SVG = document.querySelector('.m-smk').innerHTML;
 
@@ -360,47 +385,58 @@ function calcularCompeticao(snap, cadastro, diaAlvo){
 }
 
 /* ================= TELA A · PLACAR DOS TIMES ================= */
-var pAnterior = {}, RAIA = 60, ultimoC = null;
+var pAnterior = {}, RAIA = 60, ultimoC = null, ordemAnterior = null;
 // Posição do carro na pista: 1 = bico na linha de chegada; meta batida passa um pouco dela.
 var P_META_BATIDA = 1.06;
 function pPista(t){ return !t.meta ? 0 : t.total >= t.meta ? P_META_BATIDA : t.total/t.meta; }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
+// Times de um grupo na ordem da corrida (maior realizado em cima).
+function doGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
 function pistaHtml(c){
-  function raias(lista){
-    lista = lista.slice().sort(function(a,b){ return b.total - a.total || a.n - b.n; });
+  function linhas(lista){
     return lista.map(function(t, i){
       var pct = pPista(t), x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0;
-      var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = CARROS[t.n], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - Math.min(1,pct)*.45).toFixed(2)+'s';
+      var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = CARROS[t.n] || CARROS[1], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - Math.min(1,pct)*.45).toFixed(2)+'s';
       var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
-      return '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
+      var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"', pm = t.meta ? Math.round(t.total/t.meta*100) : 0;
+      return '<div class="cl lt" data-n="'+t.n+'">'+
+        '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
         '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
           '<span class="comp-rastro" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --p:'+ant+'"></span>'+
           '<span class="comp-carro" data-n="'+t.n+'" data-p="'+x+'" style="--w:'+w+'px; --h:'+h+'px; --p:'+ant+'; --vel:'+vel+'">'+FUMACA_SVG+'<img src="corrida/t'+t.n+'.gif?v=2" alt=""></span></div>'+
-          (i === 0 ? '<span class="comp-chegada" style="height:'+(lista.length*RAIA)+'px"></span>' : '')+'</div>'+
-        '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>';
+          '<span class="comp-chegada" style="--cy:'+(-i*RAIA)+'px"></span></div>'+
+        '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>'+
+        '<div class="ct'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="l1"><i></i>Time 0'+t.n+' · '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
+          '<div class="l2">Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b> · <b class="pc">'+pm+'%</b> da meta</div></div>'+
+      '</div>';
     }).join('');
   }
-  var piso = c.times.filter(function(t){ return !t.colmeia; }), col = c.times.filter(function(t){ return t.colmeia; });
+  var G = RegrasBlack.GRUPOS;
   var totR = c.times.reduce(function(s,t){ return s+t.total; },0), totM = c.times.reduce(function(s,t){ return s+t.meta; },0);
-  // Cabeçalho numa linha só, no topo do card: grupo · progresso · realizado/meta
-  return '<div class="panel comp-pista"><div class="comp-pista-grade">'+
-    '<div class="comp-pista-hd comp-pista-g1">Equipes por piso</div><div class="comp-pista-hd" style="text-align:center">Progresso das Equipes</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div>'+
-    raias(piso)+'<div class="comp-pista-grupo">Colmeia</div>'+raias(col)+
-    '<div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div></div></div>';
+  // Cabeçalho numa linha só (1º grupo · progresso · realizado/meta · times); os outros grupos abrem com o nome deles.
+  return '<div class="panel comp-pista">'+
+    '<div class="cl"><div class="comp-pista-hd comp-pista-g1">'+G[0].rot+'</div><div class="comp-pista-hd" style="text-align:center">Progresso das Equipes</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div><div class="comp-pista-hd">Times</div></div>'+
+    G.map(function(g, k){ return (k ? '<div class="cl"><div class="comp-pista-grupo">'+g.rot+'</div></div>' : '')+linhas(doGrupo(c, g.id)); }).join('')+
+    '<div class="cl"><div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div><div class="comp-pista-total"></div></div></div>';
 }
-function ordemPista(c){ function o(a,b){ return b.total - a.total || a.n - b.n; } return c.times.filter(function(t){ return !t.colmeia; }).sort(o).concat(c.times.filter(function(t){ return t.colmeia; }).sort(o)); }
-function cardsHtml(c){
-  return '<div class="comp-placar">'+ordemPista(c).map(function(t){
-    var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
-    return '<div class="comp-time'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="comp-top"><span class="comp-nome"><span class="comp-dot"></span><span class="comp-nome-txt">Time 0'+t.n+' · '+t.cor.nome+'</span></span>'+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
-      '<div class="comp-big">'+fmt(t.total)+'<small class="comp-un">peças</small></div>'+
-      '<div class="comp-quebra"><div class="comp-q"><span>Separação</span><b>'+fmt(t.sep)+'</b></div><div class="comp-q"><span>Conferência</span><b>'+fmt(t.conf)+'</b></div></div></div>';
-  }).join('')+'</div>';
-}
+function ordemPista(c){ return [].concat.apply([], RegrasBlack.GRUPOS.map(function(g){ return doGrupo(c, g.id); })); }
 function renderTelaA(c){
   var el = document.getElementById('telaA');
   if (MODO_OPERACAO) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // TV da operação: sem Corrida
   if (!c.temDados) { el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência ainda.<br>Abasteça a base no site do Produtividade.</div>'; return; }
-  el.innerHTML = pistaHtml(c) + cardsHtml(c);
+  // Ultrapassagem: a linha (carro + card) desliza da posição antiga para a nova (FLIP), só quando a ordem muda.
+  var ordem = ordemPista(c).map(function(t){ return t.n; }).join(','), antes = {};
+  var anima = el.classList.contains('on') && ordemAnterior && ordem !== ordemAnterior && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (anima) el.querySelectorAll('.lt[data-n]').forEach(function(l){ antes[l.getAttribute('data-n')] = l.getBoundingClientRect().top; });
+  el.innerHTML = pistaHtml(c);
+  ordemAnterior = ordem;
+  if (anima) {
+    var pc = document.getElementById('palco'), k = pc.getBoundingClientRect().width / pc.offsetWidth || 1;
+    el.querySelectorAll('.lt[data-n]').forEach(function(l){
+      var a = antes[l.getAttribute('data-n')]; if (a == null) return;
+      var dy = (a - l.getBoundingClientRect().top) / k;
+      if (Math.abs(dy) > 1 && l.animate) l.animate([{ transform:'translateY('+dy+'px)' }, { transform:'none' }], { duration:900, easing:'cubic-bezier(.2,.8,.2,1)' });
+    });
+  }
   // os carros andam da posição anterior até a nova, como no site
   requestAnimationFrame(function(){ requestAnimationFrame(function(){
     el.querySelectorAll('.comp-carro[data-p], .comp-rastro[data-p]').forEach(function(e){ e.style.setProperty('--p', e.getAttribute('data-p')); });
@@ -408,13 +444,13 @@ function renderTelaA(c){
   c.times.forEach(function(t){ pAnterior[t.n] = pPista(t); });
   ultimoC = c; requestAnimationFrame(ajustaAltura);
 }
-// Distribui a altura que sobra na tela: a maior parte vai para as raias (6 raias) e o resto fica de respiro.
+// Distribui a altura que sobra na tela: a maior parte vai para as raias (8 raias) e o resto fica de respiro.
 function ajustaAltura(){
   var tela = document.getElementById('telaA'), main = tela.parentNode;
   if (!ultimoC || !tela.children.length || !tela.classList.contains('on')) return;
   var usado = 0; Array.prototype.forEach.call(tela.children, function(e){ var cs = getComputedStyle(e); usado += e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom); });
   var cs = getComputedStyle(main), livre = main.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - usado;
-  var nova = Math.max(48, Math.min(110, Math.floor(RAIA + livre*0.9/6)));
+  var nova = Math.max(44, Math.min(110, Math.floor(RAIA + livre*0.9/Math.max(1, ultimoC.times.length))));
   if (Math.abs(nova - RAIA) < 2) return;
   RAIA = nova; document.getElementById('palco').style.setProperty('--raia', RAIA+'px');
   renderTelaA(ultimoC);
@@ -718,7 +754,8 @@ function atualizaOuro(){
   var s = Math.max(0, Math.round((fim - agora) / 1000));
   if (!s || agora.getHours() !== ouroAtivo.hora) { b.hidden = true; return; }
   b.hidden = false;
-  document.getElementById('ouroTxt').textContent = 'peças valem 2× · meta da hora: piso '+fmt(ouroAtivo.meta_piso)+' · colmeia '+fmt(ouroAtivo.meta_colmeia);
+  var tu = ouroAtivo.turno;
+  document.getElementById('ouroTxt').textContent = 'peças valem 2× · meta da hora: checkout '+fmt(ouroAtivo.meta_piso)+' · vestuário '+fmt(RegrasBlack.metaOuro(ouroAtivo, 7, tu))+' · colmeia '+fmt(ouroAtivo.meta_colmeia);
   document.getElementById('ouroRel').textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
 }
 setInterval(atualizaOuro, 1000);
@@ -749,6 +786,56 @@ function renderFaixa(c, snap, dia, opRes){
   var bloco = loop.firstChild;
   while (bloco.offsetWidth && bloco.offsetWidth < 1600) { bloco.innerHTML += bloco.innerHTML; loop.lastChild.innerHTML = bloco.innerHTML; }
   loop.style.setProperty('--dur', Math.max(10, Math.round(bloco.offsetWidth / 110)) + 's');   // ~110 px por segundo
+}
+
+/* ================= BALÕES DE ACOMPANHAMENTO ================= */
+// Pontos ganhos ou perdidos (vistoria, gincana/desafio, ajuste, estorno), meta batida e hora de ouro batida.
+// A produtividade (peça a peça) não gera balão. Só eventos que acontecem com o telão aberto: o que já estava
+// lançado quando a TV ligou fica marcado como visto, sem balão. Durante a comemoração os balões esperam.
+var BALAO_MS = 10000, BALOES_MAX = 4, filaBaloes = [];
+function balao(n, pts, txt){ filaBaloes.push({ n:n, pts:pts, txt:txt }); mostraBaloes(); }
+function mostraBaloes(){
+  if (comemorando) return;
+  var box = document.getElementById('baloes');
+  while (filaBaloes.length && box.children.length < BALOES_MAX) {
+    var b = filaBaloes.shift(), cor = TIMES_COR[b.n];
+    if (!cor) continue;
+    var el = document.createElement('div'); el.className = 'balao'; el.style.setProperty('--c', cor.hex);
+    el.innerHTML = '<div class="b1"><span><i></i>Time 0'+b.n+' · '+cor.nome+'</span><span class="bp">'+(b.pts > 0 ? '+' : '−')+fmt(Math.abs(b.pts))+' pts</span></div><div class="b2">'+esc(b.txt)+'</div>';
+    box.appendChild(el);
+    setTimeout(function(e){ e.classList.add('sai'); setTimeout(function(){ e.remove(); mostraBaloes(); }, 400); }.bind(null, el), BALAO_MS);
+  }
+}
+function rotuloLanc(ls){
+  var l = ls[0], cat = { vistoria:'Vistoria', desafio:'Gincana', ajuste:'Ajuste' }[l.categoria] || l.categoria;
+  if (ls.length > 1) return cat + ' · ' + ls.length + ' apontamentos' + (l.motivo ? ' · ' + l.motivo : '');
+  var item = String(l.item || '');
+  if (l.categoria === 'ajuste') return 'Ajuste · ' + (l.motivo || item);
+  if (/^Estorno/.test(item)) return item.replace(/^Estorno:\s*/, 'Estorno · ' + cat + ' · ');
+  return cat + (item && item !== cat ? ' · ' + item : '');
+}
+function verificaBaloes(c, cadT, lanc, ouros, snap, ta){
+  var chave = 'telao_baloes_' + ta.dia + '_' + ta.turno.replace(/\W/g, ''), vistos = null;
+  try { vistos = JSON.parse(localStorage.getItem(chave) || 'null'); } catch(e){}
+  var primeira = !vistos, novos = []; vistos = vistos || {};
+  function evento(id, n, pts, txt){ if (vistos[id]) return; vistos[id] = 1; if (!primeira && pts) novos.push([n, pts, txt]); }
+  // lançamentos feitos juntos (mesmo time, categoria e hora de gravação) viram um balão só, com a soma
+  var grupos = {};
+  lanc.forEach(function(l){ var k = l.time + '|' + l.categoria + '|' + l.criado_em; (grupos[k] = grupos[k] || []).push(l); });
+  Object.keys(grupos).forEach(function(k){
+    var ls = grupos[k], novo = ls.filter(function(l){ return !vistos['L' + l.id]; });
+    ls.forEach(function(l){ vistos['L' + l.id] = 1; });
+    if (!primeira && novo.length) { var tot = novo.reduce(function(s, l){ return s + (l.pontos || 0); }, 0); if (tot) novos.push([novo[0].time, tot, rotuloLanc(novo)]); }
+  });
+  if (c.dia === ta.dia) {
+    var pl = RegrasBlack.placarDoDia({ c:c, snap:snap, cadastro:cadT, dia:ta.dia, turno:ta.turno, agora:new Date(), lanc:[], ouro:ouros });
+    pl.linhas.forEach(function(r){
+      if (r.metaBatida) evento('M' + r.n, r.n, r.metaBatida + r.antecipada, 'Meta batida' + (r.antecipada ? ' · +' + fmt(r.antecipada) + ' da meta antecipada' : ''));
+      r.ouroDetalhe.forEach(function(o){ if (o.bateu) evento('O' + r.n + '_' + o.hora, r.n, o.feitas, 'Hora de ouro ' + String(o.hora).padStart(2, '0') + 'h · peças da hora em dobro'); });
+    });
+  }
+  try { localStorage.setItem(chave, JSON.stringify(vistos)); } catch(e){}
+  novos.forEach(function(x){ balao(x[0], x[1], x[2]); });
 }
 
 /* ================= COMEMORAÇÃO ================= */
@@ -827,7 +914,7 @@ function comemora(item){
     anims.forEach(function(a){ a.cancel(); }); timers.forEach(clearTimeout);
     mold.classList.remove('on'); mold.style.opacity = 0; car.style.visibility = 'hidden'; slot.style.visibility = 'visible';
     try { audio.pause(); } catch(e){}
-    encerraComemoracao = function(){}; comemorando = false; proximaComemoracao();
+    encerraComemoracao = function(){}; comemorando = false; proximaComemoracao(); mostraBaloes();
   }
   encerraComemoracao = fim;
   depois(COMEMORA_MS, fim);
@@ -1027,7 +1114,8 @@ async function carregar(){
       sb.from('dashboard_snapshots').select('pagina, dados, atualizado_em').in('pagina', ['outbound','inbound']),
       sb.from('competicao_times').select('*'),
       sb.from('dashboard_snapshots').select('resumo:dados->resumo, atualizado_em').eq('pagina', 'operacao').maybeSingle(),
-      sb.from('competicao_hora_ouro').select('dia, turno, hora, meta_piso, meta_colmeia')
+      sb.from('competicao_hora_ouro').select('dia, turno, hora, meta_piso, meta_colmeia'),
+      MODO_OPERACAO ? Promise.resolve({ data:[] }) : sb.from('competicao_pontos').select('id, dia, turno, time, categoria, item, pontos, motivo, criado_em').eq('dia', RegrasBlack.turnoAtual(new Date()).dia).eq('turno', RegrasBlack.turnoAtual(new Date()).turno)
     ]);
     if (r[0].error || r[1].error) throw (r[0].error || r[1].error);
     var pg = {}; (r[0].data || []).forEach(function(l){ pg[l.pagina] = l; if (l.atualizado_em) atualizadoEm[l.pagina] = new Date(l.atualizado_em); });
@@ -1050,6 +1138,7 @@ async function carregar(){
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
     renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap, diaOut, op && op.resumo); if (!MODO_OPERACAO) verificaMetas(c);
+    if (!MODO_OPERACAO && ehHoje() && !r[4].error) verificaBaloes(c, cadT, r[4].data || [], ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho
