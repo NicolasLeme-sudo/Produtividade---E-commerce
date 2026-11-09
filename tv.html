@@ -167,7 +167,10 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .comp-un{font-size:15px;font-weight:600;color:var(--text-muted);margin-left:6px}
 .vazio{flex:1;display:grid;place-items:center;color:var(--text-muted);font-size:22px;text-align:center}
 /* Corrida: cada linha = nome · pista · realizado/meta · card do time (o card fica à direita, na altura do carro) */
-.cl{display:grid;grid-template-columns:150px minmax(0,1fr) 190px 330px;column-gap:14px;align-items:center}
+.corrida-lado{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:stretch}
+.cl{display:grid;grid-template-columns:150px minmax(0,1fr) 190px;column-gap:14px;align-items:center}
+.cr{height:var(--raia,60px);display:flex;align-items:center;position:relative;will-change:transform}
+.cr .ct{width:100%}
 .cl.lt{position:relative;will-change:transform}
 .cl .comp-chegada{background-position:0 var(--cy,0px)}
 .ct{height:calc(var(--raia,60px) - 6px);display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 14px;border-radius:8px;
@@ -176,7 +179,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .ct .l1{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:800;white-space:nowrap}
 .ct .l1 i{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
 .ct .l1 .comp-pos{margin-left:auto;font-size:13px}
-.ct .l2{font-size:14px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ct .l2 b{color:var(--text);font-weight:700}.ct .l2 .pc{color:var(--c)}
+.ct .l2{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:var(--text-muted);white-space:nowrap}.ct .l2 b{color:var(--c);font-weight:800}
 .cl .comp-pista-grupo{grid-column:1 / -1}
 /* Balões de acompanhamento (pontos ganhos/perdidos e meta batida): discretos, na cor do time, 10 s cada */
 #baloes{position:absolute;right:22px;bottom:70px;z-index:18;display:flex;flex-direction:column;gap:8px;width:380px;pointer-events:none}
@@ -397,26 +400,34 @@ function pistaHtml(c){
       var pct = pPista(t), x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0;
       var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = CARROS[t.n] || CARROS[1], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - Math.min(1,pct)*.45).toFixed(2)+'s';
       var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
-      var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"', pm = t.meta ? Math.round(t.total/t.meta*100) : 0;
-      return '<div class="cl lt" data-n="'+t.n+'">'+
+      return '<div class="cl lt" data-k="r'+t.n+'">'+
         '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
         '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
           '<span class="comp-rastro" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --p:'+ant+'"></span>'+
           '<span class="comp-carro" data-n="'+t.n+'" data-p="'+x+'" style="--w:'+w+'px; --h:'+h+'px; --p:'+ant+'; --vel:'+vel+'">'+FUMACA_SVG+'<img src="corrida/t'+t.n+'.gif?v=2" alt=""></span></div>'+
           '<span class="comp-chegada" style="--cy:'+(-i*RAIA)+'px"></span></div>'+
         '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>'+
-        '<div class="ct'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="l1"><i></i>Time 0'+t.n+' · '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
-          '<div class="l2">Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b> · <b class="pc">'+pm+'%</b> da meta</div></div>'+
       '</div>';
+    }).join('');
+  }
+  // Cards dos times: painel separado à direita, com as mesmas linhas da pista (cada card na altura do carro).
+  function cards(lista){
+    return lista.map(function(t){
+      var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"', pm = t.meta ? Math.round(t.total/t.meta*100) : 0;
+      return '<div class="cr lt" data-k="c'+t.n+'"><div class="ct'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="l1"><i></i>Time 0'+t.n+' · '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
+        '<div class="l2"><span>Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b></span><span><b>'+pm+'%</b> da meta</span></div></div></div>';
     }).join('');
   }
   var G = RegrasBlack.GRUPOS;
   var totR = c.times.reduce(function(s,t){ return s+t.total; },0), totM = c.times.reduce(function(s,t){ return s+t.meta; },0);
-  // Cabeçalho numa linha só (1º grupo · progresso · realizado/meta · times); os outros grupos abrem com o nome deles.
-  return '<div class="panel comp-pista">'+
-    '<div class="cl"><div class="comp-pista-hd comp-pista-g1">'+G[0].rot+'</div><div class="comp-pista-hd" style="text-align:center">Progresso das Equipes</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div><div class="comp-pista-hd">Times</div></div>'+
+  // Cabeçalho numa linha só (1º grupo · progresso · realizado/meta); os outros grupos abrem com o nome deles.
+  return '<div class="corrida-lado"><div class="panel comp-pista">'+
+    '<div class="cl"><div class="comp-pista-hd comp-pista-g1">'+G[0].rot+'</div><div class="comp-pista-hd" style="text-align:center">Progresso das Equipes</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div></div>'+
     G.map(function(g, k){ return (k ? '<div class="cl"><div class="comp-pista-grupo">'+g.rot+'</div></div>' : '')+linhas(doGrupo(c, g.id)); }).join('')+
-    '<div class="cl"><div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div><div class="comp-pista-total"></div></div></div>';
+    '<div class="cl"><div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div></div></div>'+
+    '<div class="panel comp-cards"><div class="comp-pista-hd">Times</div>'+
+    G.map(function(g, k){ return (k ? '<div class="comp-pista-grupo">'+g.rot+'</div>' : '')+cards(doGrupo(c, g.id)); }).join('')+
+    '</div></div>';
 }
 function ordemPista(c){ return [].concat.apply([], RegrasBlack.GRUPOS.map(function(g){ return doGrupo(c, g.id); })); }
 function renderTelaA(c){
@@ -426,13 +437,13 @@ function renderTelaA(c){
   // Ultrapassagem: a linha (carro + card) desliza da posição antiga para a nova (FLIP), só quando a ordem muda.
   var ordem = ordemPista(c).map(function(t){ return t.n; }).join(','), antes = {};
   var anima = el.classList.contains('on') && ordemAnterior && ordem !== ordemAnterior && !matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (anima) el.querySelectorAll('.lt[data-n]').forEach(function(l){ antes[l.getAttribute('data-n')] = l.getBoundingClientRect().top; });
+  if (anima) el.querySelectorAll('.lt[data-k]').forEach(function(l){ antes[l.getAttribute('data-k')] = l.getBoundingClientRect().top; });
   el.innerHTML = pistaHtml(c);
   ordemAnterior = ordem;
   if (anima) {
     var pc = document.getElementById('palco'), k = pc.getBoundingClientRect().width / pc.offsetWidth || 1;
-    el.querySelectorAll('.lt[data-n]').forEach(function(l){
-      var a = antes[l.getAttribute('data-n')]; if (a == null) return;
+    el.querySelectorAll('.lt[data-k]').forEach(function(l){
+      var a = antes[l.getAttribute('data-k')]; if (a == null) return;
       var dy = (a - l.getBoundingClientRect().top) / k;
       if (Math.abs(dy) > 1 && l.animate) l.animate([{ transform:'translateY('+dy+'px)' }, { transform:'none' }], { duration:900, easing:'cubic-bezier(.2,.8,.2,1)' });
     });
