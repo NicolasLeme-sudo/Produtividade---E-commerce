@@ -46,15 +46,24 @@ const SO = argumento("--so") ? argumento("--so").split(",") : null;   // só est
 const RODADAS = Math.max(1, +argumento("--rodadas") || 1), MOSTRAR = process.argv.includes("--mostrar"), MANTER_ABAS = process.argv.includes("--manter-abas");
 function hoje() { return PERIODO.ate || new Date(); }
 // Entre 00h e 01h ainda pega o dia anterior (T02 vai até 00h16).
-// incluirOntem: na 1ª rodada depois de ligar (modo contínuo), a data inicial é ontem — completa o 2º turno
-// do dia anterior, que rodou depois do robô desligar. Da 2ª rodada em diante, só hoje.
-let incluirOntem = false;
+// incluirOntem: na 1ª rodada depois de ligar (modo contínuo), a data inicial volta até o dia da última rodada
+// feita (ultima-rodada.txt) — completa o que rodou com o robô desligado (2º turno de ontem; numa segunda,
+// desde sexta). Nunca menos que ontem nem mais que 10 dias. Da 2ª rodada em diante, só hoje.
+let incluirOntem = false, inicioPrimeira = null;
+const ARQ_ULTIMA = path.join(__dirname, "ultima-rodada.txt");
+function diaOperacional(d) { d = new Date(d); if (d.getHours() < 1) d.setDate(d.getDate() - 1); d.setHours(0, 0, 0, 0); return d; }
+function calcularInicioPrimeira() {
+  const ontem = diaOperacional(new Date()); ontem.setDate(ontem.getDate() - 1);
+  const limite = diaOperacional(new Date()); limite.setDate(limite.getDate() - 10);
+  let d = ontem;
+  try { const u = diaOperacional(fs.readFileSync(ARQ_ULTIMA, "utf8").trim()); if (!isNaN(u) && u < d) d = u; } catch (e) {}
+  return d < limite ? limite : d;
+}
+function marcarRodada() { try { fs.writeFileSync(ARQ_ULTIMA, new Date().toISOString()); } catch (e) {} }
 function inicioDoDia() {
   if (PERIODO.de) return PERIODO.de;
-  const d = new Date();
-  if (d.getHours() < 1) d.setDate(d.getDate() - 1);
-  if (incluirOntem) d.setDate(d.getDate() - 1);
-  return d;
+  if (incluirOntem && inicioPrimeira) return new Date(inicioPrimeira);
+  return diaOperacional(new Date());
 }
 function hora() {
   const d = new Date();
@@ -126,8 +135,16 @@ const TELAS = [
       await p.getByRole("button", { name: "Filtrar Depositante" }).click();
       const busca = p.locator("#SearchTriggerWindowRemote_searchTextField:visible");
       await busca.waitFor({ timeout: 15000 });
-      await busca.press("Enter");
-      await p.getByText("VULCABRAS AZALEIA - SP", { exact: false }).first().click();
+      // A lista às vezes não carrega no 1º Enter ("Dados não carregados inicialmente"): tenta até 3 vezes.
+      const azaleia = p.getByText("VULCABRAS AZALEIA - SP", { exact: false }).first();
+      for (let t = 1; ; t++) {
+        await p.waitForTimeout(1000);
+        await busca.click();
+        await busca.press("Enter");
+        try { await azaleia.waitFor({ timeout: 15000 }); break; }
+        catch (e) { if (t >= 3) throw new Error("Lista de depositantes não carregou (3 tentativas)"); }
+      }
+      await azaleia.click();
       await p.getByRole("button", { name: "Selecionar" }).click();
       // Espera a tela carregar com o depositante; antes disso o filtro de data não é aplicado.
       await p.waitForTimeout(2000);
@@ -439,7 +456,7 @@ async function iniciar(cfg, log, opcoes) {
   }
   const proximo = { rapido: 0, lento: 0 };
   incluirOntem = !PERIODO.de;
-  if (incluirOntem) log("1ª rodada: de ontem até hoje (completa o 2º turno de ontem); as próximas, só hoje");
+  if (incluirOntem) { inicioPrimeira = calcularInicioPrimeira(); log("1ª rodada: de " + ddmmaaaa(inicioPrimeira) + " até hoje (completa o que rodou com o robô desligado); as próximas, só hoje"); }
   // HORARIOS_EXTRA no .env (ex.: 07:55,17:20): além do intervalo, uma rodada completa em cada horário.
   // Vale até 30 min depois do horário (ligou mais tarde = não roda a que já passou); a rodada de quando
   // liga já conta para o horário extra que acabou de passar.
@@ -462,6 +479,7 @@ async function iniciar(cfg, log, opcoes) {
       if (Date.now() >= proximo[g]) {
         proximo[g] = Date.now() + intervalo[g];
         await grupo(g);
+        if (g === "lento") marcarRodada();         // dia da última rodada: a 1ª rodada depois de religar volta até ele
       }
     }
     incluirOntem = false;                           // as duas levas da 1ª rodada já foram
