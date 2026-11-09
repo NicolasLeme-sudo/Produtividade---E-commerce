@@ -191,7 +191,26 @@ function salvarEstado(e) { try { fs.writeFileSync(ARQ_ESTADO, JSON.stringify(e, 
 
 /* ---------------- limpeza automática (libera espaço no computador) ---------------- */
 // Os dados já estão no banco: os arquivos enviados são só cópia. Apaga SÓ dentro de telao-enviados e robo\erros.
-const DIAS_ENVIADOS = 5, DIAS_ERROS = 2, LOG_MAX = 5 * 1024 * 1024, LOG_MANTER = 1024 * 1024;
+// telao-enviados: fica hoje + os 2 últimos dias trabalhados (dia trabalhado = dia com relatório na pasta).
+const DIAS_TRABALHADOS = 2, DIAS_ERROS = 2, LOG_MAX = 5 * 1024 * 1024, LOG_MANTER = 1024 * 1024;
+function diaLocal(ms) { const d = new Date(ms); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function apagaForaDosDiasTrabalhados(pasta, qtd) {
+  let n = 0, bytes = 0;
+  if (!fs.existsSync(pasta)) return { n: 0, bytes: 0, inicio: null };
+  const arqs = [];
+  fs.readdirSync(pasta).forEach(function (nome) {
+    const arq = path.join(pasta, nome);
+    try { const st = fs.statSync(arq); if (st.isFile()) arqs.push({ arq: arq, st: st, dia: diaLocal(st.mtimeMs) }); } catch (e) {}
+  });
+  const hoje = diaLocal(Date.now());
+  const anteriores = Array.from(new Set(arqs.map(function (a) { return a.dia; }))).filter(function (d) { return d < hoje; }).sort().reverse().slice(0, qtd);
+  const manter = new Set([hoje].concat(anteriores));
+  arqs.forEach(function (a) {
+    if (manter.has(a.dia)) return;
+    try { fs.unlinkSync(a.arq); n++; bytes += a.st.size; } catch (e) {}
+  });
+  return { n: n, bytes: bytes, inicio: anteriores.length ? anteriores[anteriores.length - 1] : hoje };
+}
 function apagaAntigos(pasta, dias) {
   const limite = Date.now() - dias * 24 * 3600 * 1000; let n = 0, bytes = 0;
   if (!fs.existsSync(pasta)) return { n: 0, bytes: 0 };
@@ -203,19 +222,19 @@ function apagaAntigos(pasta, dias) {
 }
 function limpeza(cfg) {
   try {
-    const a = cfg.PASTA ? apagaAntigos(path.join(cfg.PASTA, "telao-enviados"), DIAS_ENVIADOS) : { n: 0, bytes: 0 };
+    const a = cfg.PASTA ? apagaForaDosDiasTrabalhados(path.join(cfg.PASTA, "telao-enviados"), DIAS_TRABALHADOS) : { n: 0, bytes: 0, inicio: null };
     const b = apagaAntigos(path.join(RAIZ, "erros"), DIAS_ERROS);
     let logCortado = false;
     try {   // log grande: guarda só o final
       const st = fs.statSync(ARQ_LOG);
       if (st.size > LOG_MAX) { const buf = fs.readFileSync(ARQ_LOG); fs.writeFileSync(ARQ_LOG, buf.subarray(buf.length - LOG_MANTER)); logCortado = true; }
     } catch (e) {}
-    // estado.json: esquece arquivos com mais de 5 dias (ele só serve para não reenviar o mesmo arquivo)
-    const est = lerEstado(), limite = Date.now() - DIAS_ENVIADOS * 24 * 3600 * 1000; let tirou = 0;
+    // estado.json: esquece arquivos de antes dos dias guardados (ele só serve para não reenviar o mesmo arquivo)
+    const est = lerEstado(), limite = new Date((a.inicio || diaLocal(Date.now() - 3 * 24 * 3600 * 1000)) + "T00:00:00").getTime(); let tirou = 0;
     Object.keys(est).forEach(function (k) { if (Date.parse(est[k]) < limite) { delete est[k]; tirou++; } });
     if (tirou) salvarEstado(est);
     const mb = (a.bytes + b.bytes) / 1048576;
-    if (a.n || b.n || logCortado) log("Limpeza: " + a.n + " relatório(s) com mais de " + DIAS_ENVIADOS + " dias e " + b.n + " print(s) de erro com mais de " + DIAS_ERROS + " dias apagados" + (logCortado ? ", log encurtado" : "") + " · " + mb.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " MB liberados");
+    if (a.n || b.n || logCortado) log("Limpeza: " + a.n + " relatório(s) de antes dos " + DIAS_TRABALHADOS + " últimos dias trabalhados e " + b.n + " print(s) de erro com mais de " + DIAS_ERROS + " dias apagados" + (logCortado ? ", log encurtado" : "") + " · " + mb.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " MB liberados");
   } catch (e) { log("Limpeza não rodou: " + e.message); }
 }
 
