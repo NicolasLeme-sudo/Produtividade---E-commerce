@@ -2395,12 +2395,13 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     }
     var faixas = [
       { titulo:'Líderes', card: function(t){ return bloco(t, 'lid-'+t.n, t.lideres, function(n){ return n===1?'líder':'líderes'; }, null, true); } },
+      // Conferentes: escalado fora da separação (C, C/S, Embalagem, Organização...) ou que conferiu. Separadores: escalado em S ou que separou.
       { titulo:'Conferentes', card: function(t){
-          var itens = t.todosMembros.filter(function(m){ return m.grupos.conf; }).sort(function(a,b){ return b.conf-a.conf; });
+          var itens = t.todosMembros.filter(function(m){ return m.conf > 0 || !m.atividades.sep || Object.keys(m.atividades).length > 1; }).sort(function(a,b){ return b.conf-a.conf; });
           return bloco(t, 'conf-'+t.n, itens, function(n){ return n===1?'membro':'membros'; }, function(m){ return m.conf; });
         } },
       { titulo:'Separadores', card: function(t){
-          var itens = t.todosMembros.filter(function(m){ return m.grupos.sep; }).sort(function(a,b){ return b.sep-a.sep; });
+          var itens = t.todosMembros.filter(function(m){ return m.sep > 0 || m.atividades.sep; }).sort(function(a,b){ return b.sep-a.sep; });
           return bloco(t, 'sep-'+t.n, itens, function(n){ return n===1?'membro':'membros'; }, function(m){ return m.sep; });
         } }
     ];
