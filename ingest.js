@@ -1757,7 +1757,7 @@ async function salvarMetaInventario() {
 // Cada linha = um colaborador numa atividade e turno, com piso, time, observação (Colmeia) e líder.
 // =========================================================================
 var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
-var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"]];
+var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"], ["org", "Organização / 5S"]];
 var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Rosa", "--t5"], 6: ["Roxo", "--t6"], 7: ["Laranja", "--t7"], 8: ["Branco", "--t8"] };
 var COMP_NUM_TIMES = [1, 2, 3, 4, 7, 8, 5, 6];   // ordem das abas e listas: checkout, vestuário, colmeia
 // Grupo (corrida) de cada time, para os rótulos: times 5–6 colmeia, 7–8 vestuário.
@@ -1796,7 +1796,7 @@ function planilhaPorCores(linhasPorTime) {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
     ["Como preencher"],
     ["Cada aba é um time: o nome da aba é a cor do time (não renomeie)."],
-    ["Atividade: S = Separação · C = Conferência · C/S = faz as duas (uma linha só por pessoa). Também aceita Embalagem e Embarque."],
+    ["Atividade: S = Separação · C = Conferência · C/S = faz as duas (uma linha só por pessoa). Também aceita Embalagem, Embarque e Organização / 5S (no time do piso)."],
     ["Turno: " + COMP_TURNOS.join(", ")],
     ["Piso: 1 a 4 (vazio na colmeia e no vestuário) · Observação: vazio ou Colmeia · Líder: S ou N"],
     ["Times: Vermelho, Azul, Verde e Amarelo = checkout (um por andar) · Laranja e Branco = vestuário · Rosa e Roxo = colmeia"],
@@ -1849,6 +1849,7 @@ function atividadeDeTexto(t) {
   if (n.indexOf("CONFER") !== -1 || n.indexOf("FATURAMENTO") !== -1) return "conf";
   if (n.indexOf("EMBALA") !== -1) return "emb";
   if (n.indexOf("EMBARQ") !== -1 || n.indexOf("EXPEDI") !== -1) return "exp";
+  if (n.indexOf("ORGANIZ") !== -1 || /(^|\W)5S(\W|$)/.test(n)) return "org";   // Organização / 5S: no time do piso, sem peças
   return null;
 }
 function turnoDeTexto(t) {

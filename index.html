@@ -1748,7 +1748,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   function timesDoGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
   function timesOrdemPista(c){ return [].concat.apply([], RegrasBlack.GRUPOS.map(function(g){ return timesDoGrupo(c, g.id); })); }
   var ROT_ATV = { sep:'Separação', conf:'Conferência', ambos:'Separação + Conferência' };
-  var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque' };
+  var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque', org:'Organização / 5S' };
   var CRIT_COMP = {
     media: { rot:'Média por membro', sub:'por membro' },
     total: { rot:'Produtividade geral', sub:'no total do time' },
@@ -2329,7 +2329,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       var corpo = lista.length ? '<ol>'+lista.map(function(m,i){
         var nome = esc(nomeCurto(nomeBonito(m.nome||m.usuario||m.usuario_wms)));
         if (ehLider) return '<li class="comp-li-lider"><span class="nm">'+nome+'</span></li>';
-        var tags = Object.keys(m.atividades||{}).filter(function(a){ return a === 'emb' || a === 'exp'; }).map(function(a){ return ROT_ATV_MEMBRO[a]; });
+        var tags = Object.keys(m.atividades||{}).filter(function(a){ return a === 'emb' || a === 'exp' || a === 'org'; }).map(function(a){ return ROT_ATV_MEMBRO[a]; });
         return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+nome+'<span class="meta">'+esc(m.casados.length ? m.casados.join(', ') : m.usuario)+(tags.length ? ' · '+esc(tags.join(', ')) : '')+'</span></span><b>'+fmt(valor(m))+'</b></li>';
       }).join('')+'</ol>' : '<p class="comp-vazio-mini">—</p>';
       return '<div class="comp-eq" '+st+'><div class="comp-eq-head"><span>Time 0'+t.n+'</span><span>'+(ehLider ? 'Líder de Equipe' : itens.length+' '+rotuloQtde(itens.length))+'</span></div>'+corpo+
