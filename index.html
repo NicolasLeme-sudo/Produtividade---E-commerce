@@ -471,6 +471,9 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .comp-escada-scroll::-webkit-scrollbar-thumb{background:var(--accent); border-radius:5px;}
 .comp-escada-scroll::-webkit-scrollbar-track{background:var(--bg-input); border-radius:5px;}
 .comp-coluna{cursor:pointer; transition:opacity .15s;}
+/* arrastar o gráfico por hora com o mouse (mãozinha) quando ele passa da largura */
+.comp-escada-scroll.arrastavel, .comp-escada-scroll.arrastavel .comp-coluna{cursor:grab;}
+.comp-escada-scroll.arrastando, .comp-escada-scroll.arrastando .comp-coluna{cursor:grabbing; user-select:none;}
 .comp-leg-cor i{border-radius:3px;}
 .comp-grupo.foco .comp-coluna{opacity:.25;}
 .comp-grupo.foco .comp-coluna.ativa{opacity:1;}
@@ -2195,6 +2198,33 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   // Produção por hora: sem time marcado, colunas do total em azul escuro; com alguns times marcados,
   // a soma deles aparece colorida dentro da coluna do total (cinza); com todos marcados, uma coluna por time.
   // A linha tracejada é a meta por hora (meta do dia dos times considerados ÷ horas do gráfico).
+  // Clicar e arrastar para os lados (mãozinha). Só "pega" o ponteiro depois de mexer uns pixels,
+  // então um clique simples na coluna continua abrindo o balão.
+  function ligarArraste(el){
+    el.classList.toggle('arrastavel', el.scrollWidth > el.clientWidth + 2);
+    if (el._arraste) return;
+    el._arraste = true;
+    var ini = null, moveu = false;
+    el.addEventListener('pointerdown', function(e){
+      if (e.pointerType !== 'mouse' || e.button !== 0 || !el.classList.contains('arrastavel')) return;
+      ini = { x:e.clientX, s:el.scrollLeft, id:e.pointerId }; moveu = false;
+    });
+    el.addEventListener('pointermove', function(e){
+      if (!ini) return;
+      var dx = e.clientX - ini.x;
+      if (!moveu && Math.abs(dx) > 4) { moveu = true; el.classList.add('arrastando'); try { el.setPointerCapture(ini.id); } catch(_){} }
+      if (moveu) { el.scrollLeft = ini.s - dx; e.preventDefault(); }
+    });
+    function soltar(){
+      if (!ini) return;
+      ini = null;
+      if (moveu) { el.classList.remove('arrastando'); compEstado.rolagem = el.scrollLeft; setTimeout(function(){ moveu = false; }, 0); }
+    }
+    el.addEventListener('pointerup', soltar);
+    el.addEventListener('pointercancel', soltar);
+    el.addEventListener('click', function(e){ if (moveu) { e.stopPropagation(); e.preventDefault(); } }, true);   // arrastar não abre balão
+  }
+
   function desenharHorasComp(c, d, manterRolagem){
     var wrap = document.getElementById('comp-escada'), scroll = document.getElementById('comp-escada-scroll'), eixo = document.getElementById('comp-eixo'), legEl = document.getElementById('comp-leg-horas'), tip = tipGrafico('horas', '.comp-coluna');
     if (!wrap) return;
@@ -2277,6 +2307,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     svg.appendChild(rot);
     // Abre sempre na primeira hora do dia (começo da barra); ao marcar times, mantém a posição.
     scroll.scrollLeft = manterRolagem ? rolagem : 0;
+    ligarArraste(scroll);
 
     var corGeral = modo === 'geral' ? 'var(--comp-geral)' : (sel.length === 1 ? 'var('+sel[0].cor.c+')' : 'var(--accent-light)');
     legEl.innerHTML = (modo === 'todos'
