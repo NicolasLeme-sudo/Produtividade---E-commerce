@@ -136,7 +136,7 @@ var CAIXA_DUPLA = { '1º Turno': [4] }, FATOR_CAIXA_DUPLA = 0.5, CAIXA_DUPLA_DES
 function fatorConf(r, dia) {
   if (!dia || dia < CAIXA_DUPLA_DESDE) return 1;
   var l = CAIXA_DUPLA[r && r.turno];
-  return l && l.indexOf(r.time) !== -1 && !/^sep/.test(r.atividade) ? FATOR_CAIXA_DUPLA : 1;
+  return l && l.indexOf(r.time) !== -1 && /^conf/.test(r.atividade) ? FATOR_CAIXA_DUPLA : 1;   // só quem está escalado como faturista (C)
 }
 // Meta do time n somando os turnos do filtro (um turno = a meta dele; "Todos" = soma dos turnos da escalação).
 function metaDoTime(n, turnos) {
@@ -173,9 +173,6 @@ function producaoDaFonte(snap, fonte, diaAlvo) {
   serie.forEach(function (d) { datas.push(String(d.data).slice(0, 10)); Object.keys(d.itens || {}).forEach(function (n) { var k = chaveUsu(n); m.set(k, (m.get(k) || 0) + (d.itens[n] || 0)); }); });
   return { valores: m, datas: datas, temDados: !!(f.v && f.v.length) };
 }
-function grupoDoCadastro(r) { return /^sep/.test(r.atividade) ? 'sep' : 'conf'; }
-function obsColmeia(r) { return r.observacao === 'Colmeia' || r.atividade === 'conf_colmeia' || r.atividade === 'sep_colmeia'; }
-function opsDoCadastro(r) { return (!r.lider && (TIMES_COLMEIA[r.time] || obsColmeia(r))) ? ['colmeia'] : ['checkout', 'colmeia']; }
 // snap = dados do snapshot outbound · cadastro = linhas de competicao_times · diaAlvo = 'aaaa-mm-dd' (vazio = último dia)
 function calcularCompeticao(snap, cadastro, diaAlvo) {
   var ops = ['checkout', 'colmeia'], grupos = ['sep', 'conf'], prod = {};
@@ -185,15 +182,24 @@ function calcularCompeticao(snap, cadastro, diaAlvo) {
   var linhas = (cadastro || []).filter(function (r) { return times[r.time - 1]; });
   var exatos = {}; linhas.forEach(function (r) { exatos[chaveUsu(r.usuario_wms)] = r.usuario_wms; });
   function achar(r, mapa) { var achada = null; chavesDoMembro(r).some(function (k, i) { if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false; if (mapa.has(k)) { achada = k; return true; } return false; }); return achada; }
-  var porCadastro = new Map();
-  linhas.forEach(function (r) { var k = r.usuario_wms + '|' + grupoDoCadastro(r); if (!porCadastro.has(k)) porCadastro.set(k, r); });
-  porCadastro.forEach(function (r) {
-    var t = times[r.time - 1], g = grupoDoCadastro(r);
-    var m = t.membros.get(r.usuario_wms) || { usuario: r.usuario_wms, nome: r.nome, sep: 0, conf: 0, grupos: {}, chaves: {}, fator: {} };
-    m.grupos[g] = true;
-    var fx = g === 'conf' ? fatorConf(r, diaRef) : 1;   // 2ª caixa do piso: conferência vale 0,5
-    opsDoCadastro(r).forEach(function (o) { var f = g + '_' + o, k = achar(r, prod[f].valores); if (k) { m[g] += (prod[f].valores.get(k) || 0) * fx; m.chaves[f] = k; if (fx !== 1) m.fator[f] = fx; } });
-    if (r.lider && !t.membros.has(r.usuario_wms) && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
+  // O time soma TUDO o que cada membro produziu (separação e conferência, checkout e colmeia),
+  // qualquer que seja a função cadastrada (decisão 11/11). Uma pessoa = um membro por time.
+  var porPessoa = new Map();
+  linhas.forEach(function (r) {
+    var k = r.usuario_wms + '|' + r.time, p = porPessoa.get(k);
+    if (!p) porPessoa.set(k, { r: r, lider: !!r.lider, linhas: [r] }); else { p.linhas.push(r); if (!r.lider) p.lider = false; }   // líder só se todas as linhas forem de líder
+  });
+  porPessoa.forEach(function (p) {
+    var r = p.r, t = times[r.time - 1];
+    if (t.membros.has(r.usuario_wms)) return;
+    var m = { usuario: r.usuario_wms, nome: r.nome, sep: 0, conf: 0, grupos: { sep: true, conf: true }, chaves: {}, fator: {} };
+    grupos.forEach(function (g) {
+      // 2ª caixa do piso: conferência vale 0,5 só para quem está escalado como faturista (C) nesse time
+      var rc = p.linhas.filter(function (x) { return /^conf/.test(x.atividade); })[0];
+      var fx = g === 'conf' && rc ? fatorConf(rc, diaRef) : 1;
+      ops.forEach(function (o) { var f = g + '_' + o, k = achar(r, prod[f].valores); if (k) { m[g] += (prod[f].valores.get(k) || 0) * fx; m.chaves[f] = k; if (fx !== 1) m.fator[f] = fx; } });
+    });
+    if (p.lider && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
     t.membros.set(r.usuario_wms, m);
   });
   var datas = {};

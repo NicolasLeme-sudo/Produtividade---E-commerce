@@ -1811,12 +1811,6 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     return { valores: valoresMap, segundos: fontes.s ? somar(fontes.s) : null, datas: valoresMap.datas, temDados: !!(fontes.v && fontes.v.length) };
   }
 
-  // Grupo de produção do cadastro: Separação ou Conferência (Embalagem e Embarque usam a da Conferência).
-  function grupoDoCadastro(r){ return /^sep/.test(r.atividade) ? 'sep' : 'conf'; }
-  function obsColmeia(r){ return r.observacao === 'Colmeia' || r.atividade === 'conf_colmeia' || r.atividade === 'sep_colmeia'; }
-  // Operações em que o cadastro produz: times da Colmeia e quem tem Observação "Colmeia" só na Colmeia.
-  // Líder com produção (diaristas no usuário dela) conta as duas operações, mesmo num time da Colmeia.
-  function opsDoCadastro(r){ return (!r.lider && (TIMES_COLMEIA[r.time] || obsColmeia(r))) ? ['colmeia'] : ['checkout','colmeia']; }
   function opsSelecionadas(){ return ['checkout','colmeia'].filter(function(o){ return compEstado.ops[o]; }); }
   function gruposSelecionados(){ return compEstado.atv === 'ambos' ? ['sep','conf'] : [compEstado.atv]; }
   function rotuloFiltrosComp(){
@@ -1852,28 +1846,35 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       var t = times[r.time-1];
       if (t && r.lider && !t.lideres.some(function(x){ return x.usuario_wms === r.usuario_wms; })) t.lideres.push(r);
     });
+    // O time soma TUDO o que cada membro produziu (separação e conferência, checkout e colmeia), qualquer que seja
+    // a função cadastrada (decisão 11/11). Uma pessoa = um membro por time. Os filtros da tela continuam valendo.
+    var porPessoa = new Map();
     linhas.forEach(function(r){
-      var k = r.usuario_wms+'|'+grupoDoCadastro(r);
-      if (!porCadastro.has(k)) porCadastro.set(k, r);
+      var k = r.usuario_wms+'|'+r.time, p = porPessoa.get(k);
+      if (!p) porPessoa.set(k, { r:r, lider:!!r.lider, linhas:[r] }); else { p.linhas.push(r); if (!r.lider) p.lider = false; }
     });
-    porCadastro.forEach(function(r){
-      var t = times[r.time-1], g = grupoDoCadastro(r);
-      var m = t.membros.get(r.usuario_wms) || { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, segSep:0, segConf:0, grupos:{}, atividades:{}, casados:[] };
-      m.grupos[g] = true; m.atividades[String(r.atividade).replace(/_.*/,'')] = true;
-      var opsR = opsDoCadastro(r).filter(function(o){ return ops.indexOf(o) !== -1; });
-      var fx = g === 'conf' ? RegrasBlack.fatorConf(r, diaRef) : 1;   // 2ª caixa do piso: conferência vale 0,5 a partir da Black (regras-black.js)
-      opsR.forEach(function(o){
-        var f = g+'_'+o, k = achar(r, prod[f].valores);
-        if (!k) return;
-        usadas[f].add(k);
-        m[g] += (prod[f].valores.get(k) || 0) * fx;
-        if (k !== chaveUsuario(r.usuario_wms) && k !== chaveUsuario(r.nome) && m.casados.indexOf(k) === -1) m.casados.push(k);
+    porPessoa.forEach(function(p){
+      var r = p.r, t = times[r.time-1];
+      if (t.membros.has(r.usuario_wms)) return;
+      var m = { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, segSep:0, segConf:0, grupos:{ sep:true, conf:true }, atividades:{}, casados:[] };
+      p.linhas.forEach(function(x){ m.atividades[String(x.atividade).replace(/_.*/,'')] = true; });
+      // 2ª caixa do piso: conferência vale 0,5 a partir da Black, só para quem está escalado como faturista (C) nesse time (regras-black.js)
+      var rc = p.linhas.filter(function(x){ return /^conf/.test(x.atividade); })[0];
+      ['sep','conf'].forEach(function(g){
+        var fx = g === 'conf' && rc ? RegrasBlack.fatorConf(rc, diaRef) : 1;
+        ops.forEach(function(o){
+          var f = g+'_'+o, k = achar(r, prod[f].valores);
+          if (!k) return;
+          usadas[f].add(k);
+          m[g] += (prod[f].valores.get(k) || 0) * fx;
+          if (k !== chaveUsuario(r.usuario_wms) && k !== chaveUsuario(r.nome) && m.casados.indexOf(k) === -1) m.casados.push(k);
+        });
+        // Tempo trabalhado: Separação usa o tempo geral quando conta as duas operações (sem somar horas sobrepostas).
+        var fSeg = g === 'sep' ? (ops.length === 2 ? 'sep_geral' : (ops[0] ? 'sep_'+ops[0] : null)) : (ops.indexOf('checkout') !== -1 ? 'conf_checkout' : null);
+        if (fSeg && prod[fSeg].segundos) { var ks = achar(r, prod[fSeg].segundos); if (ks) m[g === 'sep' ? 'segSep' : 'segConf'] += prod[fSeg].segundos.get(ks) || 0; }
       });
-      // Tempo trabalhado: Separação usa o tempo geral quando conta as duas operações (sem somar horas sobrepostas).
-      var fSeg = g === 'sep' ? (opsR.length === 2 ? 'sep_geral' : (opsR[0] ? 'sep_'+opsR[0] : null)) : (opsR.indexOf('checkout') !== -1 ? 'conf_checkout' : null);
-      if (fSeg && prod[fSeg].segundos) { var ks = achar(r, prod[fSeg].segundos); if (ks) m[g === 'sep' ? 'segSep' : 'segConf'] += prod[fSeg].segundos.get(ks) || 0; }
-      if (r.lider && !t.membros.has(r.usuario_wms) && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
-      t.linhasPessoa.push(r);
+      if (p.lider && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
+      p.linhas.forEach(function(x){ t.linhasPessoa.push(x); });
       t.membros.set(r.usuario_wms, m);
     });
     var todos = [];
@@ -2008,10 +2009,10 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     var series = {}, sepH = {}, confH = {}, min = 24, max = -1;
     c.times.forEach(function(t){
       var aS = new Array(24).fill(0), aC = new Array(24).fill(0);
+      var vistos = {};   // uma vez por pessoa, com tudo o que ela produziu (mesma regra do placar)
       t.linhasPessoa.forEach(function(r){
-        var g = grupoDoCadastro(r);
-        if (c.grupos.indexOf(g) === -1) return;
-        opsDoCadastro(r).forEach(function(op){
+        if (vistos[r.usuario_wms]) return; vistos[r.usuario_wms] = true;
+        c.grupos.forEach(function(g){ c.ops.forEach(function(op){
           var f = g+'_'+op;
           if (!norm[f]) return;
           var achada = null;
@@ -2021,7 +2022,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
             return false;
           });
           if (achada) norm[f].get(achada).forEach(function(v, i){ (g === 'sep' ? aS : aC)[i] += v||0; });
-        });
+        }); });
       });
       var soma = aS.map(function(v, i){ return v + aC[i]; });
       soma.forEach(function(v, i){ if (v > 0) { if (i < min) min = i; if (i > max) max = i; } });
