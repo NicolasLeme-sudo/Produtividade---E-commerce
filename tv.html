@@ -70,8 +70,8 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .comp-fumaca{position:absolute; right:calc(100% - 8px); bottom:-1px; width:62px; height:26px; overflow:visible; z-index:1; pointer-events:none; transform-origin:100% 100%; animation:comp-pulsa var(--vel,1s) ease-in-out infinite alternate;}
 @keyframes comp-pulsa{0%{transform:scale(.94,.96);} 50%{transform:scale(1.03,1) skewX(-2deg);} 100%{transform:scale(1.08,1.03);}}
 /* fumaça na cor suavizada do time (--c vem do carro; sem cor fica branca) */
-.comp-fumaca path[fill="#cdd5df"]{fill:color-mix(in srgb, var(--c, #cdd5df) 45%, #cdd5df);}
-.comp-fumaca path[fill="#fbfcfd"]{fill:color-mix(in srgb, var(--c, #fbfcfd) 22%, #fbfcfd);}
+.comp-fumaca path[fill="#cdd5df"]{fill:color-mix(in srgb, var(--c, #cdd5df) 65%, #cdd5df);}
+.comp-fumaca path[fill="#fbfcfd"]{fill:color-mix(in srgb, var(--c, #fbfcfd) 40%, #fbfcfd);}
 @property --p{ syntax:'<number>'; inherits:false; initial-value:0; }
 .comp-carro,.comp-rastro{transition:--p 2.6s cubic-bezier(.25,.8,.3,1);}
 @media (prefers-reduced-motion:reduce){ .comp-carro img,.comp-fumaca{animation:none;} .comp-carro,.comp-rastro{transition:none;} }
