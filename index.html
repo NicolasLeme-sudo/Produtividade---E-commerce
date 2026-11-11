@@ -323,7 +323,26 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
   .kpi-2x{grid-column:auto;}
 }
 /* ---------- Competição ---------- */
-.comp-placar{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px;}
+.comp-placar{display:flex; gap:16px; margin-top:14px; align-items:stretch;}
+/* Uma linha só: um bloco por corrida (checkout 4, vestuário 2, colmeia 2), cada um em ordem do pódio */
+.comp-pl-grupo{flex:var(--n) 1 0; min-width:0; display:flex; flex-direction:column;}
+.comp-pl-grupo + .comp-pl-grupo{border-left:1px dashed var(--border); padding-left:16px;}
+.comp-pl-grupo > .comp-faixa{margin:0 0 6px;}
+.comp-pl-linha{display:grid; grid-template-columns:repeat(var(--n),minmax(0,1fr)); gap:10px; flex:1; align-items:stretch;}
+.comp-flip{will-change:transform; position:relative; z-index:2;}
+.comp-placar .comp-time{padding:12px; gap:6px;}
+.comp-placar .comp-nome{font-size:.8rem; gap:6px;} .comp-placar .comp-big{font-size:1.35rem;}
+.comp-placar .comp-quebra, .comp-placar .comp-linha{font-size:.7rem;}
+.comp-equipes{display:flex; gap:16px;}
+.comp-equipes .comp-pl-linha{align-items:start;}
+.comp-eq.lider{box-shadow:0 0 0 1px var(--c) inset;}
+.comp-eq-head .comp-pos{margin-left:6px;}
+.comp-eq-sub{font-size:.66rem; color:var(--text-muted); padding:6px 12px 0; display:flex; justify-content:space-between; align-items:center; gap:6px;}
+.comp-big-l{display:flex; justify-content:space-between; align-items:center; gap:6px;}
+.comp-placar .comp-nome{min-width:0;} .comp-placar .comp-nome-txt, .comp-eq-head > span:first-child{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
+.comp-placar .comp-pos, .comp-eq-head .comp-pos{padding:1px 6px; flex-shrink:0;}
+.comp-placar .comp-top{align-items:center;} .comp-placar .comp-dot{margin-top:0;}
+.comp-eq-head{gap:6px; padding:9px 10px;}
 .comp-nome-txt{min-width:0; line-height:1.25;}
 .comp-placar .comp-top{align-items:flex-start;}
 .comp-placar .comp-nome{align-items:flex-start;} .comp-placar .comp-dot{margin-top:3px;}
@@ -407,7 +426,6 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-trilho i{display:block; height:100%; background:var(--c); border-radius:7px;}
 .comp-barra b{text-align:right; font-variant-numeric:tabular-nums;}
 .comp-pct{display:inline-block; min-width:52px; margin-left:10px; font-weight:600; color:var(--text-muted);}
-.comp-equipes{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px;}
 .comp-eq{background:var(--bg-card); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-width:0;}
 .comp-eq-head{background:var(--cs); color:var(--c); font-weight:800; font-size:.78rem; padding:9px 12px; display:flex; justify-content:space-between;}
 .comp-eq ol{list-style:none; margin:0; padding:6px 0;}
@@ -514,9 +532,9 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .comp-add input,.comp-add select,.comp-edit select,.comp-edit input{border:1px solid var(--border); background:var(--bg-card); color:var(--text); border-radius:7px; padding:7px 10px; font-size:.76rem; font-family:inherit; min-width:0; flex:1 1 110px;}
 .comp-aviso{color:var(--amber); font-size:.66rem; font-weight:700;}
 .comp-ok{color:var(--olive); font-size:.66rem; font-weight:700;}
-@media (max-width:1300px){ .comp-placar,.comp-equipes{grid-template-columns:repeat(3,minmax(0,1fr));} .comp-pista-grade{grid-template-columns:100px minmax(0,1fr) 150px;} }
-@media (max-width:1100px){ .comp-placar,.comp-equipes{grid-template-columns:repeat(2,minmax(0,1fr));} .comp-adm-grid{grid-template-columns:1fr;} }
-@media (max-width:560px){ .comp-placar,.comp-equipes{grid-template-columns:1fr;} .comp-barra{grid-template-columns:64px 1fr 120px;} }
+@media (max-width:1300px){ .comp-pista-grade{grid-template-columns:100px minmax(0,1fr) 150px;} }
+@media (max-width:1100px){ .comp-placar,.comp-equipes{flex-wrap:wrap;} .comp-pl-grupo{flex-basis:100%;} .comp-pl-grupo + .comp-pl-grupo{border-left:0; padding-left:0;} .comp-adm-grid{grid-template-columns:1fr;} }
+@media (max-width:560px){ .comp-pl-linha{grid-template-columns:1fr;} .comp-barra{grid-template-columns:64px 1fr 120px;} }
 
 /* ---------- Barra de ações do topo (padrão dos reports: perfil · tela cheia · tema · sair) ---------- */
 .vb-acoes{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -1742,11 +1760,40 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   var NUM_TIMES = RegrasBlack.NUM_TIMES;
   var TIMES_COLMEIA = RegrasBlack.TIMES_COLMEIA;
   // Ordem dos cards e blocos na tela: checkout, vestuário e colmeia.
-  var ORDEM_CARDS = [1,2,3,4,7,8,5,6];
-  function timesEmOrdem(c){ return ORDEM_CARDS.map(function(n){ return c.times[n-1]; }); }
   // Mesma ordem da pista: checkout, vestuário e colmeia, cada grupo do maior realizado para o menor.
   function timesDoGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
   function timesOrdemPista(c){ return [].concat.apply([], RegrasBlack.GRUPOS.map(function(g){ return timesDoGrupo(c, g.id); })); }
+  // Pódio de cada corrida (posição pelo critério escolhido; time sem membros vai para o fim).
+  function podioDoGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return (a.pos||99) - (b.pos||99) || b.total - a.total || a.n - b.n; }); }
+  // Uma linha só com um bloco por corrida; card(t) devolve o HTML de cada time (com data-flip para a transição).
+  function linhaPorCorrida(classe, c, card){
+    return '<div class="'+classe+'">'+RegrasBlack.GRUPOS.map(function(G){
+      var lista = podioDoGrupo(c, G.id);
+      return '<div class="comp-pl-grupo" style="--n:'+lista.length+'"><p class="comp-faixa">'+G.rot+'</p><div class="comp-pl-linha">'+lista.map(card).join('')+'</div></div>';
+    }).join('')+'</div>';
+  }
+  // Transição de posição (FLIP): guarda onde cada card [data-flip] estava e, depois de redesenhar, desliza do lugar antigo para o novo.
+  // Só anima com os mesmos filtros (dado novo chegando); trocar filtro redesenha direto.
+  var flipAntes = { assinatura:'' };
+  function flipGuardar(raiz){
+    var pos = {};
+    if (raiz) raiz.querySelectorAll('[data-flip]').forEach(function(el){ var r = el.getBoundingClientRect(); pos[el.getAttribute('data-flip')] = [r.left, r.top]; });
+    return pos;
+  }
+  function flipAnimar(raiz, antes){
+    if (!raiz || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    raiz.querySelectorAll('[data-flip]').forEach(function(el){
+      var a = antes[el.getAttribute('data-flip')]; if (!a) return;
+      var r = el.getBoundingClientRect(), dx = a[0] - r.left, dy = a[1] - r.top;
+      if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+      el.classList.add('comp-flip');
+      el.style.transition = 'none'; el.style.transform = 'translate('+dx+'px,'+dy+'px)';
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){
+        el.style.transition = 'transform .9s cubic-bezier(.22,.8,.26,1)'; el.style.transform = '';
+        setTimeout(function(){ el.style.transition = ''; el.classList.remove('comp-flip'); }, 950);
+      }); });
+    });
+  }
   var ROT_ATV = { sep:'Separação', conf:'Conferência', ambos:'Separação + Conferência' };
   var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque', org:'Organização' };
   var CRIT_COMP = {
@@ -2073,7 +2120,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     var box = document.getElementById('comp-pizza'), leg = document.getElementById('comp-leg-pizza'), corpo = document.getElementById('comp-pizza-corpo');
     if (!box) return;
     var fatias = c.times.filter(function(t){ return t.total > 0; }).map(function(t){
-      return { rot:'Time 0'+t.n, valor:t.total, sep:t.sep, conf:t.conf, cor:'var('+t.cor.c+')' };
+      return { rot:'Time '+t.cor.nome, valor:t.total, sep:t.sep, conf:t.conf, cor:'var('+t.cor.c+')' };
     });
     if (c.fora > 0) fatias.push({ rot:'Fora dos times', valor:c.fora, sep:null, conf:null, cor:'var(--gelo)' });
     var soma = fatias.reduce(function(a,f){ return a + f.valor; }, 0);
@@ -2117,7 +2164,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   function chipsTimesHtml(times){
     var sel = compEstado.selHoras, todos = times.length && times.every(function(t){ return sel[t.n]; });
     return '<div class="comp-chips-horas">'+times.map(function(t){
-      return '<button type="button" class="comp-chip-time'+(sel[t.n] ? ' on' : '')+'" data-n="'+t.n+'" style="--c:var('+t.cor.c+')">Time 0'+t.n+'</button>';
+      return '<button type="button" class="comp-chip-time'+(sel[t.n] ? ' on' : '')+'" data-n="'+t.n+'" style="--c:var('+t.cor.c+')">Time '+t.cor.nome+'</button>';
     }).join('')+'<button type="button" class="comp-chip-time comp-chip-todos'+(todos ? ' on' : '')+'" data-todos>Todos</button></div>';
   }
 
@@ -2209,10 +2256,10 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 
     var corGeral = modo === 'geral' ? 'var(--comp-geral)' : (sel.length === 1 ? 'var('+sel[0].cor.c+')' : 'var(--accent-light)');
     legEl.innerHTML = (modo === 'todos'
-        ? times.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join('')
+        ? times.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time '+t.cor.nome+'</span>'; }).join('')
         : modo === 'geral'
           ? '<span class="comp-leg-cor" style="--c:var(--comp-geral)"><i></i>Todos os times</span>'
-          : '<span class="comp-leg-cor" style="--c:var(--comp-fundo)"><i></i>Total da hora</span>' + sel.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time 0'+t.n+'</span>'; }).join(''))
+          : '<span class="comp-leg-cor" style="--c:var(--comp-fundo)"><i></i>Total da hora</span>' + sel.map(function(t){ return '<span class="comp-leg-cor" style="--c:var('+t.cor.c+')"><i></i>Time '+t.cor.nome+'</span>'; }).join(''))
       + '<span class="comp-dica"><svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="6 5"/></svg> Média/hora <b style="color:var(--amber)">'+fmt(Math.round(mediaHora))+'</b></span>';
 
     function somaGrupo(arrs, lista, hh){ return lista.reduce(function(a, t){ return a + (arrs[t.n][hh] || 0); }, 0); }
@@ -2227,11 +2274,11 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         rot.innerHTML = '<rect x="'+(x-20)+'" y="'+(yy-22)+'" width="40" height="16" rx="4" fill="var(--bg-card)" stroke="var(--border)"/><text x="'+x+'" y="'+(yy-10)+'" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle">'+fmt(v)+'</text>';
       }
       if (!comTip) return;
-      if (modo === 'todos') { var n = +col.dataset.time, tm = c.times[n-1]; tip.innerHTML = infoQuebraHtml('var('+tm.cor.c+')', 'Time 0'+n, v, d.sep[n][hh], d.conf[n][hh], c, faixa); }
+      if (modo === 'todos') { var n = +col.dataset.time, tm = c.times[n-1]; tip.innerHTML = infoQuebraHtml('var('+tm.cor.c+')', 'Time '+tm.cor.nome, v, d.sep[n][hh], d.conf[n][hh], c, faixa); }
       else {
         var lista = modo === 'geral' ? times : sel;
-        var titulo = modo === 'geral' ? 'Todos os times' : (lista.length === 1 ? 'Time 0'+lista[0].n : lista.length+' times marcados');
-        var porTime = lista.length > 1 ? lista.slice().sort(function(a,b){ return a.n - b.n; }).map(function(t){ return { rot:'Time 0'+t.n, v:d.series[t.n][hh]||0, cor:'var('+t.cor.c+')' }; }) : null;
+        var titulo = modo === 'geral' ? 'Todos os times' : (lista.length === 1 ? 'Time '+lista[0].cor.nome : lista.length+' times marcados');
+        var porTime = lista.length > 1 ? lista.slice().sort(function(a,b){ return a.n - b.n; }).map(function(t){ return { rot:'Time '+t.cor.nome, v:d.series[t.n][hh]||0, cor:'var('+t.cor.c+')' }; }) : null;
         tip.innerHTML = infoQuebraHtml(corGeral, titulo, v, somaGrupo(d.sep, lista, hh), somaGrupo(d.conf, lista, hh), c, faixa, porTime);
       }
       tip.hidden = false;
@@ -2273,7 +2320,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         return '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
           '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
             '<span class="comp-rastro" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --p:'+ant+'"></span>'+
-            '<span class="comp-carro" data-n="'+t.n+'" data-p="'+x+'" tabindex="0" style="--w:'+w+'px; --h:'+car.h+'px; --p:'+ant+'; --vel:'+vel+'" role="button" aria-label="Time 0'+t.n+': '+Math.round(pct*100)+'% da meta">'+FUMACA_SVG+'<img src="/corrida/t'+t.n+'.gif?v=2" alt=""></span></div>'+(i === 0 ? '<span class="comp-chegada" style="height:'+(lista.length*42)+'px"></span>' : '')+'</div>'+
+            '<span class="comp-carro" data-n="'+t.n+'" data-p="'+x+'" tabindex="0" style="--w:'+w+'px; --h:'+car.h+'px; --p:'+ant+'; --vel:'+vel+'" role="button" aria-label="Time '+t.cor.nome+': '+Math.round(pct*100)+'% da meta">'+FUMACA_SVG+'<img src="/corrida/t'+t.n+'.gif?v=2" alt=""></span></div>'+(i === 0 ? '<span class="comp-chegada" style="height:'+(lista.length*42)+'px"></span>' : '')+'</div>'+
           '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>';
       }).join('');
     }
@@ -2300,7 +2347,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         tip.className = 'comp-tip comp-tip-cor';
         tip.style.setProperty('--c', 'var('+t.cor.c+')');
         var pct = t.meta ? Math.round(t.total/t.meta*100) : 0;
-        tip.innerHTML = infoQuebraHtml('var(--bg-card)', 'Time 0'+t.n+' · '+t.cor.nome, t.total, t.sep, t.conf, c, pct+'% da meta ('+fmt(t.meta)+')');
+        tip.innerHTML = infoQuebraHtml('var(--bg-card)', 'Time '+t.cor.nome, t.total, t.sep, t.conf, c, pct+'% da meta ('+fmt(t.meta)+')');
         tip.hidden = false;
         var r = cav.getBoundingClientRect();
         tip.style.left = Math.max(8, Math.min(r.left + r.width/2 - tip.offsetWidth/2, window.innerWidth - tip.offsetWidth - 8)) + 'px';
@@ -2311,27 +2358,28 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     });
   }
 
-  // Cards dos 8 times na mesma ordem da pista (checkout, vestuário e colmeia, do maior realizado para o menor).
+  // Cards dos 8 times numa linha só: checkout | vestuário | colmeia, cada corrida em ordem do pódio.
   function placarHtml(c, crit){
     function vf(v){ return crit.pct ? Math.round(v)+'%' : fmt(Math.round(v)); }
-    return '<div class="comp-placar">'+timesOrdemPista(c).map(function(t){
-      var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
-      var cab = '<div class="comp-top"><span class="comp-nome"><span class="comp-dot"></span><span class="comp-nome-txt">Time 0'+t.n+' · '+t.cor.nome+'</span></span>'+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>';
+    return linhaPorCorrida('comp-placar', c, function(t){
+      var st = 'data-flip="pl-'+t.n+'" style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
+      var pos = t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '';
+      var cab = '<div class="comp-top"><span class="comp-nome" title="Time '+t.cor.nome+'"><span class="comp-dot"></span><span class="comp-nome-txt">Time '+t.cor.nome+'</span></span></div>';
       if (!t.lista.length) return '<div class="comp-time" '+st+'>'+cab+'<div class="comp-sub">Sem membros neste turno e atividade.</div></div>';
       var quebra = '';
       if (c.grupos.indexOf('sep') !== -1) quebra += '<div class="comp-q"><span>Separação</span><b>'+fmt(t.sep)+'</b></div>';
       if (c.grupos.indexOf('conf') !== -1) quebra += '<div class="comp-q"><span>Conferência</span><b>'+fmt(t.conf)+'</b></div>';
       return '<div class="comp-time'+(t.pos === 1 ? ' lider' : '')+'" '+st+'>'+cab+
-        '<div><div class="comp-big">'+vf(t.score)+'</div><div class="comp-sub">'+(crit.pct ? crit.sub : 'peças '+crit.sub)+'</div></div>'+
+        '<div><div class="comp-big-l"><div class="comp-big">'+vf(t.score)+'</div>'+pos+'</div><div class="comp-sub">'+(crit.pct ? crit.sub : 'peças '+crit.sub)+'</div></div>'+
         '<div class="comp-quebra">'+quebra+'</div>'+
         '<div class="comp-linha"><span><b>'+t.lista.length+'</b> '+(t.lista.length===1?'membro':'membros')+'</span><span>Total <b>'+fmt(t.total)+'</b></span></div></div>';
-    }).join('')+'</div>';
+    });
   }
 
-  // Ranking em 24 blocos: Líderes, Conferentes e Separadores, cada faixa com os 8 times.
+  // Membros: faixas Líderes, Conferentes e Separadores; em cada uma, os 8 times numa linha só, em ordem do pódio de cada corrida.
   function rankingTimesHtml(c){
     function bloco(t, chave, itens, rotuloQtde, valor, ehLider){
-      var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
+      var st = 'data-flip="'+chave+'" style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var todos = compEstado.verTodos[chave], lista = todos ? itens : itens.slice(0,5);
       var corpo = lista.length ? '<ol>'+lista.map(function(m,i){
         var nome = esc(nomeCurto(nomeBonito(m.nome||m.usuario||m.usuario_wms)));
@@ -2339,21 +2387,22 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         var tags = Object.keys(m.atividades||{}).filter(function(a){ return a === 'emb' || a === 'exp' || a === 'org'; }).map(function(a){ return ROT_ATV_MEMBRO[a]; });
         return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+nome+'<span class="meta">'+esc(m.casados.length ? m.casados.join(', ') : m.usuario)+(tags.length ? ' · '+esc(tags.join(', ')) : '')+'</span></span><b>'+fmt(valor(m))+'</b></li>';
       }).join('')+'</ol>' : '<p class="comp-vazio-mini">—</p>';
-      return '<div class="comp-eq" '+st+'><div class="comp-eq-head"><span>Time 0'+t.n+'</span><span>'+(ehLider ? 'Líder de Equipe' : itens.length+' '+rotuloQtde(itens.length))+'</span></div>'+corpo+
+      return '<div class="comp-eq'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="comp-eq-head"><span title="Time '+t.cor.nome+'">Time '+t.cor.nome+'</span></div>'+
+        '<div class="comp-eq-sub"><span>'+(ehLider ? 'Líder de Equipe' : itens.length+' '+rotuloQtde(itens.length))+'</span>'+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+corpo+
         (itens.length>5 ? '<button class="comp-mais" data-ver="'+chave+'">'+(todos ? 'Mostrar menos' : 'Visualizar Restante')+'</button>' : '')+'</div>';
     }
     var faixas = [
-      { titulo:'Líderes', html: timesEmOrdem(c).map(function(t){ return bloco(t, 'lid-'+t.n, t.lideres, function(n){ return n===1?'líder':'líderes'; }, null, true); }).join('') },
-      { titulo:'Conferentes', html: timesEmOrdem(c).map(function(t){
+      { titulo:'Líderes', card: function(t){ return bloco(t, 'lid-'+t.n, t.lideres, function(n){ return n===1?'líder':'líderes'; }, null, true); } },
+      { titulo:'Conferentes', card: function(t){
           var itens = t.todosMembros.filter(function(m){ return m.grupos.conf; }).sort(function(a,b){ return b.conf-a.conf; });
           return bloco(t, 'conf-'+t.n, itens, function(n){ return n===1?'membro':'membros'; }, function(m){ return m.conf; });
-        }).join('') },
-      { titulo:'Separadores', html: timesEmOrdem(c).map(function(t){
+        } },
+      { titulo:'Separadores', card: function(t){
           var itens = t.todosMembros.filter(function(m){ return m.grupos.sep; }).sort(function(a,b){ return b.sep-a.sep; });
           return bloco(t, 'sep-'+t.n, itens, function(n){ return n===1?'membro':'membros'; }, function(m){ return m.sep; });
-        }).join('') }
+        } }
     ];
-    return faixas.map(function(f){ return '<p class="comp-faixa">'+f.titulo+'</p><div class="comp-equipes">'+f.html+'</div>'; }).join('');
+    return faixas.map(function(f){ return '<p class="comp-faixa comp-faixa-tit">'+f.titulo+'</p>'+linhaPorCorrida('comp-equipes', c, f.card); }).join('');
   }
 
   function renderCompeticao(){
@@ -2382,11 +2431,16 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       '<div class="comp-pizza-corpo" id="comp-pizza-corpo"><div id="comp-pizza"></div><div class="comp-leg-pizza" id="comp-leg-pizza"></div></div></div>';
     var rolagemAtual = document.getElementById('comp-escada-scroll');
     if (rolagemAtual) compEstado.rolagem = rolagemAtual.scrollLeft;
+    var assinatura = JSON.stringify([compEstado.turno, compEstado.atv, compEstado.ops, compEstado.crit, compEstado.verTodos, filtrosData.competicao || null]);
+    var animar = assinatura === flipAntes.assinatura;
+    var antesP = animar ? flipGuardar(elP) : {}, antesE = animar ? flipGuardar(elE) : {};
+    flipAntes.assinatura = assinatura;
     elP.innerHTML = pistaHtml(c) + placarHtml(c, crit) + '<div class="comp-linha2">'+cardPizza+cardHora+'</div>'+aviso;
     ligarCavalos(c);
     desenharPizzaComp(c);
     if (!dHora.aviso) desenharHorasComp(c, dHora);
     elE.innerHTML = rankingTimesHtml(c);
+    if (animar) { flipAnimar(elP, antesP); flipAnimar(elE, antesE); }
     elE.querySelectorAll('.comp-mais').forEach(function(b){ b.addEventListener('click', function(){ var k = b.getAttribute('data-ver'); compEstado.verTodos[k] = !compEstado.verTodos[k]; renderCompeticao(); }); });
   }
   function ligarFiltrosCompeticao(){

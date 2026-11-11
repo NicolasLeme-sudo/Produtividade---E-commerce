@@ -1917,7 +1917,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     var cont = {}; m.filter(function (l) { return !l.lider; }).forEach(function (l) { var a = rotuloAtividade(l.atividade); cont[a] = (cont[a] || 0) + 1; });
     var ativ = Object.keys(cont).map(function (a) { return a + " " + cont[a]; }).join(" · ");
     var pend = m.filter(foraDaBase).length;
-    return '<tr data-time="' + n + '"' + (n === compAdm.time ? ' class="sel"' : "") + ' tabindex="0"><td><span class="comp-nome" style="--c:var(' + COMP_TIMES[n][1] + ')"><span class="comp-dot"></span>Time 0' + n + " · " + COMP_TIMES[n][0] + "</span></td>" +
+    return '<tr data-time="' + n + '"' + (n === compAdm.time ? ' class="sel"' : "") + ' tabindex="0"><td><span class="comp-nome" style="--c:var(' + COMP_TIMES[n][1] + ')"><span class="comp-dot"></span>Time ' + COMP_TIMES[n][0] + "</span></td>" +
       '<td><span class="comp-lider-adm" style="--c:var(' + COMP_TIMES[n][1] + ')">' + (lideres.length ? htmlSeguro(lideres.join(", ")) : "—") + "</span></td>" +
       "<td>" + (ativ ? htmlSeguro(ativ) : "—") + '</td><td class="num">' + m.length + "</td>" +
       "<td>" + (pend ? '<span class="comp-aviso">' + pend + " fora da base</span>" : '<span class="comp-ok">OK</span>') + "</td></tr>";
@@ -1932,7 +1932,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     var edicao = compAdm.editando === l.id
       ? '<div class="comp-edit"><input data-campo="nome" value="' + htmlSeguro(l.nome || "") + '" aria-label="Nome completo" title="Nome completo: a Competição acha o usuário do WMS pelo primeiro e último nome">' +
         '<select data-campo="atividade">' + opcoes(COMP_ATIVS, String(l.atividade).replace(/_.*/, "")) + '</select><select data-campo="turno">' + opcoes(COMP_TURNOS, l.turno) + '</select>' +
-        '<select data-campo="time">' + opcoes(COMP_NUM_TIMES.map(function (n) { return [n, "Time 0" + n]; }), l.time) + '</select><select data-campo="piso">' + opcoes(OPC_PISO, l.piso) + "</select>" +
+        '<select data-campo="time">' + opcoes(COMP_NUM_TIMES.map(function (n) { return [n, "Time " + COMP_TIMES[n][0]]; }), l.time) + '</select><select data-campo="piso">' + opcoes(OPC_PISO, l.piso) + "</select>" +
         '<select data-campo="observacao">' + opcoes(OPC_OBS, l.observacao || "") + '</select><select data-campo="lider">' + opcoes(OPC_LIDER, String(!!l.lider)) + "</select>" +
         '<button class="btn" data-acao="salvar" data-id="' + l.id + '">Salvar</button><button class="btn ghost" data-acao="cancelar">Cancelar</button></div>'
       : "";
@@ -1964,7 +1964,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
         '<div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Líder</th><th>Atividades</th><th class="num">Membros</th><th>Base de Ativos</th></tr></thead><tbody id="comp-tb-times">' + linhasTimes + "</tbody></table></div>" +
       "</div>" +
       '<div class="panel" style="display:flex; flex-direction:column; gap:10px">' +
-        '<div class="panel-head"><div><p class="kicker">' + htmlSeguro(compAdm.turno) + '</p><h4>Time 0' + compAdm.time + " · " + COMP_TIMES[compAdm.time][0] + "</h4></div></div>" +
+        '<div class="panel-head"><div><p class="kicker">' + htmlSeguro(compAdm.turno) + '</p><h4>Time ' + COMP_TIMES[compAdm.time][0] + "</h4></div></div>" +
         '<div class="comp-add"><input id="comp-novo-usuario" placeholder="Usuário WMS (ex.: NOME.SOBRENOME)" aria-label="Usuário WMS">' +
           '<select id="comp-novo-atv" aria-label="Atividade">' + opcoes([["sep+conf", "C/S (as duas)"]].concat(COMP_ATIVS), "sep") + '</select><select id="comp-novo-piso" aria-label="Piso">' + opcoes(OPC_PISO, "") + "</select>" +
           '<select id="comp-novo-obs" aria-label="Observação">' + opcoes(OPC_OBS, "") + '</select><select id="comp-novo-lider" aria-label="Líder">' + opcoes(OPC_LIDER, "false") + "</select>" +
