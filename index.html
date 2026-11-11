@@ -430,14 +430,14 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-pct{display:inline-block; min-width:52px; margin-left:10px; font-weight:600; color:var(--text-muted);}
 .comp-eq{background:var(--bg-card); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-width:0;}
 .comp-eq-head{background:var(--cs); color:var(--c); font-weight:800; font-size:.78rem; padding:9px 12px; display:flex; justify-content:space-between;}
-.comp-eq ol{list-style:none; margin:0; padding:6px 0;}
-.comp-eq li{display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:6px; padding:6px 12px; font-size:.76rem; align-items:center;}
+.comp-eq ol{list-style:none; margin:0; padding:6px 0; max-height:calc(5 * 41px + 12px); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--cs) transparent;}
+.comp-eq ol::-webkit-scrollbar{width:6px;} .comp-eq ol::-webkit-scrollbar-thumb{background:var(--cs); border-radius:3px;}
+.comp-eq li{display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:6px; padding:6px 12px; font-size:.76rem; align-items:center; min-height:41px; box-sizing:border-box;}
 .comp-eq li:nth-child(-n+3) .rk{color:var(--c); font-weight:800;}
 .comp-eq .rk{color:var(--text-muted); font-size:.7rem;}
 .comp-eq .nm{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .comp-eq .meta{font-size:.62rem; color:var(--text-muted); display:block;}
 .comp-eq li b{font-variant-numeric:tabular-nums;}
-.comp-mais{font-size:.7rem; color:var(--accent); padding:4px 12px 10px; background:none; border:none; text-align:left; cursor:pointer; font-family:inherit;}
 .chip[disabled]{opacity:.4; cursor:not-allowed;}
 .comp-linha2{display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.35fr); gap:14px; align-items:stretch; margin-top:14px;}
 .comp-card{display:flex; flex-direction:column; gap:12px; min-width:0;}
@@ -1753,7 +1753,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   // Cada time tem líder (sem produção), separadores e conferentes; Embalagem e Embarque usam,
   // por enquanto, a produção da Conferência.
   var competicaoTimes = [];
-  var compEstado = { turno:'Todos', atv:'ambos', ops:{ checkout:true, colmeia:true }, crit:'total', verTodos:{}, selHoras:{}, pPista:{}, rolagem:0 };
+  var compEstado = { turno:'Todos', atv:'ambos', ops:{ checkout:true, colmeia:true }, crit:'total', selHoras:{}, pPista:{}, rolagem:0 };
   var TIMES_COR = {
     1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'},
     4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'}, 5:{nome:'Rosa', c:'--t5', s:'--t5-soft'}, 6:{nome:'Roxo', c:'--t6', s:'--t6-soft'},
@@ -2382,7 +2382,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   function rankingTimesHtml(c){
     function bloco(t, chave, itens, rotuloQtde, valor, ehLider){
       var st = 'data-flip="'+chave+'" style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
-      var todos = compEstado.verTodos[chave], lista = todos ? itens : itens.slice(0,5);
+      var lista = itens;   // todos: o card mostra 5 e o resto é rolando dentro dele
       var corpo = lista.length ? '<ol>'+lista.map(function(m,i){
         var nome = esc(nomeCurto(nomeBonito(m.nome||m.usuario||m.usuario_wms)));
         if (ehLider) return '<li class="comp-li-lider"><span class="nm">'+nome+'</span></li>';
@@ -2391,7 +2391,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       }).join('')+'</ol>' : '<p class="comp-vazio-mini">—</p>';
       return '<div class="comp-eq'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="comp-eq-head"><span title="Time '+t.cor.nome+'">Time '+t.cor.nome+'</span></div>'+
         '<div class="comp-eq-sub"><span>'+(ehLider ? 'Líder de Equipe' : itens.length+' '+rotuloQtde(itens.length))+'</span>'+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+corpo+
-        (itens.length>5 ? '<button class="comp-mais" data-ver="'+chave+'">'+(todos ? 'Mostrar menos' : 'Visualizar Restante')+'</button>' : '')+'</div>';
+        '</div>';
     }
     var faixas = [
       { titulo:'Líderes', card: function(t){ return bloco(t, 'lid-'+t.n, t.lideres, function(n){ return n===1?'líder':'líderes'; }, null, true); } },
@@ -2433,9 +2433,11 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       '<div class="comp-pizza-corpo" id="comp-pizza-corpo"><div id="comp-pizza"></div><div class="comp-leg-pizza" id="comp-leg-pizza"></div></div></div>';
     var rolagemAtual = document.getElementById('comp-escada-scroll');
     if (rolagemAtual) compEstado.rolagem = rolagemAtual.scrollLeft;
-    var assinatura = JSON.stringify([compEstado.turno, compEstado.atv, compEstado.ops, compEstado.crit, compEstado.verTodos, filtrosData.competicao || null]);
+    var assinatura = JSON.stringify([compEstado.turno, compEstado.atv, compEstado.ops, compEstado.crit, filtrosData.competicao || null]);
     var animar = assinatura === flipAntes.assinatura;
     var antesP = animar ? flipGuardar(elP) : {}, antesE = animar ? flipGuardar(elE) : {};
+    var rolagemListas = new Map();   // rolagem de cada lista de membros (volta no mesmo lugar depois de atualizar)
+    if (elE) elE.querySelectorAll('[data-flip] ol').forEach(function(ol){ if (ol.scrollTop) rolagemListas.set(ol.closest('[data-flip]').getAttribute('data-flip'), ol.scrollTop); });
     flipAntes.assinatura = assinatura;
     elP.innerHTML = pistaHtml(c) + placarHtml(c, crit) + '<div class="comp-linha2">'+cardPizza+cardHora+'</div>'+aviso;
     ligarCavalos(c);
@@ -2443,7 +2445,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     if (!dHora.aviso) desenharHorasComp(c, dHora);
     elE.innerHTML = rankingTimesHtml(c);
     if (animar) { flipAnimar(elP, antesP); flipAnimar(elE, antesE); }
-    elE.querySelectorAll('.comp-mais').forEach(function(b){ b.addEventListener('click', function(){ var k = b.getAttribute('data-ver'); compEstado.verTodos[k] = !compEstado.verTodos[k]; renderCompeticao(); }); });
+    rolagemListas.forEach(function(v, k){ var ol = elE.querySelector('[data-flip="'+k+'"] ol'); if (ol) ol.scrollTop = v; });
   }
   function ligarFiltrosCompeticao(){
     function ligar(id, attr, chave){
