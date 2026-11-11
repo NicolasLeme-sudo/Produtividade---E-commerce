@@ -395,7 +395,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-eq .comp-li-lider .nm{color:var(--c); font-weight:800; font-size:.82rem;}
 .comp-vazio-mini{color:var(--text-muted); font-size:.75rem; padding:8px 12px; margin:0;}
 /* chips de times do gráfico por hora */
-.comp-chips-horas{display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end;}
+.comp-chips-horas{display:flex; flex-wrap:wrap; gap:6px 10px; justify-content:flex-end; align-items:center;}
+.comp-chips-grupo{display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; padding-right:10px; border-right:1px dashed var(--border);}
+.comp-chips-rot{font-size:.6rem; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted);}
 .comp-chip-time{font:inherit; font-size:.72rem; color:var(--text-label); background:var(--bg-input); border:1px solid var(--border); border-radius:999px; padding:4px 11px; cursor:pointer;}
 .comp-chip-time:hover{color:var(--text);}
 .comp-chip-time.on{color:var(--c); border-color:var(--c); background:color-mix(in srgb, var(--c) 12%, var(--bg-input)); font-weight:700;}
@@ -2130,7 +2132,9 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     if (c.fora > 0) fatias.push({ rot:'Fora dos times', valor:c.fora, sep:null, conf:null, cor:'var(--gelo)' });
     var soma = fatias.reduce(function(a,f){ return a + f.valor; }, 0);
     if (!soma) { corpo.innerHTML = '<div class="comp-vazio">Sem produção no período para estes filtros.</div>'; return; }
-    var S = Math.max(220, Math.min(330, (corpo.clientWidth || 320) - 24)), C = S/2, R = C - 10, ang = -Math.PI/2;
+    // Fatia pequena (< 4%): o % vai para fora da pizza, na cor do time, com um traço até a fatia; a pizza encolhe para caber.
+    var temFora = fatias.length > 1 && fatias.some(function(f){ return f.valor/soma*100 < 4; });
+    var S = Math.max(220, Math.min(330, (corpo.clientWidth || 320) - 24)), C = S/2, R = C - (temFora ? 42 : 10), ang = -Math.PI/2, externos = [];
     var s = '<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'" role="img" aria-label="Participação dos times">', rotulos = '';
     fatias.forEach(function(f, i){
       var a = f.valor/soma*Math.PI*2, a2 = ang + a;
@@ -2138,7 +2142,19 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       if (fatias.length === 1) s += '<circle class="comp-fatia" data-i="0" cx="'+C+'" cy="'+C+'" r="'+R+'" fill="'+f.cor+'" tabindex="0"/>';
       else s += '<path class="comp-fatia" data-i="'+i+'" d="M'+C+','+C+' L'+(C+R*Math.cos(ang)).toFixed(2)+','+(C+R*Math.sin(ang)).toFixed(2)+' A'+R+','+R+' 0 '+(a>Math.PI?1:0)+' 1 '+(C+R*Math.cos(a2)).toFixed(2)+','+(C+R*Math.sin(a2)).toFixed(2)+' Z" fill="'+f.cor+'" stroke="var(--bg-card)" stroke-width="2" stroke-linejoin="round" tabindex="0"/>';
       if (f.pct >= 4) rotulos += '<text x="'+(C+Math.cos(f.meio)*R*0.64).toFixed(1)+'" y="'+(C+Math.sin(f.meio)*R*0.64+5).toFixed(1)+'" font-size="13" font-weight="800" fill="var(--bg-card)" text-anchor="middle" pointer-events="none">'+pctComp(f.pct).replace(',0%','%')+'</text>';
+      else if (fatias.length > 1) externos.push(f);
       ang = a2;
+    });
+    // rótulos de fora: um embaixo do outro quando ficam colados (fatias pequenas vizinhas)
+    var ocupados = [];
+    externos.forEach(function(f){
+      var cx = Math.cos(f.meio), cy = Math.sin(f.meio), dir = cx >= 0 ? 1 : -1;
+      var x = C + cx*(R+10), y = C + cy*(R+10) + 4;
+      ocupados.forEach(function(o){ if (o.dir === dir && Math.abs(o.y - y) < 14) y = o.y + (cy < 0 ? -14 : 14); });
+      ocupados.push({ dir:dir, y:y });
+      var bx = C + cx*(R+1), by = C + cy*(R+1), tx = x + dir*4;
+      rotulos += '<polyline points="'+bx.toFixed(1)+','+by.toFixed(1)+' '+x.toFixed(1)+','+(y-4).toFixed(1)+' '+tx.toFixed(1)+','+(y-4).toFixed(1)+'" fill="none" stroke="'+f.cor+'" stroke-width="1.2" pointer-events="none"/>'+
+        '<text x="'+(tx + dir*3).toFixed(1)+'" y="'+y.toFixed(1)+'" font-size="12" font-weight="800" fill="'+f.cor+'" text-anchor="'+(dir > 0 ? 'start' : 'end')+'" pointer-events="none">'+pctComp(f.pct).replace(',0%','%')+'</text>';
     });
     box.innerHTML = s + rotulos + '</svg>';
     leg.innerHTML = fatias.map(function(f, i){ return '<button type="button" class="comp-leg" data-i="'+i+'" style="--c:'+f.cor+'"><i></i><span>'+f.rot+'</span></button>'; }).join('');
@@ -2168,8 +2184,11 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   // Chips dos times no topo do card do gráfico por hora (seleção múltipla; "Todos" marca todos).
   function chipsTimesHtml(times){
     var sel = compEstado.selHoras, todos = times.length && times.every(function(t){ return sel[t.n]; });
-    return '<div class="comp-chips-horas">'+times.map(function(t){
-      return '<button type="button" class="comp-chip-time'+(sel[t.n] ? ' on' : '')+'" data-n="'+t.n+'" style="--c:var('+t.cor.c+')">Time '+t.cor.nome+'</button>';
+    function chip(t){ return '<button type="button" class="comp-chip-time'+(sel[t.n] ? ' on' : '')+'" data-n="'+t.n+'" style="--c:var('+t.cor.c+')">Time '+t.cor.nome+'</button>'; }
+    // agrupados por corrida, igual aos cards (times já vêm na ordem do pódio)
+    return '<div class="comp-chips-horas">'+RegrasBlack.GRUPOS.map(function(G){
+      var l = times.filter(function(t){ return t.grupo === G.id; });
+      return l.length ? '<span class="comp-chips-grupo"><span class="comp-chips-rot">'+G.rot+'</span>'+l.map(chip).join('')+'</span>' : '';
     }).join('')+'<button type="button" class="comp-chip-time comp-chip-todos'+(todos ? ' on' : '')+'" data-todos>Todos</button></div>';
   }
 
@@ -2180,7 +2199,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     var wrap = document.getElementById('comp-escada'), scroll = document.getElementById('comp-escada-scroll'), eixo = document.getElementById('comp-eixo'), legEl = document.getElementById('comp-leg-horas'), tip = tipGrafico('horas', '.comp-coluna');
     if (!wrap) return;
     var rolagem = scroll.scrollLeft || compEstado.rolagem || 0;
-    var times = c.times.filter(function(t){ return t.lista.length; });
+    var times = [].concat.apply([], RegrasBlack.GRUPOS.map(function(G){ return podioDoGrupo(c, G.id); })).filter(function(t){ return t.lista.length; });   // mesma ordem dos cards
     var sel = times.filter(function(t){ return compEstado.selHoras[t.n]; });
     var modo = sel.length ? 'foco' : 'geral';   // com 1 ou mais times marcados, a soma deles aparece dentro da coluna do total
     var slot = document.getElementById('comp-janela-slot');
@@ -2283,7 +2302,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       else {
         var lista = modo === 'geral' ? times : sel;
         var titulo = modo === 'geral' ? 'Todos os times' : (lista.length === 1 ? 'Time '+lista[0].cor.nome : lista.length+' times marcados');
-        var porTime = lista.length > 1 ? lista.slice().sort(function(a,b){ return a.n - b.n; }).map(function(t){ return { rot:'Time '+t.cor.nome, v:d.series[t.n][hh]||0, cor:'var('+t.cor.c+')' }; }) : null;
+        var porTime = lista.length > 1 ? lista.map(function(t){ return { rot:'Time '+t.cor.nome, v:d.series[t.n][hh]||0, cor:'var('+t.cor.c+')' }; }).sort(function(a,b){ return b.v - a.v; })   /* quem mais produziu na hora em cima */ : null;
         tip.innerHTML = infoQuebraHtml(corGeral, titulo, v, somaGrupo(d.sep, lista, hh), somaGrupo(d.conf, lista, hh), c, faixa, porTime);
       }
       tip.hidden = false;
