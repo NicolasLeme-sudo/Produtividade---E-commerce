@@ -1765,7 +1765,24 @@ function grupoTimeRot(n) { return n === 5 || n === 6 ? "colmeia" : n === 7 || n 
 // Black Friday: presença de cada pessoa por dia, na mesma planilha dos times (uma coluna por dia).
 // P = presente · F = falta (atestado também conta como falta) · A = atraso.
 var COMP_DIAS_BLACK = [["2026-11-27", "27/11"], ["2026-11-28", "28/11"], ["2026-11-29", "29/11"]];
-var COMP_CAB_ABA = ["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Observação", "Líder"].concat(COMP_DIAS_BLACK.map(function (d) { return d[1]; }));
+var COMP_CAB_ABA = ["Nome", "Usuário WMS", "Atividade", "Turno", "Piso", "Observação", "Líder"].concat(COMP_DIAS_BLACK.map(function (d) { return d[1]; }))
+  .concat(COMP_DIAS_BLACK.map(function (d) { return "Troca " + d[1]; }));
+// Troca de posto no dia (2ª caixa): "10:00", "10h", "10h30" ou com o time de destino ("10:00 Verde").
+// Grava "HH:MM" ou "HH:MM>N" em presenca.troca[dia] (a conta está em RegrasBlack.fatorConfDoDia). null = vazio ou inválido.
+function trocaDeTexto(t) {
+  var n = normalizarTexto(t);
+  if (!n) return null;
+  var m = /^(\d{1,2})(?:\s*[:H]\s*(\d{2})(?::\d{2})?)?\s*H?\s*(?:>|-|PARA|P\/)?\s*(.*)$/.exec(n);   // aceita 10:00:00 (célula de hora do Excel)
+  if (!m || +m[1] > 23) return null;
+  var hora = ("0" + m[1]).slice(-2) + ":" + (m[2] || "00"), resto = m[3].replace(/^TIME\s*0?/, "").trim(), destino = null;
+  if (resto) {
+    if (/^[1-8]$/.test(resto)) destino = +resto;
+    else for (var k = 1; k <= 8; k++) if (normalizarTexto(COMP_TIMES[k][0]) === resto) destino = k;
+    if (!destino) return null;
+  }
+  return hora + (destino ? ">" + destino : "");
+}
+function textoDaTroca(v) { var m = /^(\d{2}:\d{2})(?:>(\d))?$/.exec(String(v || "")); return m ? m[1] + (m[2] ? " " + COMP_TIMES[+m[2]][0] : "") : ""; }
 function presencaDeTexto(t) {
   var n = normalizarTexto(t);
   if (!n) return null;
@@ -1783,14 +1800,15 @@ function timeDaAba(nome) {
 function linhaAbaTime(l) {
   var obs = l.observacao || (/colmeia$/.test(l.atividade) ? "Colmeia" : "");
   return [l.nome || "", l.usuario_wms, l.sigla || siglaAtividade(l.atividade), l.turno, l.piso || "", obs, l.lider ? "S" : "N"]
-    .concat(COMP_DIAS_BLACK.map(function (d) { return (l.presenca || {})[d[0]] || ""; }));
+    .concat(COMP_DIAS_BLACK.map(function (d) { return (l.presenca || {})[d[0]] || ""; }))
+    .concat(COMP_DIAS_BLACK.map(function (d) { return textoDaTroca(((l.presenca || {}).troca || {})[d[0]]); }));
 }
 // Uma aba por cor (todas as cores, mesmo vazias) + aba Legenda, que o envio ignora.
 function planilhaPorCores(linhasPorTime) {
   var wb = XLSX.utils.book_new();
   COMP_NUM_TIMES.forEach(function (n) {
     var ws = XLSX.utils.aoa_to_sheet([COMP_CAB_ABA].concat(juntarAtividades(linhasPorTime[n] || []).map(linhaAbaTime)));
-    ws["!cols"] = [{ wch: 28 }, { wch: 22 }, { wch: 9 }, { wch: 10 }, { wch: 6 }, { wch: 12 }, { wch: 6 }, { wch: 7 }, { wch: 7 }, { wch: 7 }];
+    ws["!cols"] = [{ wch: 28 }, { wch: 22 }, { wch: 9 }, { wch: 10 }, { wch: 6 }, { wch: 12 }, { wch: 6 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, ws, COMP_TIMES[n][0]);
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
@@ -1802,6 +1820,7 @@ function planilhaPorCores(linhasPorTime) {
     ["Piso: 1 a 4 (vazio na colmeia e no vestuário) · Observação: vazio ou Colmeia · Líder: S ou N"],
     ["Times: Vermelho, Azul, Verde e Amarelo = checkout (um por andar) · Laranja e Branco = vestuário · Rosa e Roxo = colmeia"],
     ["Presença (27/11, 28/11, 29/11): P = presente · F = falta (atestado conta como falta) · A = atraso · vazio = ainda não lançado"],
+    ["Troca 27/11, 28/11, 29/11: horário em que a pessoa trocou de posto (ex.: 10:00) e, se quiser, o time de destino (ex.: 10:00 Verde). A partir do horário, a conferência vale pela caixa de destino: com 2ª caixa = 0,5; sem = inteira. Só o horário = inverte."],
   ]), "Legenda");
   return wb;
 }
@@ -1921,6 +1940,22 @@ async function renderCompeticaoAdmin(recarregarBase) {
     return '<div class="comp-membro"><span>' + nome + "<small>" + sub + '</small></span><button class="btn ghost" data-acao="editar" data-id="' + l.id + '">Editar</button><button class="btn ghost" style="color:var(--red)" data-acao="remover" data-id="' + l.id + '">Remover</button>' + edicao + "</div>";
   }).join("") || '<p class="fonte">Nenhum membro neste time ainda.</p>';
 
+  // Troca de posto no dia (2ª caixa): grava presenca.troca[dia] = "HH:MM" ou "HH:MM>N" em todas as linhas da pessoa no turno.
+  var pessoasTroca = [], vistosT = {};
+  doTurno.forEach(function (l) { if (vistosT[l.usuario_wms] || /^REFORCO/.test(l.usuario_wms)) return; vistosT[l.usuario_wms] = 1; pessoasTroca.push(l); });
+  pessoasTroca.sort(function (a, b) { return COMP_NUM_TIMES.indexOf(a.time) - COMP_NUM_TIMES.indexOf(b.time) || String(a.nome || a.usuario_wms).localeCompare(String(b.nome || b.usuario_wms)); });
+  var hojeT = new Date(), hojeIsoT = hojeT.getFullYear() + "-" + ("0" + (hojeT.getMonth() + 1)).slice(-2) + "-" + ("0" + hojeT.getDate()).slice(-2);
+  var diaTroca = COMP_DIAS_BLACK.some(function (d) { return d[0] === hojeIsoT; }) ? hojeIsoT : COMP_DIAS_BLACK[0][0];
+  var htmlTrocas = [];
+  pessoasTroca.forEach(function (l) {
+    var tr = (l.presenca || {}).troca || {};
+    Object.keys(tr).sort().forEach(function (d) {
+      var mt = /^(\d{2}:\d{2})(?:>(\d))?$/.exec(tr[d]) || [];
+      htmlTrocas.push('<div class="comp-membro"><span>' + fmtDataBRIngest(d).slice(0, 5) + " · " + (mt[1] || htmlSeguro(tr[d])) + " · " + htmlSeguro(l.nome || l.usuario_wms) +
+        "<small>" + COMP_TIMES[l.time][0] + " → " + (mt[2] ? COMP_TIMES[+mt[2]][0] : "inverte") + '</small></span><button class="btn ghost" style="color:var(--red)" data-troca-rem="' + htmlSeguro(l.usuario_wms) + "|" + d + '">Remover</button></div>');
+    });
+  });
+
   el.innerHTML =
     '<div class="comp-adm"><div class="comp-adm-grid">' +
       '<div class="panel" style="display:flex; flex-direction:column; gap:12px">' +
@@ -1938,6 +1973,15 @@ async function renderCompeticaoAdmin(recarregarBase) {
       "</div>" +
     "</div>" +
     '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
+      '<div class="panel-head"><div><p class="kicker">' + htmlSeguro(compAdm.turno) + '</p><h4>Troca de posto</h4></div></div>' +
+      '<div class="comp-add"><select id="comp-troca-dia" aria-label="Dia">' + opcoes(COMP_DIAS_BLACK, diaTroca) + "</select>" +
+        '<select id="comp-troca-pessoa" aria-label="Pessoa">' + opcoes(pessoasTroca.map(function (l) { return [l.usuario_wms, (l.nome || l.usuario_wms) + " · " + COMP_TIMES[l.time][0]]; }), "") + "</select>" +
+        '<input type="time" id="comp-troca-hora" value="10:00" aria-label="Horário da troca">' +
+        '<select id="comp-troca-destino" aria-label="Para">' + opcoes([["", "Inverter"]].concat(COMP_NUM_TIMES.map(function (n) { return [n, "Para " + COMP_TIMES[n][0]]; })), "") + "</select>" +
+        '<button class="btn" id="comp-btn-troca">Lançar</button></div>' +
+      '<div class="upload-status" id="comp-troca-status"></div><div class="comp-lista-membros">' + htmlTrocas.join("") + "</div>" +
+    "</div>" +
+    '<div class="panel" style="margin-top:14px; display:flex; flex-direction:column; gap:10px">' +
       '<div class="panel-head"><div><p class="kicker">Upload</p><h4>Planilha de escalação dos times <span class="badge-feito" id="comp-planilha-badge" hidden>✓ Feito</span></h4></div></div>' +
       '<div class="upload-box">' +
       '<input type="file" id="comp-planilha" accept=".xlsx,.xls,.xlsb,.tsv,.txt"><button class="btn" id="comp-btn-planilha">Enviar planilha</button><button class="btn ghost" id="comp-btn-modelo">Baixar modelo</button><button class="btn ghost" id="comp-btn-exportar">Exportar times atuais</button>' +
@@ -1948,6 +1992,34 @@ async function renderCompeticaoAdmin(recarregarBase) {
   var recarregar = async function () { await renderCompeticaoAdmin(false); if (window.recarregarCompeticao) window.recarregarCompeticao(); };
 
   document.getElementById("comp-sel-turno").addEventListener("change", function () { compAdm.turno = this.value; compAdm.editando = null; renderCompeticaoAdmin(false); });
+
+  var avisoTroca = function (t, classe) { var a = document.getElementById("comp-troca-status"); if (a) { a.textContent = t; a.className = "upload-status" + (classe ? " " + classe : ""); } };
+  var gravarTroca = async function (usuario, dia, valor) {   // valor vazio = remove a troca do dia
+    var linhasP = compAdm.linhas.filter(function (l) { return l.usuario_wms === usuario && l.turno === compAdm.turno; });
+    for (var i = 0; i < linhasP.length; i++) {
+      var pr = Object.assign({}, linhasP[i].presenca || {}), tr = Object.assign({}, pr.troca || {});
+      if (valor) tr[dia] = valor; else delete tr[dia];
+      if (Object.keys(tr).length) pr.troca = tr; else delete pr.troca;
+      var ru = await supabaseClient.from("competicao_times").update({ presenca: pr, atualizado_em: new Date().toISOString() }).eq("id", linhasP[i].id);
+      if (ru.error) return ru.error.message;
+    }
+    return linhasP.length ? null : "pessoa não encontrada no turno";
+  };
+  document.getElementById("comp-btn-troca").addEventListener("click", async function () {
+    var usuario = document.getElementById("comp-troca-pessoa").value, dia = document.getElementById("comp-troca-dia").value;
+    var hora = document.getElementById("comp-troca-hora").value, destino = document.getElementById("comp-troca-destino").value;
+    if (!usuario || !/^\d{2}:\d{2}$/.test(hora)) { avisoTroca("Escolha a pessoa e o horário.", "pendente"); return; }
+    var erro = await gravarTroca(usuario, dia, hora + (destino ? ">" + destino : ""));
+    if (erro) { avisoTroca("Erro: " + erro, "erro"); return; }
+    await recarregar();
+    avisoTroca("Troca lançada.", "ok");
+  });
+  el.querySelectorAll("[data-troca-rem]").forEach(function (b) {
+    b.addEventListener("click", async function () {
+      var par = b.getAttribute("data-troca-rem").split("|"), erro = await gravarTroca(par[0], par[1], "");
+      if (erro) avisoTroca("Erro: " + erro, "erro"); else recarregar();
+    });
+  });
   el.querySelectorAll("#comp-tb-times tr").forEach(function (tr) {
     var sel = function () { compAdm.time = Number(tr.getAttribute("data-time")); compAdm.editando = null; renderCompeticaoAdmin(false); };
     tr.addEventListener("click", sel);
@@ -2353,6 +2425,7 @@ async function processarPlanilhaCompeticao(file, idx) {
 function presencaDaLinha(row) {
   var p = {};
   COMP_DIAS_BLACK.forEach(function (d) { var v = presencaDeTexto(obterCampo(row, [d[1]])); if (v) p[d[0]] = v; });
+  COMP_DIAS_BLACK.forEach(function (d) { var t = trocaDeTexto(obterCampo(row, ["Troca " + d[1]])); if (t) (p.troca = p.troca || {})[d[0]] = t; });
   return p;
 }
 

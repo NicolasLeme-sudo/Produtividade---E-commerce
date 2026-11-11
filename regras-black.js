@@ -94,13 +94,13 @@ function turnoAtual(agora, comAdm) {
 function horasDoMembro(snap, dia, chaves, fatores) {
   var h = new Array(24).fill(0), s = snap || {};
   [['separacao', 'checkout', 'sep_checkout'], ['separacao', 'colmeia', 'sep_colmeia'], ['conferencia', 'checkout', 'conf_checkout']].forEach(function (f) {
-    var k = chaves && chaves[f[2]], fx = (fatores && fatores[f[2]]) || 1;
+    var k = chaves && chaves[f[2]], fx = fatores && fatores[f[2]];
     if (!k) return;
     ((s[f[0]] || {}).analitico || []).forEach(function (d) {
       if (String(d.data).slice(0, 10) !== dia) return;
       var porUsu = d[f[1]] || {};
       Object.keys(porUsu).forEach(function (u) {
-        if (chaveUsu(u) === k) (porUsu[u] || []).forEach(function (v, i) { h[i] += (v || 0) * fx; });
+        if (chaveUsu(u) === k) (porUsu[u] || []).forEach(function (v, i) { h[i] += (v || 0) * fatorNaHora(fx, i); });
       });
     });
   });
@@ -137,6 +137,41 @@ function fatorConf(r, dia) {
   if (!dia || dia < CAIXA_DUPLA_DESDE) return 1;
   var l = CAIXA_DUPLA[r && r.turno];
   return l && l.indexOf(r.time) !== -1 && /^conf/.test(r.atividade) ? FATOR_CAIXA_DUPLA : 1;   // só quem está escalado como faturista (C)
+}
+// Troca de posto no meio do dia: presenca.troca = { 'aaaa-mm-dd': 'HH:MM' ou 'HH:MM>N' } (lançada no Admin ou na planilha).
+// A partir do horário, a conferência vale pela caixa de destino: time N com 2ª caixa no turno = 0,5; sem 2ª caixa = inteira.
+// Sem destino (só o horário) inverte: estava na 2ª caixa → inteira; estava numa caixa única → 0,5.
+function trocaDoDia(linhas, dia) {
+  var v = null;
+  (linhas || []).some(function (x) { v = x && x.presenca && x.presenca.troca && x.presenca.troca[dia]; return !!v; });
+  var m = v && /^(\d{1,2}):(\d{2})(?:>(\d))?$/.exec(String(v));
+  return m ? { min: +m[1] * 60 + +m[2], destino: m[3] ? +m[3] : null } : null;
+}
+// Fator da conferência da pessoa no dia: número (o dia todo) ou { antes, min, depois } quando ela trocou de posto.
+function fatorConfDoDia(linhas, r, dia) {
+  var rc = (linhas || []).filter(function (x) { return /^conf/.test(x.atividade); })[0];
+  var antes = rc ? fatorConf(rc, dia) : 1, tr = trocaDoDia(linhas, dia);
+  if (!tr || !dia || dia < CAIXA_DUPLA_DESDE) return antes;
+  var l = CAIXA_DUPLA[r && r.turno] || [];
+  var depois = tr.destino ? (l.indexOf(tr.destino) !== -1 ? FATOR_CAIXA_DUPLA : 1) : (antes === 1 ? FATOR_CAIXA_DUPLA : 1);
+  return antes === depois ? antes : { antes: antes, min: tr.min, depois: depois };
+}
+function fatorNoMinuto(fx, minuto) { return fx == null ? 1 : typeof fx === 'number' ? fx : (minuto < fx.min ? fx.antes : fx.depois); }
+function fatorNaHora(fx, h) {   // hora da troca: proporcional aos minutos antes e depois
+  if (fx == null) return 1; if (typeof fx === 'number') return fx;
+  var p = Math.max(0, Math.min(60, fx.min - h * 60)) / 60;
+  return fx.antes * p + fx.depois * (1 - p);
+}
+// Fator médio do dia na conferência do checkout da pessoa (k): pelos minutos do analítico; sem minutos, pelas horas; sem nada, o de antes.
+function fatorMedioConf(snap, dia, k, fx) {
+  if (fx == null || typeof fx === 'number') return fx == null ? 1 : fx;
+  var reg = (((snap || {}).conferencia || {}).analitico || []).filter(function (d) { return String(d.data).slice(0, 10) === dia; })[0];
+  var q = 0, qf = 0, achou = false;
+  if (reg) {
+    Object.keys(reg.checkoutMin || {}).forEach(function (u) { if (chaveUsu(u) !== k) return; achou = true; (reg.checkoutMin[u] || []).forEach(function (par) { q += par[1] || 0; qf += (par[1] || 0) * fatorNoMinuto(fx, par[0]); }); });
+    if (!achou) Object.keys(reg.checkout || {}).forEach(function (u) { if (chaveUsu(u) !== k) return; (reg.checkout[u] || []).forEach(function (v, h) { q += v || 0; qf += (v || 0) * fatorNaHora(fx, h); }); });
+  }
+  return q > 0 ? qf / q : fx.antes;
 }
 // Meta do time n somando os turnos do filtro (um turno = a meta dele; "Todos" = soma dos turnos da escalação).
 function metaDoTime(n, turnos) {
@@ -193,11 +228,16 @@ function calcularCompeticao(snap, cadastro, diaAlvo) {
     var r = p.r, t = times[r.time - 1];
     if (t.membros.has(r.usuario_wms)) return;
     var m = { usuario: r.usuario_wms, nome: r.nome, sep: 0, conf: 0, grupos: { sep: true, conf: true }, chaves: {}, fator: {} };
+    // 2ª caixa do piso: conferência vale 0,5 para o faturista (C) do time com 2ª caixa; troca de posto no dia muda o fator a partir do horário
+    var fxC = fatorConfDoDia(p.linhas, r, diaRef), fxC0 = typeof fxC === 'number' ? fxC : fxC.antes;
     grupos.forEach(function (g) {
-      // 2ª caixa do piso: conferência vale 0,5 só para quem está escalado como faturista (C) nesse time
-      var rc = p.linhas.filter(function (x) { return /^conf/.test(x.atividade); })[0];
-      var fx = g === 'conf' && rc ? fatorConf(rc, diaRef) : 1;
-      ops.forEach(function (o) { var f = g + '_' + o, k = achar(r, prod[f].valores); if (k) { m[g] += (prod[f].valores.get(k) || 0) * fx; m.chaves[f] = k; if (fx !== 1) m.fator[f] = fx; } });
+      ops.forEach(function (o) {
+        var f = g + '_' + o, k = achar(r, prod[f].valores);
+        if (!k) return;
+        var fr = g !== 'conf' ? 1 : o === 'checkout' ? fxC : fxC0;   // Conferência Colmeia não tem hora: fica o fator do início do dia
+        m[g] += (prod[f].valores.get(k) || 0) * (o === 'checkout' && g === 'conf' ? fatorMedioConf(snap, diaRef, k, fr) : fr);
+        m.chaves[f] = k; if (fr !== 1) m.fator[f] = fr;
+      });
     });
     if (p.lider && !(m.sep + m.conf)) return;   // líder sem produção não entra como membro
     t.membros.set(r.usuario_wms, m);
@@ -244,8 +284,8 @@ function minutoDaMeta(snap, dia, turno, t) {
       if (!k) return;
       Object.keys(porUsu).forEach(function (u) {
         if (chaveUsu(u) !== k) return;
-        var fx = (m.fator && m.fator[chaveFonte]) || 1;
-        (porUsu[u] || []).forEach(function (par) { if (desloc === 0 || par[0] < 120) eventos.push([par[0] + desloc, par[1] * fx]); });
+        var fx = m.fator && m.fator[chaveFonte];
+        (porUsu[u] || []).forEach(function (par) { if (desloc === 0 || par[0] < 120) eventos.push([par[0] + desloc, par[1] * fatorNoMinuto(fx, par[0] + desloc)]); });
       });
     });
   }
@@ -263,7 +303,7 @@ function minutoDaMeta(snap, dia, turno, t) {
     t.lista.forEach(function (m) {
       var k = m.chaves && m.chaves.conf_colmeia;
       if (!k) return;
-      var fx = (m.fator && m.fator.conf_colmeia) || 1;
+      var fx = fatorNoMinuto(m.fator && m.fator.conf_colmeia, mk[0]);
       Object.keys(mk[1] || {}).forEach(function (u) { if (chaveUsu(u) === k) tot += (mk[1][u] || 0) * fx; });
     });
     marcas.push([mk[0], tot]);
@@ -388,6 +428,6 @@ global.RegrasBlack = {
   DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
   placarDoDia: placarDoDia, minutosTrabalhados: minutosTrabalhados, acumulado: acumulado, isoLocal: isoLocal,
   META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, metaDoTime: metaDoTime, metaOuro: metaOuro, GRUPOS: GRUPOS, grupoDoTime: grupoDoTime,
-  NUM_TIMES: NUM_TIMES, TIMES_COLMEIA: TIMES_COLMEIA, TIMES_VESTUARIO: TIMES_VESTUARIO, CAIXA_DUPLA: CAIXA_DUPLA, fatorConf: fatorConf, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
+  NUM_TIMES: NUM_TIMES, TIMES_COLMEIA: TIMES_COLMEIA, TIMES_VESTUARIO: TIMES_VESTUARIO, CAIXA_DUPLA: CAIXA_DUPLA, fatorConf: fatorConf, trocaDoDia: trocaDoDia, fatorConfDoDia: fatorConfDoDia, fatorMedioConf: fatorMedioConf, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
 };
 })(typeof window !== 'undefined' ? window : globalThis);

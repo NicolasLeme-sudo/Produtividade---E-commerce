@@ -1799,16 +1799,21 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     }[fonte];
     function somar(dias){
       var m = new Map();
-      m.datas = [];
+      m.datas = []; m.porDia = new Map();   // porDia: usuário -> [[dia, peças], ...] (fator da 2ª caixa / troca de posto é por dia)
       if (!dias || !dias.length) return m;
       filtrarSerieporGrupo(dias, 'competicao', 'data').forEach(function(d){
-        m.datas.push(String(d.data).slice(0,10));
-        Object.keys(d.itens||{}).forEach(function(n){ var k = chaveUsuario(n); m.set(k, (m.get(k)||0) + (d.itens[n]||0)); });
+        var dia = String(d.data).slice(0,10);
+        m.datas.push(dia);
+        Object.keys(d.itens||{}).forEach(function(n){
+          var k = chaveUsuario(n), v = d.itens[n]||0;
+          m.set(k, (m.get(k)||0) + v);
+          (m.porDia.get(k) || m.porDia.set(k, []).get(k)).push([dia, v]);
+        });
       });
       return m;
     }
     var valoresMap = somar(fontes.v);
-    return { valores: valoresMap, segundos: fontes.s ? somar(fontes.s) : null, datas: valoresMap.datas, temDados: !!(fontes.v && fontes.v.length) };
+    return { valores: valoresMap, porDia: valoresMap.porDia, segundos: fontes.s ? somar(fontes.s) : null, datas: valoresMap.datas, temDados: !!(fontes.v && fontes.v.length) };
   }
 
   function opsSelecionadas(){ return ['checkout','colmeia'].filter(function(o){ return compEstado.ops[o]; }); }
@@ -1822,7 +1827,6 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     var ops = opsSelecionadas(), grupos = gruposSelecionados();
     var prod = {};
     ['sep_checkout','sep_colmeia','conf_checkout','conf_colmeia','sep_geral'].forEach(function(f){ prod[f] = producaoDaFonte(f); });
-    var diaRef = Object.keys(prod).reduce(function(d, f){ return (prod[f].datas || []).reduce(function(a, x){ return x > a ? x : a; }, d); }, '');   // último dia do filtro
     var times = NUM_TIMES.map(function(n){ return { n:n, cor:TIMES_COR[n], colmeia:!!TIMES_COLMEIA[n], grupo:RegrasBlack.grupoDoTime(n), membros:new Map(), lideres:[], linhasPessoa:[] }; });
     var turnoSel = compEstado.turno;
     var linhas = competicaoTimes.filter(function(r){ return (turnoSel === 'Todos' || r.turno === turnoSel) && times[r.time-1]; });
@@ -1858,15 +1862,17 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       if (t.membros.has(r.usuario_wms)) return;
       var m = { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, segSep:0, segConf:0, grupos:{ sep:true, conf:true }, atividades:{}, casados:[] };
       p.linhas.forEach(function(x){ m.atividades[String(x.atividade).replace(/_.*/,'')] = true; });
-      // 2ª caixa do piso: conferência vale 0,5 a partir da Black, só para quem está escalado como faturista (C) nesse time (regras-black.js)
-      var rc = p.linhas.filter(function(x){ return /^conf/.test(x.atividade); })[0];
       ['sep','conf'].forEach(function(g){
-        var fx = g === 'conf' && rc ? RegrasBlack.fatorConf(rc, diaRef) : 1;
         ops.forEach(function(o){
           var f = g+'_'+o, k = achar(r, prod[f].valores);
           if (!k) return;
           usadas[f].add(k);
-          m[g] += (prod[f].valores.get(k) || 0) * fx;
+          // 2ª caixa do piso (0,5 para o faturista C do time com 2ª caixa, a partir da Black) e troca de posto: dia a dia (regras-black.js)
+          if (g === 'conf') (prod[f].porDia.get(k) || []).forEach(function(dv){
+            var fx = RegrasBlack.fatorConfDoDia(p.linhas, r, dv[0]);
+            m.conf += dv[1] * (o === 'checkout' ? RegrasBlack.fatorMedioConf(snapshots.outbound, dv[0], k, fx) : (typeof fx === 'number' ? fx : fx.antes));
+          });
+          else m[g] += prod[f].valores.get(k) || 0;
           if (k !== chaveUsuario(r.usuario_wms) && k !== chaveUsuario(r.nome) && m.casados.indexOf(k) === -1) m.casados.push(k);
         });
         // Tempo trabalhado: Separação usa o tempo geral quando conta as duas operações (sem somar horas sobrepostas).
