@@ -339,6 +339,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-eq-head .comp-pos{margin-left:6px;}
 .comp-eq-sub{font-size:.66rem; color:var(--text-muted); padding:6px 12px 0; display:flex; justify-content:space-between; align-items:center; gap:6px;}
 .comp-big-l{display:flex; justify-content:space-between; align-items:center; gap:6px;}
+.comp-un{font-size:.68rem; font-weight:600; color:var(--text-muted);}
+.comp-placar .comp-big{font-size:1.25rem; white-space:nowrap;} .comp-big-l .comp-pos{flex-shrink:0;}
 .comp-placar .comp-nome{min-width:0;} .comp-placar .comp-nome-txt, .comp-eq-head > span:first-child{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
 .comp-placar .comp-pos, .comp-eq-head .comp-pos{padding:1px 6px; flex-shrink:0;}
 .comp-placar .comp-top{align-items:center;} .comp-placar .comp-dot{margin-top:0;}
@@ -1797,10 +1799,10 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   var ROT_ATV = { sep:'Separação', conf:'Conferência', ambos:'Separação + Conferência' };
   var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque', org:'Organização' };
   var CRIT_COMP = {
-    media: { rot:'Média por membro', sub:'por membro' },
-    total: { rot:'Produtividade geral', sub:'no total do time' },
-    hora:  { rot:'Peças por hora', sub:'por hora trabalhada' },
-    acima: { rot:'% acima da média', sub:'dos membros acima da média do turno', pct:true }
+    media: { rot:'Média por membro', sub:'por membro', un:'peças/membro' },
+    total: { rot:'Produtividade geral', sub:'no total do time', un:'peças' },
+    hora:  { rot:'Peças por hora', sub:'por hora trabalhada', un:'peças/h' },
+    acima: { rot:'% acima da média', sub:'dos membros acima da média do turno', pct:true, un:'acima da média' }
   };
 
   // Mesma ideia do ingest: compara usuário/nome sem acento, em maiúscula, com "," virando ".".
@@ -2370,7 +2372,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       if (c.grupos.indexOf('sep') !== -1) quebra += '<div class="comp-q"><span>Separação</span><b>'+fmt(t.sep)+'</b></div>';
       if (c.grupos.indexOf('conf') !== -1) quebra += '<div class="comp-q"><span>Conferência</span><b>'+fmt(t.conf)+'</b></div>';
       return '<div class="comp-time'+(t.pos === 1 ? ' lider' : '')+'" '+st+'>'+cab+
-        '<div><div class="comp-big-l"><div class="comp-big">'+vf(t.score)+'</div>'+pos+'</div><div class="comp-sub">'+(crit.pct ? crit.sub : 'peças '+crit.sub)+'</div></div>'+
+        '<div class="comp-big-l"><div class="comp-big">'+vf(t.score)+' <span class="comp-un">'+crit.un+'</span></div>'+pos+'</div>'+
         '<div class="comp-quebra">'+quebra+'</div>'+
         '<div class="comp-linha"><span><b>'+t.lista.length+'</b> '+(t.lista.length===1?'membro':'membros')+'</span><span>Total <b>'+fmt(t.total)+'</b></span></div></div>';
     });
