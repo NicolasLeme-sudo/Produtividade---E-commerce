@@ -8,8 +8,7 @@
     "start": "node robo.js",
     "teste": "node robo.js --teste",
     "baixar": "node baixar.js",
-    "gravar": "playwright codegen --channel chrome --target javascript -o gravacao.js https://vulcaprd.seniorcloud.com.br/siltwms/",
-    "gravar-liberar": "playwright codegen --channel chrome --target javascript -o gravacao-liberar.js https://vulcaprd.seniorcloud.com.br/siltwms/"
+    "gravar": "playwright codegen --channel chrome --target javascript -o gravacao.js https://vulcaprd.seniorcloud.com.br/siltwms/"
   },
   "engines": {
     "node": ">=18"
