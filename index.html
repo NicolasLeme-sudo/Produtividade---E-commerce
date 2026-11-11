@@ -1748,7 +1748,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   function timesDoGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
   function timesOrdemPista(c){ return [].concat.apply([], RegrasBlack.GRUPOS.map(function(g){ return timesDoGrupo(c, g.id); })); }
   var ROT_ATV = { sep:'Separação', conf:'Conferência', ambos:'Separação + Conferência' };
-  var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque', org:'Organização / 5S' };
+  var ROT_ATV_MEMBRO = { sep:'Separação', conf:'Conferência', emb:'Embalagem', exp:'Embarque', org:'Organização' };
   var CRIT_COMP = {
     media: { rot:'Média por membro', sub:'por membro' },
     total: { rot:'Produtividade geral', sub:'no total do time' },

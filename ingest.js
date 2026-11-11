@@ -1757,7 +1757,7 @@ async function salvarMetaInventario() {
 // Cada linha = um colaborador numa atividade e turno, com piso, time, observação (Colmeia) e líder.
 // =========================================================================
 var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
-var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"], ["org", "Organização / 5S"]];
+var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"], ["org", "Organização"]];
 var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Rosa", "--t5"], 6: ["Roxo", "--t6"], 7: ["Laranja", "--t7"], 8: ["Branco", "--t8"] };
 var COMP_NUM_TIMES = [1, 2, 3, 4, 7, 8, 5, 6];   // ordem das abas e listas: checkout, vestuário, colmeia
 // Grupo (corrida) de cada time, para os rótulos: times 5–6 colmeia, 7–8 vestuário.
@@ -1796,7 +1796,8 @@ function planilhaPorCores(linhasPorTime) {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
     ["Como preencher"],
     ["Cada aba é um time: o nome da aba é a cor do time (não renomeie)."],
-    ["Atividade: S = Separação · C = Conferência · C/S = faz as duas (uma linha só por pessoa). Também aceita Embalagem, Embarque e Organização / 5S (no time do piso)."],
+    ["Atividade: S = Separação · C = Conferência · C/S = faz as duas (uma linha só por pessoa). Também aceita Embalagem, Embarque e Organização (no time do piso)."],
+    ["Vaga sem pessoa: Nome REFORÇO e Usuário WMS vazio (o envio grava a vaga no time; troque pelo nome quando definir)."],
     ["Turno: " + COMP_TURNOS.join(", ")],
     ["Piso: 1 a 4 (vazio na colmeia e no vestuário) · Observação: vazio ou Colmeia · Líder: S ou N"],
     ["Times: Vermelho, Azul, Verde e Amarelo = checkout (um por andar) · Laranja e Branco = vestuário · Rosa e Roxo = colmeia"],
@@ -1849,7 +1850,7 @@ function atividadeDeTexto(t) {
   if (n.indexOf("CONFER") !== -1 || n.indexOf("FATURAMENTO") !== -1) return "conf";
   if (n.indexOf("EMBALA") !== -1) return "emb";
   if (n.indexOf("EMBARQ") !== -1 || n.indexOf("EXPEDI") !== -1) return "exp";
-  if (n.indexOf("ORGANIZ") !== -1 || /(^|\W)5S(\W|$)/.test(n)) return "org";   // Organização / 5S: no time do piso, sem peças
+  if (n.indexOf("ORGANIZ") !== -1 || /(^|\W)5S(\W|$)/.test(n)) return "org";   // Organização (5S): no time do piso, sem peças
   return null;
 }
 function turnoDeTexto(t) {
@@ -2292,11 +2293,18 @@ async function lerAbasCompeticao(file) {
 
 async function processarPlanilhaCompeticao(file, idx) {
   var abas = await lerAbasCompeticao(file);
-  var validos = new Map(), erros = [], foraBase = 0;
+  var validos = new Map(), erros = [], foraBase = 0, reforcos = 0;
   abas.forEach(function (aba) { aba.rows.forEach(function (row, i) {
     var linha = (aba.aba ? aba.aba + " " : "") + (i + 2);
     var usuarioRaw = String(obterCampo(row, ["Usuário WMS", "Usuario WMS", "Usuário", "Usuario"]) || "").trim();
-    if (!usuarioRaw && !String(obterCampo(row, ["Nome"]) || "").trim()) return; // linha vazia
+    var nomeTxt = String(obterCampo(row, ["Nome"]) || "").trim();
+    if (!usuarioRaw && !nomeTxt) return; // linha vazia
+    // Vaga sem pessoa (Nome REFORÇO, sem usuário): grava a vaga no time com um código próprio (REFORCO.<time>.<turno>.<nº>).
+    var reforco = !usuarioRaw && /^REFORCO/.test(normalizarTexto(nomeTxt));
+    if (reforco) {
+      var tR = aba.time || inteiroDe(obterCampo(row, ["Time"]), 1, 8), uR = turnoDeTexto(obterCampo(row, ["Turno"]) || "");
+      if (tR && uR) { reforcos++; usuarioRaw = "REFORCO." + tR + "." + (uR === "ADM" ? "ADM" : uR.charAt(0)) + "." + (i + 2); }
+    }
     var base = usuarioRaw ? idx.get(normalizarUsuarioWMS(usuarioRaw)) : null;
     var textoAtv = obterCampo(row, ["Atividade"]);
     var atividades = atividadesDeTexto(textoAtv);
@@ -2312,9 +2320,9 @@ async function processarPlanilhaCompeticao(file, idx) {
     if (!turno) falta.push("turno");
     if (!time) falta.push("time (aba com o nome da cor)");
     if (falta.length) { erros.push("linha " + linha + " (" + (usuarioRaw || "sem usuário") + "): " + falta.join(", ")); return; }
-    if (!base) foraBase++;
+    if (!base && !reforco) foraBase++;
     var usuario = normalizarUsuarioWMS(usuarioRaw); // o da planilha, não o palpite da Base de Ativos
-    var presenca = presencaDaLinha(row), nome = base ? base.nome : (String(obterCampo(row, ["Nome"]) || "").trim() || null);
+    var presenca = presencaDaLinha(row), nome = reforco ? "REFORÇO" : base ? base.nome : (nomeTxt || null);
     atividades.forEach(function (atividade) {   // C/S = um registro de Separação e outro de Conferência
       validos.set(usuario + "|" + atividade + "|" + turno, {
         usuario_wms: usuario, nome: nome,
@@ -2335,6 +2343,7 @@ async function processarPlanilhaCompeticao(file, idx) {
   var lideres = registros.filter(function (r) { return r.lider; }).length;
   var comPresenca = registros.filter(function (r) { return Object.keys(r.presenca).length; }).length;
   var resumo = "✓ " + registros.length + " membro(s) gravado(s) em " + turnos.length + " turno(s) · " + lideres + " líder(es)" + (abas[0].aba ? " · " + abas.length + " aba(s) de time" : "") + (comPresenca ? " · presença de " + comPresenca + " pessoa(s)" : "");
+  if (reforcos) resumo += " · " + reforcos + " vaga(s) de REFORÇO";
   if (foraBase) resumo += " · " + foraBase + " fora da Base de Ativos";
   if (erros.length) resumo += " · " + erros.length + " linha(s) ignorada(s): " + erros.slice(0, 3).join("; ");
   return { texto: resumo, classe: erros.length ? "pendente" : "ok" };
