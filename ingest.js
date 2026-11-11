@@ -2406,11 +2406,18 @@ async function processarPlanilhaCompeticao(file, idx) {
   var registros = Array.from(validos.values());
   if (!registros.length) throw new Error(erros.length ? "Nenhuma linha válida. " + erros.slice(0, 3).join(" · ") : "A planilha não tem linhas.");
   var turnos = Array.from(new Set(registros.map(function (r) { return r.turno; })));
+  // Guarda a escalação anterior desses turnos: se a gravação falhar no meio, ela volta como estava.
+  var anterior = await supabaseClient.from("competicao_times").select("*").in("turno", turnos);
+  if (anterior.error) throw new Error("Falha ao ler a escalação anterior: " + anterior.error.message);
   var d = await supabaseClient.from("competicao_times").delete().in("turno", turnos);
   if (d.error) throw new Error("Falha ao limpar a escalação anterior: " + d.error.message);
   for (var i = 0; i < registros.length; i += 200) {
     var ins = await supabaseClient.from("competicao_times").insert(registros.slice(i, i + 200));
-    if (ins.error) throw new Error("Falha ao gravar os times: " + ins.error.message);
+    if (ins.error) {
+      await supabaseClient.from("competicao_times").delete().in("turno", turnos);
+      var volta = (anterior.data || []).length ? await supabaseClient.from("competicao_times").insert(anterior.data) : { error: null };
+      throw new Error("Falha ao gravar os times: " + ins.error.message + (volta.error ? " · ATENÇÃO: não deu para recolocar a escalação anterior (" + volta.error.message + ")" : " · a escalação anterior foi mantida"));
+    }
   }
   var lideres = registros.filter(function (r) { return r.lider; }).length;
   var comPresenca = registros.filter(function (r) { return Object.keys(r.presenca).length; }).length;
