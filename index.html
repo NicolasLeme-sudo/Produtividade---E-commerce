@@ -336,6 +336,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-equipes{display:flex; gap:16px;}
 .comp-equipes .comp-pl-linha{align-items:start;}
 .comp-eq.lider{box-shadow:0 0 0 1px var(--c) inset;}
+.comp-eq.claro .comp-eq-head{background:var(--c); color:#2c3340;}   /* Time Branco: cabeçalho branco com letra cinza escuro */
 .comp-eq-head .comp-pos{margin-left:6px;}
 .comp-eq-sub{font-size:.66rem; color:var(--text-muted); padding:6px 12px 0; display:flex; justify-content:space-between; align-items:center; gap:6px;}
 .comp-big-l{display:flex; justify-content:space-between; align-items:center; gap:6px;}
@@ -2442,7 +2443,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         var tags = Object.keys(m.atividades||{}).filter(function(a){ return a === 'emb' || a === 'exp' || a === 'org'; }).map(function(a){ return ROT_ATV_MEMBRO[a]; });
         return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+nome+'<span class="meta">'+esc(m.casados.length ? m.casados.join(', ') : m.usuario)+(tags.length ? ' · '+esc(tags.join(', ')) : '')+'</span></span><b>'+fmt(valor(m))+'</b></li>';
       }).join('')+'</ol>' : '<p class="comp-vazio-mini">—</p>';
-      return '<div class="comp-eq'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="comp-eq-head"><span title="Time '+t.cor.nome+'">Time '+t.cor.nome+'</span></div>'+
+      return '<div class="comp-eq'+(t.pos === 1 ? ' lider' : '')+(t.n === 8 ? ' claro' : '')+'" '+st+'><div class="comp-eq-head"><span title="Time '+t.cor.nome+'">Time '+t.cor.nome+'</span></div>'+
         '<div class="comp-eq-sub"><span>'+(ehLider ? 'Líder de Equipe' : itens.length+' '+rotuloQtde(itens.length))+'</span>'+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+corpo+
         '</div>';
     }
