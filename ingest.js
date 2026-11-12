@@ -1254,6 +1254,31 @@ function processarMarcasItensNf(rows, embalas) {
   return { marcas: marcas, abertos: abertos };
 }
 
+// Caída de pedidos (Itens de NF): peças e pedidos cadastrados por dia (Data de Cadastro), sem os cancelados.
+// O Itens de NF traz todas as notas do período, inclusive as já expedidas, então o dia fecha completo.
+function processarCaidaItensNf(rows) {
+  var dias = {}, peds = {};
+  rows.forEach(function (row) {
+    if (normalizarTexto(obterCampo(row, ["Status"])).indexOf("CANCELAD") === 0) return;
+    var dia = paraDataISO(obterCampo(row, ["Data de Cadastro"])), pedido = String(obterCampo(row, ["Pedido de Venda"]) || "").trim();
+    if (!dia) return;
+    var d = dias[dia] || (dias[dia] = [0, 0]);
+    d[0] += numero(obterCampo(row, ["Quantidade"])) || 0;
+    var k = dia + "|" + pedido;
+    if (pedido && !peds[k]) { peds[k] = 1; d[1]++; }
+  });
+  return dias;
+}
+// op.caidaDias = { dia: [peças, pedidos] } (31 dias). Cada Itens de NF troca os dias que traz; o 1º dia do
+// arquivo pode estar pela metade (o período começa no pedido mais antigo em tela), então ali fica o maior.
+function juntarCaida(op, novo) {
+  var c = op.caidaDias || {}, dias = Object.keys(novo).sort();
+  dias.forEach(function (d, i) { c[d] = i === 0 && c[d] && c[d][0] > novo[d][0] ? c[d] : novo[d]; });
+  var o = {};
+  Object.keys(c).sort().slice(-31).forEach(function (d) { o[d] = c[d]; });
+  op.caidaDias = o;
+}
+
 function resumoOperacao(op) {
   var pedidos = op.pedidos || {}, marcas = op.marcas || {};
   var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, semMarcaPedidos: [], marcas: {}, semConferir: { itens: 0, pedidos: 0 }, semColeta: { itens: 0, pedidos: 0, checkout: 0, colmeia: 0 },
@@ -1287,6 +1312,7 @@ function resumoOperacao(op) {
     }
   });
   r.maisAntigoDias = r.maisAntigo === null ? null : idadeDias(r.maisAntigo);
+  r.caida = op.caidaDias || null;   // caída de pedidos por dia (Itens de NF)
   r.expedicao = resumoExpedicao(op);
   return r;
 }
@@ -1381,6 +1407,7 @@ async function atualizarOperacao(novo) {
     Object.keys(rm.marcas).forEach(function (p) { if ((op.pedidos && op.pedidos[p]) || rm.abertos[p]) m[p] = rm.marcas[p]; });
     op.marcas = m;
     info = processarInfoNf(linhasNf);
+    juntarCaida(op, processarCaidaItensNf(linhasNf));
   }
   if (exp) juntarExpedicao(op, exp, new Date());
   if (info) guardarInfoNf(op, info, novo.pedidos ? info : null);

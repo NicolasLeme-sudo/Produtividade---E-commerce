@@ -681,6 +681,7 @@ function pizzaHtml(porMarca, total){
     '<text x="90" y="92" text-anchor="middle" fill="#E8EBF2" font-size="26" font-weight="800">'+fmt(total)+'</text>'+
     '<text x="90" y="112" text-anchor="middle" fill="#7C8BA8" font-size="12">itens</text></svg><div class="leg">'+leg+'</div></div>';
 }
+var COR_CAIDA = '#7FB2EC';   // azul claro da tela Operação agora
 function renderTelaC(res){
   var el = document.getElementById('telaC');
   // sem Acompanhamento OP, ou com um dia passado escolhido (o OP é só a foto de agora): a tela sai do giro
@@ -705,9 +706,15 @@ function renderTelaC(res){
   // embaixo do número: itens Single · Multi (Classificação Tipo Pedido); OP antigo sem o campo mostra os pedidos
   function tipos(o, ped){ return o && o.single != null ? 'Single '+qt(o.single)+' · Multi '+qt(o.multi) : qt(ped)+' pedidos'; }
   var velhosTipo = res.idade[2].single == null ? null : { single: res.idade[2].single + res.idade[3].single, multi: res.idade[2].multi + res.idade[3].multi };
-  el.innerHTML = '<div class="kpis c4">'+
+  // Caída hoje (Itens de NF, Data de Cadastro): peças | pedidos do dia e, embaixo, o dia de ontem inteiro
+  var cHoje = res.caida && (res.caida[hojeOp()] || [0, 0]), cOntem = res.caida && (res.caida[somaDias(hojeOp(), -1)] || [0, 0]);
+  var kCaida = cHoje
+    ? kpiHtml('Caída hoje', fmt(cHoje[0]), 'Ontem: '+qt(cOntem[0])+' peças | '+qt(cOntem[1])+' pedidos', COR_CAIDA, COR_CAIDA, 'peças', '<span class="seg">| <b>'+fmt(cHoje[1])+'</b> pedidos</span>')
+    : kpiHtml('Caída hoje', '—', 'aguardando o próximo Itens de NF', COR_CAIDA, COR_CAIDA);
+  el.innerHTML = '<div class="kpis c5">'+
     kpiHtml('Itens em operação', fmt(res.itens), tipos(res, res.pedidos), 'var(--accent)', null, 'itens')+
     kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), tipos(res.etapas[0], res.etapas[0].pedidos), 'var(--amber)', null, 'itens')+
+    kCaida+
     kpiHtml('Mais antigo em tela', dAnt ? dAnt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dAnt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—',
       dAnt ? (res.maisAntigoDias != null ? (duAnt === 0 ? 'importado hoje' : duAnt+(duAnt === 1 ? ' dia útil' : ' dias úteis')+' em tela') : idadeTexto(res.maisAntigo))+'<br>Pedido <b>'+esc(res.maisAntigoPedido)+'</b>' : 'sem data de importação', corAnt, corAnt)+
     kpiHtml('Importados há 2+ dias úteis', fmt(velhos), velhosTipo ? tipos(velhosTipo) : velhosPed == null ? '' : qt(velhosPed)+' pedidos', corVelhos, corVelhos, 'itens')+
