@@ -25,10 +25,12 @@ const path = require("path");
 const URL_WMS = "https://vulcaprd.seniorcloud.com.br/siltwms/";
 const MIN = 60 * 1000;
 const INTERVALO = { rapido: 5 * MIN, lento: 10 * MIN };
-const ESPERA_ATUALIZAR_MS = 45000;   // atualização: Kardex levou 12 s, Colmeia passou de 18 s
+// Tempos folgados para o WMS cheio (12/11: Packing passou de 60 s carregando; atualizar do OP e Itens de NF passou de 30 s)
+const ESPERA_ATUALIZAR_MS = 150000;  // atualização: Kardex levou 12 s em dia calmo, Colmeia passou de 18 s
 const PAUSA_MS = 800;              // pausa entre cada ação: o WMS se perde com cliques rápidos
-const ESPERA_ABRIR_MS = 60000;       // 1ª carga da aba (consulta do zero é mais lenta)
-const ESPERA_EXPORTAR_MS = 90000;
+const ESPERA_ABRIR_MS = 180000;      // 1ª carga da aba (consulta do zero é mais lenta)
+const ESPERA_EXPORTAR_MS = 180000;
+const ESPERA_CLIQUE_MS = 90000;     // cliques e esperas sem tempo próprio (o padrão do Playwright é 30 s)
 const PAUSA_LOGIN_FALHOU = 30 * MIN; // não insiste na senha errada (evita bloquear o usuário)
 const PASTA_ERROS = path.join(__dirname, "erros");
 
@@ -265,7 +267,7 @@ async function fecharAvisoErro(page) {
   return true;
 }
 
-// Espera a máscara de "carregando" do grid sumir (até 18 s).
+// Espera a máscara de "carregando" do grid sumir (até 2,5 min; 1ª carga da aba até 3 min).
 async function esperarCarregar(page, limite) {
   const mascara = page.locator(".x-mask-loading:visible, .ext-el-mask-msg:visible, .x-mask-msg:visible");
   try { await mascara.first().waitFor({ timeout: 2500 }); } catch (e) { await page.waitForTimeout(1500); return; }
@@ -323,6 +325,7 @@ async function iniciar(cfg, log, opcoes) {
       try {
         browser = await chromium.connectOverCDP("http://127.0.0.1:" + porta, { timeout: 15000, slowMo: PAUSA_MS });
         contexto = browser.contexts()[0] || await browser.newContext();
+        contexto.setDefaultTimeout(ESPERA_CLIQUE_MS);
         break;
       } catch (e) {
         if (!tentouAbrir) {
@@ -401,7 +404,7 @@ async function iniciar(cfg, log, opcoes) {
         if (MOSTRAR) await aba.page.bringToFront();   // só na demonstração (--mostrar)
         // Sem bringToFront: no Windows ele puxa a janela do Chrome para frente e não deixa minimizar.
         // A aba atualiza e exporta em segundo plano (o Chrome do robô abre sem a economia de abas ocultas).
-        await aba.page.locator(tela.refresh + ":visible").first().click();
+        await aba.page.locator(tela.refresh + ":visible").first().click({ timeout: ESPERA_CLIQUE_MS });
         await esperarCarregar(aba.page);
       }
       const salvo = (await exportar(aba.page, tela, cfg.PASTA)).salvo;
