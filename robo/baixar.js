@@ -289,7 +289,7 @@ async function exportar(page, tela, pasta) {
 async function printErro(page, tela) {
   try {
     fs.mkdirSync(PASTA_ERROS, { recursive: true });
-    await page.screenshot({ path: path.join(PASTA_ERROS, hora() + "_" + tela.id + ".png") });
+    await page.screenshot({ path: path.join(PASTA_ERROS, hora() + "_" + tela.id + ".png"), timeout: 15000 });
   } catch (e) {}
 }
 
@@ -389,7 +389,7 @@ async function iniciar(cfg, log, opcoes) {
   }
 
   const pendentes = new Set();   // downloads terminando em 2º plano
-  async function rodar(tela) {
+  async function rodar(tela, refazendo) {
     if (Date.now() < st.pausaAte) return;
     const t0 = Date.now();
     let aba = abas[tela.id];
@@ -428,6 +428,12 @@ async function iniciar(cfg, log, opcoes) {
       aba = abas[tela.id];
       if (aba && !aba.page.isClosed()) await printErro(aba.page, tela);
       if (aba) aba.chave = null;     // no próximo ciclo refaz a aba
+      // Aba que não respondeu ao atualizar (travou com o WMS cheio): fecha e abre uma nova na hora, uma vez só.
+      if (!(e instanceof ErroLogin) && st.passo === "atualizar" && !refazendo) {
+        log("   aba " + tela.nome + " travada no atualizar (" + e.message.split("\n")[0] + "): fechando e abrindo de novo");
+        if (aba) { try { await aba.page.close({ runBeforeUnload: false }); } catch (x) {} delete abas[tela.id]; }
+        return rodar(tela, true);
+      }
       if (e instanceof ErroLogin) {
         st.pausaAte = Date.now() + PAUSA_LOGIN_FALHOU;
         log("ERRO " + e.message + " · tento de novo em 30 min");
