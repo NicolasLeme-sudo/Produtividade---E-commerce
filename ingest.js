@@ -367,8 +367,15 @@ function anexarTurnos(d) {
   d.turnoPorUsuario = mapa;
 }
 
+// Hora de cada relatório no snapshot (dados.fontesEm = { idDoCard: ms }): o telão mostra no selo a hora do
+// relatório mais velho de que a tela depende (o atualizado_em é de qualquer envio e enganava; 12/11).
+var cardEmProcesso = null;
 async function salvarSnapshot(pagina, dadosNovos) {
   if (pagina === "outbound") anexarTurnos(dadosNovos);
+  if (cardEmProcesso && dadosNovos && typeof dadosNovos === "object") {
+    dadosNovos.fontesEm = Object.assign({}, dadosNovos.fontesEm);
+    dadosNovos.fontesEm[cardEmProcesso] = Date.now();
+  }
   var { data: sessao } = await supabaseClient.auth.getSession();
   // atualizado_por é uuid (references auth.users.id) — precisa do id da sessão, não do e-mail.
   var userId = sessao && sessao.session ? sessao.session.user.id : null;
@@ -2975,7 +2982,7 @@ async function processar(id) {
 // =========================================================================
 window.ProdutividadeIngest = {
   renderAdmin: renderAdmin,
-  processar: processar,
+  processar: async function (id) { cardEmProcesso = id; try { return await processar(id); } finally { cardEmProcesso = null; } },
   lancarPallet: lancarPallet,
   alternarCicloInventario: alternarCicloInventario,
   salvarMetaInventario: salvarMetaInventario,

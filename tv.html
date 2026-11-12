@@ -1059,7 +1059,7 @@ document.addEventListener('keydown', function(e){   // para quem estiver ao lado
 })();
 
 /* ================= RELÓGIO, SELO E ESCALA ================= */
-var atualizadoEm = {}, falhou = false;   // data de atualização de cada snapshot (outbound, inbound)
+var atualizadoEm = {}, horaFonte = {}, falhou = false;   // data de atualização de cada snapshot (outbound, inbound)
 function relogio(){
   var d = new Date();
   document.getElementById('hora').textContent = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
@@ -1072,7 +1072,9 @@ function relogio(){
   var dTela = telas[atual] ? telas[atual].dataset.dia : '';
   document.getElementById('semHoje').hidden = passado || !dTela || dTela >= hojeOp();
   var s = document.getElementById('selo');
-  var ultimoDado = atualizadoEm[telas[atual] ? telas[atual].getAttribute('data-fonte') : 'outbound'];
+  var velho = null;
+  ((telas[atual] && horaFonte[telas[atual].id]) || []).forEach(function(f){ if (f && (!velho || f.em < velho.em)) velho = f; });
+  var ultimoDado = velho ? velho.em : atualizadoEm[telas[atual] ? telas[atual].getAttribute('data-fonte') : 'outbound'];
   if (!ultimoDado) return;
   var min = (Date.now() - ultimoDado.getTime()) / 60000, hh = ultimoDado.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
   var dd = ultimoDado.toDateString() === d.toDateString() ? '' : ' de ' + ultimoDado.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
@@ -1080,7 +1082,7 @@ function relogio(){
     s.textContent = '● Dados de ' + dTela.slice(8,10) + '/' + dTela.slice(5,7) + (falhou ? ' · sem conexão' : '');
     s.className = 'selo ' + (falhou ? 'velho' : 'atencao'); return;
   }
-  s.textContent = '● Dado de ' + hh + dd + (falhou ? ' · sem conexão' : '');
+  s.textContent = '● Dado de ' + hh + dd + (velho && min > 60 ? ' · ' + velho.nome + ' atrasado' : '') + (falhou ? ' · sem conexão' : '');
   s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 60 ? 'atencao' : 'ok');   // robô atualiza a cada 30–45 min
 }
 setInterval(relogio, 15000); relogio();
@@ -1158,6 +1160,15 @@ async function carregar(){
     atualizaOuro();
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
+    // Hora de cada relatório de que a tela depende: o selo mostra o MAIS VELHO (antes mostrava o último envio
+    // de qualquer relatório e dizia "atualizado" com o Kardex parado havia 3 h; 12/11).
+    var fe = snap.fontesEm || {}, res = (op && op.resumo) || {};
+    var semFe = !snap.fontesEm && atualizadoEm.outbound ? +atualizadoEm.outbound : null;   // snapshot antigo, sem a hora por relatório
+    var F = function(nome, ms){ return ms ? { nome:nome, em:new Date(ms) } : null; };
+    var fSep = F('Separação', fe['up-separacao-analitica'] || semFe), fConf = F('Conferência', fe['up-conferencia-analitica'] || semFe),
+        fColm = F('Colmeia', fe['up-conf-colmeia'] || semFe), fOp = F('Acompanhamento OP', res.opEm), fNf = F('Itens de NF', res.nfEm),
+        fKx = F('Kardex', res.expedicao && res.expedicao.kardexEm);
+    horaFonte = { telaA:[fSep, fConf, fColm], telaB:[fSep, fConf, fColm, fOp], telaC:[fOp, fNf], telaE:[fKx, fOp], telaD:[fKx] };
     renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap, diaOut, op && op.resumo); if (!MODO_OPERACAO) verificaMetas(c);
     if (!MODO_OPERACAO && ehHoje() && !r[4].error) verificaBaloes(c, cadT, r[4].data || [], ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
