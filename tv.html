@@ -709,8 +709,8 @@ function renderTelaC(res){
   // Caída hoje (Itens de NF, Data de Cadastro): peças | pedidos do dia e, embaixo, o dia de ontem inteiro
   var cHoje = res.caida && (res.caida[hojeOp()] || [0, 0]), cOntem = res.caida && (res.caida[somaDias(hojeOp(), -1)] || [0, 0]);
   var kCaida = cHoje
-    ? kpiHtml('Caída hoje', fmt(cHoje[0]), 'Ontem: '+qt(cOntem[0])+' peças | '+qt(cOntem[1])+' pedidos', COR_CAIDA, COR_CAIDA, 'peças', '<span class="seg">| <b>'+fmt(cHoje[1])+'</b> pedidos</span>')
-    : kpiHtml('Caída hoje', '—', 'aguardando o próximo Itens de NF', COR_CAIDA, COR_CAIDA);
+    ? kpiHtml('Importação hoje', fmt(cHoje[0]), 'Ontem: '+qt(cOntem[0])+' peças | '+qt(cOntem[1])+' pedidos', COR_CAIDA, COR_CAIDA, 'peças', '<span class="seg">| <b>'+fmt(cHoje[1])+'</b> pedidos</span>')
+    : kpiHtml('Importação hoje', '—', 'aguardando o próximo Itens de NF', COR_CAIDA, COR_CAIDA);
   el.innerHTML = '<div class="kpis c5">'+
     kpiHtml('Itens em operação', fmt(res.itens), tipos(res, res.pedidos), 'var(--accent)', null, 'itens')+
     kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), tipos(res.etapas[0], res.etapas[0].pedidos), 'var(--amber)', null, 'itens')+
