@@ -2204,11 +2204,11 @@ async function renderPontosBlack() {
     linhaCampos(campo("Observação", '<input id="pb-vis-obs" placeholder="local, corredor, quem viu">') + '<button class="btn" id="pb-btn-vistoria">Lançar vistoria</button>') +
     tabelaLanc("vistoria"));
 
-  // Gincanas: mesmo valor para os 8 times (colmeia × fator)
+  // Gincanas: mesmo valor para os 8 times
   var gincanas = (RB.DESAFIOS[pb.dia] || []).concat(RB.GINCANAS || [], ["Outra gincana"]);
   caixas.gincanas.innerHTML = cartao("gincanas", "Gincanas", seletores(false) +
     linhaCampos(campo("Gincana", '<select id="pb-desafio">' + opcoes(gincanas, gincanas[0]) + "</select>") +
-      campo("Pontos (colmeia × " + String(RB.FATOR_COLMEIA).replace(".", ",") + ")", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">')) +
+      campo("Pontos", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">')) +
       '<div><button class="btn" id="pb-btn-desafio">Lançar para todos os times</button></div>' +
     tabelaLanc("desafio"));
 
@@ -2266,7 +2266,7 @@ async function renderPontosBlack() {
     var nome = document.getElementById("pb-desafio").value, v = parseInt(document.getElementById("pb-des-pts").value, 10);
     if (!v) { aviso("gincanas", "Informe os pontos.", "pendente"); return; }
     var linhas = COMP_NUM_TIMES.map(function (n) { return { time: n, categoria: "desafio", item: nome, pontos: RB.pts(v, n), motivo: null }; });
-    if (!confirm("Lançar \"" + nome + "\" para os 8 times: " + v + " pontos no checkout e no vestuário e " + RB.pts(v, 5) + " na colmeia?")) return;
+    if (!confirm("Lançar \"" + nome + "\" para os 8 times: " + v + " pontos cada?")) return;
     gravar("gincanas", linhas, "✓ Gincana lançada para os 8 times.");
   });
   document.getElementById("pb-btn-ajuste").addEventListener("click", function () {

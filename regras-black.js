@@ -18,8 +18,8 @@ var TURNOS = {
   'ADM':      { ini: 7 * 60 + 55, fim: 17 * 60 + 33, almoco: [12 * 60 + 15, 13 * 60 + 15], rot: 'ADM · 07h55–17h33' }
 };
 
-// Pontos fixos iguais para checkout e vestuário. A colmeia recebe os fixos × FATOR_COLMEIA.
-var FATOR_COLMEIA = 0.6;
+// Pontos fixos iguais para os 3 grupos. FATOR_COLMEIA multiplica os fixos da colmeia (era 0,6; 1 desde 12/11 = vale igual).
+var FATOR_COLMEIA = 1;
 var P = {
   porPeca: 1,             // cada peça separada ou conferida
   metaBatida: 200,        // bateu 100% da meta do dia

@@ -57,7 +57,7 @@ R.CHECKLIST.forEach(function(c){ (porGrav[c.grav] = porGrav[c.grav] || []).push(
 var linhas = Object.keys(G).map(function(g){
   return (porGrav[g] || []).map(function(item, i){
     return '<tr>' + (i === 0 ? '<td class="g" rowspan="' + porGrav[g].length + '">' + G[g].rot + '</td>' : '') +
-      '<td>' + item + '</td><td class="n neg">' + sinal(G[g].pts) + '</td><td class="n neg">' + sinal(col(G[g].pts)) + '</td><td class="q"></td></tr>';
+      '<td>' + item + '</td><td class="n neg">' + sinal(G[g].pts) + '</td><td class="q"></td></tr>';
   }).join('');
 }).join('');
 var ficha = '<div class="ficha">' +
@@ -71,8 +71,8 @@ var ficha = '<div class="ficha">' +
     '<div class="campo largo">Time<span class="opc">☐ Vermelho ☐ Azul ☐ Verde ☐ Amarelo ☐ Laranja ☐ Branco ☐ Rosa ☐ Roxo</span></div>' +
     '<div class="campo largo">Vistoriador</div>' +
   '</div>' +
-  '<table><thead><tr><th>Gravidade</th><th>Item observado</th><th class="n">Checkout e vestuário</th><th class="n">Colmeia</th><th class="n">Qtde.</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
-  '<div class="rodape"><div class="caixa"><i></i>Sem apontamento ' + sinal(P.vistoriaLimpa) + ' (colmeia ' + sinal(col(P.vistoriaLimpa)) + ')</div>' +
+  '<table><thead><tr><th>Gravidade</th><th>Item observado</th><th class="n">Pontos</th><th class="n">Qtde.</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
+  '<div class="rodape"><div class="caixa"><i></i>Sem apontamento ' + sinal(P.vistoriaLimpa) + '</div>' +
     '<div class="linha">Observação (local, corredor)</div><div class="linha">Assinatura</div></div>' +
   '<p class="nota">Pontos por item × quantidade. Vale para o time inteiro. Correção só por estorno no site.</p>' +
 '</div>';

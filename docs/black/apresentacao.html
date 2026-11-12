@@ -150,7 +150,7 @@ S.push(slide('A campanha', 'Um time de cada cor, <em>em cada turno</em>',
   '</div><div class="stack">' +
     '<div class="lev"><div class="n">4</div><div><h3>Times no checkout</h3><p>Um time por andar, com separadores e conferentes. <b>Checkout disputa com checkout.</b></p><div style="margin-top:12px">' + chips(CORES.slice(0,4)) + '</div></div></div>' +
     '<div class="lev"><div class="n">2</div><div><h3>Times no vestuário</h3><p>Uma caixa cada e metade da separação. <b>Vestuário disputa com vestuário.</b></p><div style="margin-top:12px">' + chips(CORES.slice(4,6)) + '</div></div></div>' +
-    '<div class="lev"><div class="n">2</div><div><h3>Times na colmeia</h3><p><b>Colmeia disputa com colmeia</b>, com pontos fixos proporcionais (×' + String(R.FATOR_COLMEIA).replace('.',',') + ').</p><div style="margin-top:12px">' + chips(CORES.slice(6)) + '</div></div></div>' +
+    '<div class="lev"><div class="n">2</div><div><h3>Times na colmeia</h3><p><b>Colmeia disputa com colmeia</b>.</p><div style="margin-top:12px">' + chips(CORES.slice(6)) + '</div></div></div>' +
   '</div></div>',
   RODAPE));
 
@@ -192,11 +192,11 @@ var GANHA = [['Produtividade','cada peça separada ou conferida','1/peça','1/pe
   ['Trinca Perfeita','100% de presença nos 3 dias',sinal(P.trincaPerfeita),sinal(col(P.trincaPerfeita))]];
 var PERDE = [['Ausência','sai a parte da pessoa na presença'],['Atraso não justificado',sinal(P.atraso) + ' por pessoa'],['Vistoria','desconto por item encontrado']];
 S.push(slide('Gamificação', 'Como um time <em>ganha a Black</em>',
-  '<div class="gam"><div><p class="gk">Ganha <small>pontos do time</small></p><table class="cmp gt"><tr><th>Bloco</th><th style="text-align:left">Como conta</th><th>Checkout</th><th>Colmeia</th></tr>' +
-    GANHA.map(function(r){ return '<tr><td><b>' + r[0] + '</b></td><td style="text-align:left;color:var(--muted)">' + r[1] + '</td><td class="hl">' + r[2] + '</td><td>' + r[3] + '</td></tr>'; }).join('') +
+  '<div class="gam"><div><p class="gk">Ganha <small>pontos do time</small></p><table class="cmp gt"><tr><th>Bloco</th><th style="text-align:left">Como conta</th><th>Pontos</th></tr>' +
+    GANHA.map(function(r){ return '<tr><td><b>' + r[0] + '</b></td><td style="text-align:left;color:var(--muted)">' + r[1] + '</td><td class="hl">' + r[2] + '</td></tr>'; }).join('') +
   '</table></div><div><p class="gk r">Perde</p><table class="cmp gt">' +
     PERDE.map(function(r){ return '<tr><td><b>' + r[0] + '</b></td><td class="neg">' + r[1] + '</td></tr>'; }).join('') +
-  '</table><p class="nota"><span style="white-space:nowrap">Exemplo: 10 escalados e 1 ausente → ' + fmt(P.assiduidadeMax) + ' × 9 ÷ 10 = <b>' + fmt(P.assiduidadeMax * 0.9) + '</b></span><br>Colmeia: valores fixos ×' + String(R.FATOR_COLMEIA).replace('.', ',') + '.</p></div></div>',
+  '</table><p class="nota"><span style="white-space:nowrap">Exemplo: 10 escalados e 1 ausente → ' + fmt(P.assiduidadeMax) + ' × 9 ÷ 10 = <b>' + fmt(P.assiduidadeMax * 0.9) + '</b></span></p></div></div>',
   'Todos os pontos são do time: a produtividade soma as peças de todos os membros'));
 
 // 6 · vistoria
@@ -204,14 +204,14 @@ S.push(slide('Vistoria', 'Segurança, qualidade e 5S <em>nos pisos</em>',
   '<div class="cards">' +
     Object.keys(R.GRAVIDADES).map(function(g){ var its = R.CHECKLIST.filter(function(c){ return c.grav === g; }); return '<div class="card red"><div class="k">' + R.GRAVIDADES[g].rot + '</div><div class="v">' + sinal(R.GRAVIDADES[g].pts) + '</div>' + li(its.map(function(c){ return c.item; })) + '</div>'; }).join('') +
   '</div><p class="lead">Vistoria em <b>horário aleatório</b>, por time. O vistoriador marca o checklist e o desconto é lançado na hora. Vistoria sem nenhum apontamento vale <b>' + sinal(P.vistoriaLimpa) + '</b>.</p>',
-  'Checklist impresso na mão dos líderes · colmeia: descontos ×' + String(R.FATOR_COLMEIA).replace('.', ',')));
+  'Checklist impresso na mão dos líderes'));
 
 // 7 · gincanas
 S.push(slide('Gincanas', 'Competição entre times, <em>com prêmio no dia</em>',
   '<div class="gin">' + R.GINCANAS.map(function(g, k){
     return '<div class="card gin-c"><span class="n">' + (k + 1) + '</span><div><h3>' + g + '</h3><p>' + ((R.GINCANAS_DESC || {})[g] || '') + '</p></div></div>';
   }).join('') + '</div>' +
-  '<p class="lead">Prêmio do dia para o time vencedor: <b>a decidir</b>. Cada gincana vale até ' + fmt(R.PONTOS_DESAFIO) + ' pontos por time (' + fmt(col(R.PONTOS_DESAFIO)) + ' na colmeia), dentro do limite de ' + fmt(P.desafiosMax) + ' por dia.</p>',
+  '<p class="lead">Prêmio do dia para o time vencedor: <b>a decidir</b>. Cada gincana vale até ' + fmt(R.PONTOS_DESAFIO) + ' pontos por time, dentro do limite de ' + fmt(P.desafiosMax) + ' por dia.</p>',
   RODAPE));
 
 // 8 · premiação e próximos passos
