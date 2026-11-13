@@ -1147,12 +1147,17 @@ function etapaDoPedido(row) {
 
 // ---- Dias úteis: cópia da regra do Report E-commerce (report-ecommerce/ingest.js) ----
 // Seg a sex, sem os feriados oficiais (nacional + municipal de Extrema-MG). Atualizar a lista todo ano.
+// DIAS_EXTRAS: sábados/domingos/feriados com operação, cadastrados em Admin > Compartilhados.
 var FERIADOS_2026 = new Set(["2026-01-01", "2026-04-18", "2026-04-21", "2026-05-01", "2026-05-22", "2026-09-07",
   "2026-09-18", "2026-10-12", "2026-11-02", "2026-11-15", "2026-11-20", "2026-12-25"]);
+var DIAS_EXTRAS = new Set();
+function carregarDiasExtras(arr) { DIAS_EXTRAS = new Set((arr || []).map(function (d) { return String(d).slice(0, 10); })); }
 function ehDiaUtil(date) {
+  var iso = paraDataISOLocal(date);
+  if (DIAS_EXTRAS.has(iso)) return true;
   var dow = date.getDay();
   if (dow === 0 || dow === 6) return false;
-  return !FERIADOS_2026.has(paraDataISOLocal(date));
+  return !FERIADOS_2026.has(iso);
 }
 // Dias úteis completos entre duas datas (como no Backlog FIFO do Report): hoje ou ontem = 0/1, 2+ = fora do prazo.
 function diferencaDiasUteis(dataInicial, dataFinal) {
@@ -2485,11 +2490,21 @@ async function renderAbastecimento() {
   var cicloAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
   var snapEstoque = await lerSnapshot("estoque");
   var metaCfg = snapEstoque.inventario && snapEstoque.inventario.metaConfig;
+  var diasExtrasAtual = (await lerSnapshot("config")).dias_extras || [];
   el.innerHTML =
     grupoAbastecimento("Compartilhados entre setores", [
       caixaUpload("up-kardex-geral", "Kardex (sem filtro)", "Alimenta <strong>Pendente de fechamento</strong> (Outbound), <strong>Pula</strong> (Gestão de Estoque) e <strong>Armazenagem</strong> (Inbound) — mesmo relatório, o sistema separa pelo Tipo do Local e pelo prefixo do Local."),
       caixaUpload("up-gerenciador-or-geral", "Gerenciador de OR (sem filtro)", "Alimenta <strong>Recebimento</strong> (Inbound) e <strong>Vinculação</strong> (Reversa) — mesmo relatório, o sistema separa pelo Tipo do Recebimento."),
       caixaUpload("up-controle-nf-geral", "Controle de Nota Fiscal (sem filtro)", "Alimenta <strong>Cancelamentos WMS</strong> (Gestão de Estoque) e <strong>Integração</strong> (Reversa) — mesmo relatório, o sistema separa pela Operação/Status."),
+      '<div class="upload-card" style="border-left:3px solid var(--olive)">' +
+        '<h4 style="margin:0 0 6px">Dias com operação extra</h4>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin:0 0 8px">Sábados ou feriados com operação. Afeta a <strong>idade dos pedidos</strong> (Tela C e Report) e o <strong>backlog previsto</strong>.</p>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+          '<input type="text" id="input-dias-extras" placeholder="14/11/2026, 22/11/2026" value="' + diasExtrasAtual.map(function (d) { var p = d.split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }).join(", ") + '" style="padding:6px 10px;width:280px;border-radius:6px;background:var(--bg-input);color:var(--text);border:1px solid var(--border);font-size:13px">' +
+          '<button class="btn" id="btn-salvar-dias-extras">Salvar</button>' +
+          '<span class="upload-status" id="status-dias-extras"></span>' +
+        '</div>' +
+      '</div>',
     ], "adm-compartilhados") +
     grupoAbastecimento("Outbound", [
       caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
@@ -2513,6 +2528,17 @@ async function renderAbastecimento() {
     grupoAbastecimento("Vistoria", ['<div id="pb-bloco-vistoria"></div>'], "adm-vistoria") +
     grupoAbastecimento("Ajustes", ['<div id="pb-bloco-extrair"></div><div class="pb-ajustes"><div id="pb-bloco-gincanas"></div><div id="pb-bloco-ajuste"></div><div id="pb-bloco-ouro"></div></div>'], "adm-ajustes");
   restaurarStatusAbastecimento();
+  var btnExtras = document.getElementById("btn-salvar-dias-extras");
+  if (btnExtras) btnExtras.addEventListener("click", async function () {
+    var st = document.getElementById("status-dias-extras");
+    try {
+      var txt = document.getElementById("input-dias-extras").value;
+      var lista = txt.split(/[\s,;]+/).filter(Boolean);
+      var datas = await window.ProdutividadeIngest.salvarDiasExtras(lista);
+      st.textContent = "✓ " + datas.length + " dia(s) salvo(s)."; st.className = "upload-status ok";
+      if (window.recarregarSnapshots) window.recarregarSnapshots(true);
+    } catch (e) { st.textContent = "Erro: " + e.message; st.className = "upload-status erro"; }
+  });
   renderCompeticaoAdmin(true);
 }
 
@@ -2986,6 +3012,18 @@ window.ProdutividadeIngest = {
   lancarPallet: lancarPallet,
   alternarCicloInventario: alternarCicloInventario,
   salvarMetaInventario: salvarMetaInventario,
+  carregarDiasExtras: carregarDiasExtras,
+  salvarDiasExtras: async function (lista) {
+    var datas = (lista || []).map(function (t) {
+      var m = String(t).trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+      m = String(t).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return m ? m[0] : null;
+    }).filter(Boolean);
+    carregarDiasExtras(datas);
+    await mergeSnapshot("config", "dias_extras", datas);
+    return datas;
+  },
   // Robô: "Importado em" (ms) do pedido em aberto mais antigo de um Acompanhamento OP.
   maisAntigoOp: async function (file) {
     var p = processarOperacaoOp(await parseArquivoGenerico(file)), m = null;

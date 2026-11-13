@@ -1729,6 +1729,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     var { data, error } = await supabaseClient.from('dashboard_snapshots').select('pagina, dados, atualizado_em');
     if (error) { console.error('Erro ao ler dashboard_snapshots', error); return; }
     (data||[]).forEach(function(row){ snapshots[row.pagina] = row.dados; });
+    if (snapshots.config && snapshots.config.dias_extras) window.ProdutividadeIngest.carregarDiasExtras(snapshots.config.dias_extras);
     var { data: cfg } = await supabaseClient.from('config_geral').select('ciclo_inventario_ativo').eq('chave','geral').single();
     cicloInventarioAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
     await carregarCompeticaoTimes(true);
