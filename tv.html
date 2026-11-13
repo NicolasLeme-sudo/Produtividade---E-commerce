@@ -1082,7 +1082,7 @@ function relogio(){
     s.textContent = '● Dados de ' + dTela.slice(8,10) + '/' + dTela.slice(5,7) + (falhou ? ' · sem conexão' : '');
     s.className = 'selo ' + (falhou ? 'velho' : 'atencao'); return;
   }
-  s.textContent = '● Dado de ' + hh + dd + (velho && min > 60 ? ' · ' + velho.nome + ' atrasado' : '') + (falhou ? ' · sem conexão' : '');
+  s.textContent = '● Dado de ' + hh + dd + (falhou ? ' · sem conexão' : '');
   s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 60 ? 'atencao' : 'ok');   // robô atualiza a cada 30–45 min
 }
 setInterval(relogio, 15000); relogio();
