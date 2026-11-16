@@ -121,6 +121,13 @@ function porTurno(porUsuario, nomes, manha) {
   });
   return out;
 }
+// Fechamento do dia: os turnos somados numa tabela só (quem trabalhou nos dois aparece uma vez,
+// com as horas lado a lado). Vale para a Armazenagem (ADM + T02) e para o Outbound (T01 + T02).
+function juntarTurnos() {
+  var out = {};
+  Array.prototype.forEach.call(arguments, function (m) { somarEm(out, m || {}); });
+  return out;
+}
 function somarEm(destino, porUsuario) {
   Object.keys(porUsuario || {}).forEach(function (u) {
     var alvo = destino[u] || (destino[u] = new Array(24).fill(0));
@@ -176,7 +183,7 @@ function armazenagemPorUsuario(inbound, dia) {
 module.exports = {
   TURNOS: TURNOS, CORES: CORES, TEMAS: TEMAS, FONTE: FONTE,
   ordemHora: ordemHora, rotHora: rotHora, fmt: fmt, esc: esc, dataBR: dataBR, mistura: mistura,
-  tabela: tabela, porTurno: porTurno, turnoDaPessoa: turnoDaPessoa, somarEm: somarEm,
+  tabela: tabela, porTurno: porTurno, turnoDaPessoa: turnoDaPessoa, somarEm: somarEm, juntarTurnos: juntarTurnos,
   analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
   expedicaoPorUsuario: expedicaoPorUsuario, armazenagemPorUsuario: armazenagemPorUsuario
 };

@@ -50,14 +50,20 @@ async function cliente(cfg) {
     { id: "out-t01", tit: "Outbound · T01", tabelas: [["Separado", tSep.T01, C.sep], ["Conferido", tConf.T01, C.conf], ["Expedido", tExp.T01, C.exp]] },
     { id: "out-t02", tit: "Outbound · T02", tabelas: [["Separado", tSep.T02, C.sep], ["Conferido", tConf.T02, C.conf], ["Expedido", tExp.T02, C.exp]] },
     { id: "arm-adm", tit: "Armazenagem · ADM", tabelas: [["Armazenado", tArm.ADM, C.arm]] },
-    { id: "arm-t02", tit: "Armazenagem · T02", tabelas: [["Armazenado", tArm.T02, C.arm]] }
+    { id: "arm-t02", tit: "Armazenagem · T02", tabelas: [["Armazenado", tArm.T02, C.arm]] },
+    // Fechamentos (e-mail separado para a coordenação e a gerência): o dia inteiro, com os turnos SOMADOS
+    { id: "fech-out", fech: 1, tit: "Fechamento do dia · Outbound",
+      tabelas: [["Separado", E.juntarTurnos(tSep.T01, tSep.T02), C.sep], ["Conferido", E.juntarTurnos(tConf.T01, tConf.T02), C.conf], ["Expedido", E.juntarTurnos(tExp.T01, tExp.T02), C.exp]] },
+    { id: "fech-arm", fech: 1, tit: "Fechamento do dia · Armazenagem",
+      tabelas: [["Armazenado", E.juntarTurnos(tArm.ADM, tArm.T02), C.arm]] }
   ];
   function corpo(tema) {
     return EMAILS.map(function (e) {
       const ts = e.tabelas.map(function (t) { return E.tabela(t[0], t[1], t[2], tema); });
       const tot = ts.map(function (t, i) { return E.esc(e.tabelas[i][0]) + " " + E.fmt(t.total); }).join(" · ");
       return '<section class="email" id="' + e.id + "-" + tema + '">' +
-        '<div class="email-hd"><div><p class="kicker">Assunto do e-mail</p><h3>' + E.esc(e.tit) + " · " + E.dataBR(dia) + "</h3></div>" +
+        '<div class="email-hd"><div><p class="kicker">' + (e.fech ? "E-mail de fechamento · turnos somados" : "Assunto do e-mail") +
+        '</p><h3>' + E.esc(e.tit) + " · " + E.dataBR(dia) + "</h3></div>" +
         '<div class="resumo">' + tot + "</div></div>" +
         '<div class="email-corpo">' + ts.map(function (t) { return t.html; }).join("") + "</div></section>";
     }).join("");
