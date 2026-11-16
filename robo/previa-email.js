@@ -36,12 +36,8 @@ async function cliente(cfg) {
   const exp = E.expedicaoPorUsuario(op, dia);
   const arm = E.armazenagemPorUsuario(inb, dia);
 
-  // nomes pela Base de ativos (mesma resolução do site); a armazenagem já vem com o nome
-  const usuarios = Array.from(new Set([].concat(Object.keys(sep), Object.keys(conf), Object.keys(exp))));
-  const ing = await robo.prepararIngest(cfg);
-  const nomes = await ing.api.resolverNomes(usuarios);
-
-  const tSep = E.porTurno(sep, nomes, "T01"), tConf = E.porTurno(conf, nomes, "T01"), tExp = E.porTurno(exp, nomes, "T01");
+  // As tabelas mostram o usuário do WMS (o mesmo do sistema), não o nome completo.
+  const tSep = E.porTurno(sep, null, "T01"), tConf = E.porTurno(conf, null, "T01"), tExp = E.porTurno(exp, null, "T01");
   const tArm = E.porTurno(arm, null, "ADM");
   const C = E.CORES;
 
@@ -52,14 +48,16 @@ async function cliente(cfg) {
     { id: "arm-adm", tit: "Armazenagem · ADM", tabelas: [["Armazenado", tArm.ADM, C.arm]] },
     { id: "arm-t02", tit: "Armazenagem · T02", tabelas: [["Armazenado", tArm.T02, C.arm]] },
     // Fechamentos (e-mail separado para a coordenação e a gerência): o dia inteiro, com os turnos SOMADOS
-    { id: "fech-out", fech: 1, tit: "Fechamento do dia · Outbound",
-      tabelas: [["Separado", E.juntarTurnos(tSep.T01, tSep.T02), C.sep], ["Conferido", E.juntarTurnos(tConf.T01, tConf.T02), C.conf], ["Expedido", E.juntarTurnos(tExp.T01, tExp.T02), C.exp]] },
-    { id: "fech-arm", fech: 1, tit: "Fechamento do dia · Armazenagem",
-      tabelas: [["Armazenado", E.juntarTurnos(tArm.ADM, tArm.T02), C.arm]] }
+    { id: "fech-out", fech: 1, tit: "Fechamento do dia · Outbound", tabelas: [
+      ["Separado", E.juntarTurnos(tSep.T01, tSep.T02), C.sep, E.rotulosTurno([["T01", tSep.T01], ["T02", tSep.T02]])],
+      ["Conferido", E.juntarTurnos(tConf.T01, tConf.T02), C.conf, E.rotulosTurno([["T01", tConf.T01], ["T02", tConf.T02]])],
+      ["Expedido", E.juntarTurnos(tExp.T01, tExp.T02), C.exp, E.rotulosTurno([["T01", tExp.T01], ["T02", tExp.T02]])]] },
+    { id: "fech-arm", fech: 1, tit: "Fechamento do dia · Armazenagem", tabelas: [
+      ["Armazenado", E.juntarTurnos(tArm.ADM, tArm.T02), C.arm, E.rotulosTurno([["ADM", tArm.ADM], ["T02", tArm.T02]])]] }
   ];
   function corpo(tema) {
     return EMAILS.map(function (e) {
-      const ts = e.tabelas.map(function (t) { return E.tabela(t[0], t[1], t[2], tema); });
+      const ts = e.tabelas.map(function (t) { return E.tabela(t[0], t[1], t[2], tema, t[3]); });
       const tot = ts.map(function (t, i) { return E.esc(e.tabelas[i][0]) + " " + E.fmt(t.total); }).join(" · ");
       return '<section class="email" id="' + e.id + "-" + tema + '">' +
         '<div class="email-hd"><div><p class="kicker">' + (e.fech ? "E-mail de fechamento · turnos somados" : "Assunto do e-mail") +
@@ -68,7 +66,8 @@ async function cliente(cfg) {
         '<div class="email-corpo">' + ts.map(function (t) { return t.html; }).join("") + "</div></section>";
     }).join("");
   }
-  const chips = EMAILS.map(function (e) { return '<a class="chip" href="#' + e.id + '-claro">' + E.esc(e.tit) + "</a>"; }).join("");
+  const GRUPOS = [["Outbound", "out-t01"], ["Inbound", "arm-adm"], ["Fechamento", "fech-out"]];
+  const chips = GRUPOS.map(function (g) { return '<a class="chip" href="#' + g[1] + '">' + g[0] + "</a>"; }).join("");
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR" data-tema="escuro">
@@ -100,7 +99,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
 .vb-btn:hover{background:rgba(127,140,170,.26)}
 .vb-btn:focus-visible{outline:2px solid #297ADF;outline-offset:2px}
-.marca-dir{height:30px;width:34px;object-fit:contain;opacity:.9}   /* caixa igual nos dois temas: os PNGs têm proporções diferentes */
+.marca-dir{height:30px;opacity:.9}   /* os dois PNGs do V têm a mesma moldura: a altura basta */
 .barra{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:10px 24px;background:var(--bg-card);border-bottom:1px solid var(--border)}
 .barra b{font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted)}

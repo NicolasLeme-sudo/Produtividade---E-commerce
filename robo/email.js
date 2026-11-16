@@ -49,8 +49,9 @@ function mistura(cor, fundo, p) {
 }
 
 /* ---------------- uma tabela (um cartão por atividade) ---------------- */
-// pessoas = { nome: [24] peças por hora }  ->  { html, total, horas, pessoas }
-function tabela(titulo, pessoas, cor, tema) {
+// pessoas = { usuário: [24] peças por hora }; turnos (opcional) = { usuário: "T01" } acrescenta a coluna Turno
+// à esquerda, usada nos e-mails de fechamento.  ->  { html, total, horas, pessoas }
+function tabela(titulo, pessoas, cor, tema, turnos) {
   var T = TEMAS[tema === "escuro" ? "escuro" : "claro"];
   var corTotal = mistura(cor, T.mistura, T.pTotal);     // linha de totais: a mesma cor, mais fraca
   var corBorda = mistura(cor, T.borda, T.pBorda);
@@ -78,16 +79,19 @@ function tabela(titulo, pessoas, cor, tema) {
   var th = "padding:7px 10px;border:1px solid " + corBorda + ";background:" + cor + ";color:#fff;font-weight:600;font-size:12px;text-align:right;white-space:nowrap;";
   var td = "padding:5px 10px;border:1px solid " + T.borda + ";text-align:right;white-space:nowrap;color:" + T.texto + ";";
   var tdTot = "padding:6px 10px;border:1px solid " + corBorda + ";background:" + corTotal + ";text-align:right;white-space:nowrap;font-weight:700;color:" + T.texto + ";";
-  var cab = '<tr><th style="' + th + 'text-align:left">' + esc(titulo) + "</th>" +
+  var colTurno = !!turnos;
+  var cab = '<tr>' + (colTurno ? '<th style="' + th + 'text-align:left">Turno</th>' : "") +
+    '<th style="' + th + 'text-align:left">' + esc(titulo) + "</th>" +
     horas.map(function (h) { return '<th style="' + th + '">' + rotHora(h) + "</th>"; }).join("") +
     '<th style="' + th + '">Total</th></tr>';
   var corpo = linhas.map(function (l, i) {
     var zebra = i % 2 ? "background:" + T.zebra + ";" : "background:" + T.cartao + ";";
-    return '<tr><td style="' + td + zebra + 'text-align:left">' + esc(l.nome) + "</td>" +
+    return "<tr>" + (colTurno ? '<td style="' + td + zebra + 'text-align:left;color:' + T.apoio + '">' + esc(turnos[l.nome] || "—") + "</td>" : "") +
+      '<td style="' + td + zebra + 'text-align:left">' + esc(l.nome) + "</td>" +
       horas.map(function (h) { return '<td style="' + td + zebra + '">' + (l.arr[h] ? fmt(l.arr[h]) : '<span style="color:' + T.apoio + '">·</span>') + "</td>"; }).join("") +
       '<td style="' + td + zebra + "font-weight:700;color:" + cor + '">' + fmt(l.total) + "</td></tr>";
   }).join("");
-  var rodape = '<tr><td style="' + tdTot + 'text-align:left">Total</td>' +
+  var rodape = "<tr>" + (colTurno ? '<td style="' + tdTot + '"></td>' : "") + '<td style="' + tdTot + 'text-align:left">Total</td>' +
     horas.map(function (h) {
       var s = linhas.reduce(function (a, l) { return a + (l.arr[h] || 0); }, 0);
       return '<td style="' + tdTot + '">' + (s ? fmt(s) : '<span style="color:' + T.apoio + '">·</span>') + "</td>";
@@ -127,6 +131,15 @@ function juntarTurnos() {
   var out = {};
   Array.prototype.forEach.call(arguments, function (m) { somarEm(out, m || {}); });
   return out;
+}
+// Quem aparece em mais de um turno no fechamento vira "ADM+T02" (ou "T01+T02").
+// mapas = [["ADM", {...}], ["T02", {...}]]  ->  { usuário: "ADM" }
+function rotulosTurno(mapas) {
+  var r = {};
+  (mapas || []).forEach(function (par) {
+    Object.keys(par[1] || {}).forEach(function (u) { r[u] = r[u] ? r[u] + "+" + par[0] : par[0]; });
+  });
+  return r;
 }
 function somarEm(destino, porUsuario) {
   Object.keys(porUsuario || {}).forEach(function (u) {
@@ -183,7 +196,7 @@ function armazenagemPorUsuario(inbound, dia) {
 module.exports = {
   TURNOS: TURNOS, CORES: CORES, TEMAS: TEMAS, FONTE: FONTE,
   ordemHora: ordemHora, rotHora: rotHora, fmt: fmt, esc: esc, dataBR: dataBR, mistura: mistura,
-  tabela: tabela, porTurno: porTurno, turnoDaPessoa: turnoDaPessoa, somarEm: somarEm, juntarTurnos: juntarTurnos,
+  tabela: tabela, porTurno: porTurno, turnoDaPessoa: turnoDaPessoa, somarEm: somarEm, juntarTurnos: juntarTurnos, rotulosTurno: rotulosTurno,
   analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
   expedicaoPorUsuario: expedicaoPorUsuario, armazenagemPorUsuario: armazenagemPorUsuario
 };

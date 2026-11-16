@@ -481,7 +481,7 @@ function processarKardexEndereco(rows, indiceBaseAtivos, embalas) {
   var totalNormal = 0, totalReversa = 0;
   var normalDia = new Map(), reversaDia = new Map();
   var normalHora = new Map();   // data -> [24] peças armazenadas por hora (só armazenagem normal)
-  var normalUsuHora = new Map();// data -> Map(nome -> [24]) peças por pessoa e hora (e-mail de Armazenagem por hora)
+  var normalUsuHora = new Map();// data -> Map(usuário do WMS -> [24]) peças por pessoa e hora (e-mail de Armazenagem)
   var normalMin = new Map();    // data -> { minuto do dia: peças } (previsão "nesta hora"; não é gravado)
 
   rows.forEach(function (row) {
@@ -520,9 +520,11 @@ function processarKardexEndereco(rows, indiceBaseAtivos, embalas) {
         if (minuto !== null) { var mm = normalMin.get(dataISO) || {}; mm[minuto] = (mm[minuto] || 0) + delta; normalMin.set(dataISO, mm); }
         var porU = normalUsuHora.get(dataISO) || new Map();
         normalUsuHora.set(dataISO, porU);
-        var arrU = porU.get(colaborador.nome) || new Array(24).fill(0);
+        // chave = usuário do WMS (igual aos analíticos de separação/conferência), não o nome resolvido
+        var usuWms = String(usuarioRaw || colaborador.nome || "").trim() || "(sem usuário)";
+        var arrU = porU.get(usuWms) || new Array(24).fill(0);
         arrU[hora] += delta;
-        porU.set(colaborador.nome, arrU);
+        porU.set(usuWms, arrU);
       }
     } else if (prefixo === "S") {
       porUsuarioReversa.set(colaborador.nome, (porUsuarioReversa.get(colaborador.nome) || 0) + delta);
