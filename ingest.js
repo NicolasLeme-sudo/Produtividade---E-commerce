@@ -481,6 +481,7 @@ function processarKardexEndereco(rows, indiceBaseAtivos, embalas) {
   var totalNormal = 0, totalReversa = 0;
   var normalDia = new Map(), reversaDia = new Map();
   var normalHora = new Map();   // data -> [24] peças armazenadas por hora (só armazenagem normal)
+  var normalUsuHora = new Map();// data -> Map(nome -> [24]) peças por pessoa e hora (e-mail de Armazenagem por hora)
   var normalMin = new Map();    // data -> { minuto do dia: peças } (previsão "nesta hora"; não é gravado)
 
   rows.forEach(function (row) {
@@ -517,6 +518,11 @@ function processarKardexEndereco(rows, indiceBaseAtivos, embalas) {
         normalHora.set(dataISO, horas);
         var minuto = minutoDoValor(dataBruta);
         if (minuto !== null) { var mm = normalMin.get(dataISO) || {}; mm[minuto] = (mm[minuto] || 0) + delta; normalMin.set(dataISO, mm); }
+        var porU = normalUsuHora.get(dataISO) || new Map();
+        normalUsuHora.set(dataISO, porU);
+        var arrU = porU.get(colaborador.nome) || new Array(24).fill(0);
+        arrU[hora] += delta;
+        porU.set(colaborador.nome, arrU);
       }
     } else if (prefixo === "S") {
       porUsuarioReversa.set(colaborador.nome, (porUsuarioReversa.get(colaborador.nome) || 0) + delta);
@@ -525,7 +531,7 @@ function processarKardexEndereco(rows, indiceBaseAtivos, embalas) {
     }
   });
 
-  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora, normalMin: normalMin, segDia: segDia };
+  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora, normalUsuHora: normalUsuHora, normalMin: normalMin, segDia: segDia };
 }
 // Minuto do dia (0-1439) da coluna Data: "dd/mm/yyyy HH:mm:ss", serial do Excel ou Date. Sem hora = null.
 function minutoDoValor(valor) {
@@ -2707,6 +2713,8 @@ async function processar(id) {
         // Hora a hora da armazenagem normal (telão): os dias do arquivo substituem os salvos, guarda até 31 dias.
         normalHoraDia: mesclarDias(armAnterior.normalHoraDia, Array.from(r5.normalHora.entries()).map(function (e) { return { data: e[0], horas: e[1] }; })).slice(-31),
         segDia: segDia5,
+        // Por pessoa e hora (e-mail de Armazenagem): só os 3 dias mais recentes, para não inchar o snapshot.
+        normalUsuHoraDia: mesclarDias(armAnterior.normalUsuHoraDia, diaMapParaArray(r5.normalUsuHora)).slice(-3),
       };
       var diaOp5 = diaOperacionalIngest(new Date());
       atual5.armazenagem.previsao = previsaoDoDia(atual5.armazenagem.normalHoraDia, new Date(),
@@ -3009,6 +3017,12 @@ async function processar(id) {
 window.ProdutividadeIngest = {
   renderAdmin: renderAdmin,
   processar: async function (id) { cardEmProcesso = id; try { return await processar(id); } finally { cardEmProcesso = null; } },
+  // Usuários do WMS -> nome da Base de ativos (e-mails por hora do robô). Sem cadastro, devolve o próprio usuário.
+  resolverNomes: async function (usuarios) {
+    var base = await carregarIndiceBaseAtivos(), out = {};
+    (usuarios || []).forEach(function (u) { out[u] = resolverColaborador(u, base.indice).nome; });
+    return out;
+  },
   lancarPallet: lancarPallet,
   alternarCicloInventario: alternarCicloInventario,
   salvarMetaInventario: salvarMetaInventario,

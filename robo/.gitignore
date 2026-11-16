@@ -10,3 +10,5 @@ erros/
 baixar.lock
 robo.lock
 ultima-rodada.txt
+emails-enviados.json
+previa-emails-*.html

@@ -287,7 +287,7 @@ async function vigiar(cfg) {
   }, INTERVALO_MS);
 }
 
-module.exports = { lerEnv: lerEnv, log: log, maisAntigoOp: maisAntigoOp };
+module.exports = { lerEnv: lerEnv, log: log, maisAntigoOp: maisAntigoOp, prepararIngest: prepararIngest };
 
 /* ---------------- início ---------------- */
 if (require.main === module) (async function () {

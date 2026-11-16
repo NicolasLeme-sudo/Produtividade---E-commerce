@@ -479,6 +479,15 @@ async function iniciar(cfg, log, opcoes) {
     if (!MANTER_ABAS) await fechar();
     return;
   }
+  // Rodadas presas ao relógio (:00 e :30 com INTERVALO_MIN=30), e não contadas a partir da hora em que ligou:
+  // os e-mails por hora saem sempre nos primeiros minutos depois da virada (16/11).
+  function proximoDoRelogio(ms) {
+    const agora = Date.now(), hora = new Date(); hora.setMinutes(0, 0, 0);
+    if (ms <= 0 || ms > 3600000) return agora + ms;
+    let t = +hora;
+    while (t <= agora) t += ms;
+    return t;
+  }
   const proximo = { rapido: 0, lento: 0 };
   incluirOntem = !PERIODO.de;
   if (incluirOntem) { inicioPrimeira = calcularInicioPrimeira(); log("1ª rodada: de " + ddmmaaaa(inicioPrimeira) + " até hoje (completa o que rodou com o robô desligado); as próximas, só hoje"); }
@@ -510,7 +519,7 @@ async function iniciar(cfg, log, opcoes) {
     }
     for (const g of ["rapido", "lento"]) {          // rápido tem prioridade
       if (Date.now() >= proximo[g]) {
-        proximo[g] = Date.now() + intervalo[g];
+        proximo[g] = proximoDoRelogio(intervalo[g]);
         await grupo(g, so);
         if (g === "lento" && operando) marcarRodada();   // dia da última rodada completa: a 1ª depois de religar volta até ele
       }
