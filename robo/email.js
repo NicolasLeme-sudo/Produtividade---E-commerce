@@ -64,7 +64,7 @@ function tabela(titulo, pessoas, cor, tema) {
   linhas.sort(function (a, b) { return b.total - a.total || a.nome.localeCompare(b.nome); });
   var total = linhas.reduce(function (s, l) { return s + l.total; }, 0);
 
-  var cartao = FONTE + "border:1px solid " + corBorda + ";border-radius:8px;overflow:hidden;background:" + T.cartao + ";margin:0 0 22px 0;";
+  var cartao = FONTE + "border:1px solid " + corBorda + ";border-radius:8px;overflow:hidden;background:" + T.cartao + ";margin:0 0 30px 0;";
   var faixa = "padding:10px 16px;background:" + mistura(cor, T.mistura, tema === "escuro" ? .18 : .1) +
     ";border-bottom:1px solid " + corBorda + ";border-left:4px solid " + cor + ";";
   var tit = FONTE + "margin:0;font-size:15px;font-weight:700;color:" + T.texto + ";";

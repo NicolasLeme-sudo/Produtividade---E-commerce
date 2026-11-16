@@ -100,14 +100,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .chip{font-size:.72rem;border:1px solid var(--border);background:var(--bg-input);color:var(--text-label);
   padding:5px 11px;border-radius:999px;text-decoration:none}
 .chip:hover{border-color:var(--accent);color:var(--accent)}
-.content{padding:22px;display:flex;flex-direction:column;gap:34px;max-width:1500px}
+.content{padding:22px 22px 60px;display:flex;flex-direction:column;gap:60px;max-width:1500px}
+.email+.email{position:relative}
+.email+.email::before{content:"";position:absolute;left:0;right:0;top:-30px;border-top:1px solid var(--border)}
 .email{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;scroll-margin-top:60px}
 .email-hd{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;
   padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg-input)}
 .email-hd h3{margin:0;font-size:.95rem;font-weight:700}
 .kicker{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:0 0 6px}
 .resumo{font-size:.78rem;color:var(--text-muted)}
-.email-corpo{padding:18px}
+.email-corpo{padding:20px 18px 0}
 .folha[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
