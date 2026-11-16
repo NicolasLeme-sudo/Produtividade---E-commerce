@@ -36,7 +36,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 
 ## Telão (tv.html)
 - Login `@vulcabras.com`; usuário do telão com perfil `gestao` (sessão persistente, `storageKey: telao-produtividade`).
-- Telas em rodízio, nesta ordem (pula tela sem dado): C Operação agora 90 s · A Corrida Maluca 120 s (times do turno do horário) · B Separação e Conferência 90 s · E Expedição 90 s · D Armazenagem por hora 60 s.
+- Telas em rodízio, nesta ordem (pula tela sem dado): C Operação agora 90 s · A Corrida Maluca 120 s (times do turno do horário). Na Corrida, título só "Corrida Maluca" e, à direita das setas, botões **T01 | T02** (`selTurno`/`turnoEscolhido`, 16/11): o do horário vem marcado; escolher o outro só mostra (sem comemoração, hora de ouro e balões) e volta ao do horário quando a tela troca; não aparece no `?modo=operacao` · B Separação e Conferência 90 s · E Expedição 90 s · D Armazenagem por hora 60 s.
 - Troca de tela com transição (sai esmaecendo 0,35 s, entra deslizando 0,7 s); barra do giro contínua (requestAnimationFrame), na cor da tela aberta (`COR_CAL`).
 - Pista: largada 4 %, chegada 93 %; meta batida põe o carro em `P_META_BATIDA` = 1,06 (passa um pouco da linha).
 - Tela C, card **Importação hoje** (antes "Caída hoje") (5 cards no topo): peças | pedidos cadastrados hoje e, embaixo, ontem inteiro, pela Data de Cadastro do Itens de NF (traz também as notas já expedidas; sem as canceladas). Cor verde musgo `#5B7F2B` (a do telão da DISTR). `processarCaidaItensNf`/`juntarCaida` no ingest.js, gravado em `operacao.caidaDias` (31 dias) e lido em `resumo.caida`.

@@ -99,6 +99,11 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .fh .tt{flex:1;font-size:22px;font-weight:700}
 .navt{display:inline-flex;align-items:center;gap:12px;vertical-align:middle}
 .navt.so button{visibility:hidden}
+/* T01 | T02 ao lado das setas (só na Corrida): o turno do horário vem marcado; escolher o outro vale até a tela trocar */
+.selTurno{display:inline-flex;gap:6px;margin-left:16px;vertical-align:middle}.selTurno[hidden]{display:none}
+.selTurno button{height:34px;padding:0 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 40%, transparent);background:transparent;color:var(--text-muted);font-family:inherit;font-size:16px;font-weight:800;cursor:pointer}
+.selTurno button:hover{border-color:var(--cc,#297ADF);color:var(--text)}
+.selTurno button.on{background:color-mix(in srgb, var(--cc,#297ADF) 30%, transparent);border-color:var(--cc,#297ADF);color:#fff}
 #titulo{display:inline-block}
 #titulo.troca{animation:tituloAvanca .55s cubic-bezier(.2,.8,.2,1)}#titulo.troca.recua{animation-name:tituloVolta}
 @keyframes tituloAvanca{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
@@ -308,7 +313,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lt;</button><span id="titulo">Corrida Maluca</span><button type="button" id="telaProx" aria-label="Próxima tela">&gt;</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="demo-meta" id="demoMeta" hidden><button type="button" class="fsb" id="btnDemoMeta" aria-haspopup="menu">🏆 Meta batida</button><span class="dm-pop" id="dmPop" hidden role="menu"></span></span><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lt;</button><span id="titulo">Corrida Maluca</span><button type="button" id="telaProx" aria-label="Próxima tela">&gt;</button></span><span class="selTurno" id="selTurno" hidden><button type="button" data-t="1º Turno">T01</button><button type="button" data-t="2º Turno">T02</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="demo-meta" id="demoMeta" hidden><button type="button" class="fsb" id="btnDemoMeta" aria-haspopup="menu">🏆 Meta batida</button><span class="dm-pop" id="dmPop" hidden role="menu"></span></span><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
@@ -765,6 +770,7 @@ function renderTelaE(opRes){
 }
 
 /* ================= HORA DE OURO (agendada no Abastecimento > Pontos da Black) ================= */
+var turnoEscolhido = null;   // T01/T02 escolhido no topo (null = turno do horário); volta ao do horário quando a tela troca
 var turnoTela = null;   // turno mostrado no telão (null = escalação sem turno do horário: mostra todos)
 // Faixa dourada no topo durante a hora de ouro agendada (dia + turno + hora).
 var ouroAtivo = null;
@@ -993,6 +999,8 @@ function entraTela(i){
   sentidoTroca = 1;
   document.getElementById('barra').hidden = telasAtivas().length < 2;   // com uma tela só não há o que girar
   document.querySelector('.navt').classList.toggle('so', telasAtivas().length < 2);
+  if (telas[i].id !== 'telaA' && turnoEscolhido) { turnoEscolhido = null; carregar(); }   // saiu da Corrida: volta ao turno do horário
+  marcaTurno();
   relogio();
   if (telas[i].id === 'telaA') requestAnimationFrame(ajustaAltura);
   requestAnimationFrame(function(){   // tela estava escondida: só agora dá para medir
@@ -1012,6 +1020,19 @@ setInterval(function(){
   var dec = (Date.now() - inicioTela) / giroDe(atual);
   if (telasAtivas().length > 1 && dec >= 1 && !comemorando) mostraTela(proximaTela(1));
 }, 500);
+// T01 | T02 ao lado das setas: só na Corrida, fora do ?modo=operacao e com escalação por turno
+function marcaTurno(){
+  var el = document.getElementById('selTurno'), t = turnoEscolhido || RegrasBlack.turnoAtual(new Date()).turno;
+  el.hidden = MODO_OPERACAO || !turnoTela || !telas[atual] || telas[atual].id !== 'telaA' || !document.getElementById('telaA').classList.contains('on');
+  el.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-t') === t); });
+}
+document.querySelectorAll('#selTurno button').forEach(function(b){ b.addEventListener('click', function(e){
+  e.stopPropagation();
+  var t = b.getAttribute('data-t');
+  turnoEscolhido = t === RegrasBlack.turnoAtual(new Date()).turno ? null : t;
+  inicioTela = Date.now();   // escolheu agora: o giro recomeça a contar
+  marcaTurno(); carregar();
+}); });
 // Botões ‹ › ao lado do nome da tela: mesmo efeito das setas do teclado (o rodízio segue a partir da tela escolhida)
 ['telaAnt', 'telaProx'].forEach(function(id, k){ document.getElementById(id).addEventListener('click', function(e){
   e.stopPropagation(); if (comemorando) { encerraComemoracao(); return; } sentidoTroca = k ? 1 : -1; mostraTela(proximaTela(sentidoTroca)); }); });
@@ -1146,17 +1167,17 @@ async function carregar(){
     falhou = false;
     // Times por turno: mostra o turno do horário; se ninguém estiver escalado nele, mostra a escalação inteira.
     var cadAll = r[1].data || [], ta = RegrasBlack.turnoAtual(new Date());
-    var cadT = cadAll.filter(function(x){ return x.turno === ta.turno; });
+    var tVer = turnoEscolhido || ta.turno, outroTurno = tVer !== ta.turno;   // outro turno: só olhar (sem comemoração, hora de ouro nem balões)
+    var cadT = cadAll.filter(function(x){ return x.turno === tVer; });
     if (!cadT.length) cadT = cadAll;
-    turnoTela = cadT === cadAll ? null : ta.turno;
-    var rotTurno = turnoTela ? ' · ' + RegrasBlack.TURNOS[turnoTela].rot.split(' · ')[0] : '';
-    document.getElementById('telaA').setAttribute('data-titulo', 'Corrida Maluca' + rotTurno);
+    turnoTela = cadT === cadAll ? null : tVer;
+    marcaTurno();
     var diaOut = diaOutbound(snap);
     document.getElementById('telaA').dataset.dia = diaOut;
     var c = calcularCompeticao(snap, cadT, diaOut);
     var ouros = r[3].error ? [] : (r[3].data || []);
     var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
-    ouroAtivo = MODO_OPERACAO || !ehHoje() ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
+    ouroAtivo = MODO_OPERACAO || !ehHoje() || outroTurno ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
     atualizaOuro();
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
@@ -1169,8 +1190,8 @@ async function carregar(){
         fColm = F('Colmeia', fe['up-conf-colmeia'] || semFe), fOp = F('Acompanhamento OP', res.opEm), fNf = F('Itens de NF', res.nfEm),
         fKx = F('Kardex', res.expedicao && res.expedicao.kardexEm);
     horaFonte = { telaA:[fSep, fConf, fColm], telaB:[fSep, fConf, fColm, fOp], telaC:[fOp, fNf], telaE:[fKx, fOp], telaD:[fKx] };
-    renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap, diaOut, op && op.resumo); if (!MODO_OPERACAO) verificaMetas(c);
-    if (!MODO_OPERACAO && ehHoje() && !r[4].error) verificaBaloes(c, cadT, r[4].data || [], ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);
+    renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap, diaOut, op && op.resumo); if (!MODO_OPERACAO && !outroTurno) verificaMetas(c);
+    if (!MODO_OPERACAO && !outroTurno && ehHoje() && !r[4].error) verificaBaloes(c, cadT, r[4].data || [], ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho
