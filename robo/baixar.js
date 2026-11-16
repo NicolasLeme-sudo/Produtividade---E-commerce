@@ -9,6 +9,11 @@
      Grupo rápido (a cada 5 min):  Separação · Packing Analítico · Colmeia
      Grupo lento  (a cada 10 min): Acompanhamento OP · Itens de NF · Kardex
 
+   Ligado 24 h. Fora do horário de operação (emOperacao: seg–sáb a partir das 04h55,
+   seg–sex até 00h30 da madrugada seguinte, sábado até 22h30) só atualiza
+   Acompanhamento OP e Itens de NF: a tela "Operação agora" do telão fica
+   sempre em dia, inclusive no domingo.
+
    Refaz a aba (login + tela + filtros) quando: a data dos filtros muda
    (virada do dia; entre 00h e 01h a data inicial é ontem, por causa do T02),
    o pedido mais antigo do OP muda (Itens de NF) ou dá qualquer erro.
@@ -61,6 +66,17 @@ function calcularInicioPrimeira() {
   try { const u = diaOperacional(fs.readFileSync(ARQ_ULTIMA, "utf8").trim()); if (!isNaN(u) && u < d) d = u; } catch (e) {}
   return d < limite ? limite : d;
 }
+// Horário de operação: seg–sáb a partir das 04h55; seg–sex até 00h30 da madrugada seguinte (T02 vai até 00h16);
+// sábado até 22h30 (HE de sábado: 05h–22h, uma rodada depois das 22h pega o fim). Domingo: só a madrugada de sábado não conta.
+function emOperacao(agora) {
+  const d = new Date(agora || Date.now()), dia = d.getDay(), m = d.getHours() * 60 + d.getMinutes();
+  if (m < 30) return dia >= 2 && dia <= 6;                 // 00h–00h30: fim do 2º turno de seg–sex
+  if (m < 4 * 60 + 55) return false;
+  if (dia === 0) return false;
+  if (dia === 6) return m < 22 * 60 + 30;
+  return true;
+}
+const SO_FORA_OPERACAO = ["op", "itensnf"];               // os dois relatórios da tela "Operação agora"
 function marcarRodada() { try { fs.writeFileSync(ARQ_ULTIMA, new Date().toISOString()); } catch (e) {} }
 function inicioDoDia() {
   if (PERIODO.de) return PERIODO.de;
@@ -443,14 +459,14 @@ async function iniciar(cfg, log, opcoes) {
     }
   }
 
-  async function grupo(nome) {
+  async function grupo(nome, so) {
     if (SO) { for (const tela of TELAS) if (tela.grupo === nome && SO.indexOf(tela.id) !== -1) await rodar(tela); return; }
     // Janela do Chrome do robô fechou no meio: abre de novo e refaz as abas.
     if (caiu || !browser.isConnected()) {
       log("Chrome do robô fechou, abrindo de novo");
       await conectar();
     }
-    for (const tela of TELAS) if (tela.grupo === nome) await rodar(tela);
+    for (const tela of TELAS) if (tela.grupo === nome && (!so || so.indexOf(tela.id) !== -1)) await rodar(tela);
   }
 
   if (opcoes.umaVez) {
@@ -476,7 +492,15 @@ async function iniciar(cfg, log, opcoes) {
   function minAgora() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
   extras.forEach(function (m) { if (m <= minAgora() && minAgora() - m < 30) feitosExtra[chaveExtra(m)] = 1; });
   if (extras.length) log("Horários extras de atualização: " + extras.map(function (m) { return String(Math.floor(m / 60)).padStart(2, "0") + "h" + String(m % 60).padStart(2, "0"); }).join(", "));
+  let modoAnterior = null;
   for (;;) {
+    const operando = emOperacao();
+    if (operando !== modoAnterior) {
+      log(operando ? "Horário de operação: atualizando os 6 relatórios" : "Fora do horário de operação: só Acompanhamento OP e Itens de NF");
+      if (modoAnterior !== null) { proximo.rapido = 0; proximo.lento = 0; }   // mudou o modo: roda já
+      modoAnterior = operando;
+    }
+    const so = operando ? null : SO_FORA_OPERACAO;
     const ag = minAgora();
     const extra = extras.filter(function (m) { return m <= ag && ag - m < 30 && !feitosExtra[chaveExtra(m)]; })[0];
     if (extra != null) {
@@ -487,16 +511,16 @@ async function iniciar(cfg, log, opcoes) {
     for (const g of ["rapido", "lento"]) {          // rápido tem prioridade
       if (Date.now() >= proximo[g]) {
         proximo[g] = Date.now() + intervalo[g];
-        await grupo(g);
-        if (g === "lento") marcarRodada();         // dia da última rodada: a 1ª rodada depois de religar volta até ele
+        await grupo(g, so);
+        if (g === "lento" && operando) marcarRodada();   // dia da última rodada completa: a 1ª depois de religar volta até ele
       }
     }
-    incluirOntem = false;                           // as duas levas da 1ª rodada já foram
+    if (operando) incluirOntem = false;             // as duas levas da 1ª rodada completa já foram
     await new Promise(function (r) { setTimeout(r, 5000); });
   }
 }
 
-module.exports = { iniciar: iniciar };
+module.exports = { iniciar: iniciar, emOperacao: emOperacao };
 
 /* ---------------- uso sozinho: npm run baixar -- --uma-vez ---------------- */
 if (require.main === module) {

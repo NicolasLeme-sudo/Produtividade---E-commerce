@@ -5,15 +5,8 @@ REM Antes de ligar, baixa a versao nova do GitHub.
 chcp 65001 >nul
 cd /d "%~dp0"
 title Robo do Telao
-REM "ligar-robo.bat agendado" (tarefa do Agendador): so liga de seg a sab a partir das 04h55, ou ate 00h30 da madrugada seguinte (fim do 2o turno, 00h16).
-if /I "%~1"=="agendado" (
-  powershell -NoProfile -Command "$d = Get-Date; $h = $d.TimeOfDay; $dia = [int]$d.DayOfWeek; $ok = (($dia -ge 1 -and $dia -le 6) -and $h -ge [TimeSpan]'04:55') -or (($dia -ge 2 -or $dia -eq 0) -and $h -lt [TimeSpan]'00:30'); if (-not $ok) { exit 1 }"
-  if errorlevel 1 (
-    echo Fora do horario agendado (seg a sab, 05h00 ate 00h30 do dia seguinte^): robo nao ligado.
-    timeout /t 8 >nul
-    exit /b
-  )
-)
+REM "ligar-robo.bat agendado" (tarefa do Agendador): liga a qualquer hora; o robo fica ligado 24 h
+REM (fora do horario de operacao so atualiza Acompanhamento OP e Itens de NF). Se ja estiver rodando, nao abre outro.
 echo === %date% %time% - atualizando do GitHub ===
 git pull origin main
 call npm.cmd install --no-audit --no-fund
