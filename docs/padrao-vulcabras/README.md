@@ -423,6 +423,8 @@ Todas estão em [`img/`](img/). Todas têm **fundo transparente**, exceto o `fav
 | `logo-mark.png` | 378×359 | Só o V (dourado, verde e branco), transparente | Escuro | Logo da sidebar (36 px), login (52 px), favicon simples, marca d'água |
 | `logo-vulcabras.png` | 1134×407 | Logo horizontal com o slogan "vivemos para o esporte": texto **branco** e V colorido | Escuro | Capa de apresentação (80 px de altura), cabeçalho grande |
 | `logo-vulcabras-cor.png` | 1134×325 | Logo horizontal **sem** slogan: texto branco e V colorido | Escuro | Topo do telão, cabeçalho de dashboard (28–40 px de altura) |
+| `logo-vulcabras-azul.png` | 1134×324 | Logo horizontal com o texto em **azul-marinho** `#1B3A6B` e o V colorido | **Claro** | A versão do `logo-vulcabras-cor.png` para o tema claro (26–34 px de altura) |
+| `logo-mark-azul.png` | 518×408 | Só o V, com a haste grande em **azul-marinho** (dourado e verde na menor) | **Claro** | A versão do `logo-mark.png` para o tema claro |
 | `OLY.png` | 246×77 | Olympikus, toda **branca** | Azul `#297ADF` ou escuro | Cabeçalho de card de marca (≈22 px) |
 | `MIZ.png` | 246×77 | Mizuno, toda **branca** | Dourado `#DFBD41` ou escuro | idem |
 | `UA.png` | 246×77 | Under Armour, toda **branca** | Vermelho `#C8102E` ou escuro | idem |
@@ -430,13 +432,16 @@ Todas estão em [`img/`](img/). Todas têm **fundo transparente**, exceto o `fav
 ### Regras das imagens
 
 1. **Nunca estique.** Defina só a altura (`height:40px`) ou use `object-fit:contain`.
-2. **Logo branca não vai em fundo branco.** No tema claro, tinja a logo de azul institucional com este filtro (testado e aprovado):
+2. **Logo branca não vai em fundo branco.** No tema claro, use os **PNGs azuis** (`logo-vulcabras-azul.png` e `logo-mark-azul.png`), que já vêm com o texto em azul-marinho e o V colorido (decisão de 16/11/2026). Ponha as duas versões na página e troque por CSS:
    ```css
-   [data-tema="claro"] .logo-branca{
-     filter:brightness(0) saturate(100%) invert(14%) sepia(46%) saturate(1878%) hue-rotate(190deg) brightness(94%) contrast(93%);
-   }
+   [data-tema="escuro"] .so-claro,
+   [data-tema="claro"]  .so-escuro{display:none}
    ```
-   O filtro deixa a imagem toda azul, inclusive o V. Se quiser manter o V colorido no claro, ponha a logo sobre um bloco escuro (por exemplo, a sidebar, que fica `#132043` nos dois temas).
+   ```html
+   <img class="so-escuro" src="img/logo-vulcabras-cor.png"  alt="Vulcabras">
+   <img class="so-claro"  src="img/logo-vulcabras-azul.png" alt="Vulcabras">
+   ```
+   **Não** use mais o filtro CSS que tingia a logo branca de azul: ele apagava o dourado e o verde do V. Páginas antigas ainda podem ter esse filtro; ao mexer nelas, troque pelos PNGs.
 3. **Posição:** logo Vulcabras no canto superior esquerdo (dashboard e telão); nos slides internos, pequena no canto superior direito.
 4. **Peso:** PNG até ~30 KB para logo. Foto ou moldura grande vai em `.webp` (ex.: a moldura do telão tem 1671×941 e 517 KB).
 5. **Caminho:** use caminho relativo (`img/logo-mark.png`) ou da raiz do site (`/logo-mark.png`). Não use `C:\...` nem link do OneDrive.

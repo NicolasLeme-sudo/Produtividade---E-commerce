@@ -84,9 +84,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   padding:0 24px;border-bottom:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow)}
 .marca{display:flex;align-items:center;gap:12px}
 .marca img{height:32px}
+.marca .so-claro{height:26px}   /* a versão azul não tem o slogan: mesma presença com menos altura */
 .topbar h2{margin:0;font-size:16px;font-weight:700;line-height:1.25}
 .topbar .sub{font-size:11.5px;color:var(--text-muted);margin-top:2px}
-[data-tema="claro"] .logo-branca{filter:brightness(0) saturate(100%) invert(14%) sepia(46%) saturate(1878%) hue-rotate(190deg) brightness(94%) contrast(93%)}
+/* tema claro usa os PNGs escuros da Vulcabras (nada de filtro) */
+[data-tema="escuro"] .so-claro,[data-tema="claro"] .so-escuro{display:none}
 .vb-acoes{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .vb-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;
   background:rgba(127,140,170,.14);border:1px solid rgba(127,140,170,.35);color:inherit;font-family:inherit;
@@ -117,7 +119,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <body>
 <header class="topbar">
   <div class="marca">
-    <img class="logo-branca" src="${png64("tv/logo-vulcabras-cor.png")}" alt="Vulcabras">
+    <img class="so-escuro" src="${png64("tv/logo-vulcabras-cor.png")}" alt="Vulcabras">
+    <img class="so-claro" src="${png64("docs/padrao-vulcabras/img/logo-vulcabras-azul.png")}" alt="Vulcabras">
     <div>
       <h2>Prévia dos e-mails por hora</h2>
       <div class="sub">Produtividade por colaborador · ${E.dataBR(dia)} · gerada em <span id="geradoEm"></span></div>
@@ -126,7 +129,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="vb-acoes">
     <button class="vb-btn" id="btnTelaCheia" onclick="vbTelaCheia()">⛶ Tela cheia</button>
     <button class="vb-btn" id="btnTema" onclick="alternarTema()">🌙 Tema Escuro</button>
-    <img class="marca-dir" src="${png64("docs/padrao-vulcabras/img/logo-mark.png")}" alt="">
+    <img class="marca-dir so-escuro" src="${png64("docs/padrao-vulcabras/img/logo-mark.png")}" alt="">
+    <img class="marca-dir so-claro" src="${png64("docs/padrao-vulcabras/img/logo-mark-azul.png")}" alt="">
   </div>
 </header>
 <nav class="barra"><b>E-mails do dia</b>${chips}</nav>
