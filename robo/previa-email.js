@@ -84,7 +84,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   padding:0 24px;border-bottom:1px solid var(--border);background:var(--bg-card);box-shadow:var(--shadow)}
 .marca{display:flex;align-items:center;gap:12px}
 .marca img{height:32px}
-.marca .so-claro{height:26px}   /* a versão azul não tem o slogan: mesma presença com menos altura */
 .topbar h2{margin:0;font-size:16px;font-weight:700;line-height:1.25}
 .topbar .sub{font-size:11.5px;color:var(--text-muted);margin-top:2px}
 /* tema claro usa os PNGs escuros da Vulcabras (nada de filtro) */
@@ -95,23 +94,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
 .vb-btn:hover{background:rgba(127,140,170,.26)}
 .vb-btn:focus-visible{outline:2px solid #297ADF;outline-offset:2px}
-.marca-dir{height:30px;opacity:.9}
+.marca-dir{height:30px;width:34px;object-fit:contain;opacity:.9}   /* caixa igual nos dois temas: os PNGs têm proporções diferentes */
 .barra{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:10px 24px;background:var(--bg-card);border-bottom:1px solid var(--border)}
 .barra b{font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted)}
 .chip{font-size:.72rem;border:1px solid var(--border);background:var(--bg-input);color:var(--text-label);
   padding:5px 11px;border-radius:999px;text-decoration:none}
 .chip:hover{border-color:var(--accent);color:var(--accent)}
-.content{padding:22px 22px 60px;display:flex;flex-direction:column;gap:60px;max-width:1500px}
+.content{padding:22px 22px 80px;display:flex;flex-direction:column;gap:90px;max-width:1500px}
 .email+.email{position:relative}
-.email+.email::before{content:"";position:absolute;left:0;right:0;top:-30px;border-top:1px solid var(--border)}
+.email+.email::before{content:"";position:absolute;left:0;right:0;top:-45px;border-top:1px solid var(--border)}
 .email{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;scroll-margin-top:60px}
 .email-hd{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;
   padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg-input)}
 .email-hd h3{margin:0;font-size:.95rem;font-weight:700}
 .kicker{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:0 0 6px}
 .resumo{font-size:.78rem;color:var(--text-muted)}
-.email-corpo{padding:20px 18px 0}
+.email-corpo{padding:22px 18px 0}   /* o cartão da última atividade já traz 30 px embaixo */
+.folha{display:flex;flex-direction:column;gap:90px}   /* o espaço entre e-mails vive aqui: .content só tem as duas folhas de tema */
 .folha[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -139,7 +139,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="folha" id="folhaEscuro" hidden>${corpo("escuro")}</div>
 </main>
 <script>
-var CHAVE_TEMA = 'previa_emails_tema';
 function aplicarTema(t){
   document.documentElement.setAttribute('data-tema', t);
   document.getElementById('btnTema').textContent = t === 'claro' ? '☀️ Tema Claro' : '🌙 Tema Escuro';
@@ -149,9 +148,8 @@ function aplicarTema(t){
 function alternarTema(){
   var novo = document.documentElement.getAttribute('data-tema') === 'claro' ? 'escuro' : 'claro';
   aplicarTema(novo);
-  try { localStorage.setItem(CHAVE_TEMA, novo); } catch(e){}
 }
-try { aplicarTema(localStorage.getItem(CHAVE_TEMA) || 'escuro'); } catch(e){ aplicarTema('escuro'); }
+aplicarTema('escuro');   // o padrão é sempre o escuro; a escolha vale só enquanto a página está aberta
 function vbTelaCheia(){
   var d = document, el = d.documentElement;
   if (!(d.fullscreenElement || d.webkitFullscreenElement)) {
