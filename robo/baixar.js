@@ -10,7 +10,7 @@
      Grupo lento  (a cada 10 min): Acompanhamento OP · Itens de NF · Kardex
 
    Ligado 24 h. Fora do horário de operação (emOperacao: seg–sáb a partir das 04h55,
-   seg–sex até 00h30 da madrugada seguinte, sábado até 22h30) só atualiza
+   seg–sex até a rodada das 00h30, sábado até a das 22h30) só atualiza
    Acompanhamento OP e Itens de NF: a tela "Operação agora" do telão fica
    sempre em dia, inclusive no domingo.
 
@@ -70,10 +70,11 @@ function calcularInicioPrimeira() {
 // sábado até 22h30 (HE de sábado: 05h–22h, uma rodada depois das 22h pega o fim). Domingo: só a madrugada de sábado não conta.
 function emOperacao(agora) {
   const d = new Date(agora || Date.now()), dia = d.getDay(), m = d.getHours() * 60 + d.getMinutes();
-  if (m < 30) return dia >= 2 && dia <= 6;                 // 00h–00h30: fim do 2º turno de seg–sex
+  // As rodadas caem em :00 e :30; os limites passam um pouco disso para a rodada da virada ainda ser completa.
+  if (m < 35) return dia >= 2 && dia <= 6;                 // rodadas 00h00 e 00h30: fecham o 2º turno de seg–sex (acaba 00h16)
   if (m < 4 * 60 + 55) return false;
   if (dia === 0) return false;
-  if (dia === 6) return m < 22 * 60 + 30;
+  if (dia === 6) return m < 22 * 60 + 35;                  // sábado: rodadas até 22h30 (HE vai até 22h)
   return true;
 }
 const SO_FORA_OPERACAO = ["op", "itensnf"];               // os dois relatórios da tela "Operação agora"
