@@ -179,7 +179,8 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .cl{display:grid;grid-template-columns:150px minmax(0,1fr) 190px;column-gap:14px;align-items:center}
 .cr{height:var(--raia,60px);display:flex;align-items:center;position:relative;will-change:transform}
 .cr .ct{width:100%}
-.cl.lt{position:relative;will-change:transform}
+.cl.lt{position:relative}.cr.lt{position:relative;will-change:transform}
+.comp-pista.trocando .comp-tk{overflow-x:clip;overflow-y:visible}   /* ultrapassagem: o carro passa por cima das outras raias sem ser cortado */
 .cl .comp-chegada{background-position:0 var(--cy,0px)}
 .ct{height:calc(var(--raia,60px) - 6px);display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 14px;border-radius:8px;
   background:color-mix(in srgb,var(--c) 9%,var(--bg-input));border:1px solid var(--border);border-left:5px solid var(--c);min-width:0}
@@ -442,7 +443,8 @@ function renderTelaA(c){
   var el = document.getElementById('telaA');
   if (MODO_OPERACAO) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // TV da operação: sem Corrida
   if (!c.temDados) { el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência ainda.<br>Abasteça a base no site do Produtividade.</div>'; return; }
-  // Ultrapassagem: a linha (carro + card) desliza da posição antiga para a nova (FLIP), só quando a ordem muda.
+  // Ultrapassagem (FLIP, só quando a ordem muda): o carro (com nome e números da linha) e o card deslizam da posição
+  // antiga para a nova; a pista fica parada (antes a linha inteira deslizava e a pista se deformava, 16/11).
   var ordem = ordemPista(c).map(function(t){ return t.n; }).join(','), antes = {};
   var anima = el.classList.contains('on') && ordemAnterior && ordem !== ordemAnterior && !matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (anima) el.querySelectorAll('.lt[data-k]').forEach(function(l){ antes[l.getAttribute('data-k')] = l.getBoundingClientRect().top; });
@@ -450,10 +452,16 @@ function renderTelaA(c){
   ordemAnterior = ordem;
   if (anima) {
     var pc = document.getElementById('palco'), k = pc.getBoundingClientRect().width / pc.offsetWidth || 1;
+    var pista = el.querySelector('.comp-pista');
+    if (pista) { pista.classList.add('trocando'); setTimeout(function(){ pista.classList.remove('trocando'); }, 950); }
     el.querySelectorAll('.lt[data-k]').forEach(function(l){
       var a = antes[l.getAttribute('data-k')]; if (a == null) return;
       var dy = (a - l.getBoundingClientRect().top) / k;
-      if (Math.abs(dy) > 1 && l.animate) l.animate([{ transform:'translateY('+dy+'px)' }, { transform:'none' }], { duration:900, easing:'cubic-bezier(.2,.8,.2,1)' });
+      if (Math.abs(dy) <= 1) return;
+      var alvos = l.classList.contains('cr') ? [l] : l.querySelectorAll('.comp-raia-nome, .comp-raia-num, .comp-carro, .comp-rastro');
+      Array.prototype.forEach.call(alvos, function(e){   // translate (e não transform): não briga com o transform do carro
+        if (e.animate) e.animate([{ translate:'0 '+dy+'px' }, { translate:'0 0' }], { duration:900, easing:'cubic-bezier(.2,.8,.2,1)' });
+      });
     });
   }
   // os carros andam da posição anterior até a nova, como no site
