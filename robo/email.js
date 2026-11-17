@@ -121,6 +121,15 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
 }
 
 /* ---------------- quem é de qual turno ---------------- */
+// Cadastro do RH (robo/turnos-wms.json, gerado pelo turnos.js a partir da lista de Ativos):
+// { USUARIO.WMS: "T01" | "T02" | "ADM" }. É ele que manda; o horário da produção só decide
+// quem não está no cadastro (temporário, terceiro, usuário de sistema).
+var CADASTRO = (function () {
+  try { return JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "turnos-wms.json"), "utf8")).turnos || {}; }
+  catch (e) { return {}; }
+})();
+function turnoCadastrado(usuario) { return CADASTRO[String(usuario || "").replace(/,/g, ".").toUpperCase()] || null; }
+
 // Pelo PESO da produção até as 14h48, quando o T02 entra: quem produziu mais antes disso é da
 // manhã (T01 ou ADM), senão é do T02. A 1ª produção sozinha não servia (o T02 começa 14h48 e as
 // peças das 14h jogavam a turma do T02 para dentro do T01), e a janela cheia do ADM também não
@@ -144,8 +153,9 @@ function turnoDaPessoa(arr, manha) {
 function porTurno(porUsuario, nomes, manha) {
   var out = {}; out[manha] = {}; out.T02 = {};
   Object.keys(porUsuario || {}).forEach(function (u) {
-    var arr = porUsuario[u], t = turnoDaPessoa(arr, manha);
-    if (!t) return;
+    var arr = porUsuario[u], cad = turnoCadastrado(u);
+    var t = cad ? (cad === "T02" ? "T02" : manha) : turnoDaPessoa(arr, manha);
+    if (!t || !somaDe(arr)) return;
     var nome = (nomes && nomes[u]) || u;
     var alvo = out[t][nome] || (out[t][nome] = new Array(24).fill(0));
     arr.forEach(function (v, h) { alvo[h] += v || 0; });
@@ -168,6 +178,7 @@ function rotulosTurno(mapas) {
   });
   return r;
 }
+function somaDe(arr) { return (arr || []).reduce(function (s, v) { return s + (v || 0); }, 0); }
 function somarEm(destino, porUsuario) {
   Object.keys(porUsuario || {}).forEach(function (u) {
     var alvo = destino[u] || (destino[u] = new Array(24).fill(0));
@@ -328,6 +339,6 @@ module.exports = {
   ordemHora: ordemHora, rotHora: rotHora, fmt: fmt, esc: esc, dataBR: dataBR, mistura: mistura,
   blocos: blocos, corpoEmail: corpoEmail, assuntoDe: assuntoDe, mensagens: mensagens, LIMITE_TEAMS: LIMITE_TEAMS,
   tabela: tabela, porTurno: porTurno, turnoDaPessoa: turnoDaPessoa, somarEm: somarEm, juntarTurnos: juntarTurnos, rotulosTurno: rotulosTurno,
-  analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
+  turnoCadastrado: turnoCadastrado, analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
   expedicaoPorUsuario: expedicaoPorUsuario, armazenagemPorUsuario: armazenagemPorUsuario
 };
