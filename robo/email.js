@@ -55,9 +55,8 @@ function mistura(cor, fundo, p) {
 // pessoas = { usuário: [24] peças por hora }; turnos (opcional) = { usuário: "T01" } acrescenta a coluna Turno
 // à esquerda, usada nos e-mails de fechamento.  ->  { html, total, horas, pessoas }
 function tabela(titulo, pessoas, cor, tema, turnos, extra) {
+  var neutro = tema === "email";                       // e-mail: ver a nota em MODO NEUTRO, abaixo
   var T = TEMAS[tema === "escuro" ? "escuro" : "claro"];
-  var corTotal = mistura(cor, T.mistura, T.pTotal);     // linha de totais: a mesma cor, mais fraca
-  var corBorda = mistura(cor, T.borda, T.pBorda);
   var nomes = Object.keys(pessoas || {});
   var horas = [];
   nomes.forEach(function (n) { pessoas[n].forEach(function (v, h) { if (v > 0 && horas.indexOf(h) === -1) horas.push(h); }); });
@@ -68,28 +67,40 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
   linhas.sort(function (a, b) { return b.total - a.total || a.nome.localeCompare(b.nome); });
   var total = linhas.reduce(function (s, l) { return s + l.total; }, 0);
 
-  var cartao = FONTE + "border:1px solid " + corBorda + ";border-radius:8px;overflow:hidden;padding-bottom:10px;background:" + T.cartao + ";margin:0 0 30px 0;";
-  var faixa = "padding:10px 16px;background:" + mistura(cor, T.mistura, tema === "escuro" ? .18 : .1) +
-    ";border-bottom:1px solid " + corBorda + ";border-left:4px solid " + cor + ";";
-  var tit = FONTE + "margin:0;font-size:15px;font-weight:700;color:" + T.texto + ";";
-  var apoio = "peças" + (extra ? " · " + esc(extra) : "") + " · " + linhas.length + (linhas.length === 1 ? " pessoa" : " pessoas");
+  /* MODO NEUTRO (e-mail) ----------------------------------------------------
+     O Teams no tema escuro troca os fundos claros mas NÃO troca a cor do texto:
+     linha com fundo claro + texto escuro vira texto invisível (17/11). Então no
+     e-mail não vai fundo nenhum e nem cor de texto: só tons médios, que se leem
+     em fundo claro e escuro. Cor fica no cabeçalho da tabela, na coluna Total e
+     na barrinha do cartão. A prévia (tema claro/escuro) segue com fundo e zebra. */
+  var apoio = neutro ? "#808A99" : T.apoio;
+  var borda = neutro ? "#B9C0CC" : T.borda;
+  var corBorda = neutro ? mistura(cor, "#B9C0CC", .45) : mistura(cor, T.borda, T.pBorda);
+  var corTotal = neutro ? null : mistura(cor, T.mistura, T.pTotal);
+  var fundoCartao = neutro ? "" : "background:" + T.cartao + ";";
+  var fundoFaixa = neutro ? "" : "background:" + mistura(cor, T.mistura, tema === "escuro" ? .18 : .1) + ";";
+  var corTexto = neutro ? "" : "color:" + T.texto + ";";
+
+  var cartao = FONTE + "border:1px solid " + corBorda + ";border-radius:8px;overflow:hidden;padding-bottom:10px;" + fundoCartao + "margin:0 0 30px 0;";
+  var faixa = "padding:10px 16px;" + fundoFaixa + "border-bottom:1px solid " + corBorda + ";border-left:4px solid " + cor + ";";
+  var tit = FONTE + "margin:0;font-size:15px;font-weight:700;" + corTexto;
+  var apoioTxt = "peças" + (extra ? " · " + esc(extra) : "") + " · " + linhas.length + (linhas.length === 1 ? " pessoa" : " pessoas");
   var cabecalho = '<div style="' + faixa + '"><p style="' + tit + '">' + esc(ATIVIDADE[titulo] || titulo) +
-    ': <span style="color:' + cor + '">' + fmt(total) + '</span> <span style="font-weight:400;color:' + T.apoio + ';font-size:13px">' +
-    apoio + '</span></p></div>';
+    ': <span style="color:' + cor + '">' + fmt(total) + '</span> <span style="font-weight:400;color:' + apoio + ';font-size:13px">' +
+    apoioTxt + '</span></p></div>';
   if (!linhas.length) {
-    return { html: '<div style="' + cartao + '">' + cabecalho + '<p style="' + FONTE + "margin:0;padding:14px 16px;font-size:13px;color:" + T.apoio + '">Sem produção até agora.</p></div>',
+    return { html: '<div style="' + cartao + '">' + cabecalho + '<p style="' + FONTE + "margin:0;padding:14px 16px;font-size:13px;color:" + apoio + '">Sem produção até agora.</p></div>',
       total: 0, horas: [], pessoas: 0 };
   }
-  // HTML ENXUTO de propósito: o Teams corta a mensagem grande e a tabela vira texto corrido
-  // (17/11: o Outbound tinha 54 KB). Estilo fica na tabela e na linha; a célula usa só atributo.
+  // HTML enxuto: o Teams corta acima de 24 KB. Estilo na tabela e na linha; atributo na célula.
   var colTurno = !!turnos;
-  // Cada linha leva fundo E cor de texto: no tema escuro o Teams escurece o fundo da linha zebrada
-  // e, sem a cor junto, o texto some (17/11). Nada de confiar em herança de cor aqui.
-  var linhaClara = ' bgcolor="' + T.cartao + '" style="color:' + T.texto + '"';
-  var linhaZebra = ' bgcolor="' + T.zebra + '" style="color:' + T.texto + '"';
-  var tbl = '<table border="1" bordercolor="' + T.borda + '" cellspacing="0" cellpadding="5" style="' + FONTE +
-    "border-collapse:collapse;font-size:13px;width:100%;text-align:right;color:" + T.texto + ";background:" + T.cartao + '">';
-  var cab = '<tr bgcolor="' + cor + '" style="color:#fff;font-weight:600">' +
+  var linhaClara = neutro ? "" : ' bgcolor="' + T.cartao + '" style="color:' + T.texto + '"';
+  var linhaZebra = neutro ? "" : ' bgcolor="' + T.zebra + '" style="color:' + T.texto + '"';
+  var tbl = '<table border="1" bordercolor="' + borda + '" cellspacing="0" cellpadding="5" style="' + FONTE +
+    "border-collapse:collapse;font-size:13px;width:100%;text-align:right;" + (neutro ? "" : "color:" + T.texto + ";background:" + T.cartao + ";") + '">';
+  // cabeçalho: fundo cheio na cor da atividade; nas cores claras (amarelo/laranja) o texto vai escuro
+  var claraDemais = ["#F6BD00", "#F5A524"].indexOf(cor) !== -1;
+  var cab = '<tr bgcolor="' + cor + '" style="color:' + (claraDemais ? "#1C2333" : "#fff") + ';font-weight:600">' +
     (colTurno ? '<th align="left">Turno</th>' : "") + '<th align="left">Usuário</th>' +
     horas.map(function (h) { return "<th>" + rotHora(h) + "</th>"; }).join("") + "<th>Total</th></tr>";
   var corpo = linhas.map(function (l, i) {
@@ -99,8 +110,8 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
       horas.map(function (h) { return "<td>" + (l.arr[h] ? fmt(l.arr[h]) : "·") + "</td>"; }).join("") +
       '<td style="color:' + cor + ';font-weight:700">' + fmt(l.total) + "</td></tr>";
   }).join("");
-  var rodape = '<tr bgcolor="' + corTotal + '" style="font-weight:700;color:' + T.texto + '">' + (colTurno ? "<td></td>" : "") +
-    '<td align="left">Total</td>' +
+  var rodape = "<tr" + (neutro ? ' style="font-weight:700"' : ' bgcolor="' + corTotal + '" style="font-weight:700;color:' + T.texto + '"') + ">" +
+    (colTurno ? "<td></td>" : "") + '<td align="left">Total</td>' +
     horas.map(function (h) {
       var sm = linhas.reduce(function (a, l) { return a + (l.arr[h] || 0); }, 0);
       return "<td>" + (sm ? fmt(sm) : "·") + "</td>";
@@ -246,8 +257,8 @@ function mensagens(bloco, dia, fech, horaTexto) {
 
 // Corpo do e-mail: tabelas no tema claro (fundo branco do Outlook/Teams) e um rodapé curto.
 function corpoEmail(bloco, dia, fech, horaTexto) {
-  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "claro", x[3]); });
-  return '<div style="' + FONTE + 'background:#FFFFFF;padding:4px 2px">' + ts.map(function (t) { return t.html; }).join("") + "</div>";
+  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "email", x[3]); });
+  return '<div style="' + FONTE + 'padding:4px 2px">' + ts.map(function (t) { return t.html; }).join("") + "</div>";
 }
 // O assunto vira o título da mensagem no canal do Teams: só o setor, o turno e o dia.
 function assuntoDe(bloco, dia) { return bloco.tit + " · " + dataBR(dia); }
