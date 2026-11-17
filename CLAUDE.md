@@ -89,6 +89,8 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 | Inbound T02 | 16h05 → 23h05 | coleta **00h05**, limite 00h15 |
 | Fechamento | — | coleta **00h20**, limite 00h30 (dia inteiro, Outbound e Inbound, com coluna Turno) |
 
+O canal **Fechamento** recebe também, por cópia (`copiaFechamento`), o fechamento de turno do **T01** e do **ADM**, com o assunto "Fechamento do turno · …". O **T02 não** é copiado: a gestão recebe o agrupado do dia logo depois. Os canais de T02 recebem **só** o fechamento do turno deles, nunca o agrupado.
+
 - **Fechamento tem JANELA, não minuto fixo** (17/11): sai assim que a rodada daquela janela termina (`aoFimDaRodada`, dado fresco) e, se o WMS atrasar, sai no limite de qualquer jeito. O líder recebe antes de bater o ponto. A coleta começa o mais tarde possível para **não parar o time cedo demais** (pedido de 17/11): `HORARIOS_EXTRA=14:38,17:20,00:05,00:20`. Aberta a janela do fechamento, a hora cheia não é mais enviada (não duplica).
 - `robo.js` confere os e-mails **de minuto em minuto** (era de 5 em 5, e o fechamento podia sair até 5 min atrasado) e também no fim de cada rodada.
 - **O Teams corta e-mail acima de 24 KB** (vira "Exibir email original" e a tabela some; o Outbound tinha 54 KB em 17/11). Duas defesas: o HTML é enxuto (estilo na tabela e na linha, atributo `align`/`bgcolor` na célula) e `E.mensagens()` **quebra sozinho em uma mensagem por atividade** quando o bloco passa de `LIMITE_TEAMS` (20 KB). Na prática: Outbound do dia inteiro vai numa mensagem só (~15 KB) e o Fechamento do dia · Outbound costuma sair em 3.

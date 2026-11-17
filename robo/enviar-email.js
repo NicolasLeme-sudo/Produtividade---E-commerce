@@ -145,6 +145,14 @@ async function verificar(cfg, log, opcoes) {
     for (const m of msgs) {
       if (mandar(para, m.assunto, m.html, log)) n++; else todas = false;
     }
+    // Fechamento de turno do T01 e do ADM: a mesma tabela também vai para o canal Fechamento.
+    const copia = item.fech && b.copiaFechamento && !opcoes.para ? cfg["CANAL_" + b.copiaFechamento] : null;
+    if (copia && todas) {
+      for (const m of msgs) {
+        if (mandar(copia, "Fechamento do turno · " + m.assunto, m.html, log)) n++;
+      }
+      log("   cópia do fechamento no canal Fechamento: " + b.tit);
+    }
     if (todas) {
       log("   e-mail enviado: " + b.tit + " · " + item.horaTexto + " · " + E.fmt(total) + " peças" +
         (msgs.length > 1 ? " · em " + msgs.length + " mensagens" : "") +

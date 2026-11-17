@@ -226,11 +226,13 @@ function blocos(t) {
     arm: rotulosTurno([["ADM", t.arm.ADM], ["T02", t.arm.T02]])
   };
   return [
-    { id: "out-t01", canal: "OUT_T01", tit: "Outbound · T01",
+    // copiaFechamento: no fim do turno, o canal Fechamento recebe a mesma tabela.
+    // Só T01 e ADM: o T02 não, porque a gestão recebe o agrupado do dia logo depois (17/11).
+    { id: "out-t01", canal: "OUT_T01", copiaFechamento: "FECHAMENTO", tit: "Outbound · T01",
       tabelas: [["Separado", t.sep.T01, C.sep], ["Conferido", t.conf.T01, C.conf], ["Expedido", t.exp.T01, C.exp]] },
     { id: "out-t02", canal: "OUT_T02", tit: "Outbound · T02",
       tabelas: [["Separado", t.sep.T02, C.sep], ["Conferido", t.conf.T02, C.conf], ["Expedido", t.exp.T02, C.exp]] },
-    { id: "in-adm", canal: "IN_ADM", tit: "Inbound · ADM", tabelas: [["Armazenado", t.arm.ADM, C.arm]] },
+    { id: "in-adm", canal: "IN_ADM", copiaFechamento: "FECHAMENTO", tit: "Inbound · ADM", tabelas: [["Armazenado", t.arm.ADM, C.arm]] },
     { id: "in-t02", canal: "IN_T02", tit: "Inbound · T02", tabelas: [["Armazenado", t.arm.T02, C.arm]] },
     { id: "fech-dia-out", canal: "FECHAMENTO", dia: 1, tit: "Fechamento do dia · Outbound", tabelas: [
       ["Separado", juntarTurnos(t.sep.T01, t.sep.T02), C.sep, rot.sep],
