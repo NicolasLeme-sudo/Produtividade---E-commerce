@@ -1205,7 +1205,8 @@ function processarOperacaoOp(rows) {
       ? (normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"])).indexOf("MULTI") !== -1 ? 2 : 1) : 0;
     var clTipo = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"]));
     pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"])), semConf, semColeta,
-      clTipo.indexOf("MULTI") !== -1 ? "M" : clTipo.indexOf("SINGLE") !== -1 ? "S" : ""];
+      clTipo.indexOf("MULTI") !== -1 ? "M" : clTipo.indexOf("SINGLE") !== -1 ? "S" : "",
+      numero(obterCampo(row, ["Valor Total da NF"]))];   // R$ do pedido (telão da diretoria); confere 100% com o SAP
   });
   return pedidos;
 }
@@ -1299,12 +1300,59 @@ function juntarCaida(op, novo) {
   op.caidaDias = o;
 }
 
+// Faturado por dia (Itens de NF): o evento é a emissão da NF ("Data de Emissão"), o mesmo momento do
+// "Faturado em" do Acompanhamento OP — quando o dinheiro cai. Cruzamento de 17/11 nos 1.628 pedidos
+// presentes nos dois relatórios: data igual em 99,9% e valor igual em 100%. Lemos do Itens de NF porque
+// o OP é só uma FOTO do que ainda está em operação (pedido expedido sai da base e o dia some).
+// Itens = soma de "Qtde. Faturada" · R$ = "Valor Total", que é da NOTA e se repete em cada linha de item:
+// conta uma vez por idNotaFiscal e é rateado entre as marcas da nota na proporção dos itens de cada uma.
+function processarFaturadoItensNf(rows, embalas) {
+  var notas = {};
+  rows.forEach(function (row) {
+    if (normalizarTexto(obterCampo(row, ["Status"])).indexOf("CANCELAD") === 0) return;
+    var dia = paraDataISO(obterCampo(row, ["Data de Emissão", "Data de Emissao"]));
+    var id = String(obterCampo(row, ["idNotaFiscal"]) || "").trim();
+    if (!dia || !id) return;
+    var n = notas[id] || (notas[id] = { dia: dia, rs: numero(obterCampo(row, ["Valor Total"])), itens: 0, marcas: {} });
+    // Nota recém-emitida costuma vir com "Qtde. Faturada" ainda vazia (no dia 17/11 eram mais notas do que
+    // itens): nesses casos vale a "Quantidade" da linha, senão a nota ficaria sem peças e sem marca no rateio.
+    var itens = numero(obterCampo(row, ["Qtde. Faturada"])) || numero(obterCampo(row, ["Quantidade"]));
+    var marca = marcaPorDescricao(obterCampo(row, ["Produto"]), obterCampo(row, ["Código do Produto", "Codigo do Produto"]), embalas);
+    n.itens += itens;
+    n.marcas[marca] = (n.marcas[marca] || 0) + itens;
+  });
+  var dias = {};
+  Object.keys(notas).forEach(function (id) {
+    var n = notas[id], d = dias[n.dia] || (dias[n.dia] = { itens: 0, notas: 0, rs: 0, marcas: {} });
+    d.itens += n.itens; d.notas++; d.rs += n.rs;
+    Object.keys(n.marcas).forEach(function (nome) {
+      var m = d.marcas[nome] || (d.marcas[nome] = { itens: 0, rs: 0 });
+      m.itens += n.marcas[nome];
+      if (n.itens) m.rs += n.rs * n.marcas[nome] / n.itens;   // nota com mais de uma marca: rateio pelos itens
+    });
+  });
+  return dias;
+}
+// op.fatDias = { dia: { itens, notas, rs, marcas: { nome: { itens, rs } } } } (31 dias). Mesma mecânica da
+// caída: cada Itens de NF troca os dias que traz e o 1º dia do arquivo pode vir pela metade (o período
+// começa no pedido mais antigo em tela), então ali fica o maior.
+function juntarFaturado(op, novo) {
+  var f = op.fatDias || {}, dias = Object.keys(novo).sort();
+  dias.forEach(function (d, i) { f[d] = i === 0 && f[d] && f[d].rs > novo[d].rs ? f[d] : novo[d]; });
+  var o = {};
+  Object.keys(f).sort().slice(-31).forEach(function (d) { o[d] = f[d]; });
+  op.fatDias = o;
+}
+
 function resumoOperacao(op) {
   var pedidos = op.pedidos || {}, marcas = op.marcas || {};
-  var r = { itens: 0, pedidos: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, semMarcaPedidos: [], marcas: {}, semConferir: { itens: 0, pedidos: 0 }, semColeta: { itens: 0, pedidos: 0, checkout: 0, colmeia: 0 },
-    single: 0, multi: 0,   // itens por tipo de pedido (Classificação Tipo Pedido)
-    etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, single: 0, multi: 0, marcas: {} }; }),
-    idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0, single: 0, multi: 0 }; }),
+  // Todo campo "rs" é o R$ (Valor Total da NF do OP) do mesmo recorte do campo "itens" ao lado: são para o
+  // telão da diretoria, que troca a unidade da tela no toggle. O telão da operação lê só os campos de itens.
+  var r = { itens: 0, pedidos: 0, rs: 0, maisAntigo: null, maisAntigoPedido: null, semMarca: 0, semMarcaPedidos: [], marcas: {}, marcasRs: {},
+    semConferir: { itens: 0, pedidos: 0, rs: 0 }, semColeta: { itens: 0, pedidos: 0, checkout: 0, colmeia: 0, rs: 0 },
+    single: 0, multi: 0, singleRs: 0, multiRs: 0,   // itens por tipo de pedido (Classificação Tipo Pedido)
+    etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, rs: 0, single: 0, multi: 0, singleRs: 0, multiRs: 0, marcas: {}, marcasRs: {} }; }),
+    idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0, rs: 0, single: 0, multi: 0, singleRs: 0, multiRs: 0 }; }),
     opEm: op.opEm || null, nfEm: op.nfEm || null };
   // Idade em DIAS ÚTEIS, mesma regra do Report E-commerce (diferencaDiasUteis): seg a sex sem feriados.
   var ref = new Date(op.opEm || Date.now()), cacheIdade = {};
@@ -1314,25 +1362,28 @@ function resumoOperacao(op) {
     return cacheIdade[k];
   }
   Object.keys(pedidos).forEach(function (p) {
-    var e = pedidos[p], etapa = r.etapas[e[0]], itens = e[1], imp = e[2], marca = marcas[p] || "Olympikus";   // sem produto no Itens de NF: mesma reserva da regra de marca
-    r.itens += itens; r.pedidos++;
-    etapa.itens += itens; etapa.pedidos++;
+    var e = pedidos[p], etapa = r.etapas[e[0]], itens = e[1], imp = e[2], rs = e[6] || 0, marca = marcas[p] || "Olympikus";   // sem produto no Itens de NF: mesma reserva da regra de marca
+    r.itens += itens; r.pedidos++; r.rs += rs;
+    etapa.itens += itens; etapa.pedidos++; etapa.rs += rs;
     var tp = e[5] === "M" ? "multi" : e[5] === "S" ? "single" : null;
-    if (tp) { r[tp] += itens; etapa[tp] += itens; }
+    if (tp) { r[tp] += itens; etapa[tp] += itens; r[tp + "Rs"] += rs; etapa[tp + "Rs"] += rs; }
     etapa.marcas[marca] = (etapa.marcas[marca] || 0) + itens;
+    etapa.marcasRs[marca] = (etapa.marcasRs[marca] || 0) + rs;
     r.marcas[marca] = (r.marcas[marca] || 0) + itens;
+    r.marcasRs[marca] = (r.marcasRs[marca] || 0) + rs;
     if (!marcas[p]) { r.semMarca += itens; if (r.semMarcaPedidos.length < 10) r.semMarcaPedidos.push(p); }
-    if (e[3]) { r.semConferir.itens += itens; r.semConferir.pedidos++; }
-    if (e[4]) { r.semColeta.itens += itens; r.semColeta.pedidos++; r.semColeta[e[4] === 2 ? "colmeia" : "checkout"] += itens; }
+    if (e[3]) { r.semConferir.itens += itens; r.semConferir.pedidos++; r.semConferir.rs += rs; }
+    if (e[4]) { r.semColeta.itens += itens; r.semColeta.pedidos++; r.semColeta.rs += rs; r.semColeta[e[4] === 2 ? "colmeia" : "checkout"] += itens; }
     if (imp) {
       if (r.maisAntigo === null || imp < r.maisAntigo) { r.maisAntigo = imp; r.maisAntigoPedido = p; }
       var faixa = r.idade[Math.min(3, idadeDias(imp))];
-      faixa.itens += itens; faixa.pedidos++;
-      if (tp) faixa[tp] += itens;
+      faixa.itens += itens; faixa.pedidos++; faixa.rs += rs;
+      if (tp) { faixa[tp] += itens; faixa[tp + "Rs"] += rs; }
     }
   });
   r.maisAntigoDias = r.maisAntigo === null ? null : idadeDias(r.maisAntigo);
   r.caida = op.caidaDias || null;   // caída de pedidos por dia (Itens de NF)
+  r.faturado = op.fatDias || null;  // faturado por dia: itens, notas e R$ (Itens de NF, Data de Emissão)
   r.expedicao = resumoExpedicao(op);
   return r;
 }
@@ -1428,6 +1479,7 @@ async function atualizarOperacao(novo) {
     op.marcas = m;
     info = processarInfoNf(linhasNf);
     juntarCaida(op, processarCaidaItensNf(linhasNf));
+    juntarFaturado(op, processarFaturadoItensNf(linhasNf, op.embalas));
   }
   if (exp) juntarExpedicao(op, exp, new Date());
   if (info) guardarInfoNf(op, info, novo.pedidos ? info : null);
