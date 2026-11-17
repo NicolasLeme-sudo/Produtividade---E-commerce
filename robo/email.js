@@ -26,6 +26,9 @@ var TURNOS = {
 };
 // Cores de etapa do padrão Vulcabras (docs/padrao-vulcabras, seção 2.4)
 var CORES = { sep: "#297ADF", conf: "#2EC4B6", exp: "#F6BD00", arm: "#F5A524" };
+// Como cada atividade se chama no cabeçalho do cartão
+var ATIVIDADE = { Separado: "Produtividade de Separação", Conferido: "Produtividade de Conferência",
+                  Expedido: "Produtividade de Expedição", Armazenado: "Produtividade de Armazenagem" };
 
 // Ordem das colunas: a madrugada (00h–04h) vem DEPOIS das 23h, porque o T02 vira o dia.
 function ordemHora(h) { return h < 5 ? h + 24 : h; }
@@ -51,7 +54,7 @@ function mistura(cor, fundo, p) {
 /* ---------------- uma tabela (um cartão por atividade) ---------------- */
 // pessoas = { usuário: [24] peças por hora }; turnos (opcional) = { usuário: "T01" } acrescenta a coluna Turno
 // à esquerda, usada nos e-mails de fechamento.  ->  { html, total, horas, pessoas }
-function tabela(titulo, pessoas, cor, tema, turnos) {
+function tabela(titulo, pessoas, cor, tema, turnos, extra) {
   var T = TEMAS[tema === "escuro" ? "escuro" : "claro"];
   var corTotal = mistura(cor, T.mistura, T.pTotal);     // linha de totais: a mesma cor, mais fraca
   var corBorda = mistura(cor, T.borda, T.pBorda);
@@ -69,9 +72,10 @@ function tabela(titulo, pessoas, cor, tema, turnos) {
   var faixa = "padding:10px 16px;background:" + mistura(cor, T.mistura, tema === "escuro" ? .18 : .1) +
     ";border-bottom:1px solid " + corBorda + ";border-left:4px solid " + cor + ";";
   var tit = FONTE + "margin:0;font-size:15px;font-weight:700;color:" + T.texto + ";";
-  var cabecalho = '<div style="' + faixa + '"><p style="' + tit + '">' + esc(titulo) +
-    ' · <span style="color:' + cor + '">' + fmt(total) + '</span> <span style="font-weight:400;color:' + T.apoio + ';font-size:13px">peças · ' +
-    linhas.length + (linhas.length === 1 ? " pessoa" : " pessoas") + '</span></p></div>';
+  var apoio = "peças" + (extra ? " · " + esc(extra) : "") + " · " + linhas.length + (linhas.length === 1 ? " pessoa" : " pessoas");
+  var cabecalho = '<div style="' + faixa + '"><p style="' + tit + '">' + esc(ATIVIDADE[titulo] || titulo) +
+    ': <span style="color:' + cor + '">' + fmt(total) + '</span> <span style="font-weight:400;color:' + T.apoio + ';font-size:13px">' +
+    apoio + '</span></p></div>';
   if (!linhas.length) {
     return { html: '<div style="' + cartao + '">' + cabecalho + '<p style="' + FONTE + "margin:0;padding:14px 16px;font-size:13px;color:" + T.apoio + '">Sem produção até agora.</p></div>',
       total: 0, horas: [], pessoas: 0 };
@@ -81,7 +85,7 @@ function tabela(titulo, pessoas, cor, tema, turnos) {
   var tdTot = "padding:6px 10px;border:1px solid " + corBorda + ";background:" + corTotal + ";text-align:right;white-space:nowrap;font-weight:700;color:" + T.texto + ";";
   var colTurno = !!turnos;
   var cab = '<tr>' + (colTurno ? '<th style="' + th + 'text-align:left">Turno</th>' : "") +
-    '<th style="' + th + 'text-align:left">' + esc(titulo) + "</th>" +
+    '<th style="' + th + 'text-align:left">Usuário</th>' +
     horas.map(function (h) { return '<th style="' + th + '">' + rotHora(h) + "</th>"; }).join("") +
     '<th style="' + th + '">Total</th></tr>';
   var corpo = linhas.map(function (l, i) {
@@ -221,20 +225,11 @@ function blocos(t) {
 }
 // Corpo do e-mail: tabelas no tema claro (fundo branco do Outlook/Teams) e um rodapé curto.
 function corpoEmail(bloco, dia, fech, horaTexto) {
-  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "claro", x[3]); });
-  var tot = ts.map(function (t, i) { return esc(bloco.tabelas[i][0]) + " " + fmt(t.total); }).join(" · ");
-  var cab = '<p style="' + FONTE + "font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#6B7280;margin:0 0 4px" + '">' +
-      (fech ? "Fechamento" : "Produtividade por hora") + "</p>" +
-    '<h2 style="' + FONTE + "font-size:17px;margin:0 0 4px;color:#1C2333" + '">' + esc(bloco.tit) + " · " + dataBR(dia) + "</h2>" +
-    '<p style="' + FONTE + "font-size:13px;color:#6B7280;margin:0 0 20px" + '">' + horaTexto + " · " + tot + "</p>";
-  var pe = '<p style="' + FONTE + "font-size:11px;color:#9AA3B2;margin:14px 0 0" + '">Produtividade E-commerce · números do mesmo banco do telão.</p>';
-  return '<div style="' + FONTE + 'background:#FFFFFF;padding:4px 2px">' + cab + ts.map(function (t) { return t.html; }).join("") + pe + "</div>";
+  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "claro", x[3], horaTexto); });
+  return '<div style="' + FONTE + 'background:#FFFFFF;padding:4px 2px">' + ts.map(function (t) { return t.html; }).join("") + "</div>";
 }
-function assuntoDe(bloco, dia, fech, horaTexto) {
-  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "claro", x[3]); });
-  var tot = bloco.tabelas.map(function (x, i) { return x[0] + " " + fmt(ts[i].total); }).join(" · ");
-  return bloco.tit + " · " + dataBR(dia) + " · " + horaTexto + " · " + tot;
-}
+// O assunto vira o título da mensagem no canal do Teams: só o setor, o turno e o dia.
+function assuntoDe(bloco, dia) { return bloco.tit + " · " + dataBR(dia); }
 
 module.exports = {
   TURNOS: TURNOS, CORES: CORES, TEMAS: TEMAS, FONTE: FONTE,

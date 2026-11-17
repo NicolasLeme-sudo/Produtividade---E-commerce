@@ -19,6 +19,7 @@
    Uso à mão:
      node enviar-email.js --teste              (monta tudo e manda só para EMAIL_TESTE)
      node enviar-email.js --teste out-t01      (só um bloco)
+     node enviar-email.js --ensaio             (o que iria para os canais AGORA, mas só para EMAIL_TESTE)
      node enviar-email.js --agora              (manda de verdade o que estiver na hora)
    ========================================================================= */
 "use strict";
@@ -130,12 +131,12 @@ async function verificar(cfg, log, opcoes) {
     if (!total && !item.fech) continue;                     // sem produção ainda: não manda e-mail vazio
     const para = opcoes.para || cfg["CANAL_" + b.canal];
     if (!para) { log("   sem endereço de canal para " + b.id + " (CANAL_" + b.canal + " no .env)"); continue; }
-    const assunto = E.assuntoDe(b, dia, item.fech, item.horaTexto);
+    const assunto = E.assuntoDe(b, dia);
     const html = E.corpoEmail(b, dia, item.fech, item.horaTexto);
     if (mandar(para, assunto, html, log)) {
       n++;
       log("   e-mail enviado: " + b.tit + " · " + item.horaTexto + " · " + E.fmt(total) + " peças");
-      if (!opcoes.para) { feitos[item.chave] = new Date().toISOString(); salvarEstado(estado); }
+      if (!opcoes.para && !opcoes.semRegistro) { feitos[item.chave] = new Date().toISOString(); salvarEstado(estado); }
     }
   }
   // guarda só os 7 dias mais recentes
@@ -151,19 +152,29 @@ if (require.main === module) {
   const robo = require("./robo");
   const cfg = robo.lerEnv();
   const teste = process.argv.includes("--teste");
+  const ensaio = process.argv.includes("--ensaio");   // agenda de verdade, destino de teste
   const soEste = process.argv[process.argv.indexOf("--teste") + 1];
   const dia = (process.argv.find(function (a) { return /^\d{4}-\d{2}-\d{2}$/.test(a); }) || "");
   const opcoes = {};
   if (dia) opcoes.agora = new Date(dia + "T23:59:00");
-  if (teste) {
+  if (ensaio) {
     opcoes.para = cfg.EMAIL_TESTE;
+    if (!opcoes.para) { console.error("Preencha EMAIL_TESTE no .env"); process.exit(1); }
+  }
+  if (teste) {
+    // --teste <id> --canal: manda no canal de verdade (CANAL_*), sem registrar como enviado
+    const paraCanal = process.argv.includes("--canal");
+    opcoes.semRegistro = true;
+    if (!paraCanal) {
+      opcoes.para = cfg.EMAIL_TESTE;
+      if (!opcoes.para) { console.error("Preencha EMAIL_TESTE no .env"); process.exit(1); }
+    }
     opcoes.forcar = function (blocos) {
       return blocos.filter(function (b) { return !soEste || soEste === b.id; })
         .map(function (b) { return { bloco: b, chave: b.id, fech: !!AGENDA[b.id].soDia, horaTexto: "teste" }; });
     };
-    if (!opcoes.para) { console.error("Preencha EMAIL_TESTE no .env"); process.exit(1); }
   }
   verificar(cfg, console.log, opcoes)
-    .then(function (n) { console.log(n + " e-mail(s) enviado(s)" + (teste ? " para " + opcoes.para : "")); process.exit(0); })
+    .then(function (n) { console.log(n + " e-mail(s) enviado(s)" + (opcoes.para ? " para " + opcoes.para : "")); process.exit(0); })
     .catch(function (e) { console.error("FALHOU: " + e.message); process.exit(1); });
 }
