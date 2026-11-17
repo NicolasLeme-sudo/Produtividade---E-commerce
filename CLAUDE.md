@@ -76,6 +76,27 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 - **Modo escondido (desde 04/11):** `MOSTRAR_NAVEGADOR=nao` abre o Chrome do robô sem janela (`--headless=new --window-size=1920,1080`); `INTERVALO_MIN=30` atualiza todos os relatórios juntos a cada 30 min (sem a chave: rápidos 5 min, lentos 10 min). `ligar-robo-escondido.vbs` liga sem nem a janela preta (andamento só no `robo.log`); `desligar-robo.bat` também fecha o Chrome escondido. Para voltar a ver: `MOSTRAR_NAVEGADOR=sim`, desligar e ligar. Enviados vão para `Downloads\telao-enviados`; log `robo.log`. Limpeza (ao ligar e a cada 6 h): em `telao-enviados` fica só hoje + os 2 últimos dias trabalhados (dia com relatório na pasta), desde 09/11; prints de erro 2 dias.
 - Testado com arquivos reais de 26–29/10: 5 relatórios OK.
 
+## E-mails de produtividade (canais do Teams) — desde 17/11
+- O robô manda a produtividade **por colaborador e por hora** para canais do Teams, usando o **endereço de e-mail de cada canal** e o **Outlook clássico do notebook do Nicolas** (`enviar-outlook.ps1`, sem abrir janela, conta nicolas.leme@vulcabras.com). Canal padrão tem endereço; canal privado não — por isso **uma equipe por canal**.
+- Arquivos: `robo/email.js` (tabelas e blocos), `robo/dados-email.js` (lê os snapshots), `robo/enviar-email.js` (agenda + envio), `robo/enviar-outlook.ps1`, `robo/previa-email.js` (prévia em HTML, sai em `C:\Entrega de Arquivos`, **nunca no repositório**: tem usuário de colaborador).
+- **5 canais** (endereços em `CANAL_*` no `.env`, fora do Git): Outbound T01, Outbound T02, Inbound ADM, Inbound T02, Fechamento. Agenda em `AGENDA` (minutos do dia operacional):
+
+| Canal | Hora em hora | Fechamento do turno |
+|---|---|---|
+| Outbound T01 | 06h05 → 14h05 | 14h38 |
+| Outbound T02 | 16h05 → 00h05 | 00h06 |
+| Inbound ADM | 09h05 → 17h05 | 17h23 |
+| Inbound T02 | 16h05 → 00h05 | 00h06 |
+| Fechamento | — | 00h25 (dia inteiro, Outbound e Inbound, com coluna Turno) |
+
+- Fechamento de turno sai ~10 min antes do turno acabar (pedido do Nicolas: o líder recebe com o turno em pé). Rodadas extras `HORARIOS_EXTRA=17:15,00:20` alimentam o fechamento do ADM e o do dia.
+- **Conteúdo:** uma tabela por atividade (Separado/Conferido/Expedido; Armazenado), **usuário do WMS** nas linhas (não o nome completo), horas nas colunas (o que fez naquela hora), coluna Total, linha de Total. Canal de setor leva só o turno dele; o canal Fechamento leva os turnos **somados** com a coluna Turno (`juntarTurnos`/`rotulosTurno`). Turno da pessoa = pela 1ª produção do dia (antes das 15h = turno da manhã).
+- **Visual:** assunto = `Setor · Turno · dd/mm/aaaa` (vira o título no Teams); corpo sem outro título, cada atividade num cartão com `Produtividade de X: <total em negrito na cor da atividade> · peças · até HHh · N pessoas`. Cores de etapa do padrão Vulcabras. Estilo **inline em cada célula** (o Teams limpa CSS) e **aspas simples** no nome da fonte (aspa dupla corta o `style="…"`).
+- `emails-enviados.json` (fora do Git) guarda o que já saiu, por dia: religar o robô não remanda. Robô fora do ar: manda só o slot vigente, não a fila atrasada (`TOLERANCIA` 45 min). Sem produção na hora = não manda.
+- Chamado pelo `robo.js` no fim de cada rodada (`aoFimDaRodada`) e de 5 em 5 min (pega os fechamentos, que não caem em :00/:30).
+- À mão: `node enviar-email.js --teste [id]` (só para `EMAIL_TESTE`) · `--teste <id> --canal` (no canal de verdade, sem registrar) · `--ensaio` (o que iria agora, para o teste) · `node previa-email.js [aaaa-mm-dd]`.
+- **`lerEnv` aceita dígito na chave** (`[A-Z0-9_]+`): com `[A-Z_]+`, `CANAL_OUT_T01` ficava vazio e o envio nunca começava, sem erro no log (17/11).
+
 ## Pendências (ordem)
 1. ~~Gravar os cliques no WMS~~ ✅ 29/10: `robo/gravacao.js` (fora do Git) tem login + 6 exportações .tsv. Achados: login sem captcha/2FA; download imediato (sem fila); botão `#ExportGridPlugin_exportButton` → link "Separado por Tabulações .tsv". Relatórios no menu: Produtividade de Separação, Produtividade de Packing Analítico (= Conferência), Produtividade Montagem de (Colmeia), Kardex de Endereço (depositante VULCABRAS AZALEIA - SP + aba Período), Acompanhamento Saida por Nota Fiscal (Período 30 dias, Todas), Itens de NF de Saida. IDs `#x-auto-NNN` mudam a cada sessão: trocar por texto/role no baixar.js.
 2. ~~**Fase B**~~ ✅ validada em 04/11 (14h30–14h51, 20 min sem interrupção: 4 ciclos rápidos + 2 lentos, 24 arquivos enviados, 0 erros, reaproveitou as 6 abas): `baixar.js` deixa **6 abas do WMS** no Google Chrome (cada uma com login próprio; o robô guarda a referência de cada aba), filtros preenchidos uma vez; no ciclo só clica no atualizar da tela (`#DynamicGrid_refresh` em Separação/Packing/Colmeia/Itens NF, `#AdvancedNavegationBar_refresh` em OP/Kardex), espera a máscara de carregando sumir (até 2,5 min; 1ª carga da aba até 3 min; cliques até 90 s; exportar até 3 min — folga para o WMS cheio, 12/11) e exporta para PASTA como `Exportacao_<relatorio>_<hora>.tsv`. Rápido a cada 5 min: Separação, Packing (= Conferência), Colmeia. Lento a cada 10 min: OP, Itens de NF, Kardex. Refaz a aba na virada do dia (00h–01h a data inicial é ontem, por causa do T02), quando o pedido mais antigo do OP muda (Itens NF começa nesse dia; regra em `ProdutividadeIngest.maisAntigoOp`) ou em erro (print em `robo/erros/`). Login que falha pausa 30 min. Ligado pelo `robo.js` quando `WMS_USUARIO` está no .env. Usuário WMS: nicolas.leme.
