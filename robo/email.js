@@ -121,13 +121,15 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
 }
 
 /* ---------------- quem é de qual turno ---------------- */
-// Pelo PESO da produção dentro da janela do turno da manhã (T01 05h–14h48, ADM 07h55–17h33):
-// quem produziu mais dentro dela é da manhã, senão é do T02. A 1ª produção sozinha não servia —
-// o T02 começa 14h48 e as peças das 14h jogavam a turma inteira do T02 para dentro do T01 (17/11).
+// Pelo PESO da produção até as 14h48, quando o T02 entra: quem produziu mais antes disso é da
+// manhã (T01 ou ADM), senão é do T02. A 1ª produção sozinha não servia (o T02 começa 14h48 e as
+// peças das 14h jogavam a turma do T02 para dentro do T01), e a janela cheia do ADM também não
+// (ela vai até 17h33 e puxava a turma do Inbound T02 para o e-mail do ADM — 17/11). O ADM que
+// trabalha depois das 15h continua no ADM: a maior parte das peças dele é de manhã.
 // Quem faz hora extra continua no próprio turno; as horas a mais viram coluna.
 function turnoDaPessoa(arr, manha) {
   var cfg = TURNOS[manha] || TURNOS.T01;
-  var hIni = Math.floor(cfg.ini / 60), hFim = Math.floor(cfg.fim / 60);
+  var hIni = Math.floor(cfg.ini / 60), hFim = Math.floor(TURNOS.T02.ini / 60);   // 14: a virada dos turnos
   var dentro = 0, fora = 0, primeira = null;
   (arr || []).forEach(function (v, i) {
     if (!(v > 0)) return;
