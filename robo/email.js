@@ -193,9 +193,53 @@ function armazenagemPorUsuario(inbound, dia) {
   return d ? d.itens || {} : {};
 }
 
+/* ---------------- os blocos (um por canal do Teams) ---------------- */
+// t = { sep:{T01,T02}, conf:{T01,T02}, exp:{T01,T02}, arm:{ADM,T02} } com as peças por usuário e hora.
+// Canais de setor levam a tabela só do turno deles; o canal Fechamento leva o dia inteiro, com a coluna Turno.
+function blocos(t) {
+  var C = CORES;
+  var rotOut = rotulosTurno([["T01", t.sep.T01], ["T02", t.sep.T02]]);
+  var rotConf = rotulosTurno([["T01", t.conf.T01], ["T02", t.conf.T02]]);
+  var rotExp = rotulosTurno([["T01", t.exp.T01], ["T02", t.exp.T02]]);
+  var rotArm = rotulosTurno([["ADM", t.arm.ADM], ["T02", t.arm.T02]]);
+  return [
+    { id: "out-t01", canal: "OUT_T01", setor: "Outbound", turno: "T01", tit: "Outbound · T01",
+      tabelas: [["Separado", t.sep.T01, C.sep], ["Conferido", t.conf.T01, C.conf], ["Expedido", t.exp.T01, C.exp]] },
+    { id: "out-t02", canal: "OUT_T02", setor: "Outbound", turno: "T02", tit: "Outbound · T02",
+      tabelas: [["Separado", t.sep.T02, C.sep], ["Conferido", t.conf.T02, C.conf], ["Expedido", t.exp.T02, C.exp]] },
+    { id: "in-adm", canal: "IN_ADM", setor: "Inbound", turno: "ADM", tit: "Inbound · ADM",
+      tabelas: [["Armazenado", t.arm.ADM, C.arm]] },
+    { id: "in-t02", canal: "IN_T02", setor: "Inbound", turno: "T02", tit: "Inbound · T02",
+      tabelas: [["Armazenado", t.arm.T02, C.arm]] },
+    { id: "fech-dia-out", canal: "FECHAMENTO", setor: "Outbound", turno: "dia", dia: 1, tit: "Fechamento do dia · Outbound",
+      tabelas: [["Separado", juntarTurnos(t.sep.T01, t.sep.T02), C.sep, rotOut],
+                ["Conferido", juntarTurnos(t.conf.T01, t.conf.T02), C.conf, rotConf],
+                ["Expedido", juntarTurnos(t.exp.T01, t.exp.T02), C.exp, rotExp]] },
+    { id: "fech-dia-in", canal: "FECHAMENTO", setor: "Inbound", turno: "dia", dia: 1, tit: "Fechamento do dia · Inbound",
+      tabelas: [["Armazenado", juntarTurnos(t.arm.ADM, t.arm.T02), C.arm, rotArm]] }
+  ];
+}
+// Corpo do e-mail: tabelas no tema claro (fundo branco do Outlook/Teams) e um rodapé curto.
+function corpoEmail(bloco, dia, fech, horaTexto) {
+  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "claro", x[3]); });
+  var tot = ts.map(function (t, i) { return esc(bloco.tabelas[i][0]) + " " + fmt(t.total); }).join(" · ");
+  var cab = '<p style="' + FONTE + "font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#6B7280;margin:0 0 4px" + '">' +
+      (fech ? "Fechamento" : "Produtividade por hora") + "</p>" +
+    '<h2 style="' + FONTE + "font-size:17px;margin:0 0 4px;color:#1C2333" + '">' + esc(bloco.tit) + " · " + dataBR(dia) + "</h2>" +
+    '<p style="' + FONTE + "font-size:13px;color:#6B7280;margin:0 0 20px" + '">' + horaTexto + " · " + tot + "</p>";
+  var pe = '<p style="' + FONTE + "font-size:11px;color:#9AA3B2;margin:14px 0 0" + '">Produtividade E-commerce · números do mesmo banco do telão.</p>';
+  return '<div style="' + FONTE + 'background:#FFFFFF;padding:4px 2px">' + cab + ts.map(function (t) { return t.html; }).join("") + pe + "</div>";
+}
+function assuntoDe(bloco, dia, fech, horaTexto) {
+  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "claro", x[3]); });
+  var tot = bloco.tabelas.map(function (x, i) { return x[0] + " " + fmt(ts[i].total); }).join(" · ");
+  return bloco.tit + " · " + dataBR(dia) + " · " + horaTexto + " · " + tot;
+}
+
 module.exports = {
   TURNOS: TURNOS, CORES: CORES, TEMAS: TEMAS, FONTE: FONTE,
   ordemHora: ordemHora, rotHora: rotHora, fmt: fmt, esc: esc, dataBR: dataBR, mistura: mistura,
+  blocos: blocos, corpoEmail: corpoEmail, assuntoDe: assuntoDe,
   tabela: tabela, porTurno: porTurno, turnoDaPessoa: turnoDaPessoa, somarEm: somarEm, juntarTurnos: juntarTurnos, rotulosTurno: rotulosTurno,
   analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
   expedicaoPorUsuario: expedicaoPorUsuario, armazenagemPorUsuario: armazenagemPorUsuario

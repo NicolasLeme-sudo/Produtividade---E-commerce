@@ -1,0 +1,169 @@
+/* =========================================================================
+   ENVIO DOS E-MAILS — canais do Teams, pelo Outlook do notebook
+   -------------------------------------------------------------------------
+   Cada canal do Teams tem um endereço de e-mail (CANAL_* no .env). O robô
+   chama verificar() no fim de cada rodada; aqui se decide o que já está na
+   hora de mandar e o que já foi mandado (emails-enviados.json).
+
+   Horários (minutos do DIA OPERACIONAL: 00h–01h conta como 1440+):
+
+     Outbound · T01   hora em hora 06h05 → 14h05   · fechamento do turno 14h38
+     Outbound · T02   hora em hora 16h05 → 00h05   · fechamento do turno 00h06
+     Inbound · ADM    hora em hora 09h05 → 17h05   · fechamento do turno 17h23
+     Inbound · T02    hora em hora 16h05 → 00h05   · fechamento do turno 00h06
+     Fechamento       só o do dia, 00h25 (Outbound e Inbound, com a coluna Turno)
+
+   O fechamento de turno sai uns 10 min antes do turno acabar, de propósito:
+   o líder recebe com o turno ainda em pé.
+
+   Uso à mão:
+     node enviar-email.js --teste              (monta tudo e manda só para EMAIL_TESTE)
+     node enviar-email.js --teste out-t01      (só um bloco)
+     node enviar-email.js --agora              (manda de verdade o que estiver na hora)
+   ========================================================================= */
+"use strict";
+const fs = require("fs");
+const path = require("path");
+const { execFileSync } = require("child_process");
+const E = require("./email");
+const D = require("./dados-email");
+
+const ARQ_ESTADO = path.join(__dirname, "emails-enviados.json");
+const PS1 = path.join(__dirname, "enviar-outlook.ps1");
+
+// minutos do dia operacional em que cada bloco fala
+const AGENDA = {
+  "out-t01": { horas: [365, 845], fech: 878 },    // 06h05→14h05 · 14h38
+  "out-t02": { horas: [965, 1445], fech: 1446 },  // 16h05→00h05 · 00h06
+  "in-adm":  { horas: [545, 1025], fech: 1043 },  // 09h05→17h05 · 17h23
+  "in-t02":  { horas: [965, 1445], fech: 1446 },  // 16h05→00h05 · 00h06
+  "fech-dia-out": { soDia: 1465 },                // 00h25
+  "fech-dia-in":  { soDia: 1465 }
+};
+const TOLERANCIA = 45;   // minutos: passou disso, não manda atrasado (robô desligado, por exemplo)
+
+function minutoOperacional(d) {
+  d = d || new Date();
+  const m = d.getHours() * 60 + d.getMinutes();
+  return d.getHours() < 1 ? m + 1440 : m;          // 00h–01h ainda é o dia anterior
+}
+function hhmm(min) {
+  const m = ((min % 1440) + 1440) % 1440;
+  return String(Math.floor(m / 60)).padStart(2, "0") + "h" + String(m % 60).padStart(2, "0");
+}
+function lerEstado() { try { return JSON.parse(fs.readFileSync(ARQ_ESTADO, "utf8")); } catch (e) { return {}; } }
+function salvarEstado(e) { try { fs.writeFileSync(ARQ_ESTADO, JSON.stringify(e, null, 1)); } catch (x) {} }
+
+// O que está na hora de mandar agora: [{ bloco, chave, fech, horaTexto }]
+function pendentes(blocos, minAgora, feitos) {
+  const saida = [];
+  blocos.forEach(function (b) {
+    const ag = AGENDA[b.id];
+    if (!ag) return;
+    if (ag.soDia != null) {
+      if (minAgora >= ag.soDia && minAgora < ag.soDia + TOLERANCIA && !feitos[b.id + "|dia"]) {
+        saida.push({ bloco: b, chave: b.id + "|dia", fech: 1, horaTexto: "dia encerrado" });
+      }
+      return;
+    }
+    // fechamento do turno tem prioridade sobre a hora cheia
+    if (minAgora >= ag.fech && minAgora < ag.fech + TOLERANCIA && !feitos[b.id + "|fech"]) {
+      saida.push({ bloco: b, chave: b.id + "|fech", fech: 1, horaTexto: "fechamento do turno" });
+      return;
+    }
+    // hora em hora: só o slot vigente (se o robô ficou fora, não dispara os atrasados de uma vez)
+    const ini = ag.horas[0], fim = ag.horas[1];
+    if (minAgora < ini || minAgora > fim + TOLERANCIA) return;
+    const slot = Math.min(fim, ini + Math.floor((minAgora - ini) / 60) * 60);
+    if (minAgora - slot >= TOLERANCIA) return;
+    const chave = b.id + "|h" + slot;
+    if (!feitos[chave]) saida.push({ bloco: b, chave: chave, horaTexto: "até " + hhmm(slot - 5) });
+  });
+  return saida;
+}
+
+function totalDoBloco(b) {
+  return b.tabelas.reduce(function (s, x) {
+    return s + Object.keys(x[1] || {}).reduce(function (a, u) {
+      return a + (x[1][u] || []).reduce(function (c, v) { return c + (v || 0); }, 0);
+    }, 0);
+  }, 0);
+}
+
+// Manda pelo Outlook (sem janela). Devolve true/false.
+function mandar(para, assunto, html, log) {
+  const arq = path.join(require("os").tmpdir(), "email-robo-" + Date.now() + ".json");
+  fs.writeFileSync(arq, JSON.stringify({ para: para, assunto: assunto, html: html }), "utf8");
+  try {
+    const r = execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", PS1, "-Arquivo", arq],
+      { encoding: "utf8", timeout: 120000, windowsHide: true });
+    if (!/OK/.test(r)) throw new Error(String(r).trim().split("\n")[0]);
+    return true;
+  } catch (e) {
+    log("   ERRO ao enviar \"" + assunto.slice(0, 50) + "\": " + String(e.message).split("\n")[0]);
+    return false;
+  } finally { try { fs.unlinkSync(arq); } catch (x) {} }
+}
+
+/* ---------------- o que o robô chama no fim de cada rodada ---------------- */
+async function verificar(cfg, log, opcoes) {
+  opcoes = opcoes || {};
+  const agora = opcoes.agora || new Date();
+  const dia = D.diaOperacional(agora), minAgora = minutoOperacional(agora);
+  const estado = lerEstado(), feitos = estado[dia] || (estado[dia] = {});
+  const blocos0 = Object.keys(AGENDA);
+  // nada na agenda para este minuto: nem abre o banco
+  if (!opcoes.forcar && !blocos0.some(function (id) {
+    const ag = AGENDA[id];
+    if (ag.soDia != null) return minAgora >= ag.soDia && minAgora < ag.soDia + TOLERANCIA && !feitos[id + "|dia"];
+    return minAgora >= ag.horas[0] && minAgora <= ag.fech + TOLERANCIA;
+  })) return 0;
+
+  const sb = opcoes.sb || await D.cliente(cfg);
+  const t = await D.carregar(sb, dia);
+  const blocos = E.blocos(t);
+  const lista = opcoes.forcar ? opcoes.forcar(blocos) : pendentes(blocos, minAgora, feitos);
+  let n = 0;
+  for (const item of lista) {
+    const b = item.bloco;
+    const total = totalDoBloco(b);
+    if (!total && !item.fech) continue;                     // sem produção ainda: não manda e-mail vazio
+    const para = opcoes.para || cfg["CANAL_" + b.canal];
+    if (!para) { log("   sem endereço de canal para " + b.id + " (CANAL_" + b.canal + " no .env)"); continue; }
+    const assunto = E.assuntoDe(b, dia, item.fech, item.horaTexto);
+    const html = E.corpoEmail(b, dia, item.fech, item.horaTexto);
+    if (mandar(para, assunto, html, log)) {
+      n++;
+      log("   e-mail enviado: " + b.tit + " · " + item.horaTexto + " · " + E.fmt(total) + " peças");
+      if (!opcoes.para) { feitos[item.chave] = new Date().toISOString(); salvarEstado(estado); }
+    }
+  }
+  // guarda só os 7 dias mais recentes
+  Object.keys(estado).sort().slice(0, -7).forEach(function (d) { delete estado[d]; });
+  salvarEstado(estado);
+  return n;
+}
+
+module.exports = { verificar: verificar, AGENDA: AGENDA, minutoOperacional: minutoOperacional, pendentes: pendentes };
+
+/* ---------------- uso à mão ---------------- */
+if (require.main === module) {
+  const robo = require("./robo");
+  const cfg = robo.lerEnv();
+  const teste = process.argv.includes("--teste");
+  const soEste = process.argv[process.argv.indexOf("--teste") + 1];
+  const dia = (process.argv.find(function (a) { return /^\d{4}-\d{2}-\d{2}$/.test(a); }) || "");
+  const opcoes = {};
+  if (dia) opcoes.agora = new Date(dia + "T23:59:00");
+  if (teste) {
+    opcoes.para = cfg.EMAIL_TESTE;
+    opcoes.forcar = function (blocos) {
+      return blocos.filter(function (b) { return !soEste || soEste === b.id; })
+        .map(function (b) { return { bloco: b, chave: b.id, fech: !!AGENDA[b.id].soDia, horaTexto: "teste" }; });
+    };
+    if (!opcoes.para) { console.error("Preencha EMAIL_TESTE no .env"); process.exit(1); }
+  }
+  verificar(cfg, console.log, opcoes)
+    .then(function (n) { console.log(n + " e-mail(s) enviado(s)" + (teste ? " para " + opcoes.para : "")); process.exit(0); })
+    .catch(function (e) { console.error("FALHOU: " + e.message); process.exit(1); });
+}

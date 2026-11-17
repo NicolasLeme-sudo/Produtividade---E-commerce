@@ -5,74 +5,32 @@
 const fs = require("fs");
 const path = require("path");
 const E = require("./email");
+const D = require("./dados-email");
 const robo = require("./robo");
 
 const RAIZ = path.join(__dirname, "..");
 function diaOperacional(d) { d = new Date(d); if (d.getHours() < 1) d.setDate(d.getDate() - 1); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 function png64(rel) { return "data:image/png;base64," + fs.readFileSync(path.join(RAIZ, rel)).toString("base64"); }
 
-async function cliente(cfg) {
-  const ing = fs.readFileSync(path.join(RAIZ, "ingest.js"), "utf8");
-  const url = /SUPABASE_URL\s*=\s*"([^"]+)"/.exec(ing)[1], key = /SUPABASE_ANON_KEY\s*=\s*"([^"]+)"/.exec(ing)[1];
-  const sb = require("@supabase/supabase-js").createClient(url, key);
-  const { error } = await sb.auth.signInWithPassword({ email: cfg.PROD_EMAIL, password: cfg.PROD_SENHA });
-  if (error) throw new Error("login: " + error.message);
-  return sb;
-}
-
 (async function () {
   const cfg = robo.lerEnv();
-  const dia = (process.argv[2] || "").match(/^\d{4}-\d{2}-\d{2}$/) ? process.argv[2] : diaOperacional(new Date());
-  const saida = process.argv[3] || "C:\\Entrega de Arquivos";
-  const sb = await cliente(cfg);
-  const q = await sb.from("dashboard_snapshots").select("pagina, dados").in("pagina", ["outbound", "inbound", "operacao"]);
-  if (q.error) throw q.error;
-  const pg = {}; (q.data || []).forEach(function (l) { pg[l.pagina] = l.dados || {}; });
-  const out = pg.outbound || {}, inb = pg.inbound || {}, op = pg.operacao || {};
-
-  // peças por usuário e hora de cada atividade
-  const sep = E.analiticoPorUsuario((out.separacao || {}).analitico, dia, ["checkout", "colmeia"]);
-  const conf = E.somarEm(E.analiticoPorUsuario((out.conferencia || {}).analitico, dia, ["checkout"]), E.colmeiaPorUsuario(out.conferencia, dia));
-  const exp = E.expedicaoPorUsuario(op, dia);
-  const arm = E.armazenagemPorUsuario(inb, dia);
-
-  // As tabelas mostram o usuário do WMS (o mesmo do sistema), não o nome completo.
-  const tSep = E.porTurno(sep, null, "T01"), tConf = E.porTurno(conf, null, "T01"), tExp = E.porTurno(exp, null, "T01");
-  const tArm = E.porTurno(arm, null, "ADM");
-  const C = E.CORES;
-
-  // Um e-mail = um bloco; cada atividade num cartão (demarcação entre setores).
-  // Tanto os de hora em hora quanto os de fechamento trazem UMA tabela geral por atividade,
-  // com os turnos somados e a coluna Turno à esquerda (16/11). Não há mais e-mail por turno.
-  const rotOut = [["T01", null], ["T02", null]], rotArm = [["ADM", null], ["T02", null]];
-  function geral(a, b) { return E.juntarTurnos(a, b); }
-  function rot(manha, a, b) { return E.rotulosTurno([[manha, a], ["T02", b]]); }
-  const EMAILS = [
-    { id: "out-hora", tit: "Outbound · produtividade por hora", tabelas: [
-      ["Separado", geral(tSep.T01, tSep.T02), C.sep, rot("T01", tSep.T01, tSep.T02)],
-      ["Conferido", geral(tConf.T01, tConf.T02), C.conf, rot("T01", tConf.T01, tConf.T02)],
-      ["Expedido", geral(tExp.T01, tExp.T02), C.exp, rot("T01", tExp.T01, tExp.T02)]] },
-    { id: "arm-hora", tit: "Inbound · produtividade por hora", tabelas: [
-      ["Armazenado", geral(tArm.ADM, tArm.T02), C.arm, rot("ADM", tArm.ADM, tArm.T02)]] },
-    { id: "fech-out", fech: 1, tit: "Fechamento do dia · Outbound", tabelas: [
-      ["Separado", geral(tSep.T01, tSep.T02), C.sep, rot("T01", tSep.T01, tSep.T02)],
-      ["Conferido", geral(tConf.T01, tConf.T02), C.conf, rot("T01", tConf.T01, tConf.T02)],
-      ["Expedido", geral(tExp.T01, tExp.T02), C.exp, rot("T01", tExp.T01, tExp.T02)]] },
-    { id: "fech-arm", fech: 1, tit: "Fechamento do dia · Inbound", tabelas: [
-      ["Armazenado", geral(tArm.ADM, tArm.T02), C.arm, rot("ADM", tArm.ADM, tArm.T02)]] }
-  ];
+  const dia = (process.argv[2] || "").match(/^\d{4}-\d{2}-\d{2}$/) ? process.argv[2] : D.diaOperacional();
+  const saida = process.argv[3] || "C:\\Entrega de Arquivos";   // a prévia tem nome de usuário: nunca no repositório
+  const sb = await D.cliente(cfg);
+  const t = await D.carregar(sb, dia);
+  const EMAILS = E.blocos(t);
   function corpo(tema) {
     return EMAILS.map(function (e) {
       const ts = e.tabelas.map(function (t) { return E.tabela(t[0], t[1], t[2], tema, t[3]); });
       const tot = ts.map(function (t, i) { return E.esc(e.tabelas[i][0]) + " " + E.fmt(t.total); }).join(" · ");
       return '<section class="email" id="' + e.id + "-" + tema + '">' +
-        '<div class="email-hd"><div><p class="kicker">' + (e.fech ? "E-mail de fechamento · fim do dia" : "E-mail de hora em hora") +
+        '<div class="email-hd"><div><p class="kicker">' + (e.dia ? "Canal Fechamento · dia inteiro" : "Canal " + e.tit + " · hora em hora e fechamento do turno") +
         '</p><h3>' + E.esc(e.tit) + " · " + E.dataBR(dia) + "</h3></div>" +
         '<div class="resumo">' + tot + "</div></div>" +
         '<div class="email-corpo">' + ts.map(function (t) { return t.html; }).join("") + "</div></section>";
     }).join("");
   }
-  const GRUPOS = [["Outbound", "out-hora"], ["Inbound", "arm-hora"], ["Fechamento", "fech-out"]];
+  const GRUPOS = [["Outbound", "out-t01"], ["Inbound", "in-adm"], ["Fechamento", "fech-dia-out"]];
   const chips = GRUPOS.map(function (g) { return '<a class="chip" href="#' + g[1] + '">' + g[0] + "</a>"; }).join("");
 
   const html = `<!DOCTYPE html>
@@ -182,6 +140,5 @@ document.querySelectorAll('.chip').forEach(function(a){ a.addEventListener('clic
   const arq = path.join(saida, "previa-emails-" + dia + ".html");
   fs.writeFileSync(arq, html);
   console.log("Prévia: " + arq);
-  console.log("Pessoas: separação " + Object.keys(sep).length + " · conferência " + Object.keys(conf).length +
-    " · expedição " + Object.keys(exp).length + " · armazenagem " + Object.keys(arm).length);
+  console.log("Blocos: " + EMAILS.map(function (e) { return e.tit; }).join(" · "));
 })().catch(function (e) { console.error("FALHOU: " + e.message); process.exit(1); });

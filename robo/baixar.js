@@ -522,7 +522,10 @@ async function iniciar(cfg, log, opcoes) {
       if (Date.now() >= proximo[g]) {
         proximo[g] = proximoDoRelogio(intervalo[g]);
         await grupo(g, so);
-        if (g === "lento" && operando) marcarRodada();   // dia da última rodada completa: a 1ª depois de religar volta até ele
+        if (g === "lento" && operando) {
+          marcarRodada();                               // dia da última rodada completa: a 1ª depois de religar volta até ele
+          if (opcoes.aoFimDaRodada) { try { await opcoes.aoFimDaRodada(); } catch (e) { log("   aviso de fim de rodada falhou: " + e.message); } }
+        }
       }
     }
     if (operando) incluirOntem = false;             // as duas levas da 1ª rodada completa já foram

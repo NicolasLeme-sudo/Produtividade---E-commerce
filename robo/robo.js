@@ -250,10 +250,22 @@ async function vigiar(cfg) {
   log("Vigiando " + pasta + " · baixe os relatórios do WMS normalmente. Ctrl+C para parar.");
   await prepararIngest(cfg);
   // Com usuário do WMS no .env, o robô também baixa os relatórios sozinho.
+  // E-mails por hora para os canais do Teams: logo depois de cada rodada (dado fresco)
+  // e de 5 em 5 min, que é quando saem os fechamentos de turno (14h38, 17h23, 00h06, 00h25).
+  const emails = require("./enviar-email");
+  let emailOcupado = false;
+  const verEmails = async function () {
+    if (emailOcupado || !cfg.CANAL_OUT_T01) return;
+    emailOcupado = true;
+    try { await emails.verificar(cfg, log); }
+    catch (e) { log("ERRO nos e-mails: " + e.message); }
+    finally { emailOcupado = false; }
+  };
+  setInterval(verEmails, 5 * 60 * 1000);
   if (cfg.WMS_USUARIO) {
     // Erro no baixador: tenta de novo em 1 min aqui mesmo (o robô só para quando você desliga).
     const ligarBaixador = function () {
-      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp })
+      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp, aoFimDaRodada: verEmails })
         .catch(function (e) { log("ERRO no baixador: " + e.message + " · tento de novo em 1 min"); setTimeout(ligarBaixador, 60000); });
     };
     ligarBaixador();
