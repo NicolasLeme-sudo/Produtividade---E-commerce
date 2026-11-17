@@ -67,7 +67,7 @@ function pendentes(blocos, minAgora, feitos, fimDeRodada) {
   // dentro da janela: manda no fim da rodada; no limite da janela, manda de qualquer jeito
   const naHora = function (j) { return minAgora >= j.de && minAgora < j.ate + TOLERANCIA && (fimDeRodada || minAgora >= j.ate); };
   blocos.forEach(function (b) {
-    const ag = AGENDA[b.grupo || b.id];
+    const ag = AGENDA[b.id];
     if (!ag) return;
     if (ag.soDia != null) {
       if (naHora(ag.soDia) && !feitos[b.id + "|dia"]) {
@@ -140,11 +140,14 @@ async function verificar(cfg, log, opcoes) {
     if (!total && !item.fech) continue;                     // sem produção ainda: não manda e-mail vazio
     const para = opcoes.para || cfg["CANAL_" + b.canal];
     if (!para) { log("   sem endereço de canal para " + b.id + " (CANAL_" + b.canal + " no .env)"); continue; }
-    const assunto = E.assuntoDe(b, dia);
-    const html = E.corpoEmail(b, dia, item.fech, item.horaTexto);
-    if (mandar(para, assunto, html, log)) {
-      n++;
+    const msgs = E.mensagens(b, dia, item.fech, item.horaTexto);
+    let todas = true;
+    for (const m of msgs) {
+      if (mandar(para, m.assunto, m.html, log)) n++; else todas = false;
+    }
+    if (todas) {
       log("   e-mail enviado: " + b.tit + " · " + item.horaTexto + " · " + E.fmt(total) + " peças" +
+        (msgs.length > 1 ? " · em " + msgs.length + " mensagens" : "") +
         (item.fech ? " · às " + new Date().toLocaleTimeString("pt-BR") : ""));
       if (!opcoes.para && !opcoes.semRegistro) { feitos[item.chave] = new Date().toISOString(); salvarEstado(estado); }
     }
@@ -180,8 +183,8 @@ if (require.main === module) {
       if (!opcoes.para) { console.error("Preencha EMAIL_TESTE no .env"); process.exit(1); }
     }
     opcoes.forcar = function (blocos) {
-      return blocos.filter(function (b) { return !soEste || soEste === b.id || soEste === b.grupo; })
-        .map(function (b) { return { bloco: b, chave: b.id, fech: !!AGENDA[b.grupo || b.id].soDia, horaTexto: "teste" }; });
+      return blocos.filter(function (b) { return !soEste || soEste === b.id; })
+        .map(function (b) { return { bloco: b, chave: b.id, fech: !!AGENDA[b.id].soDia, horaTexto: "teste" }; });
     };
   }
   verificar(cfg, console.log, opcoes)

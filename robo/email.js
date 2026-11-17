@@ -204,37 +204,46 @@ function armazenagemPorUsuario(inbound, dia) {
 /* ---------------- os blocos (um por canal do Teams) ---------------- */
 // t = { sep:{T01,T02}, conf:{T01,T02}, exp:{T01,T02}, arm:{ADM,T02} } com as peças por usuário e hora.
 // Canais de setor levam a tabela só do turno deles; o canal Fechamento leva o dia inteiro, com a coluna Turno.
-// Cada bloco é UM e-mail com UMA tabela: o Outbound vira 3 mensagens no canal (Separação,
-// Conferência e Expedição), a pedido do Nicolas — e de quebra cada mensagem fica pequena.
-// grupo = a chave da agenda (o canal/turno); id = a chave do controle de enviados.
+// Um bloco = um canal. O Outbound leva as 3 atividades na MESMA mensagem; se passar do
+// limite do Teams, `mensagens()` quebra sozinho em uma mensagem por atividade.
 function blocos(t) {
-  var C = CORES, out = [];
+  var C = CORES;
   var rot = {
     sep: rotulosTurno([["T01", t.sep.T01], ["T02", t.sep.T02]]),
     conf: rotulosTurno([["T01", t.conf.T01], ["T02", t.conf.T02]]),
     exp: rotulosTurno([["T01", t.exp.T01], ["T02", t.exp.T02]]),
     arm: rotulosTurno([["ADM", t.arm.ADM], ["T02", t.arm.T02]])
   };
-  function add(grupo, canal, tit, rotulo, titulo, pessoas, cor, turnos, dia) {
-    out.push({ id: grupo + "-" + rotulo, grupo: grupo, canal: canal, dia: dia || 0,
-      tit: tit + " · " + ATIVIDADE[titulo].replace("Produtividade de ", ""),
-      tabelas: [[titulo, pessoas, cor, turnos]] });
-  }
-  ["T01", "T02"].forEach(function (tr) {
-    const g = tr === "T01" ? "out-t01" : "out-t02", canal = tr === "T01" ? "OUT_T01" : "OUT_T02", tit = "Outbound · " + tr;
-    add(g, canal, tit, "sep", "Separado", t.sep[tr], C.sep);
-    add(g, canal, tit, "conf", "Conferido", t.conf[tr], C.conf);
-    add(g, canal, tit, "exp", "Expedido", t.exp[tr], C.exp);
-  });
-  add("in-adm", "IN_ADM", "Inbound · ADM", "arm", "Armazenado", t.arm.ADM, C.arm);
-  add("in-t02", "IN_T02", "Inbound · T02", "arm", "Armazenado", t.arm.T02, C.arm);
-  // Canal Fechamento: o dia inteiro, turnos somados, com a coluna Turno
-  add("fech-dia-out", "FECHAMENTO", "Fechamento do dia · Outbound", "sep", "Separado", juntarTurnos(t.sep.T01, t.sep.T02), C.sep, rot.sep, 1);
-  add("fech-dia-out", "FECHAMENTO", "Fechamento do dia · Outbound", "conf", "Conferido", juntarTurnos(t.conf.T01, t.conf.T02), C.conf, rot.conf, 1);
-  add("fech-dia-out", "FECHAMENTO", "Fechamento do dia · Outbound", "exp", "Expedido", juntarTurnos(t.exp.T01, t.exp.T02), C.exp, rot.exp, 1);
-  add("fech-dia-in", "FECHAMENTO", "Fechamento do dia · Inbound", "arm", "Armazenado", juntarTurnos(t.arm.ADM, t.arm.T02), C.arm, rot.arm, 1);
-  return out;
+  return [
+    { id: "out-t01", canal: "OUT_T01", tit: "Outbound · T01",
+      tabelas: [["Separado", t.sep.T01, C.sep], ["Conferido", t.conf.T01, C.conf], ["Expedido", t.exp.T01, C.exp]] },
+    { id: "out-t02", canal: "OUT_T02", tit: "Outbound · T02",
+      tabelas: [["Separado", t.sep.T02, C.sep], ["Conferido", t.conf.T02, C.conf], ["Expedido", t.exp.T02, C.exp]] },
+    { id: "in-adm", canal: "IN_ADM", tit: "Inbound · ADM", tabelas: [["Armazenado", t.arm.ADM, C.arm]] },
+    { id: "in-t02", canal: "IN_T02", tit: "Inbound · T02", tabelas: [["Armazenado", t.arm.T02, C.arm]] },
+    { id: "fech-dia-out", canal: "FECHAMENTO", dia: 1, tit: "Fechamento do dia · Outbound", tabelas: [
+      ["Separado", juntarTurnos(t.sep.T01, t.sep.T02), C.sep, rot.sep],
+      ["Conferido", juntarTurnos(t.conf.T01, t.conf.T02), C.conf, rot.conf],
+      ["Expedido", juntarTurnos(t.exp.T01, t.exp.T02), C.exp, rot.exp]] },
+    { id: "fech-dia-in", canal: "FECHAMENTO", dia: 1, tit: "Fechamento do dia · Inbound", tabelas: [
+      ["Armazenado", juntarTurnos(t.arm.ADM, t.arm.T02), C.arm, rot.arm]] }
+  ];
 }
+// O Teams corta e-mail acima de 24 KB (vira "Exibir email original" e a tabela some).
+// Aqui se monta a(s) mensagem(ns) do bloco: uma só quando cabe, uma por atividade quando não cabe.
+var LIMITE_TEAMS = 20000;   // margem de segurança sobre os 24 KB
+function mensagens(bloco, dia, fech, horaTexto) {
+  var html = corpoEmail(bloco, dia, fech, horaTexto);
+  if (html.length <= LIMITE_TEAMS || bloco.tabelas.length < 2) {
+    return [{ assunto: assuntoDe(bloco, dia), html: html, tamanho: html.length }];
+  }
+  return bloco.tabelas.map(function (x) {
+    var b = { tit: bloco.tit + " · " + (ATIVIDADE[x[0]] || x[0]).replace("Produtividade de ", ""), tabelas: [x] };
+    var h = corpoEmail(b, dia, fech, horaTexto);
+    return { assunto: assuntoDe(b, dia), html: h, tamanho: h.length };
+  });
+}
+
 // Corpo do e-mail: tabelas no tema claro (fundo branco do Outlook/Teams) e um rodapé curto.
 function corpoEmail(bloco, dia, fech, horaTexto) {
   var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "claro", x[3]); });
@@ -246,7 +255,7 @@ function assuntoDe(bloco, dia) { return bloco.tit + " · " + dataBR(dia); }
 module.exports = {
   TURNOS: TURNOS, CORES: CORES, TEMAS: TEMAS, FONTE: FONTE,
   ordemHora: ordemHora, rotHora: rotHora, fmt: fmt, esc: esc, dataBR: dataBR, mistura: mistura,
-  blocos: blocos, corpoEmail: corpoEmail, assuntoDe: assuntoDe,
+  blocos: blocos, corpoEmail: corpoEmail, assuntoDe: assuntoDe, mensagens: mensagens, LIMITE_TEAMS: LIMITE_TEAMS,
   tabela: tabela, porTurno: porTurno, turnoDaPessoa: turnoDaPessoa, somarEm: somarEm, juntarTurnos: juntarTurnos, rotulosTurno: rotulosTurno,
   analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
   expedicaoPorUsuario: expedicaoPorUsuario, armazenagemPorUsuario: armazenagemPorUsuario
