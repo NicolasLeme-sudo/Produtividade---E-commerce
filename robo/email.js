@@ -241,7 +241,7 @@ function blocos(t) {
 }
 // O Teams corta e-mail acima de 24 KB (vira "Exibir email original" e a tabela some).
 // Aqui se monta a(s) mensagem(ns) do bloco: uma só quando cabe, uma por atividade quando não cabe.
-var LIMITE_TEAMS = 20000;   // margem de segurança sobre os 24 KB
+var LIMITE_TEAMS = 23000;   // o Teams corta em 24 KB; 23 KB segura a mensagem única por mais tempo (pedido 17/11)
 function mensagens(bloco, dia, fech, horaTexto) {
   var html = corpoEmail(bloco, dia, fech, horaTexto);
   if (html.length <= LIMITE_TEAMS || bloco.tabelas.length < 2) {
