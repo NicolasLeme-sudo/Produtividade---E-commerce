@@ -41,32 +41,38 @@ async function cliente(cfg) {
   const tArm = E.porTurno(arm, null, "ADM");
   const C = E.CORES;
 
-  // Um e-mail = um bloco; cada atividade num cartão (demarcação entre setores)
+  // Um e-mail = um bloco; cada atividade num cartão (demarcação entre setores).
+  // Tanto os de hora em hora quanto os de fechamento trazem UMA tabela geral por atividade,
+  // com os turnos somados e a coluna Turno à esquerda (16/11). Não há mais e-mail por turno.
+  const rotOut = [["T01", null], ["T02", null]], rotArm = [["ADM", null], ["T02", null]];
+  function geral(a, b) { return E.juntarTurnos(a, b); }
+  function rot(manha, a, b) { return E.rotulosTurno([[manha, a], ["T02", b]]); }
   const EMAILS = [
-    { id: "out-t01", tit: "Outbound · T01", tabelas: [["Separado", tSep.T01, C.sep], ["Conferido", tConf.T01, C.conf], ["Expedido", tExp.T01, C.exp]] },
-    { id: "out-t02", tit: "Outbound · T02", tabelas: [["Separado", tSep.T02, C.sep], ["Conferido", tConf.T02, C.conf], ["Expedido", tExp.T02, C.exp]] },
-    { id: "arm-adm", tit: "Armazenagem · ADM", tabelas: [["Armazenado", tArm.ADM, C.arm]] },
-    { id: "arm-t02", tit: "Armazenagem · T02", tabelas: [["Armazenado", tArm.T02, C.arm]] },
-    // Fechamentos (e-mail separado para a coordenação e a gerência): o dia inteiro, com os turnos SOMADOS
+    { id: "out-hora", tit: "Outbound · produtividade por hora", tabelas: [
+      ["Separado", geral(tSep.T01, tSep.T02), C.sep, rot("T01", tSep.T01, tSep.T02)],
+      ["Conferido", geral(tConf.T01, tConf.T02), C.conf, rot("T01", tConf.T01, tConf.T02)],
+      ["Expedido", geral(tExp.T01, tExp.T02), C.exp, rot("T01", tExp.T01, tExp.T02)]] },
+    { id: "arm-hora", tit: "Inbound · produtividade por hora", tabelas: [
+      ["Armazenado", geral(tArm.ADM, tArm.T02), C.arm, rot("ADM", tArm.ADM, tArm.T02)]] },
     { id: "fech-out", fech: 1, tit: "Fechamento do dia · Outbound", tabelas: [
-      ["Separado", E.juntarTurnos(tSep.T01, tSep.T02), C.sep, E.rotulosTurno([["T01", tSep.T01], ["T02", tSep.T02]])],
-      ["Conferido", E.juntarTurnos(tConf.T01, tConf.T02), C.conf, E.rotulosTurno([["T01", tConf.T01], ["T02", tConf.T02]])],
-      ["Expedido", E.juntarTurnos(tExp.T01, tExp.T02), C.exp, E.rotulosTurno([["T01", tExp.T01], ["T02", tExp.T02]])]] },
-    { id: "fech-arm", fech: 1, tit: "Fechamento do dia · Armazenagem", tabelas: [
-      ["Armazenado", E.juntarTurnos(tArm.ADM, tArm.T02), C.arm, E.rotulosTurno([["ADM", tArm.ADM], ["T02", tArm.T02]])]] }
+      ["Separado", geral(tSep.T01, tSep.T02), C.sep, rot("T01", tSep.T01, tSep.T02)],
+      ["Conferido", geral(tConf.T01, tConf.T02), C.conf, rot("T01", tConf.T01, tConf.T02)],
+      ["Expedido", geral(tExp.T01, tExp.T02), C.exp, rot("T01", tExp.T01, tExp.T02)]] },
+    { id: "fech-arm", fech: 1, tit: "Fechamento do dia · Inbound", tabelas: [
+      ["Armazenado", geral(tArm.ADM, tArm.T02), C.arm, rot("ADM", tArm.ADM, tArm.T02)]] }
   ];
   function corpo(tema) {
     return EMAILS.map(function (e) {
       const ts = e.tabelas.map(function (t) { return E.tabela(t[0], t[1], t[2], tema, t[3]); });
       const tot = ts.map(function (t, i) { return E.esc(e.tabelas[i][0]) + " " + E.fmt(t.total); }).join(" · ");
       return '<section class="email" id="' + e.id + "-" + tema + '">' +
-        '<div class="email-hd"><div><p class="kicker">' + (e.fech ? "E-mail de fechamento · turnos somados" : "Assunto do e-mail") +
+        '<div class="email-hd"><div><p class="kicker">' + (e.fech ? "E-mail de fechamento · fim do dia" : "E-mail de hora em hora") +
         '</p><h3>' + E.esc(e.tit) + " · " + E.dataBR(dia) + "</h3></div>" +
         '<div class="resumo">' + tot + "</div></div>" +
         '<div class="email-corpo">' + ts.map(function (t) { return t.html; }).join("") + "</div></section>";
     }).join("");
   }
-  const GRUPOS = [["Outbound", "out-t01"], ["Inbound", "arm-adm"], ["Fechamento", "fech-out"]];
+  const GRUPOS = [["Outbound", "out-hora"], ["Inbound", "arm-hora"], ["Fechamento", "fech-out"]];
   const chips = GRUPOS.map(function (g) { return '<a class="chip" href="#' + g[1] + '">' + g[0] + "</a>"; }).join("");
 
   const html = `<!DOCTYPE html>
