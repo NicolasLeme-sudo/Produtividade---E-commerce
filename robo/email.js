@@ -121,13 +121,22 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
 }
 
 /* ---------------- quem é de qual turno ---------------- */
-// Pelo horário da 1ª produção do dia: antes das 15h = turno da manhã (T01 ou ADM), a partir daí = T02.
+// Pelo PESO da produção dentro da janela do turno da manhã (T01 05h–14h48, ADM 07h55–17h33):
+// quem produziu mais dentro dela é da manhã, senão é do T02. A 1ª produção sozinha não servia —
+// o T02 começa 14h48 e as peças das 14h jogavam a turma inteira do T02 para dentro do T01 (17/11).
 // Quem faz hora extra continua no próprio turno; as horas a mais viram coluna.
 function turnoDaPessoa(arr, manha) {
-  var primeira = null;
-  (arr || []).forEach(function (v, i) { if (v > 0 && (primeira === null || ordemHora(i) < ordemHora(primeira))) primeira = i; });
+  var cfg = TURNOS[manha] || TURNOS.T01;
+  var hIni = Math.floor(cfg.ini / 60), hFim = Math.floor(cfg.fim / 60);
+  var dentro = 0, fora = 0, primeira = null;
+  (arr || []).forEach(function (v, i) {
+    if (!(v > 0)) return;
+    if (primeira === null || ordemHora(i) < ordemHora(primeira)) primeira = i;
+    if (i >= hIni && i <= hFim) dentro += v; else fora += v;
+  });
   if (primeira === null) return null;
-  return primeira < 15 ? manha : "T02";
+  if (dentro !== fora) return dentro > fora ? manha : "T02";
+  return ordemHora(primeira) <= hFim ? manha : "T02";   // 00h–04h = ordemHora 24+: é a virada do T02
 }
 // { usuario: [24] } -> { <manha>: { nome: [24] }, T02: {...} }
 function porTurno(porUsuario, nomes, manha) {
@@ -168,45 +177,83 @@ function somarEm(destino, porUsuario) {
 /* ---------------- leitura dos snapshots ---------------- */
 function doDia(lista, dia) { return (lista || []).filter(function (x) { return x.data === dia; })[0] || null; }
 
+/* DIA OPERACIONAL × DIA DO RELATÓRIO (17/11) -------------------------------
+   Os snapshots guardam a produção pela DATA CIVIL do registro. Como o T02 vai
+   até 00h16, a madrugada (00h–04h) do dia civil D é, na verdade, o fim do dia
+   operacional D−1. Sem isso, a produção do T02 aparecia como coluna "00h" na
+   tabela do T01 do dia seguinte.
+   Dia operacional D = dia civil D sem a madrugada + a madrugada do dia D+1. */
+var MADRUGADA = 5;
+function proximoDia(iso) {
+  var p = String(iso || "").split("-");
+  if (p.length !== 3) return iso;
+  var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + 1);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function recorte(mapa, madrugada) {
+  var out = {};
+  Object.keys(mapa || {}).forEach(function (u) {
+    var a = new Array(24).fill(0), tem = 0;
+    (mapa[u] || []).forEach(function (v, h) { if (!v) return; if ((h < MADRUGADA) !== !!madrugada) return; a[h] = v; tem = 1; });
+    if (tem) out[u] = a;
+  });
+  return out;
+}
+// mapa do dia civil D (sem madrugada) + madrugada do dia civil D+1
+function doDiaOperacional(mapaD, mapaD1) { return somarEm(recorte(mapaD, false), recorte(mapaD1, true)); }
+
 // Separação e Conferência: analítico já traz [24] por usuário (checkout e colmeia).
 function analiticoPorUsuario(analitico, dia, tipos) {
-  var d = doDia(analitico, dia), out = {};
-  if (!d) return out;
-  tipos.forEach(function (t) { somarEm(out, d[t] || {}); });
-  return out;
+  var um = function (data) {
+    var d = doDia(analitico, data), o = {};
+    if (d) tipos.forEach(function (t) { somarEm(o, d[t] || {}); });
+    return o;
+  };
+  return doDiaOperacional(um(dia), um(proximoDia(dia)));
 }
 // Conferência Colmeia não tem hora no relatório: as marcas guardam o acumulado do dia por operador
 // a cada envio. A produção da hora é a diferença entre a última marca de cada hora.
 function colmeiaPorUsuario(conferencia, dia) {
-  var reg = doDia((conferencia || {}).colmeiaMarcas, dia), out = {};
-  if (!reg) return out;
-  var ultimaDaHora = {}, anterior = {};
-  (reg.marcas || []).slice().sort(function (a, b) { return a[0] - b[0]; })
-    .forEach(function (mk) { ultimaDaHora[Math.floor(mk[0] / 60) % 24] = mk[1] || {}; });
-  Object.keys(ultimaDaHora).map(Number).sort(function (a, b) { return ordemHora(a) - ordemHora(b); }).forEach(function (h) {
-    var acum = ultimaDaHora[h];
-    Object.keys(acum).forEach(function (u) {
-      var arr = out[u] || (out[u] = new Array(24).fill(0));
-      arr[h] = Math.max(0, (acum[u] || 0) - (anterior[u] || 0));
-      anterior[u] = acum[u];
+  // madrugada = true: só as horas 00h–04h (a virada do T02); false: o resto do dia.
+  // O acumulado é do dia civil, então a madrugada do próprio dia serve de base e não vira coluna.
+  var um = function (data, madrugada) {
+    var reg = doDia((conferencia || {}).colmeiaMarcas, data), out = {};
+    if (!reg) return out;
+    var ultimaDaHora = {}, anterior = {};
+    (reg.marcas || []).slice().sort(function (a, b) { return a[0] - b[0]; })
+      .forEach(function (mk) { ultimaDaHora[Math.floor(mk[0] / 60) % 24] = mk[1] || {}; });
+    Object.keys(ultimaDaHora).map(Number).sort(function (a, b) { return a - b; }).forEach(function (h) {
+      var acum = ultimaDaHora[h], daMadrugada = h < MADRUGADA;
+      Object.keys(acum).forEach(function (u) {
+        if (daMadrugada === !!madrugada) {
+          var arr = out[u] || (out[u] = new Array(24).fill(0));
+          arr[h] = Math.max(0, (acum[u] || 0) - (anterior[u] || 0));
+        }
+        anterior[u] = acum[u];
+      });
     });
-  });
-  return out;
+    return out;
+  };
+  return somarEm(um(dia, false), um(proximoDia(dia), true));
 }
 // Expedição: expNfs tem usuário, minuto e peças de cada nota embarcada (2 dias mais recentes).
 function expedicaoPorUsuario(op, dia) {
-  var nfs = ((op || {}).expNfs || {})[dia], out = {};
-  Object.keys(nfs || {}).forEach(function (id) {
-    var x = nfs[id]; if (!x) return;
-    var arr = out[x[0]] || (out[x[0]] = new Array(24).fill(0));
-    arr[Math.floor(x[1] / 60) % 24] += x[2] || 0;
-  });
-  return out;
+  var um = function (data) {
+    var nfs = ((op || {}).expNfs || {})[data], o = {};
+    Object.keys(nfs || {}).forEach(function (id) {
+      var x = nfs[id]; if (!x) return;
+      var arr = o[x[0]] || (o[x[0]] = new Array(24).fill(0));
+      arr[Math.floor(x[1] / 60) % 24] += x[2] || 0;
+    });
+    return o;
+  };
+  return doDiaOperacional(um(dia), um(proximoDia(dia)));
 }
 // Armazenagem: normalUsuHoraDia já vem com o nome resolvido pela Base de ativos.
 function armazenagemPorUsuario(inbound, dia) {
-  var d = doDia(((inbound || {}).armazenagem || {}).normalUsuHoraDia, dia);
-  return d ? d.itens || {} : {};
+  var lista = ((inbound || {}).armazenagem || {}).normalUsuHoraDia;
+  var um = function (data) { var d = doDia(lista, data); return d ? d.itens || {} : {}; };
+  return doDiaOperacional(um(dia), um(proximoDia(dia)));
 }
 
 /* ---------------- os blocos (um por canal do Teams) ---------------- */
@@ -245,12 +292,13 @@ var LIMITE_TEAMS = 23000;   // o Teams corta em 24 KB; 23 KB segura a mensagem �
 function mensagens(bloco, dia, fech, horaTexto) {
   var html = corpoEmail(bloco, dia, fech, horaTexto);
   if (html.length <= LIMITE_TEAMS || bloco.tabelas.length < 2) {
-    return [{ assunto: assuntoDe(bloco, dia), html: html, tamanho: html.length }];
+    return [{ assunto: assuntoDe(bloco, dia, fech, horaTexto), html: html, tamanho: html.length }];
   }
   return bloco.tabelas.map(function (x) {
     var b = { tit: bloco.tit + " · " + (ATIVIDADE[x[0]] || x[0]).replace("Produtividade de ", ""), tabelas: [x] };
     var h = corpoEmail(b, dia, fech, horaTexto);
-    return { assunto: assuntoDe(b, dia), html: h, tamanho: h.length };
+    b.dia = bloco.dia;
+    return { assunto: assuntoDe(b, dia, fech, horaTexto), html: h, tamanho: h.length };
   });
 }
 
@@ -259,8 +307,19 @@ function corpoEmail(bloco, dia, fech, horaTexto) {
   var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "email", x[3]); });
   return '<div style="' + FONTE + 'padding:4px 2px">' + ts.map(function (t) { return t.html; }).join("<br><br>") + "</div>";
 }
-// O assunto vira o título da mensagem no canal do Teams: só o setor, o turno e o dia.
-function assuntoDe(bloco, dia) { return bloco.tit + " · " + dataBR(dia); }
+// O assunto vira o título da mensagem no canal do Teams: setor, turno, dia e a hora que a tabela
+// mostra (17/11) — na hora cheia, a hora fechada; no fim do turno, "Fechamento". O e-mail do dia
+// inteiro não leva sufixo: "Fechamento do dia · …" já está no título.
+function rotuloAssunto(bloco, fech, horaTexto) {
+  if (bloco.dia) return "";
+  var m = /(\d{2}h\d{2})/.exec(String(horaTexto || ""));
+  if (!fech && m) return m[1];
+  return fech ? "Fechamento" : "";
+}
+function assuntoDe(bloco, dia, fech, horaTexto) {
+  var r = rotuloAssunto(bloco, fech, horaTexto);
+  return bloco.tit + " · " + dataBR(dia) + (r ? " · " + r : "");
+}
 
 module.exports = {
   TURNOS: TURNOS, CORES: CORES, TEMAS: TEMAS, FONTE: FONTE,
