@@ -59,7 +59,7 @@ function salvarEstado(e) { try { fs.writeFileSync(ARQ_ESTADO, JSON.stringify(e, 
 function pendentes(blocos, minAgora, feitos) {
   const saida = [];
   blocos.forEach(function (b) {
-    const ag = AGENDA[b.id];
+    const ag = AGENDA[b.grupo || b.id];
     if (!ag) return;
     if (ag.soDia != null) {
       if (minAgora >= ag.soDia && minAgora < ag.soDia + TOLERANCIA && !feitos[b.id + "|dia"]) {
@@ -121,7 +121,7 @@ async function verificar(cfg, log, opcoes) {
   })) return 0;
 
   const sb = opcoes.sb || await D.cliente(cfg);
-  const t = await D.carregar(sb, dia);
+  const t = await D.carregar(sb, dia, cfg.EXCLUIR_USUARIOS);
   const blocos = E.blocos(t);
   const lista = opcoes.forcar ? opcoes.forcar(blocos) : pendentes(blocos, minAgora, feitos);
   let n = 0;
@@ -170,8 +170,8 @@ if (require.main === module) {
       if (!opcoes.para) { console.error("Preencha EMAIL_TESTE no .env"); process.exit(1); }
     }
     opcoes.forcar = function (blocos) {
-      return blocos.filter(function (b) { return !soEste || soEste === b.id; })
-        .map(function (b) { return { bloco: b, chave: b.id, fech: !!AGENDA[b.id].soDia, horaTexto: "teste" }; });
+      return blocos.filter(function (b) { return !soEste || soEste === b.id || soEste === b.grupo; })
+        .map(function (b) { return { bloco: b, chave: b.id, fech: !!AGENDA[b.grupo || b.id].soDia, horaTexto: "teste" }; });
     };
   }
   verificar(cfg, console.log, opcoes)

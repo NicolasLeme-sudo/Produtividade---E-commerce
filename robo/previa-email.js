@@ -17,7 +17,7 @@ function png64(rel) { return "data:image/png;base64," + fs.readFileSync(path.joi
   const dia = (process.argv[2] || "").match(/^\d{4}-\d{2}-\d{2}$/) ? process.argv[2] : D.diaOperacional();
   const saida = process.argv[3] || "C:\\Entrega de Arquivos";   // a prévia tem nome de usuário: nunca no repositório
   const sb = await D.cliente(cfg);
-  const t = await D.carregar(sb, dia);
+  const t = await D.carregar(sb, dia, cfg.EXCLUIR_USUARIOS);
   const EMAILS = E.blocos(t);
   function corpo(tema) {
     return EMAILS.map(function (e) {

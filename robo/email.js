@@ -80,30 +80,30 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
     return { html: '<div style="' + cartao + '">' + cabecalho + '<p style="' + FONTE + "margin:0;padding:14px 16px;font-size:13px;color:" + T.apoio + '">Sem produção até agora.</p></div>',
       total: 0, horas: [], pessoas: 0 };
   }
-  var th = "padding:7px 10px;border:1px solid " + corBorda + ";background:" + cor + ";color:#fff;font-weight:600;font-size:12px;text-align:right;white-space:nowrap;";
-  var td = "padding:5px 10px;border:1px solid " + T.borda + ";text-align:right;white-space:nowrap;color:" + T.texto + ";";
-  var tdTot = "padding:6px 10px;border:1px solid " + corBorda + ";background:" + corTotal + ";text-align:right;white-space:nowrap;font-weight:700;color:" + T.texto + ";";
+  // HTML ENXUTO de propósito: o Teams corta a mensagem grande e a tabela vira texto corrido
+  // (17/11: o Outbound tinha 54 KB). Estilo fica na tabela e na linha; a célula usa só atributo.
   var colTurno = !!turnos;
-  var cab = '<tr>' + (colTurno ? '<th style="' + th + 'text-align:left">Turno</th>' : "") +
-    '<th style="' + th + 'text-align:left">Usuário</th>' +
-    horas.map(function (h) { return '<th style="' + th + '">' + rotHora(h) + "</th>"; }).join("") +
-    '<th style="' + th + '">Total</th></tr>';
+  var tbl = '<table border="1" bordercolor="' + T.borda + '" cellspacing="0" cellpadding="5" style="' + FONTE +
+    "border-collapse:collapse;font-size:13px;width:100%;text-align:right;color:" + T.texto + ";background:" + T.cartao + '">';
+  var cab = '<tr bgcolor="' + cor + '" style="color:#fff;font-weight:600">' +
+    (colTurno ? '<th align="left">Turno</th>' : "") + '<th align="left">Usuário</th>' +
+    horas.map(function (h) { return "<th>" + rotHora(h) + "</th>"; }).join("") + "<th>Total</th></tr>";
   var corpo = linhas.map(function (l, i) {
-    var zebra = i % 2 ? "background:" + T.zebra + ";" : "background:" + T.cartao + ";";
-    return "<tr>" + (colTurno ? '<td style="' + td + zebra + 'text-align:left;color:' + T.apoio + '">' + esc(turnos[l.nome] || "—") + "</td>" : "") +
-      '<td style="' + td + zebra + 'text-align:left">' + esc(l.nome) + "</td>" +
-      horas.map(function (h) { return '<td style="' + td + zebra + '">' + (l.arr[h] ? fmt(l.arr[h]) : '<span style="color:' + T.apoio + '">·</span>') + "</td>"; }).join("") +
-      '<td style="' + td + zebra + "font-weight:700;color:" + cor + '">' + fmt(l.total) + "</td></tr>";
+    return "<tr" + (i % 2 ? ' bgcolor="' + T.zebra + '"' : "") + ">" +
+      (colTurno ? '<td align="left">' + esc(turnos[l.nome] || "—") + "</td>" : "") +
+      '<td align="left">' + esc(l.nome) + "</td>" +
+      horas.map(function (h) { return "<td>" + (l.arr[h] ? fmt(l.arr[h]) : "·") + "</td>"; }).join("") +
+      '<td style="color:' + cor + ';font-weight:700">' + fmt(l.total) + "</td></tr>";
   }).join("");
-  var rodape = "<tr>" + (colTurno ? '<td style="' + tdTot + '"></td>' : "") + '<td style="' + tdTot + 'text-align:left">Total</td>' +
+  var rodape = '<tr bgcolor="' + corTotal + '" style="font-weight:700">' + (colTurno ? "<td></td>" : "") +
+    '<td align="left">Total</td>' +
     horas.map(function (h) {
-      var s = linhas.reduce(function (a, l) { return a + (l.arr[h] || 0); }, 0);
-      return '<td style="' + tdTot + '">' + (s ? fmt(s) : '<span style="color:' + T.apoio + '">·</span>') + "</td>";
+      var sm = linhas.reduce(function (a, l) { return a + (l.arr[h] || 0); }, 0);
+      return "<td>" + (sm ? fmt(sm) : "·") + "</td>";
     }).join("") +
-    '<td style="' + tdTot + "font-weight:800;color:" + cor + '">' + fmt(total) + "</td></tr>";
+    '<td style="color:' + cor + '">' + fmt(total) + "</td></tr>";
   return {
-    html: '<div style="' + cartao + '">' + cabecalho +
-      '<table style="' + FONTE + "border-collapse:collapse;font-size:13px;width:100%;background:" + T.cartao + '">' + cab + corpo + rodape + "</table></div>",
+    html: '<div style="' + cartao + '">' + cabecalho + tbl + cab + corpo + rodape + "</table></div>",
     total: total, horas: horas, pessoas: linhas.length
   };
 }
@@ -200,32 +200,40 @@ function armazenagemPorUsuario(inbound, dia) {
 /* ---------------- os blocos (um por canal do Teams) ---------------- */
 // t = { sep:{T01,T02}, conf:{T01,T02}, exp:{T01,T02}, arm:{ADM,T02} } com as peças por usuário e hora.
 // Canais de setor levam a tabela só do turno deles; o canal Fechamento leva o dia inteiro, com a coluna Turno.
+// Cada bloco é UM e-mail com UMA tabela: o Outbound vira 3 mensagens no canal (Separação,
+// Conferência e Expedição), a pedido do Nicolas — e de quebra cada mensagem fica pequena.
+// grupo = a chave da agenda (o canal/turno); id = a chave do controle de enviados.
 function blocos(t) {
-  var C = CORES;
-  var rotOut = rotulosTurno([["T01", t.sep.T01], ["T02", t.sep.T02]]);
-  var rotConf = rotulosTurno([["T01", t.conf.T01], ["T02", t.conf.T02]]);
-  var rotExp = rotulosTurno([["T01", t.exp.T01], ["T02", t.exp.T02]]);
-  var rotArm = rotulosTurno([["ADM", t.arm.ADM], ["T02", t.arm.T02]]);
-  return [
-    { id: "out-t01", canal: "OUT_T01", setor: "Outbound", turno: "T01", tit: "Outbound · T01",
-      tabelas: [["Separado", t.sep.T01, C.sep], ["Conferido", t.conf.T01, C.conf], ["Expedido", t.exp.T01, C.exp]] },
-    { id: "out-t02", canal: "OUT_T02", setor: "Outbound", turno: "T02", tit: "Outbound · T02",
-      tabelas: [["Separado", t.sep.T02, C.sep], ["Conferido", t.conf.T02, C.conf], ["Expedido", t.exp.T02, C.exp]] },
-    { id: "in-adm", canal: "IN_ADM", setor: "Inbound", turno: "ADM", tit: "Inbound · ADM",
-      tabelas: [["Armazenado", t.arm.ADM, C.arm]] },
-    { id: "in-t02", canal: "IN_T02", setor: "Inbound", turno: "T02", tit: "Inbound · T02",
-      tabelas: [["Armazenado", t.arm.T02, C.arm]] },
-    { id: "fech-dia-out", canal: "FECHAMENTO", setor: "Outbound", turno: "dia", dia: 1, tit: "Fechamento do dia · Outbound",
-      tabelas: [["Separado", juntarTurnos(t.sep.T01, t.sep.T02), C.sep, rotOut],
-                ["Conferido", juntarTurnos(t.conf.T01, t.conf.T02), C.conf, rotConf],
-                ["Expedido", juntarTurnos(t.exp.T01, t.exp.T02), C.exp, rotExp]] },
-    { id: "fech-dia-in", canal: "FECHAMENTO", setor: "Inbound", turno: "dia", dia: 1, tit: "Fechamento do dia · Inbound",
-      tabelas: [["Armazenado", juntarTurnos(t.arm.ADM, t.arm.T02), C.arm, rotArm]] }
-  ];
+  var C = CORES, out = [];
+  var rot = {
+    sep: rotulosTurno([["T01", t.sep.T01], ["T02", t.sep.T02]]),
+    conf: rotulosTurno([["T01", t.conf.T01], ["T02", t.conf.T02]]),
+    exp: rotulosTurno([["T01", t.exp.T01], ["T02", t.exp.T02]]),
+    arm: rotulosTurno([["ADM", t.arm.ADM], ["T02", t.arm.T02]])
+  };
+  function add(grupo, canal, tit, rotulo, titulo, pessoas, cor, turnos, dia) {
+    out.push({ id: grupo + "-" + rotulo, grupo: grupo, canal: canal, dia: dia || 0,
+      tit: tit + " · " + ATIVIDADE[titulo].replace("Produtividade de ", ""),
+      tabelas: [[titulo, pessoas, cor, turnos]] });
+  }
+  ["T01", "T02"].forEach(function (tr) {
+    const g = tr === "T01" ? "out-t01" : "out-t02", canal = tr === "T01" ? "OUT_T01" : "OUT_T02", tit = "Outbound · " + tr;
+    add(g, canal, tit, "sep", "Separado", t.sep[tr], C.sep);
+    add(g, canal, tit, "conf", "Conferido", t.conf[tr], C.conf);
+    add(g, canal, tit, "exp", "Expedido", t.exp[tr], C.exp);
+  });
+  add("in-adm", "IN_ADM", "Inbound · ADM", "arm", "Armazenado", t.arm.ADM, C.arm);
+  add("in-t02", "IN_T02", "Inbound · T02", "arm", "Armazenado", t.arm.T02, C.arm);
+  // Canal Fechamento: o dia inteiro, turnos somados, com a coluna Turno
+  add("fech-dia-out", "FECHAMENTO", "Fechamento do dia · Outbound", "sep", "Separado", juntarTurnos(t.sep.T01, t.sep.T02), C.sep, rot.sep, 1);
+  add("fech-dia-out", "FECHAMENTO", "Fechamento do dia · Outbound", "conf", "Conferido", juntarTurnos(t.conf.T01, t.conf.T02), C.conf, rot.conf, 1);
+  add("fech-dia-out", "FECHAMENTO", "Fechamento do dia · Outbound", "exp", "Expedido", juntarTurnos(t.exp.T01, t.exp.T02), C.exp, rot.exp, 1);
+  add("fech-dia-in", "FECHAMENTO", "Fechamento do dia · Inbound", "arm", "Armazenado", juntarTurnos(t.arm.ADM, t.arm.T02), C.arm, rot.arm, 1);
+  return out;
 }
 // Corpo do e-mail: tabelas no tema claro (fundo branco do Outlook/Teams) e um rodapé curto.
 function corpoEmail(bloco, dia, fech, horaTexto) {
-  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "claro", x[3], horaTexto); });
+  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "claro", x[3]); });
   return '<div style="' + FONTE + 'background:#FFFFFF;padding:4px 2px">' + ts.map(function (t) { return t.html; }).join("") + "</div>";
 }
 // O assunto vira o título da mensagem no canal do Teams: só o setor, o turno e o dia.
