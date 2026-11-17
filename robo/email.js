@@ -96,18 +96,18 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
   var zebra = email ? null : T.zebra;
   var tbl = '<table border="1" bordercolor="' + T.borda + '" cellspacing="0" cellpadding="5" style="' + FONTE +
     "border-collapse:collapse;font-size:13px;width:100%;text-align:right;white-space:nowrap;color:" + T.texto + ";background:" + T.cartao + '">';
-  var cab = '<tr style="font-weight:600">' +
+  var cab = '<tr align="right" style="font-weight:600">' +
     (colTurno ? '<th align="left" ' + eTh + ">Turno</th>" : "") + '<th align="left" ' + eTh + ">Usuário</th>" +
     horas.map(function (h) { return "<th " + eTh + ">" + rotHora(h) + "</th>"; }).join("") + "<th " + eTh + ">Total</th></tr>";
   var corpo = linhas.map(function (l, i) {
     var fundo = zebra && i % 2 ? ' bgcolor="' + zebra + '" style="color:' + T.texto + '"' : "";
-    return "<tr" + fundo + ">" +
+    return '<tr align="right"' + fundo + ">" +
       (colTurno ? '<td align="left">' + esc(turnos[l.nome] || "—") + "</td>" : "") +
       '<td align="left">' + esc(l.nome) + "</td>" +
       horas.map(function (h) { return "<td>" + (l.arr[h] ? fmt(l.arr[h]) : "·") + "</td>"; }).join("") +
       '<td style="color:' + cor + ';font-weight:700"><b>' + fmt(l.total) + "</b></td></tr>";
   }).join("");
-  var rodape = '<tr style="font-weight:700">' + (colTurno ? "<td " + eTot + "></td>" : "") +
+  var rodape = '<tr align="right" style="font-weight:700">' + (colTurno ? "<td " + eTot + "></td>" : "") +
     '<td align="left" ' + eTot + ">Total</td>" +
     horas.map(function (h) {
       var sm = linhas.reduce(function (a, l) { return a + (l.arr[h] || 0); }, 0);
