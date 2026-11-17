@@ -33,13 +33,16 @@ const ARQ_ESTADO = path.join(__dirname, "emails-enviados.json");
 const PS1 = path.join(__dirname, "enviar-outlook.ps1");
 
 // minutos do dia operacional em que cada bloco fala
+// O fechamento tem JANELA, não minuto fixo: { de, ate }. Ele sai assim que a rodada daquela
+// janela termina (dado o mais fresco possível) e, se a rodada atrasar, sai no "ate" de qualquer
+// jeito. O líder recebe antes de bater o ponto mesmo com o WMS lento (17/11).
 const AGENDA = {
-  "out-t01": { horas: [365, 845], fech: 878 },    // 06h05→14h05 · 14h38
-  "out-t02": { horas: [965, 1445], fech: 1446 },  // 16h05→00h05 · 00h06
-  "in-adm":  { horas: [545, 1025], fech: 1043 },  // 09h05→17h05 · 17h23
-  "in-t02":  { horas: [965, 1445], fech: 1446 },  // 16h05→00h05 · 00h06
-  "fech-dia-out": { soDia: 1465 },                // 00h25
-  "fech-dia-in":  { soDia: 1465 }
+  "out-t01": { horas: [365, 845], fech: { de: 870, ate: 878 } },     // 06h05→14h05 · fecha entre 14h30 e 14h38
+  "out-t02": { horas: [965, 1445], fech: { de: 1440, ate: 1449 } },  // 16h05→00h05 · fecha entre 00h00 e 00h09
+  "in-adm":  { horas: [545, 1025], fech: { de: 1035, ate: 1043 } },  // 09h05→17h05 · fecha entre 17h15 e 17h23
+  "in-t02":  { horas: [965, 1445], fech: { de: 1440, ate: 1449 } },  // 16h05→00h05 · fecha entre 00h00 e 00h09
+  "fech-dia-out": { soDia: { de: 1460, ate: 1470 } },                // dia inteiro, entre 00h20 e 00h30
+  "fech-dia-in":  { soDia: { de: 1460, ate: 1470 } }
 };
 const TOLERANCIA = 45;   // minutos: passou disso, não manda atrasado (robô desligado, por exemplo)
 
@@ -56,22 +59,26 @@ function lerEstado() { try { return JSON.parse(fs.readFileSync(ARQ_ESTADO, "utf8
 function salvarEstado(e) { try { fs.writeFileSync(ARQ_ESTADO, JSON.stringify(e, null, 1)); } catch (x) {} }
 
 // O que está na hora de mandar agora: [{ bloco, chave, fech, horaTexto }]
-function pendentes(blocos, minAgora, feitos) {
+// fimDeRodada = a chamada veio logo depois de uma rodada completa do robô (dado novo no banco).
+function pendentes(blocos, minAgora, feitos, fimDeRodada) {
   const saida = [];
+  // dentro da janela: manda no fim da rodada; no limite da janela, manda de qualquer jeito
+  const naHora = function (j) { return minAgora >= j.de && minAgora < j.ate + TOLERANCIA && (fimDeRodada || minAgora >= j.ate); };
   blocos.forEach(function (b) {
     const ag = AGENDA[b.grupo || b.id];
     if (!ag) return;
     if (ag.soDia != null) {
-      if (minAgora >= ag.soDia && minAgora < ag.soDia + TOLERANCIA && !feitos[b.id + "|dia"]) {
+      if (naHora(ag.soDia) && !feitos[b.id + "|dia"]) {
         saida.push({ bloco: b, chave: b.id + "|dia", fech: 1, horaTexto: "dia encerrado" });
       }
       return;
     }
     // fechamento do turno tem prioridade sobre a hora cheia
-    if (minAgora >= ag.fech && minAgora < ag.fech + TOLERANCIA && !feitos[b.id + "|fech"]) {
+    if (naHora(ag.fech) && !feitos[b.id + "|fech"]) {
       saida.push({ bloco: b, chave: b.id + "|fech", fech: 1, horaTexto: "fechamento do turno" });
       return;
     }
+    if (minAgora >= ag.fech.de && minAgora < ag.fech.ate + TOLERANCIA && feitos[b.id + "|fech"]) return;   // já fechou: não volta para a hora cheia
     // hora em hora: só o slot vigente (se o robô ficou fora, não dispara os atrasados de uma vez)
     const ini = ag.horas[0], fim = ag.horas[1];
     if (minAgora < ini || minAgora > fim + TOLERANCIA) return;
@@ -116,14 +123,14 @@ async function verificar(cfg, log, opcoes) {
   // nada na agenda para este minuto: nem abre o banco
   if (!opcoes.forcar && !blocos0.some(function (id) {
     const ag = AGENDA[id];
-    if (ag.soDia != null) return minAgora >= ag.soDia && minAgora < ag.soDia + TOLERANCIA && !feitos[id + "|dia"];
-    return minAgora >= ag.horas[0] && minAgora <= ag.fech + TOLERANCIA;
+    if (ag.soDia != null) return minAgora >= ag.soDia.de && minAgora < ag.soDia.ate + TOLERANCIA;
+    return minAgora >= ag.horas[0] && minAgora <= ag.fech.ate + TOLERANCIA;
   })) return 0;
 
   const sb = opcoes.sb || await D.cliente(cfg);
   const t = await D.carregar(sb, dia, cfg.EXCLUIR_USUARIOS);
   const blocos = E.blocos(t);
-  const lista = opcoes.forcar ? opcoes.forcar(blocos) : pendentes(blocos, minAgora, feitos);
+  const lista = opcoes.forcar ? opcoes.forcar(blocos) : pendentes(blocos, minAgora, feitos, opcoes.fimDeRodada);
   let n = 0;
   for (const item of lista) {
     const b = item.bloco;
@@ -135,7 +142,8 @@ async function verificar(cfg, log, opcoes) {
     const html = E.corpoEmail(b, dia, item.fech, item.horaTexto);
     if (mandar(para, assunto, html, log)) {
       n++;
-      log("   e-mail enviado: " + b.tit + " · " + item.horaTexto + " · " + E.fmt(total) + " peças");
+      log("   e-mail enviado: " + b.tit + " · " + item.horaTexto + " · " + E.fmt(total) + " peças" +
+        (item.fech ? " · às " + new Date().toLocaleTimeString("pt-BR") : ""));
       if (!opcoes.para && !opcoes.semRegistro) { feitos[item.chave] = new Date().toISOString(); salvarEstado(estado); }
     }
   }

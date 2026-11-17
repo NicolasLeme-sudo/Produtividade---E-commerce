@@ -81,15 +81,18 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 - Arquivos: `robo/email.js` (tabelas e blocos), `robo/dados-email.js` (lê os snapshots), `robo/enviar-email.js` (agenda + envio), `robo/enviar-outlook.ps1`, `robo/previa-email.js` (prévia em HTML, sai em `C:\Entrega de Arquivos`, **nunca no repositório**: tem usuário de colaborador).
 - **5 canais** (endereços em `CANAL_*` no `.env`, fora do Git): Outbound T01, Outbound T02, Inbound ADM, Inbound T02, Fechamento. Agenda em `AGENDA` (minutos do dia operacional):
 
-| Canal | Hora em hora | Fechamento do turno |
+| Canal | Hora em hora | Fechamento do turno (janela) |
 |---|---|---|
-| Outbound T01 | 06h05 → 14h05 | 14h38 |
-| Outbound T02 | 16h05 → 00h05 | 00h06 |
-| Inbound ADM | 09h05 → 17h05 | 17h23 |
-| Inbound T02 | 16h05 → 00h05 | 00h06 |
-| Fechamento | — | 00h25 (dia inteiro, Outbound e Inbound, com coluna Turno) |
+| Outbound T01 | 06h05 → 14h05 | 14h30 → **14h38** |
+| Outbound T02 | 16h05 → 00h05 | 00h00 → **00h09** |
+| Inbound ADM | 09h05 → 17h05 | 17h15 → **17h23** |
+| Inbound T02 | 16h05 → 00h05 | 00h00 → **00h09** |
+| Fechamento | — | 00h20 → **00h30** (dia inteiro, Outbound e Inbound, com coluna Turno) |
 
-- Fechamento de turno sai ~10 min antes do turno acabar (pedido do Nicolas: o líder recebe com o turno em pé). Rodadas extras `HORARIOS_EXTRA=17:15,00:20` alimentam o fechamento do ADM e o do dia.
+- **Fechamento tem JANELA, não minuto fixo** (17/11): sai assim que a rodada daquela janela termina (`aoFimDaRodada`, dado fresco) e, se o WMS atrasar, sai no limite de qualquer jeito. O líder recebe antes de bater o ponto. O início de cada janela coincide com uma rodada: 14h30 e 00h00 são regulares; 17h15 e 00h20 vêm de `HORARIOS_EXTRA`.
+- `robo.js` confere os e-mails **de minuto em minuto** (era de 5 em 5, e o fechamento podia sair até 5 min atrasado) e também no fim de cada rodada.
+- Outbound vai em **3 mensagens** (Separação, Conferência, Expedição) e o Fechamento do dia em 4: **o Teams corta mensagem grande** e a tabela vira texto corrido (o Outbound tinha 54 KB em 17/11). O HTML também foi enxugado para ~5 KB: estilo na tabela e na linha, atributo (`align`, `bgcolor`) na célula.
+- `EXCLUIR_USUARIOS` no `.env` tira gente das tabelas (apoio da liderança).
 - **Conteúdo:** uma tabela por atividade (Separado/Conferido/Expedido; Armazenado), **usuário do WMS** nas linhas (não o nome completo), horas nas colunas (o que fez naquela hora), coluna Total, linha de Total. Canal de setor leva só o turno dele; o canal Fechamento leva os turnos **somados** com a coluna Turno (`juntarTurnos`/`rotulosTurno`). Turno da pessoa = pela 1ª produção do dia (antes das 15h = turno da manhã).
 - **Visual:** assunto = `Setor · Turno · dd/mm/aaaa` (vira o título no Teams); corpo sem outro título, cada atividade num cartão com `Produtividade de X: <total em negrito na cor da atividade> · peças · até HHh · N pessoas`. Cores de etapa do padrão Vulcabras. Estilo **inline em cada célula** (o Teams limpa CSS) e **aspas simples** no nome da fonte (aspa dupla corta o `style="…"`).
 - `emails-enviados.json` (fora do Git) guarda o que já saiu, por dia: religar o robô não remanda. Robô fora do ar: manda só o slot vigente, não a fila atrasada (`TOLERANCIA` 45 min). Sem produção na hora = não manda.

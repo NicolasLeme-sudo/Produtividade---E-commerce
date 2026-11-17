@@ -254,18 +254,18 @@ async function vigiar(cfg) {
   // e de 5 em 5 min, que é quando saem os fechamentos de turno (14h38, 17h23, 00h06, 00h25).
   const emails = require("./enviar-email");
   let emailOcupado = false;
-  const verEmails = async function () {
+  const verEmails = async function (fimDeRodada) {
     if (emailOcupado || !cfg.CANAL_OUT_T01) return;
     emailOcupado = true;
-    try { await emails.verificar(cfg, log); }
+    try { await emails.verificar(cfg, log, { fimDeRodada: fimDeRodada === true }); }
     catch (e) { log("ERRO nos e-mails: " + e.message); }
     finally { emailOcupado = false; }
   };
-  setInterval(verEmails, 5 * 60 * 1000);
+  setInterval(verEmails, 60 * 1000);   // de minuto em minuto: o fechamento não pode sair atrasado
   if (cfg.WMS_USUARIO) {
     // Erro no baixador: tenta de novo em 1 min aqui mesmo (o robô só para quando você desliga).
     const ligarBaixador = function () {
-      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp, aoFimDaRodada: verEmails })
+      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp, aoFimDaRodada: function () { return verEmails(true); } })
         .catch(function (e) { log("ERRO no baixador: " + e.message + " · tento de novo em 1 min"); setTimeout(ligarBaixador, 60000); });
     };
     ligarBaixador();
