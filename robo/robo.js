@@ -39,7 +39,7 @@ function lerEnv() {
   const arq = path.join(RAIZ, ".env"), cfg = {};
   if (!fs.existsSync(arq)) return cfg;
   fs.readFileSync(arq, "utf8").split(/\r?\n/).forEach(function (l) {
-    const m = l.match(/^\s*([A-Z_]+)\s*=\s*(.*)\s*$/);
+    const m = l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);   // com dígito também: CANAL_OUT_T01, CANAL_IN_T02
     if (m) cfg[m[1]] = m[2].replace(/^["']|["']$/g, "");
   });
   return cfg;
