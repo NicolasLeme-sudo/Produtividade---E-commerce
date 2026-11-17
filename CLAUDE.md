@@ -83,16 +83,17 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 
 | Canal | Hora em hora | Fechamento do turno (janela) |
 |---|---|---|
-| Outbound T01 | 06h05 → 14h05 | 14h30 → **14h38** |
-| Outbound T02 | 16h05 → 00h05 | 00h00 → **00h09** |
-| Inbound ADM | 09h05 → 17h05 | 17h15 → **17h23** |
-| Inbound T02 | 16h05 → 00h05 | 00h00 → **00h09** |
-| Fechamento | — | 00h20 → **00h30** (dia inteiro, Outbound e Inbound, com coluna Turno) |
+| Outbound T01 | 06h05 → 14h05 | coleta **14h38**, limite 14h47 |
+| Outbound T02 | 16h05 → 23h05 | coleta **00h05**, limite 00h15 |
+| Inbound ADM | 09h05 → 17h05 | coleta **17h20**, limite 17h30 |
+| Inbound T02 | 16h05 → 23h05 | coleta **00h05**, limite 00h15 |
+| Fechamento | — | coleta **00h20**, limite 00h30 (dia inteiro, Outbound e Inbound, com coluna Turno) |
 
-- **Fechamento tem JANELA, não minuto fixo** (17/11): sai assim que a rodada daquela janela termina (`aoFimDaRodada`, dado fresco) e, se o WMS atrasar, sai no limite de qualquer jeito. O líder recebe antes de bater o ponto. O início de cada janela coincide com uma rodada: 14h30 e 00h00 são regulares; 17h15 e 00h20 vêm de `HORARIOS_EXTRA`.
+- **Fechamento tem JANELA, não minuto fixo** (17/11): sai assim que a rodada daquela janela termina (`aoFimDaRodada`, dado fresco) e, se o WMS atrasar, sai no limite de qualquer jeito. O líder recebe antes de bater o ponto. A coleta começa o mais tarde possível para **não parar o time cedo demais** (pedido de 17/11): `HORARIOS_EXTRA=14:38,17:20,00:05,00:20`. Aberta a janela do fechamento, a hora cheia não é mais enviada (não duplica).
 - `robo.js` confere os e-mails **de minuto em minuto** (era de 5 em 5, e o fechamento podia sair até 5 min atrasado) e também no fim de cada rodada.
 - Outbound vai em **3 mensagens** (Separação, Conferência, Expedição) e o Fechamento do dia em 4: **o Teams corta mensagem grande** e a tabela vira texto corrido (o Outbound tinha 54 KB em 17/11). O HTML também foi enxugado para ~5 KB: estilo na tabela e na linha, atributo (`align`, `bgcolor`) na célula.
 - `EXCLUIR_USUARIOS` no `.env` tira gente das tabelas (apoio da liderança).
+- **Cada linha da tabela leva `bgcolor` E `color`**: no tema escuro o Teams escurece o fundo da linha zebrada e, sem a cor junto, o texto some (17/11). Nunca confiar em herança de cor dentro da tabela.
 - **Conteúdo:** uma tabela por atividade (Separado/Conferido/Expedido; Armazenado), **usuário do WMS** nas linhas (não o nome completo), horas nas colunas (o que fez naquela hora), coluna Total, linha de Total. Canal de setor leva só o turno dele; o canal Fechamento leva os turnos **somados** com a coluna Turno (`juntarTurnos`/`rotulosTurno`). Turno da pessoa = pela 1ª produção do dia (antes das 15h = turno da manhã).
 - **Visual:** assunto = `Setor · Turno · dd/mm/aaaa` (vira o título no Teams); corpo sem outro título, cada atividade num cartão com `Produtividade de X: <total em negrito na cor da atividade> · peças · até HHh · N pessoas`. Cores de etapa do padrão Vulcabras. Estilo **inline em cada célula** (o Teams limpa CSS) e **aspas simples** no nome da fonte (aspa dupla corta o `style="…"`).
 - `emails-enviados.json` (fora do Git) guarda o que já saiu, por dia: religar o robô não remanda. Robô fora do ar: manda só o slot vigente, não a fila atrasada (`TOLERANCIA` 45 min). Sem produção na hora = não manda.

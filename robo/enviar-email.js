@@ -37,10 +37,12 @@ const PS1 = path.join(__dirname, "enviar-outlook.ps1");
 // janela termina (dado o mais fresco possível) e, se a rodada atrasar, sai no "ate" de qualquer
 // jeito. O líder recebe antes de bater o ponto mesmo com o WMS lento (17/11).
 const AGENDA = {
-  "out-t01": { horas: [365, 845], fech: { de: 870, ate: 878 } },     // 06h05→14h05 · fecha entre 14h30 e 14h38
-  "out-t02": { horas: [965, 1445], fech: { de: 1440, ate: 1449 } },  // 16h05→00h05 · fecha entre 00h00 e 00h09
-  "in-adm":  { horas: [545, 1025], fech: { de: 1035, ate: 1043 } },  // 09h05→17h05 · fecha entre 17h15 e 17h23
-  "in-t02":  { horas: [965, 1445], fech: { de: 1440, ate: 1449 } },  // 16h05→00h05 · fecha entre 00h00 e 00h09
+  // A coleta do fechamento começa o mais tarde possível, para não parar o time cedo demais
+  // (pedido de 17/11): Outbound 14h38 e 00h05 · ADM 17h20. A rodada leva ~6 min e o e-mail sai no fim dela.
+  "out-t01": { horas: [365, 845], fech: { de: 878, ate: 887 } },     // 06h05→14h05 · coleta 14h38, limite 14h47
+  "out-t02": { horas: [965, 1385], fech: { de: 1445, ate: 1455 } },  // 16h05→23h05 · coleta 00h05, limite 00h15
+  "in-adm":  { horas: [545, 1025], fech: { de: 1040, ate: 1050 } },  // 09h05→17h05 · coleta 17h20, limite 17h30
+  "in-t02":  { horas: [965, 1385], fech: { de: 1445, ate: 1455 } },  // 16h05→23h05 · coleta 00h05, limite 00h15
   "fech-dia-out": { soDia: { de: 1460, ate: 1470 } },                // dia inteiro, entre 00h20 e 00h30
   "fech-dia-in":  { soDia: { de: 1460, ate: 1470 } }
 };
@@ -78,7 +80,7 @@ function pendentes(blocos, minAgora, feitos, fimDeRodada) {
       saida.push({ bloco: b, chave: b.id + "|fech", fech: 1, horaTexto: "fechamento do turno" });
       return;
     }
-    if (minAgora >= ag.fech.de && minAgora < ag.fech.ate + TOLERANCIA && feitos[b.id + "|fech"]) return;   // já fechou: não volta para a hora cheia
+    if (minAgora >= ag.fech.de) return;   // janela do fechamento aberta: não manda mais a hora cheia
     // hora em hora: só o slot vigente (se o robô ficou fora, não dispara os atrasados de uma vez)
     const ini = ag.horas[0], fim = ag.horas[1];
     if (minAgora < ini || minAgora > fim + TOLERANCIA) return;

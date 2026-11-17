@@ -83,19 +83,23 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
   // HTML ENXUTO de propósito: o Teams corta a mensagem grande e a tabela vira texto corrido
   // (17/11: o Outbound tinha 54 KB). Estilo fica na tabela e na linha; a célula usa só atributo.
   var colTurno = !!turnos;
+  // Cada linha leva fundo E cor de texto: no tema escuro o Teams escurece o fundo da linha zebrada
+  // e, sem a cor junto, o texto some (17/11). Nada de confiar em herança de cor aqui.
+  var linhaClara = ' bgcolor="' + T.cartao + '" style="color:' + T.texto + '"';
+  var linhaZebra = ' bgcolor="' + T.zebra + '" style="color:' + T.texto + '"';
   var tbl = '<table border="1" bordercolor="' + T.borda + '" cellspacing="0" cellpadding="5" style="' + FONTE +
     "border-collapse:collapse;font-size:13px;width:100%;text-align:right;color:" + T.texto + ";background:" + T.cartao + '">';
   var cab = '<tr bgcolor="' + cor + '" style="color:#fff;font-weight:600">' +
     (colTurno ? '<th align="left">Turno</th>' : "") + '<th align="left">Usuário</th>' +
     horas.map(function (h) { return "<th>" + rotHora(h) + "</th>"; }).join("") + "<th>Total</th></tr>";
   var corpo = linhas.map(function (l, i) {
-    return "<tr" + (i % 2 ? ' bgcolor="' + T.zebra + '"' : "") + ">" +
+    return "<tr" + (i % 2 ? linhaZebra : linhaClara) + ">" +
       (colTurno ? '<td align="left">' + esc(turnos[l.nome] || "—") + "</td>" : "") +
       '<td align="left">' + esc(l.nome) + "</td>" +
       horas.map(function (h) { return "<td>" + (l.arr[h] ? fmt(l.arr[h]) : "·") + "</td>"; }).join("") +
       '<td style="color:' + cor + ';font-weight:700">' + fmt(l.total) + "</td></tr>";
   }).join("");
-  var rodape = '<tr bgcolor="' + corTotal + '" style="font-weight:700">' + (colTurno ? "<td></td>" : "") +
+  var rodape = '<tr bgcolor="' + corTotal + '" style="font-weight:700;color:' + T.texto + '">' + (colTurno ? "<td></td>" : "") +
     '<td align="left">Total</td>' +
     horas.map(function (h) {
       var sm = linhas.reduce(function (a, l) { return a + (l.arr[h] || 0); }, 0);
