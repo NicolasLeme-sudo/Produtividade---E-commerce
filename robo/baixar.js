@@ -118,7 +118,13 @@ const TELAS = [
     filtros: function (p, st) { return datasParametros(p, "#ParametersDialog_dataInicio", "#ParametersDialog_dataFim", inicioItensNf(st), hoje()); } },
   { id: "op", nome: "Acompanhamento OP", grupo: "lento", busca: "acompanhamento", item: "Acompanhamento Saida por",
     itemSeletor: '[id$="NavigationView_tree-ItemAcompanhamentoSaidaporNotaFiscal"]', refresh: ATUALIZAR_NAVEGACAO,
-    chave: function () { return "30dias"; },
+    // A chave leva o DIA de propósito. O "30 dias" do WMS é resolvido no momento em que o filtro é
+    // aplicado e vira um intervalo fixo na tela: a aba montada no dia X fica presa em [X-30, X] e o
+    // botão atualizar só recarrega esse mesmo intervalo. Com a chave fixa "30dias" a aba nunca era
+    // refeita, então pedido processado sumia mas nenhum pedido novo entrava — em 18/11 o OP ainda
+    // mostrava a importação de 16/11 e o telão exibia 662 itens, todos "há 2+ dias úteis". Com o dia
+    // na chave, a aba é refeita uma vez por dia e o período volta a terminar em hoje.
+    chave: function () { return "30dias-" + ddmmaaaa(hoje()); },
     filtros: async function (p) {
       // A tela já carrega pedidos ao abrir: mexer antes disso dá erro no WMS ("reading 'refresh'").
       for (let t = 1; ; t++) {
