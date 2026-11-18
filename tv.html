@@ -121,6 +121,8 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .gdias .colunas{gap:12px}
 .gdias .colunas span{min-width:54px}
 .gdias .colunas em{font-size:19px}
+.gdias .colunas span.sem{background:transparent;min-height:0}
+.gdias .colunas span.sem em{font-size:14px;font-weight:600;color:var(--text-muted)}
 .gdias .horas{gap:12px}
 .gdias .horas i{min-width:54px;font-size:18px;line-height:1.25}
 .gdias .horas i b{display:block;font-size:15px;font-weight:700;opacity:.8}
@@ -1109,7 +1111,7 @@ function isoDe(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,
 async function carregarForecast(){
   if (!MODO_DIRETORIA) return;
   try {
-    var hoje = new Date(), de = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    var hoje = new Date(), de = new Date(hoje.getFullYear(), hoje.getMonth(), Math.min(1, hoje.getDate() - 15));
     var ate = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0);
     var r = await clienteReport().rpc('produtividade_forecast', { de: isoDe(de), ate: isoDe(ate) });
     if (r.error) throw r.error;
@@ -1171,6 +1173,7 @@ function graficoDias(linhas, cor, cor2, fmtV){
   var cols = linhas.map(function(x){
     // VERDE quando o dia bate o planejamento; VERMELHO quando não bate; neutro quando não há plano
     // (fim de semana sem forecast: não dá para dizer que bateu nem que deixou de bater).
+    if (x.sem) return '<span data-h="'+x.d+'" class="sem" style="height:0%"><em>sem registro</em></span>';
     var cf = !x.plano ? '#5A6B86' : x.real >= x.plano ? COR_PXR : '#E0334F';
     // Rótulo x linha: quando o topo da coluna fica logo abaixo do planejamento, o rótulo cairia em cima
     // do tracejado. Aí ele sobe para cima da linha. (bottom do rótulo é % da altura da própria coluna.)
@@ -1241,16 +1244,17 @@ function renderTelaF(res){
     kpiHtml('Em operação', vlr(res), emValor() ? fmt(res.itens)+' itens' : fmtRSc(res.rs), '#2E9E4A', '#2E9E4A', '');
 
   // ---- faturado por dia: colunas com o traço do plano, 7 à vista e rolagem para o resto ----
+  // Sempre os 10 dias corridos até hoje, tenham registro ou não. Dia sem registro (antes de o faturado
+  // passar a ser gravado, ou robô fora do ar) fica com o espaço reservado e marcado "sem registro":
+  // mostrar zero diria que não houve faturamento, o que é falso.
   var dias = [];
-  Object.keys(res.faturado).sort().forEach(function(d){
-    if (d > hoje) return;
-    var pf = forecast[d];
-    dias.push({ d: d, real: num(res.faturado[d]), plano: pf && pf.TOTAL ? num(pf.TOTAL) : 0 });
-  });
-  dias = dias.slice(-JANELA_DIAS);   // 10 dias corridos
+  for (var k = JANELA_DIAS - 1; k >= 0; k--) {
+    var d = somaDias(hoje, -k), f = res.faturado[d], pf = forecast[d];
+    dias.push({ d: d, real: f ? num(f) : 0, plano: pf && pf.TOTAL ? num(pf.TOTAL) : 0, sem: !f });
+  }
   var gd = graficoDias(dias, COR_PXR, COR_PXR2, cru);
-  var sR = 0, sP = 0;
-  dias.forEach(function(x){ sR += x.real; sP += x.plano; });
+  var sR = 0, sP = 0, comDado = 0;
+  dias.forEach(function(x){ if (x.sem) return; comDado++; sR += x.real; sP += x.plano; });
 
   // ---- faturamento por marca de hoje, em rosca ----
   var porMarca = {};
@@ -1265,7 +1269,7 @@ function renderTelaF(res){
       '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturado por dia</span><span></span>'+
         '<span class="tot" style="grid-column:3 / span 2"><span class="leg-plano"><i></i>planejamento</span></span></div>'+
         (gd || '<div class="vazio">Sem faturamento no período.</div>')+
-        '<div class="etapa total"><span class="nm">Acumulado · '+dias.length+(dias.length === 1 ? ' dia' : ' dias')+'</span><span></span>'+
+        '<div class="etapa total"><span class="nm">Acumulado · '+(comDado === dias.length ? dias.length+' dias' : comDado+' de '+dias.length+' dias com registro')+'</span><span></span>'+
           '<span class="tot">'+cru(sR)+'</span>'+
           '<span class="tot ped" style="color:'+(sP ? pctCor(100*sR/sP) : 'var(--text-muted)')+'">'+(sP ? (100*sR/sP).toFixed(0)+'%' : '—')+'</span></div></div>'+
       '<div class="painel"><span class="k">'+(emValor() ? 'Faturamento por marca · hoje' : 'Itens faturados por marca · hoje')+'</span>'+
