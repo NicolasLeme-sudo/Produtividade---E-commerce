@@ -101,6 +101,16 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .navt.so button{visibility:hidden}
 /* T01 | T02 ao lado das setas (só na Corrida): o turno do horário vem marcado; escolher o outro vale até a tela trocar */
 .selTurno{display:inline-flex;gap:6px;margin-left:16px;vertical-align:middle}.selTurno[hidden]{display:none}
+/* ---------- Tela F · Plano × Real (modo diretoria) ---------- */
+.pxr{margin-bottom:20px}
+.pxr-tp{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+.pxr-t{font-size:22px;font-weight:700;color:var(--text)}
+.pxr-p{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+.pxr-tr{position:relative;height:30px;border-radius:9px;background:var(--bg-input);overflow:visible}
+.pxr-tr i{display:block;height:100%;border-radius:9px 0 0 9px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.pxr-tr u{position:absolute;top:-4px;bottom:-4px;width:4px;background:var(--text);opacity:.55;border-radius:2px}
+.pxr-lg{display:flex;justify-content:space-between;margin-top:8px;font-size:18px;color:var(--text-muted)}
+.pxr-lg b{color:var(--text);font-variant-numeric:tabular-nums}
 .selTurno button{height:34px;padding:0 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 40%, transparent);background:transparent;color:var(--text-muted);font-family:inherit;font-size:16px;font-weight:800;cursor:pointer}
 .selTurno button:hover{border-color:var(--cc,#297ADF);color:var(--text)}
 .selTurno button.on{background:color-mix(in srgb, var(--cc,#297ADF) 30%, transparent);border-color:var(--cc,#297ADF);color:#fff}
@@ -314,10 +324,11 @@ body.ocioso,body.ocioso *{cursor:none!important}
 </head>
 <body>
 <div id="palco">
-  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lt;</button><span id="titulo">Corrida Maluca</span><button type="button" id="telaProx" aria-label="Próxima tela">&gt;</button></span><span class="selTurno" id="selTurno" hidden><button type="button" data-t="1º Turno">T01</button><button type="button" data-t="2º Turno">T02</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="demo-meta" id="demoMeta" hidden><button type="button" class="fsb" id="btnDemoMeta" aria-haspopup="menu">🏆 Meta batida</button><span class="dm-pop" id="dmPop" hidden role="menu"></span></span><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
+  <div class="fh"><span class="lg"><img src="tv/logo-vulcabras-cor.png" alt="Vulcabras"><small>E-COMMERCE</small></span><span class="tt"><span class="navt"><button type="button" id="telaAnt" aria-label="Tela anterior">&lt;</button><span id="titulo">Corrida Maluca</span><button type="button" id="telaProx" aria-label="Próxima tela">&gt;</button></span><span class="selTurno" id="selTurno" hidden><button type="button" data-t="1º Turno">T01</button><button type="button" data-t="2º Turno">T02</button></span><span class="selTurno selUn" id="selUn" hidden><button type="button" data-u="it" class="on">Itens</button><button type="button" data-u="rs">R$</button></span></span><span class="sem-hoje" id="semHoje" hidden>⚠ Sem dados de hoje</span><span class="selo" id="selo">Conectando…</span><button type="button" class="fsb" id="btnTelaCheia">⛶ Tela cheia</button><span class="demo-meta" id="demoMeta" hidden><button type="button" class="fsb" id="btnDemoMeta" aria-haspopup="menu">🏆 Meta batida</button><span class="dm-pop" id="dmPop" hidden role="menu"></span></span><div class="dica-tc" id="dicaTC" hidden><b>Tela cheia no celular</b>1. Toque em <b>Compartilhar</b> (⬆) no Safari ou no menu ⋮ do Chrome<br>2. <b>Adicionar à Tela de Início</b><br>3. Abra o telão pelo ícone <b>Telão</b> e deite o celular<small>Toque para fechar</small></div><span class="lv" id="aoVivo">● AO VIVO</span><button type="button" class="fsb volta" id="btnHoje" hidden>Voltar para hoje</button><div class="ck"><div id="hora">--:--</div><span id="data" title="Escolher o dia mostrado" role="button" aria-haspopup="dialog"></span><div class="cal" id="cal" hidden role="dialog" aria-label="Dia exibido"></div></div></div>
   <div class="ouro" id="ouro" hidden><b>★ HORA QUE VALE OURO</b><span id="ouroTxt"></span><b id="ouroRel">--:--</b></div>
   <div class="main">
     <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
+    <section class="tela" id="telaF" data-titulo="Plano × Real" data-giro="90" data-fonte="operacao" data-vazia="1"></section>
     <section class="tela" id="telaA" data-titulo="Corrida Maluca" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
     <section class="tela" id="telaB" data-titulo="Separação e Conferência" data-giro="90" data-fonte="outbound"></section>
     <section class="tela" id="telaE" data-titulo="Expedição" data-giro="90" data-fonte="operacao"></section>
@@ -332,7 +343,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
     <div class="m-mid" id="moldCard"><div class="m-tit">META BATIDA!</div><div class="m-team" id="moldTeam"><img id="moldGif" alt=""><span id="moldNome"></span></div><div class="m-num"><b id="moldPecas"></b>peças</div></div>
   </div>
 </div>
-<div id="login"><form id="loginForm"><h1>Telão · Produtividade</h1><p>Entre uma vez. A TV guarda o acesso.</p><input id="loginEmail" placeholder="Usuário ou e-mail" autocomplete="username" required><input id="loginSenha" type="password" placeholder="Senha" autocomplete="current-password" required><div id="loginErro"></div><button type="submit">Entrar</button></form></div>
+<div id="login"><form id="loginForm"><h1 id="loginTit">Telão · Produtividade</h1><p id="loginSub">Entre uma vez. A TV guarda o acesso.</p><input id="loginEmail" placeholder="Usuário ou e-mail" autocomplete="username" required><input id="loginSenha" type="password" placeholder="Senha" autocomplete="current-password" required><div id="loginErro"></div><button type="submit">Entrar</button></form></div>
 <button id="somBtn" type="button">🔊 Clique para ativar o som</button>
 
 <script>
@@ -344,7 +355,20 @@ var GIRO_S = +Q.get('giro') || 90;          // segundos por tela
 var REFRESH_S = +Q.get('refresh') || 60;    // segundos entre buscas no banco
 // ?modo=operacao: link da TV da operação — mesmas telas e mesmo banco, SEM a Corrida Maluca, hora de ouro,
 // comemoração de meta e destaques dos times na faixa de baixo.
-var MODO_OPERACAO = Q.get('modo') === 'operacao';
+// MODO DIRETORIA (?modo=diretoria): o telão da operação MAIS o valor em R$ (toggle no topo) e a tela
+// Plano × Real. Herda o modo operação de propósito — já é ele que tira a Corrida, a comemoração, a hora
+// de ouro e os balões —, então diretoria = operação + os extras, sem duplicar regra nenhuma.
+// O parâmetro sozinho NÃO basta: só liga para quem tem perfil admin (a TV do chão de fábrica entra com
+// perfil gestao). Quem pedir o modo sem permissão fica no telão da operação, sem nenhum valor em tela.
+var QUER_DIRETORIA = Q.get('modo') === 'diretoria';
+var MODO_DIRETORIA = false;                 // só liga depois do login, em temPerfil()
+var PERFIL_DIRETORIA = 'admin';             // perfis_acesso.role que pode ver R$
+var MODO_OPERACAO = Q.get('modo') === 'operacao' || QUER_DIRETORIA;
+var emRs = false;                           // unidade do toggle (só existe no modo diretoria)
+if (QUER_DIRETORIA) {
+  document.getElementById('loginTit').textContent = 'Panorama · Diretoria';
+  document.getElementById('loginSub').textContent = 'Acesso restrito a administradores.';
+}
 var RECARREGA_H = 6;                        // recarga completa da página (pega versão nova, libera memória)
 var COMEMORA_MS = 25000, PARADO_MS = 3000;  // comemoração inteira e tempo do carro parado na vaga
 var SUPABASE_URL = 'https://vehfchdfbukrbcedciiy.supabase.co';
@@ -678,7 +702,9 @@ function idadeTexto(ms){
   var h = Math.max(0, (Date.now() - ms) / 3600000);
   return h < 24 ? Math.floor(h)+' h em tela' : Math.floor(h/24)+' d '+Math.floor(h%24)+' h em tela';
 }
-function pizzaHtml(porMarca, total){
+// fmtV e rotulo: só o modo diretoria passa (R$ no lugar de itens). Sem eles, nada muda.
+function pizzaHtml(porMarca, total, fmtV, rotulo){
+  var F = fmtV || fmt, UN = rotulo || 'itens';
   // Pedido ainda sem produto no Itens de NF segue a regra de reserva da marca (Olympikus): nunca aparece fatia sem marca.
   porMarca = Object.assign({}, porMarca);
   if (porMarca['Sem marca']) { porMarca['Olympikus'] = (porMarca['Olympikus']||0) + porMarca['Sem marca']; delete porMarca['Sem marca']; }
@@ -688,27 +714,36 @@ function pizzaHtml(porMarca, total){
     acc += f; return s;
   }).join('');
   var leg = ms.map(function(m){
-    return '<div style="--m:'+(COR_MARCA[m]||'#8E9BB5')+'"><i></i><span>'+esc(m)+'</span><b>'+fmt(porMarca[m])+'</b><em>'+Math.round(porMarca[m]/total*100)+'%</em></div>';
+    return '<div style="--m:'+(COR_MARCA[m]||'#8E9BB5')+'"><i></i><span>'+esc(m)+'</span><b>'+F(porMarca[m])+'</b><em>'+Math.round(porMarca[m]/total*100)+'%</em></div>';
   }).join('');
   return '<div class="pizza"><svg viewBox="0 0 180 180">'+fatias+
-    '<text x="90" y="92" text-anchor="middle" fill="#E8EBF2" font-size="26" font-weight="800">'+fmt(total)+'</text>'+
-    '<text x="90" y="112" text-anchor="middle" fill="#7C8BA8" font-size="12">itens</text></svg><div class="leg">'+leg+'</div></div>';
+    '<text x="90" y="92" text-anchor="middle" fill="#E8EBF2" font-size="'+(UN === 'itens' ? 26 : 20)+'" font-weight="800">'+F(total)+'</text>'+
+    '<text x="90" y="112" text-anchor="middle" fill="#7C8BA8" font-size="12">'+UN+'</text></svg><div class="leg">'+leg+'</div></div>';
 }
 var COR_CAIDA = '#5B7F2B';   // verde musgo (o mesmo --verde-musgo do telão da DISTR)
+// ---- unidade da tela (modo diretoria) ----
+// vR(itens, rs) devolve o número na unidade escolhida; o R$ vem do mesmo snapshot, campo "rs".
+function emValor(){ return MODO_DIRETORIA && emRs; }
+function fmtRS(v){ return 'R$ ' + fmt(Math.round(v || 0)); }
+function vR(itens, rs){ return emValor() ? fmtRS(rs) : fmt(itens); }
+function nR(o){ return emValor() ? (o && o.rs) || 0 : (o && o.itens) || 0; }   // valor cru, para as barras
+
 function renderTelaC(res){
   var el = document.getElementById('telaC');
   // sem Acompanhamento OP, ou com um dia passado escolhido (o OP é só a foto de agora): a tela sai do giro
   if (!res || !res.pedidos || !ehHoje()) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }
   el.dataset.vazia = '';
-  var maxE = Math.max.apply(null, res.etapas.map(function(e){ return e.itens; }).concat(1));
+  var maxE = Math.max.apply(null, res.etapas.map(function(e){ return nR(e); }).concat(1));
   var velhos = res.idade[2].itens + res.idade[3].itens;
   var hAnt = res.maisAntigo ? (Date.now() - res.maisAntigo) / 3600000 : 0, dAnt = res.maisAntigo ? new Date(res.maisAntigo) : null;
   // Linha: ETAPA | BARRA | ITENS | PEDIDOS (barra de uma cor só)
+  // Em R$ a 2ª coluna passa a ser ITENS no lugar de Pedidos (pedido de 17/11): o que a diretoria compara
+  // é valor contra volume, não valor contra número de pedidos.
   var etapas = res.etapas.map(function(e, i){
     return '<div class="etapa"><span class="nm">'+NOME_ETAPA[i]+'</span>'+
-      '<div class="trilho"><div class="barra" style="width:'+(e.itens/maxE*100).toFixed(2)+'%"></div></div>'+
-      '<span class="tot">'+fmt(e.itens)+'</span>'+
-      '<span class="tot ped">'+fmt(e.pedidos)+'</span></div>';
+      '<div class="trilho"><div class="barra" style="width:'+(nR(e)/maxE*100).toFixed(2)+'%"></div></div>'+
+      '<span class="tot">'+vR(e.itens, e.rs)+'</span>'+
+      '<span class="tot ped">'+fmt(emValor() ? e.itens : e.pedidos)+'</span></div>';
   }).join('');
   // Pedidos importados há 2+ dias: vem do ingest a partir do próximo envio do Acompanhamento OP
   var velhosPed = res.idade[2].pedidos == null ? null : res.idade[2].pedidos + res.idade[3].pedidos;
@@ -725,16 +760,21 @@ function renderTelaC(res){
     ? kpiHtml('Importação hoje', fmt(cHoje[0]), 'Ontem: '+qt(cOntem[0])+' peças | '+qt(cOntem[1])+' pedidos', COR_CAIDA, COR_CAIDA, 'peças', '<span class="seg">| <b>'+fmt(cHoje[1])+'</b> pedidos</span>')
     : kpiHtml('Importação hoje', '—', 'aguardando o próximo Itens de NF', COR_CAIDA, COR_CAIDA);
   el.innerHTML = '<div class="kpis c5">'+
-    kpiHtml('Itens em operação', fmt(res.itens), tipos(res, res.pedidos), 'var(--accent)', null, 'itens')+
-    kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), tipos(res.etapas[0], res.etapas[0].pedidos), 'var(--amber)', null, 'itens')+
+    (emValor()
+      ? kpiHtml('Valor em operação', fmtRS(res.rs), fmt(res.itens)+' itens · '+fmt(res.pedidos)+' pedidos', 'var(--accent)', null, '')
+      : kpiHtml('Itens em operação', fmt(res.itens), tipos(res, res.pedidos), 'var(--accent)', null, 'itens'))+
+    (emValor()
+      ? kpiHtml('Aguardando onda', fmtRS(res.etapas[0].rs), fmt(res.etapas[0].itens)+' itens', 'var(--amber)', null, '')
+      : kpiHtml('Aguardando onda', fmt(res.etapas[0].itens), tipos(res.etapas[0], res.etapas[0].pedidos), 'var(--amber)', null, 'itens'))+
     kCaida+
     kpiHtml('Mais antigo em tela', dAnt ? dAnt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dAnt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—',
       dAnt ? (res.maisAntigoDias != null ? (duAnt === 0 ? 'importado hoje' : duAnt+(duAnt === 1 ? ' dia útil' : ' dias úteis')+' em tela') : idadeTexto(res.maisAntigo))+'<br>Pedido <b>'+esc(res.maisAntigoPedido)+'</b>' : 'sem data de importação', corAnt, corAnt)+
     kpiHtml('Importados há 2+ dias úteis', fmt(velhos), velhosTipo ? tipos(velhosTipo) : velhosPed == null ? '' : qt(velhosPed)+' pedidos', corVelhos, corVelhos, 'itens')+
   '</div><div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
-    '<div class="painel"><div class="etapa cab"><span class="nm">Itens por etapa</span><span></span><span class="tot">Itens</span><span class="tot">Pedidos</span></div><div class="etapas">'+etapas+'</div>'+
-      '<div class="etapa total"><span class="nm">Total geral</span><span></span><span class="tot">'+fmt(res.itens)+'</span><span class="tot ped">'+fmt(res.pedidos)+'</span></div></div>'+
-    '<div class="painel"><span class="k">Itens por marca</span>'+pizzaHtml(res.marcas, res.itens)+'</div>'+
+    '<div class="painel"><div class="etapa cab"><span class="nm">'+(emValor() ? 'Valor por etapa' : 'Itens por etapa')+'</span><span></span><span class="tot">'+(emValor() ? 'R$' : 'Itens')+'</span><span class="tot">'+(emValor() ? 'Itens' : 'Pedidos')+'</span></div><div class="etapas">'+etapas+'</div>'+
+      '<div class="etapa total"><span class="nm">Total geral</span><span></span><span class="tot">'+vR(res.itens, res.rs)+'</span><span class="tot ped">'+fmt(emValor() ? res.itens : res.pedidos)+'</span></div></div>'+
+    '<div class="painel"><span class="k">'+(emValor() ? 'Valor por marca' : 'Itens por marca')+'</span>'+
+      (emValor() ? pizzaHtml(res.marcasRs || {}, res.rs, fmtRS, 'em R$') : pizzaHtml(res.marcas, res.itens))+'</div>'+
   '</div></div>';
 }
 
@@ -977,6 +1017,149 @@ document.addEventListener('click', function(e){ if (comemorando && e.target.id !
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') pop.hidden = true; });
 })();
 
+/* ================= TELA F . PLANO x REAL (só no modo diretoria) ================= */
+// Forecast do PMO: vem do banco do Report E-commerce (outro projeto), pela RPC produtividade_forecast,
+// que devolve a linha inteira do forecast_diario - inclusive faturamento_forecast e as linhas de
+// operação (CAPACITY, BACKLOG_PREVISTO, POSICAO_INICIAL) na coluna "marca".
+// O realizado NÃO vem daqui: é o resumo.faturado do nosso snapshot (Itens de NF, Data de Emissão).
+var REPORT_URL = 'https://tawliuofpmfohylqdnix.supabase.co';
+var REPORT_KEY = 'sb_publishable__a5cJ6yFJIMgf505C4v7vQ_igDbuv5k';
+var sbReport = null, forecast = null;
+function clienteReport(){
+  if (!sbReport) sbReport = window.supabase.createClient(REPORT_URL, REPORT_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'telao-report-leitura' } });
+  return sbReport;
+}
+function isoDe(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+async function carregarForecast(){
+  if (!MODO_DIRETORIA) return;
+  try {
+    var hoje = new Date(), de = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    var ate = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0);
+    var r = await clienteReport().rpc('produtividade_forecast', { de: isoDe(de), ate: isoDe(ate) });
+    if (r.error) throw r.error;
+    var dias = {};
+    (r.data || []).forEach(function(l){
+      (dias[l.data] || (dias[l.data] = {}))[l.marca] =
+        { itens: Number(l.itens_forecast)||0, pedidos: Number(l.pedidos_forecast)||0, rs: Number(l.faturamento_forecast)||0 };
+    });
+    forecast = dias;
+  } catch(e) { console.error('Telao: forecast indisponivel', e); }   // sem forecast a tela sai do giro
+}
+// No backlog MENOS é melhor: ficar abaixo do previsto é que é bom, por isso a escala invertida.
+function pctCor(pct, inverso){
+  if (inverso) return pct <= 100 ? 'var(--olive)' : pct <= 130 ? 'var(--amber)' : 'var(--red)';
+  return pct >= 95 ? 'var(--olive)' : pct >= 70 ? 'var(--amber)' : 'var(--red)';
+}
+// Barra "realizado contra o previsto"; o traço marca os 100% do plano.
+function barraPlano(titulo, real, plano, rReal, rPlano, inverso){
+  if (!plano) return '<div class="pxr"><div class="pxr-tp"><span class="pxr-t">'+esc(titulo)+'</span>'+
+    '<span class="pxr-p" style="color:var(--text-muted);font-size:20px">sem plano</span></div>'+
+    '<div class="pxr-tr"></div><div class="pxr-lg"><span>Realizado <b>'+esc(rReal)+'</b></span></div></div>';
+  var pct = 100*real/plano, cor = pctCor(pct, inverso);
+  var larg = Math.min(100, pct), posMeta = pct > 100 ? 100*plano/real : 100;
+  return '<div class="pxr"><div class="pxr-tp"><span class="pxr-t">'+esc(titulo)+'</span>'+
+    '<span class="pxr-p" style="color:'+cor+'">'+pct.toFixed(0)+'%</span></div>'+
+    '<div class="pxr-tr"><i style="width:'+larg+'%;background:'+cor+'"></i><u style="left:calc('+posMeta+'% - 2px)"></u></div>'+
+    '<div class="pxr-lg"><span>Realizado <b>'+esc(rReal)+'</b></span><span>Plano <b>'+esc(rPlano)+'</b></span></div></div>';
+}
+function renderTelaF(res){
+  var el = document.getElementById('telaF');
+  // fora do modo diretoria, sem forecast ou em dia passado: a tela nem entra no giro
+  if (!MODO_DIRETORIA || !forecast || !res || !res.faturado || !ehHoje()) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }
+  el.dataset.vazia = '';
+  var hoje = hojeOp(), fat = res.faturado[hoje] || null, prev = forecast[hoje] || null;
+  var vlr = function(o){ return emValor() ? fmtRS(o && o.rs) : fmt((o && o.itens) || 0); };
+  var num = function(o){ return emValor() ? (o && o.rs) || 0 : (o && o.itens) || 0; };
+
+  var pctHoje = fat && prev && prev.TOTAL && num(prev.TOTAL) ? 100*num(fat)/num(prev.TOTAL) : null;
+  var kpis = kpiHtml('Faturado hoje', fat ? vlr(fat) : '-',
+        fat ? fmt(fat.notas)+' notas | '+(emValor() ? fmt(fat.itens)+' itens' : fmtRS(fat.rs)) : 'nada faturado ainda',
+        'var(--accent)', null, '')+
+    kpiHtml('Forecast do dia', prev && prev.TOTAL ? vlr(prev.TOTAL) : '-',
+        prev && prev.CAPACITY ? 'Capacidade '+fmt(prev.CAPACITY.itens)+' itens' : '', 'var(--accent-light)', null, '')+
+    kpiHtml('% do plano', pctHoje == null ? '-' : pctHoje.toFixed(0)+'%',
+        pctHoje == null ? 'sem forecast hoje' : (pctHoje >= 100 ? 'acima do plano' : 'do forecast do dia'),
+        pctHoje == null ? 'var(--text-muted)' : pctCor(pctHoje), pctHoje == null ? null : pctCor(pctHoje), '')+
+    kpiHtml('Em operação', vlr(res), emValor() ? fmt(res.itens)+' itens' : fmtRS(res.rs), 'var(--amber)', null, '');
+
+  var barras = barraPlano('Faturado x forecast de hoje', num(fat), prev && prev.TOTAL ? num(prev.TOTAL) : 0,
+      fat ? vlr(fat) : '-', prev && prev.TOTAL ? vlr(prev.TOTAL) : '-');
+  var backPrev = prev && prev.BACKLOG_PREVISTO ? prev.BACKLOG_PREVISTO.itens : 0;
+  if (emValor()) {
+    // o plano prevê backlog só em itens: o R$ previsto usa o ticket do forecast do dia
+    var tk = prev && prev.TOTAL && prev.TOTAL.itens ? prev.TOTAL.rs/prev.TOTAL.itens : 0;
+    barras += barraPlano('Backlog x previsto', res.rs, backPrev*tk, fmtRS(res.rs), backPrev*tk ? fmtRS(backPrev*tk) : '-', true);
+  } else {
+    barras += barraPlano('Backlog x previsto', res.itens, backPrev, fmt(res.itens), backPrev ? fmt(backPrev) : '-', true);
+  }
+
+  var mes = hoje.slice(0,7), sR = 0, sP = 0, linhas = [];
+  Object.keys(res.faturado).sort().forEach(function(d){
+    if (d.slice(0,7) !== mes || d > hoje) return;
+    var f = res.faturado[d], p = forecast[d];
+    sR += num(f); if (p && p.TOTAL) sP += num(p.TOTAL);
+    linhas.push({ d: d, f: f, p: p && p.TOTAL });
+  });
+  var tabela = linhas.slice().reverse().slice(0, 9).map(function(x){
+    var pc = x.p && num(x.p) ? 100*num(x.f)/num(x.p) : null;
+    return '<div class="etapa"><span class="nm">'+x.d.slice(8,10)+'/'+x.d.slice(5,7)+'</span>'+
+      '<div class="trilho"><div class="barra" style="width:'+(pc == null ? 0 : Math.min(100, pc)).toFixed(1)+'%;background:'+(pc == null ? 'var(--text-muted)' : pctCor(pc))+'"></div></div>'+
+      '<span class="tot">'+vlr(x.f)+'</span>'+
+      '<span class="tot ped" style="color:'+(pc == null ? 'var(--text-muted)' : pctCor(pc))+'">'+(pc == null ? '-' : pc.toFixed(0)+'%')+'</span></div>';
+  }).join('');
+
+  var marcas = ['Mizuno','Olympikus','Under Armour'].map(function(m){
+    var rm = (fat && fat.marcas && fat.marcas[m]) || { itens:0, rs:0 }, pm = prev && prev[m];
+    var pc = pm && num(pm) ? 100*num(rm)/num(pm) : null;
+    return '<div class="etapa"><span class="nm"><i style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(COR_MARCA[m]||'#8E9BB5')+';margin-right:10px;vertical-align:-1px"></i>'+esc(m)+'</span>'+
+      '<div class="trilho"><div class="barra" style="width:'+(pc == null ? 0 : Math.min(100, pc)).toFixed(1)+'%;background:'+(COR_MARCA[m]||'#8E9BB5')+'"></div></div>'+
+      '<span class="tot">'+vlr(rm)+'</span>'+
+      '<span class="tot ped">'+(pm ? vlr(pm) : '-')+'</span></div>';
+  }).join('');
+
+  el.innerHTML = '<div class="kpis c4">'+kpis+'</div>'+
+    '<div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
+      '<div class="painel">'+barras+
+        '<div class="etapa cab" style="margin-top:18px"><span class="nm">Por marca | hoje</span><span></span><span class="tot">Real</span><span class="tot">Plano</span></div>'+
+        '<div class="etapas">'+marcas+'</div></div>'+
+      '<div class="painel"><div class="etapa cab"><span class="nm">Faturado por dia</span><span></span><span class="tot">'+(emValor() ? 'R$' : 'Itens')+'</span><span class="tot">% plano</span></div>'+
+        '<div class="etapas">'+tabela+'</div>'+
+        '<div class="etapa total"><span class="nm">Acumulado do mes</span><span></span><span class="tot">'+(emValor() ? fmtRS(sR) : fmt(sR))+'</span>'+
+          '<span class="tot ped" style="color:'+(sP ? pctCor(100*sR/sP) : 'var(--text-muted)')+'">'+(sP ? (100*sR/sP).toFixed(0)+'%' : '-')+'</span></div></div>'+
+    '</div></div>';
+}
+
+/* ================= REDESENHO ================= */
+// Guarda o último dado recebido para redesenhar sem buscar de novo — é o que o toggle Itens/R$ usa.
+var ultimoDesenho = null;
+function desenharTelas(){
+  var u = ultimoDesenho; if (!u) return;
+  renderTelaA(u.c); renderTelaB(u.snap, u.res, u.diaOut); renderTelaC(u.res);
+  renderTelaF(u.res); renderTelaE(u.res); renderTelaD(u.snapIn);
+  renderFaixa(u.c, u.snap, u.diaOut, u.res);
+}
+function redesenhar(){ desenharTelas(); relogio(); }
+
+/* ================= TOGGLE ITENS / R$ (só no modo diretoria) ================= */
+// Troca a unidade das telas que mostram valor. Não busca nada de novo: o R$ já vem no mesmo snapshot,
+// no campo "rs" ao lado de cada "itens". Fora do modo diretoria o seletor não existe na página.
+function marcaUnidade(){
+  var box = document.getElementById('selUn');
+  if (!MODO_DIRETORIA) { box.hidden = true; return; }
+  box.hidden = false;
+  Array.prototype.forEach.call(box.querySelectorAll('button'), function(b){
+    b.classList.toggle('on', (b.dataset.u === 'rs') === emRs);
+  });
+}
+document.getElementById('selUn').addEventListener('click', function(e){
+  var b = e.target.closest('button'); if (!b) return;
+  var novo = b.dataset.u === 'rs';
+  if (novo === emRs) return;
+  emRs = novo; marcaUnidade();
+  redesenhar();
+});
+
 /* ================= GIRO DAS TELAS ================= */
 var telas = Array.prototype.slice.call(document.querySelectorAll('.tela')), atual = 0, inicioTela = Date.now();
 function telasAtivas(){ return telas.filter(function(t){ return !t.dataset.vazia; }); }
@@ -1170,7 +1353,10 @@ setTimeout(function(){ location.reload(); }, RECARREGA_H*3600*1000);
 if (navigator.wakeLock) { var pedeWake = function(){ navigator.wakeLock.request('screen').catch(function(){}); }; pedeWake(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) pedeWake(); }); }
 
 /* ================= DADOS ================= */
+var forecastDe = null;   // dia em que o forecast foi buscado: renova na virada
 async function carregar(){
+  if (MODO_DIRETORIA && forecastDe && forecastDe !== hojeOp()) { forecastDe = hojeOp(); await carregarForecast(); }
+  if (MODO_DIRETORIA && !forecastDe) forecastDe = hojeOp();
   try {
     var r = await Promise.all([
       sb.from('dashboard_snapshots').select('pagina, dados, atualizado_em').in('pagina', ['outbound','inbound']),
@@ -1214,7 +1400,9 @@ async function carregar(){
         fColm = F('Colmeia', fe['up-conf-colmeia'] || semFe), fOp = F('Acompanhamento OP', res.opEm), fNf = F('Itens de NF', res.nfEm),
         fKx = F('Kardex', res.expedicao && res.expedicao.kardexEm);
     horaFonte = { telaA:[fSep, fConf, fColm], telaB:[fSep, fConf, fColm, fOp], telaC:[fOp, fNf], telaE:[fKx, fOp], telaD:[fKx] };
-    renderTelaA(c); renderTelaB(snap, op && op.resumo, diaOut); renderTelaC(op && op.resumo); renderTelaE(op && op.resumo); renderTelaD(snapIn); renderFaixa(c, snap, diaOut, op && op.resumo); if (!MODO_OPERACAO && !outroTurno) verificaMetas(c);
+    ultimoDesenho = { c: c, snap: snap, snapIn: snapIn, diaOut: diaOut, res: op && op.resumo };
+    desenharTelas();
+    if (!MODO_OPERACAO && !outroTurno) verificaMetas(c);
     if (!MODO_OPERACAO && !outroTurno && ehHoje() && !r[4].error) verificaBaloes(c, cadT, r[4].data || [], ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
@@ -1226,13 +1414,27 @@ async function carregar(){
 /* ================= LOGIN (uma vez; a TV guarda a sessão) ================= */
 async function temPerfil(session){
   var r = await sb.from('perfis_acesso').select('role').eq('user_id', session.user.id).single();
-  return !r.error && r.data;
+  if (r.error || !r.data) return false;
+  // Permissão do modo diretoria: sem ela, o ?modo=diretoria segue valendo como telão da operação.
+  MODO_DIRETORIA = QUER_DIRETORIA && r.data.role === PERFIL_DIRETORIA;
+  return r.data;
 }
 async function iniciar(){
   var s = (await sb.auth.getSession()).data.session;
   if (!s || !(await temPerfil(s))) { document.getElementById('login').classList.add('on'); return; }
+  // Modo diretoria pedido por quem não é admin (ex.: a TV da operação, que entra com perfil gestao):
+  // não mostra nada e exige o login de administrador. Sem isso, cairia calado no telão da operação e
+  // ninguém saberia por que o R$ não apareceu.
+  if (QUER_DIRETORIA && !MODO_DIRETORIA) {
+    await sb.auth.signOut();
+    document.getElementById('login').classList.add('on');
+    document.getElementById('loginErro').textContent = 'Acesso restrito: entre com um usuário administrador.';
+    return;
+  }
   document.getElementById('login').classList.remove('on');
+  marcaUnidade();
   mostraTela(0);
+  await carregarForecast();            // o forecast muda 1x por mês: basta buscar ao abrir
   await carregar();
   setInterval(carregar, REFRESH_S*1000);
   var teste = MODO_OPERACAO ? 0 : +Q.get('comemorar');
