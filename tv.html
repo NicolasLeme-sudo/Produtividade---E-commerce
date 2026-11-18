@@ -588,19 +588,35 @@ function animaGraficos(){
     if (t.classList.contains('on')) tocaAnimacao(g);                     // tela escondida: espera ela entrar
   });
 }
-// Número rolando como contagem: do valor antigo até o novo em ~1 s (formato pt-BR).
-function contaNumero(sp, antigoTxt){
-  var em = sp.querySelector('em'); if (!em) return;
-  // Só conta rótulo que é número puro ("12.369"). "R$ 4,48 M" virava 448 ao tirar o que não é dígito,
-  // e esse 448 ficava gravado no rótulo até a próxima atualização (diretoria, 18/11).
-  var puro = /^[\d.]+$/;
-  if (!puro.test(em.textContent.trim()) || !puro.test(String(antigoTxt).trim())) return;
-  var de = +String(antigoTxt).replace(/\D/g, '') || 0, ate = +em.textContent.replace(/\D/g, '') || 0, t0 = performance.now(), dur = 1000;
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches || de === ate) return;
-  sp.classList.add('conta');
+// ---- Número rolando como contagem, entendendo o formato ----
+// Lê o texto como prefixo + número pt-BR + sufixo, com o multiplicador do sufixo ("M" = milhão,
+// "Mil" = mil): "R$ 4,48 M" vale 4.480.000, "12.369" vale 12.369, "24%" vale 24. A contagem anda pelo
+// VALOR REAL e escreve no formato do texto de destino, então funciona até trocando de unidade
+// (itens -> R$ no toggle). Antes ela tirava tudo que não era dígito: "R$ 4,48 M" virava 448 (18/11).
+function lerNumero(txt){
+  var m = /-?\d[\d.]*(?:,\d+)?/.exec(txt); if (!m) return null;
+  var bruto = m[0], suf = txt.slice(m.index + bruto.length), mm = /^\s*(Mil|M)(?![a-zA-Z])/.exec(suf);
+  var mult = mm ? (mm[1] === 'M' ? 1e6 : 1e3) : 1;
+  return { pre: txt.slice(0, m.index), suf: suf, mult: mult,
+           dec: bruto.indexOf(',') >= 0 ? bruto.split(',')[1].length : 0,
+           real: parseFloat(bruto.replace(/\./g, '').replace(',', '.')) * mult };
+}
+function escreveComo(alvo, real){
+  return alvo.pre + (real / alvo.mult).toLocaleString('pt-BR', { minimumFractionDigits: alvo.dec, maximumFractionDigits: alvo.dec }) + alvo.suf;
+}
+// Rola um nó de texto de "deTxt" até o texto que ele já tem; termina sempre no texto exato.
+function rolaTexto(no, deTxt, fim){
+  var alvoTxt = no.nodeValue, de = lerNumero(String(deTxt)), alvo = lerNumero(alvoTxt);
+  if (!de || !alvo || de.real === alvo.real || matchMedia('(prefers-reduced-motion: reduce)').matches) { if (fim) fim(); return; }
+  var t0 = performance.now(), dur = 1000;
   (function passo(t){ var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
-    em.textContent = fmt(Math.round(de + (ate - de) * e));
-    if (p < 1) requestAnimationFrame(passo); else sp.classList.remove('conta'); })(t0);
+    no.nodeValue = p < 1 ? escreveComo(alvo, de.real + (alvo.real - de.real) * e) : alvoTxt;
+    if (p < 1) requestAnimationFrame(passo); else if (fim) fim(); })(t0);
+}
+function contaNumero(sp, antigoTxt){
+  var em = sp.querySelector('em'); if (!em || !em.firstChild) return;
+  sp.classList.add('conta');
+  rolaTexto(em.firstChild, antigoTxt, function(){ sp.classList.remove('conta'); });
 }
 function tocaAnimacao(g){
   memoriaColunas[g._chave] = g._agora;
@@ -1270,6 +1286,45 @@ function desenharTelas(){
 function redesenhar(){ desenharTelas(); relogio(); }
 
 /* ================= TOGGLE ITENS / R$ (só no modo diretoria) ================= */
+// Números que rolam na troca de unidade (as colunas ficam de fora: o animaGraficos já cuida delas).
+var SEL_NUM = '.kpi .v, .kpi.anel .a1, .kpi.anel .a2, .kpi.anel .a3, .kpi.anel svg text, .etapa .tot, .pizza .leg b, .pizza svg text';
+function primeiroTexto(el){ var n = el; while (n && n.nodeType !== 3) n = n.firstChild; return n; }
+// Chave de cada número: posição na tela; a legenda da rosca vai pelo nome da marca, porque a ordem
+// das fatias pode mudar entre itens e R$.
+function chavesNumeros(tela){
+  var out = {};
+  Array.prototype.forEach.call(tela.querySelectorAll(SEL_NUM), function(el, i){
+    var no = primeiroTexto(el); if (!no) return;
+    var marca = el.matches('.pizza .leg b') && el.parentNode.querySelector('span');
+    out[marca ? 'leg:' + marca.textContent : 'n:' + i] = no;
+  });
+  return out;
+}
+function capturaTela(tela){
+  var nums = {}, ns = chavesNumeros(tela);
+  Object.keys(ns).forEach(function(k){ nums[k] = ns[k].nodeValue; });
+  return {
+    nums: nums,
+    barras: Array.prototype.map.call(tela.querySelectorAll('.etapa .barra'), function(b){ return b.style.width; }),
+    aneis: Array.prototype.map.call(tela.querySelectorAll('.kpi.anel svg circle:nth-of-type(2)'), function(c){ return c.getAttribute('stroke-dasharray'); })
+  };
+}
+function transitaTela(tela, antes){
+  var ns = chavesNumeros(tela);
+  Object.keys(ns).forEach(function(k){ if (antes.nums[k] != null && antes.nums[k] !== ns[k].nodeValue) rolaTexto(ns[k], antes.nums[k]); });
+  // barras e anéis: voltam ao tamanho antigo e deslizam até o novo
+  function desliza(lista, velhos, prop, ler, por){
+    lista.forEach(function(el, i){
+      var novo = ler(el); if (velhos[i] == null || velhos[i] === novo) return;
+      el.style.transition = 'none'; por(el, velhos[i]); void el.getBoundingClientRect();
+      el.style.transition = prop + ' .9s cubic-bezier(.2,.8,.2,1)'; por(el, novo);
+    });
+  }
+  desliza(Array.prototype.slice.call(tela.querySelectorAll('.etapa .barra')), antes.barras, 'width',
+    function(b){ return b.style.width; }, function(b, v){ b.style.width = v; });
+  desliza(Array.prototype.slice.call(tela.querySelectorAll('.kpi.anel svg circle:nth-of-type(2)')), antes.aneis, 'stroke-dasharray',
+    function(c){ return c.getAttribute('stroke-dasharray'); }, function(c, v){ c.style.strokeDasharray = v.replace(' ', 'px ') + 'px'; });
+}
 // Troca a unidade das telas que mostram valor. Não busca nada de novo: o R$ já vem no mesmo snapshot,
 // no campo "rs" ao lado de cada "itens". Fora do modo diretoria o seletor não existe na página.
 var TELAS_COM_VALOR = { telaC:1, telaF:1 };   // as outras não mudam nada com o toggle: ele some nelas
@@ -1286,9 +1341,12 @@ document.getElementById('selUn').addEventListener('click', function(e){
   var b = e.target.closest('button'); if (!b) return;
   var novo = b.dataset.u === 'rs';
   if (novo === emRs) return;
+  // Sem a entrada (que apaga e reacende a tela): os números rolam do valor antigo para o novo e as
+  // barras e os anéis deslizam até o tamanho novo. As colunas já fazem isso sozinhas (animaGraficos).
+  var tela = telas[atual], antes = capturaTela(tela);
   emRs = novo; marcaUnidade();
   redesenhar();
-  animaEntrada(telas[atual]);
+  transitaTela(tela, antes);
 });
 
 /* ================= GIRO DAS TELAS ================= */
