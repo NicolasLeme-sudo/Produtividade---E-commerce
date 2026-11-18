@@ -184,6 +184,11 @@ async function maisAntigoOp(arq) {
   const ing = ingest || ingestLeitura || (ingestLeitura = carregarIngest(true));
   return ing.api.maisAntigoOp(arquivoComoFile(arq));
 }
+// Guarda de frescor do baixador: a importação mais nova que veio no arquivo.
+async function maisNovoOp(arq) {
+  const ing = ingest || ingestLeitura || (ingestLeitura = carregarIngest(true));
+  return ing.api.maisNovoOp(arquivoComoFile(arq));
+}
 
 /* ---------------- vigia de pasta ---------------- */
 function lerEstado() { try { return JSON.parse(fs.readFileSync(ARQ_ESTADO, "utf8")); } catch (e) { return {}; } }
@@ -265,7 +270,7 @@ async function vigiar(cfg) {
   if (cfg.WMS_USUARIO) {
     // Erro no baixador: tenta de novo em 1 min aqui mesmo (o robô só para quando você desliga).
     const ligarBaixador = function () {
-      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp, aoFimDaRodada: function () { return verEmails(true); } })
+      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp, maisNovoOp: maisNovoOp, aoFimDaRodada: function () { return verEmails(true); } })
         .catch(function (e) { log("ERRO no baixador: " + e.message + " · tento de novo em 1 min"); setTimeout(ligarBaixador, 60000); });
     };
     ligarBaixador();
@@ -299,7 +304,7 @@ async function vigiar(cfg) {
   }, INTERVALO_MS);
 }
 
-module.exports = { lerEnv: lerEnv, log: log, maisAntigoOp: maisAntigoOp, prepararIngest: prepararIngest };
+module.exports = { lerEnv: lerEnv, log: log, maisAntigoOp: maisAntigoOp, maisNovoOp: maisNovoOp, prepararIngest: prepararIngest };
 
 /* ---------------- início ---------------- */
 if (require.main === module) (async function () {

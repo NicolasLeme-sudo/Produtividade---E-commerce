@@ -3098,6 +3098,14 @@ window.ProdutividadeIngest = {
     Object.keys(p).forEach(function (k) { var t = p[k][2]; if (t && (m === null || t < m)) m = t; });
     return m;
   },
+  // Robô: "Importado em" (ms) do pedido MAIS NOVO de um Acompanhamento OP. O baixador usa isto como
+  // guarda de frescor: o filtro "Período > 30 dias" do WMS vira um intervalo FIXO na tela, então uma aba
+  // que sobreviva à virada do dia passa a exportar só pedidos antigos, sem nenhum erro aparente.
+  maisNovoOp: async function (file) {
+    var p = processarOperacaoOp(await parseArquivoGenerico(file)), m = null;
+    Object.keys(p).forEach(function (k) { var t = p[k][2]; if (t && (m === null || t > m)) m = t; });
+    return m;
+  },
 };
 
 })();

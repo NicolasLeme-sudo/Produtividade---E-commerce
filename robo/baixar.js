@@ -78,6 +78,19 @@ function emOperacao(agora) {
   return true;
 }
 const SO_FORA_OPERACAO = ["op", "itensnf"];               // os dois relatórios da tela "Operação agora"
+
+/* ---------------- guardas de frescor ----------------
+   O robô pode rodar sem nenhum erro e mesmo assim exportar uma tela CONGELADA: em 18/11 a aba do OP
+   estava presa no período que terminava em 16/11 e o arquivo chegava novinho a cada 30 min, com dados
+   de dois dias antes. Não havia erro no log e o selo do telão ficava verde, porque ele mede a hora da
+   ENTREGA e não a idade do CONTEÚDO. Estas duas guardas olham o conteúdo. ---------------- */
+const DIAS_OP_PARADO = 2;      // OP sem nenhuma importação há 2+ dias corridos = aba presa num período velho
+const RODADAS_IGUAIS = 3;      // mesmo arquivo 3 rodadas seguidas EM OPERAÇÃO = tela que não atualiza mais
+function diasCorridos(ms) {
+  const a = new Date(ms); a.setHours(0, 0, 0, 0);
+  const b = new Date(); b.setHours(0, 0, 0, 0);
+  return Math.round((b - a) / 86400000);
+}
 function marcarRodada() { try { fs.writeFileSync(ARQ_ULTIMA, new Date().toISOString()); } catch (e) {} }
 function inicioDoDia() {
   if (PERIODO.de) return PERIODO.de;
@@ -393,6 +406,7 @@ async function iniciar(cfg, log, opcoes) {
   }
 
   const st = { maisAntigoOp: null, pausaAte: 0 };
+  const repetido = {};   // id da tela -> { tam, n } para a guarda de "arquivo igual N rodadas seguidas"
   // Itens de NF reaproveitado: a data inicial do filtro dele vira o "pedido mais antigo" até o próximo OP.
   if (abas.itensnf && abas.itensnf.chave) { const d = dataBR(abas.itensnf.chave.split("-")[0]); if (d) st.maisAntigoOp = d.getTime(); }
 
@@ -445,7 +459,41 @@ async function iniciar(cfg, log, opcoes) {
             const ms = await opcoes.maisAntigoOp(arq);
             if (ms) st.maisAntigoOp = ms;
           } catch (e) { log("   não li o pedido mais antigo do OP: " + e.message); }
+          // GUARDA 1 (frescor do OP): o arquivo chega novo, mas o conteúdo pode ser de dias atrás se a
+          // aba ficou presa num período antigo. Sem isto, ninguém percebe: não há erro e o selo do telão
+          // fica verde. Refaz a aba e exporta de novo na MESMA rodada, uma vez só.
+          if (opcoes.maisNovoOp && !refazendo) {
+            const novoMs = await opcoes.maisNovoOp(arq).catch(function () { return null; });
+            const dias = novoMs ? diasCorridos(novoMs) : null;
+            if (dias !== null && dias >= DIAS_OP_PARADO) {
+              log("   ALERTA " + tela.nome + ": importação mais nova no arquivo é de " +
+                  ddmmaaaa(new Date(novoMs)) + " (" + dias + " dias) — aba presa num período velho; refazendo");
+              if (aba && !aba.page.isClosed()) { try { await aba.page.close({ runBeforeUnload: false }); } catch (x) {} }
+              delete abas[tela.id];
+              return rodar(tela, true);
+            }
+          }
         }
+      }
+      // GUARDA 2 (tela que parou de atualizar): em operação nenhum relatório fica idêntico por 1h30.
+      // Pega qualquer aba congelada, não só a do OP. Fora do horário de operação não vale: de madrugada
+      // é normal o arquivo não mudar. Aqui só marca para refazer na próxima rodada, sem travar esta.
+      if (emOperacao()) {
+        fim.then(function (arq) {
+          if (!arq) return;
+          let tam = 0;
+          try { tam = fs.statSync(arq).size; } catch (e) { return; }
+          const r = repetido[tela.id] || (repetido[tela.id] = { tam: 0, n: 0 });
+          r.n = tam === r.tam ? r.n + 1 : 0;
+          r.tam = tam;
+          if (r.n >= RODADAS_IGUAIS - 1) {
+            log("   ALERTA " + tela.nome + ": arquivo sem nenhuma mudança há " + (r.n + 1) +
+                " rodadas em operação — refazendo a aba na próxima rodada");
+            const a = abas[tela.id];
+            if (a) a.chave = null;
+            r.n = 0;
+          }
+        }).catch(function () {});
       }
     } catch (e) {
       aba = abas[tela.id];
@@ -546,7 +594,7 @@ if (require.main === module) {
   const robo = require("./robo");
   const cfg = robo.lerEnv();
   if (argumento("--pasta")) { cfg.PASTA = argumento("--pasta"); fs.mkdirSync(cfg.PASTA, { recursive: true }); }
-  iniciar(cfg, robo.log, { umaVez: process.argv.includes("--uma-vez"), maisAntigoOp: robo.maisAntigoOp })
+  iniciar(cfg, robo.log, { umaVez: process.argv.includes("--uma-vez"), maisAntigoOp: robo.maisAntigoOp, maisNovoOp: robo.maisNovoOp })
     .then(function () { process.exit(0); })
     .catch(function (e) { robo.log("ERRO: " + e.message); process.exit(1); });
 }
