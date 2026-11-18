@@ -482,6 +482,7 @@ function processarKardexEndereco(rows, indiceBaseAtivos, embalas) {
   var normalDia = new Map(), reversaDia = new Map();
   var normalHora = new Map();   // data -> [24] peças armazenadas por hora (só armazenagem normal)
   var normalUsuHora = new Map();// data -> Map(usuário do WMS -> [24]) peças por pessoa e hora (e-mail de Armazenagem)
+  var reversaUsuHora = new Map();// o mesmo para a reversa (endereços S): o e-mail mostra as duas, com a coluna Tipo
   var normalMin = new Map();    // data -> { minuto do dia: peças } (previsão "nesta hora"; não é gravado)
 
   rows.forEach(function (row) {
@@ -518,22 +519,28 @@ function processarKardexEndereco(rows, indiceBaseAtivos, embalas) {
         normalHora.set(dataISO, horas);
         var minuto = minutoDoValor(dataBruta);
         if (minuto !== null) { var mm = normalMin.get(dataISO) || {}; mm[minuto] = (mm[minuto] || 0) + delta; normalMin.set(dataISO, mm); }
-        var porU = normalUsuHora.get(dataISO) || new Map();
-        normalUsuHora.set(dataISO, porU);
-        // chave = usuário do WMS (igual aos analíticos de separação/conferência), não o nome resolvido
-        var usuWms = String(usuarioRaw || colaborador.nome || "").trim() || "(sem usuário)";
-        var arrU = porU.get(usuWms) || new Array(24).fill(0);
-        arrU[hora] += delta;
-        porU.set(usuWms, arrU);
+        gravarUsuHora(normalUsuHora, dataISO, hora, usuarioRaw || colaborador.nome, delta);
       }
     } else if (prefixo === "S") {
       porUsuarioReversa.set(colaborador.nome, (porUsuarioReversa.get(colaborador.nome) || 0) + delta);
       totalReversa += delta;
       somarNoDia(reversaDia, dataISO, colaborador.nome, delta);
+      var horaR = horaDoValor(dataBruta);
+      if (dataISO && horaR !== null) gravarUsuHora(reversaUsuHora, dataISO, horaR, usuarioRaw || colaborador.nome, delta);
     }
   });
 
-  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora, normalUsuHora: normalUsuHora, normalMin: normalMin, segDia: segDia };
+  return { porUsuarioNormal: porUsuarioNormal, porUsuarioReversa: porUsuarioReversa, totalNormal: totalNormal, totalReversa: totalReversa, normalDia: normalDia, reversaDia: reversaDia, normalHora: normalHora, normalUsuHora: normalUsuHora, reversaUsuHora: reversaUsuHora, normalMin: normalMin, segDia: segDia };
+}
+// data -> Map(usuário do WMS -> [24]): a chave é o usuário do WMS (igual aos analíticos de
+// separação e conferência), não o nome resolvido pela Base de ativos.
+function gravarUsuHora(destino, dataISO, hora, usuarioRaw, delta) {
+  var porU = destino.get(dataISO) || new Map();
+  destino.set(dataISO, porU);
+  var usuWms = String(usuarioRaw || "").trim() || "(sem usuário)";
+  var arrU = porU.get(usuWms) || new Array(24).fill(0);
+  arrU[hora] += delta;
+  porU.set(usuWms, arrU);
 }
 // Minuto do dia (0-1439) da coluna Data: "dd/mm/yyyy HH:mm:ss", serial do Excel ou Date. Sem hora = null.
 function minutoDoValor(valor) {
@@ -2774,6 +2781,7 @@ async function processar(id) {
         segDia: segDia5,
         // Por pessoa e hora (e-mail de Armazenagem): só os 3 dias mais recentes, para não inchar o snapshot.
         normalUsuHoraDia: mesclarDias(armAnterior.normalUsuHoraDia, diaMapParaArray(r5.normalUsuHora)).slice(-3),
+        reversaUsuHoraDia: mesclarDias(armAnterior.reversaUsuHoraDia, diaMapParaArray(r5.reversaUsuHora)).slice(-3),
       };
       var diaOp5 = diaOperacionalIngest(new Date());
       atual5.armazenagem.previsao = previsaoDoDia(atual5.armazenagem.normalHoraDia, new Date(),

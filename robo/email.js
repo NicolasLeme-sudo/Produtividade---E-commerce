@@ -51,10 +51,16 @@ function mistura(cor, fundo, p) {
   return "#" + [0, 1, 2].map(function (i) { return Math.round(a[i] * p + b[i] * (1 - p)).toString(16).padStart(2, "0"); }).join("");
 }
 
+// Armazenagem: a mesma pessoa pode ter recebimento e reversa no dia, e cada um vira uma linha.
+// A chave do mapa carrega o tipo; a tabela mostra isso na coluna "Tipo", à esquerda do usuário.
+var MARCA_REVERSA = "\u0001R";
+function usuarioDaChave(k) { return String(k).split("\u0001")[0]; }
+function tipoDaChave(k) { return String(k).indexOf(MARCA_REVERSA) !== -1 ? "Reversa" : "Recebimento"; }
+
 /* ---------------- uma tabela (um cartão por atividade) ---------------- */
 // pessoas = { usuário: [24] peças por hora }; turnos (opcional) = { usuário: "T01" } acrescenta a coluna Turno
 // à esquerda, usada nos e-mails de fechamento.  ->  { html, total, horas, pessoas }
-function tabela(titulo, pessoas, cor, tema, turnos, extra) {
+function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo) {
   var email = tema === "email";                        // e-mail: paleta clara, sem zebra (ver nota abaixo)
   var T = TEMAS[tema === "escuro" ? "escuro" : "claro"];
   var corTotal = mistura(cor, T.mistura, T.pTotal);    // barra de totais: a mesma cor, mais fraca
@@ -66,7 +72,11 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
   var linhas = nomes.map(function (n) {
     return { nome: n, arr: pessoas[n], total: pessoas[n].reduce(function (s, v) { return s + v; }, 0) };
   }).filter(function (l) { return l.total > 0; });
-  linhas.sort(function (a, b) { return b.total - a.total || a.nome.localeCompare(b.nome); });
+  // Recebimento primeiro, reversa depois (a coluna Tipo agrupa); dentro de cada um, do maior para o menor
+  linhas.sort(function (a, b) {
+    var ta = tipoDaChave(a.nome) === "Reversa" ? 1 : 0, tb = tipoDaChave(b.nome) === "Reversa" ? 1 : 0;
+    return ta - tb || b.total - a.total || a.nome.localeCompare(b.nome);
+  });
   var total = linhas.reduce(function (s, l) { return s + l.total; }, 0);
 
   /* CORES NO E-MAIL ---------------------------------------------------------
@@ -90,6 +100,7 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
   // Enxuto porque o Teams corta acima de 24 KB: a borda vem do atributo da tabela e o respiro do
   // cellpadding; o style da célula leva só fundo e cor, e só onde há barra colorida.
   var colTurno = !!turnos;
+  colTipo = !!colTipo;
   var claraDemais = ["#F6BD00", "#F5A524"].indexOf(cor) !== -1;      // amarelo e laranja pedem texto escuro
   var eTh = 'style="background:' + cor + ";color:" + (claraDemais ? "#1C2333" : "#fff") + '"';
   var eTot = 'style="background:' + corTotal + ";color:" + T.texto + '"';
@@ -97,17 +108,20 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra) {
   var tbl = '<table border="1" bordercolor="' + T.borda + '" cellspacing="0" cellpadding="5" style="' + FONTE +
     "border-collapse:collapse;font-size:13px;width:100%;text-align:right;white-space:nowrap;color:" + T.texto + ";background:" + T.cartao + '">';
   var cab = '<tr align="right" style="font-weight:600">' +
-    (colTurno ? '<th align="left" ' + eTh + ">Turno</th>" : "") + '<th align="left" ' + eTh + ">Usuário</th>" +
+    (colTurno ? '<th align="left" ' + eTh + ">Turno</th>" : "") +
+    (colTipo ? '<th align="left" ' + eTh + ">Tipo</th>" : "") + '<th align="left" ' + eTh + ">Usuário</th>" +
     horas.map(function (h) { return "<th " + eTh + ">" + rotHora(h) + "</th>"; }).join("") + "<th " + eTh + ">Total</th></tr>";
   var corpo = linhas.map(function (l, i) {
     var fundo = zebra && i % 2 ? ' bgcolor="' + zebra + '" style="color:' + T.texto + '"' : "";
     return '<tr align="right"' + fundo + ">" +
       (colTurno ? '<td align="left">' + esc(turnos[l.nome] || "—") + "</td>" : "") +
-      '<td align="left">' + esc(l.nome) + "</td>" +
+      (colTipo ? '<td align="left">' + tipoDaChave(l.nome) + "</td>" : "") +
+      '<td align="left">' + esc(usuarioDaChave(l.nome)) + "</td>" +
       horas.map(function (h) { return "<td>" + (l.arr[h] ? fmt(l.arr[h]) : "·") + "</td>"; }).join("") +
       '<td style="color:' + cor + ';font-weight:700"><b>' + fmt(l.total) + "</b></td></tr>";
   }).join("");
   var rodape = '<tr align="right" style="font-weight:700">' + (colTurno ? "<td " + eTot + "></td>" : "") +
+    (colTipo ? "<td " + eTot + "></td>" : "") +
     '<td align="left" ' + eTot + ">Total</td>" +
     horas.map(function (h) {
       var sm = linhas.reduce(function (a, l) { return a + (l.arr[h] || 0); }, 0);
@@ -128,7 +142,7 @@ var CADASTRO = (function () {
   try { return JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "turnos-wms.json"), "utf8")).turnos || {}; }
   catch (e) { return {}; }
 })();
-function turnoCadastrado(usuario) { return CADASTRO[String(usuario || "").replace(/,/g, ".").toUpperCase()] || null; }
+function turnoCadastrado(usuario) { return CADASTRO[usuarioDaChave(usuario).replace(/,/g, ".").toUpperCase()] || null; }
 
 // Pelo PESO da produção até as 14h48, quando o T02 entra: quem produziu mais antes disso é da
 // manhã (T01 ou ADM), senão é do T02. A 1ª produção sozinha não servia (o T02 começa 14h48 e as
@@ -263,10 +277,16 @@ function expedicaoPorUsuario(op, dia) {
   return doDiaOperacional(um(dia), um(proximoDia(dia)));
 }
 // Armazenagem: normalUsuHoraDia já vem com o nome resolvido pela Base de ativos.
+// Recebimento (endereços H/I/J) + reversa (endereços S) na mesma tabela: a reversa entra com a
+// marca no fim da chave e vira uma linha "Reversa" (pedido 18/11 — antes só o recebimento contava).
 function armazenagemPorUsuario(inbound, dia) {
-  var lista = ((inbound || {}).armazenagem || {}).normalUsuHoraDia;
-  var um = function (data) { var d = doDia(lista, data); return d ? d.itens || {} : {}; };
-  return doDiaOperacional(um(dia), um(proximoDia(dia)));
+  var arm = (inbound || {}).armazenagem || {};
+  var um = function (lista, data) { var d = doDia(lista, data); return d ? d.itens || {} : {}; };
+  var doDois = function (lista) { return doDiaOperacional(um(lista, dia), um(lista, proximoDia(dia))); };
+  var out = somarEm({}, doDois(arm.normalUsuHoraDia));
+  var rev = doDois(arm.reversaUsuHoraDia);
+  Object.keys(rev).forEach(function (u) { out[u + MARCA_REVERSA] = rev[u]; });
+  return out;
 }
 
 /* ---------------- os blocos (um por canal do Teams) ---------------- */
@@ -289,14 +309,14 @@ function blocos(t) {
       tabelas: [["Separado", t.sep.T01, C.sep], ["Conferido", t.conf.T01, C.conf], ["Expedido", t.exp.T01, C.exp]] },
     { id: "out-t02", canal: "OUT_T02", tit: "Outbound · T02",
       tabelas: [["Separado", t.sep.T02, C.sep], ["Conferido", t.conf.T02, C.conf], ["Expedido", t.exp.T02, C.exp]] },
-    { id: "in-adm", canal: "IN_ADM", copiaFechamento: "FECHAMENTO", tit: "Inbound · ADM", tabelas: [["Armazenado", t.arm.ADM, C.arm]] },
-    { id: "in-t02", canal: "IN_T02", tit: "Inbound · T02", tabelas: [["Armazenado", t.arm.T02, C.arm]] },
+    { id: "in-adm", canal: "IN_ADM", copiaFechamento: "FECHAMENTO", tit: "Inbound · ADM", tabelas: [["Armazenado", t.arm.ADM, C.arm, null, 1]] },
+    { id: "in-t02", canal: "IN_T02", tit: "Inbound · T02", tabelas: [["Armazenado", t.arm.T02, C.arm, null, 1]] },
     { id: "fech-dia-out", canal: "FECHAMENTO", dia: 1, tit: "Fechamento do dia · Outbound", tabelas: [
       ["Separado", juntarTurnos(t.sep.T01, t.sep.T02), C.sep, rot.sep],
       ["Conferido", juntarTurnos(t.conf.T01, t.conf.T02), C.conf, rot.conf],
       ["Expedido", juntarTurnos(t.exp.T01, t.exp.T02), C.exp, rot.exp]] },
     { id: "fech-dia-in", canal: "FECHAMENTO", dia: 1, tit: "Fechamento do dia · Inbound", tabelas: [
-      ["Armazenado", juntarTurnos(t.arm.ADM, t.arm.T02), C.arm, rot.arm]] }
+      ["Armazenado", juntarTurnos(t.arm.ADM, t.arm.T02), C.arm, rot.arm, 1]] }
   ];
 }
 // O Teams corta e-mail acima de 24 KB (vira "Exibir email original" e a tabela some).
@@ -317,7 +337,7 @@ function mensagens(bloco, dia, fech, horaTexto) {
 
 // Corpo do e-mail: tabelas no tema claro (fundo branco do Outlook/Teams) e um rodapé curto.
 function corpoEmail(bloco, dia, fech, horaTexto) {
-  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "email", x[3]); });
+  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "email", x[3], null, x[4]); });
   return '<div style="' + FONTE + 'padding:4px 2px">' + ts.map(function (t) { return t.html; }).join("<br><br>") + "</div>";
 }
 // O assunto vira o título da mensagem no canal do Teams: setor, turno, dia e a hora que a tabela
@@ -339,6 +359,6 @@ module.exports = {
   ordemHora: ordemHora, rotHora: rotHora, fmt: fmt, esc: esc, dataBR: dataBR, mistura: mistura,
   blocos: blocos, corpoEmail: corpoEmail, assuntoDe: assuntoDe, mensagens: mensagens, LIMITE_TEAMS: LIMITE_TEAMS,
   tabela: tabela, porTurno: porTurno, turnoDaPessoa: turnoDaPessoa, somarEm: somarEm, juntarTurnos: juntarTurnos, rotulosTurno: rotulosTurno,
-  turnoCadastrado: turnoCadastrado, analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
+  turnoCadastrado: turnoCadastrado, usuarioDaChave: usuarioDaChave, tipoDaChave: tipoDaChave, analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
   expedicaoPorUsuario: expedicaoPorUsuario, armazenagemPorUsuario: armazenagemPorUsuario
 };

@@ -27,7 +27,8 @@ async function cliente(cfg) {
 function semExcluidos(mapa, fora) {
   if (!fora || !fora.length) return mapa;
   const out = {};
-  Object.keys(mapa || {}).forEach(function (u) { if (fora.indexOf(String(u).trim().toUpperCase()) === -1) out[u] = mapa[u]; });
+  // a chave da armazenagem pode trazer a marca da reversa: compara só o usuário
+  Object.keys(mapa || {}).forEach(function (u) { if (fora.indexOf(E.usuarioDaChave(u).trim().toUpperCase()) === -1) out[u] = mapa[u]; });
   return out;
 }
 
