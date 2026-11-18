@@ -10,9 +10,9 @@
 <meta name="apple-mobile-web-app-title" content="Telão" id="tituloApp">
 <script>// O manifesto (ícone da Tela de Início) é escolhido aqui, nunca fixo no HTML: aberto pelo link da operação,
 // o ícone abre direto em ?modo=operacao; sem manifesto, o iPhone guarda o endereço exato da página (com o ?modo).
-(function(){ var op = /[?&]modo=operacao\b/.test(location.search), l = document.createElement('link');
-  l.rel = 'manifest'; l.href = op ? '/tv-operacao.webmanifest' : '/tv.webmanifest'; document.head.appendChild(l);
-  if (op) document.getElementById('tituloApp').content = 'Operação'; })();</script>
+(function(){ var op = /[?&]modo=operacao\b/.test(location.search), dir = /[?&]modo=diretoria\b/.test(location.search), l = document.createElement('link');
+  l.rel = 'manifest'; l.href = dir ? '/tv-diretoria.webmanifest' : op ? '/tv-operacao.webmanifest' : '/tv.webmanifest'; document.head.appendChild(l);   /* diretoria: sem manifesto próprio o ícone abria a Corrida (18/11) */
+  if (op) document.getElementById('tituloApp').content = 'Operação'; if (dir) document.getElementById('tituloApp').content = 'Diretoria'; })();</script>
 <meta name="theme-color" content="#0F1A33">
 <link rel="apple-touch-icon" href="/logo-mark.png">
 <title>Telão · Produtividade E-commerce</title>
