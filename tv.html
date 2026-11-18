@@ -125,10 +125,9 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .gdias .horas i{min-width:54px;font-size:18px;line-height:1.25}
 .gdias .horas i b{display:block;font-size:15px;font-weight:700;opacity:.8}
 .gdias .horas i.hoje,.gdias .horas i.hoje b{color:var(--text);font-weight:800;opacity:1}
-/* Traço do planejamento do dia: tracejado e branco, igual à linha de média dos outros gráficos,
-   sem contorno em volta (o contorno é que estava pesando na tela). */
-.gdias .colunas span u{position:absolute;left:-6px;right:-6px;border-top:2px dashed #fff;
-  text-decoration:none;z-index:1}
+/* Linha do planejamento: tracejada e branca, igual à linha de média dos outros gráficos, sem contorno.
+   Um traço contínuo por trecho de dias com o mesmo plano (posição calculada no graficoDias). */
+.gdias .colunas .plano{position:absolute;border-top:2px dashed #fff;z-index:1;pointer-events:none}
 .leg-plano{display:flex;align-items:center;gap:8px;font-size:17px;color:var(--text-muted)}
 .leg-plano i{display:inline-block;width:20px;border-top:2px dashed #fff}
 .selTurno button{height:34px;padding:0 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 40%, transparent);background:transparent;color:var(--text-muted);font-family:inherit;font-size:16px;font-weight:800;cursor:pointer}
@@ -187,6 +186,33 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .tela.saindo{animation:telaSai .35s ease-in both}
 @keyframes telaEntra{from{opacity:0;transform:translateX(28px)}}
 @keyframes telaSai{to{opacity:0;transform:translateX(-28px)}}
+/* ---------- Entrada dos elementos ao abrir cada tela (todas as telas, todos os modos) ----------
+   A tela já desliza; agora o conteúdo também chega: cartões em cascata, painéis subindo, colunas e barras
+   crescendo, roscas girando. Classe "entrando" posta pelo entraTela() e tirada depois de 1,8 s.
+   Só opacity/clip-path/transform de elementos que não usam transform para outra coisa — os carros e os
+   cartões da Corrida têm a animação de ultrapassagem (FLIP) e ali entra só opacidade. */
+.tela.entrando .kpi{animation:entraCard .6s cubic-bezier(.2,.8,.2,1) both}
+.tela.entrando .kpi:nth-child(2){animation-delay:.07s}.tela.entrando .kpi:nth-child(3){animation-delay:.14s}
+.tela.entrando .kpi:nth-child(4){animation-delay:.21s}.tela.entrando .kpi:nth-child(5){animation-delay:.28s}
+.tela.entrando .kpi:nth-child(6){animation-delay:.35s}
+.tela.entrando .painel{animation:entraPainel .7s cubic-bezier(.2,.8,.2,1) .15s both}
+.tela.entrando .colunas span{animation:cresceCol 1s cubic-bezier(.2,.8,.2,1) .3s both}
+.tela.entrando .colunas .plano,.tela.entrando .colunas .media{animation:entraFade .5s ease 1s both}
+.tela.entrando .etapa .barra{animation:cresceBarra 1s cubic-bezier(.2,.8,.2,1) .3s both}
+.tela.entrando .pizza svg,.tela.entrando .kpi.anel svg{animation:giraRosca 1s cubic-bezier(.2,.8,.2,1) .25s both}
+.tela.entrando .cl{animation:entraFade .55s ease both}
+.tela.entrando .cl:nth-child(2){animation-delay:.05s}.tela.entrando .cl:nth-child(3){animation-delay:.1s}
+.tela.entrando .cl:nth-child(4){animation-delay:.15s}.tela.entrando .cl:nth-child(5){animation-delay:.2s}
+.tela.entrando .cl:nth-child(6){animation-delay:.25s}.tela.entrando .cl:nth-child(7){animation-delay:.3s}
+.tela.entrando .cl:nth-child(n+8){animation-delay:.35s}
+@keyframes entraCard{from{opacity:0;transform:translateY(16px)}}
+@keyframes entraPainel{from{opacity:0;transform:translateY(12px)}}
+@keyframes entraFade{from{opacity:0}}
+/* cresce de baixo para cima sem achatar o rótulo (clip em vez de scale); o topo negativo deixa o rótulo à vista */
+@keyframes cresceCol{from{clip-path:inset(100% -60px 0 -60px)}to{clip-path:inset(-140px -60px 0 -60px)}}
+@keyframes cresceBarra{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes giraRosca{from{opacity:0;transform:rotate(-120deg) scale(.7)}}
+@media (prefers-reduced-motion: reduce){.tela.entrando *{animation:none!important}}
 @media (prefers-reduced-motion:reduce){.tela.on,.tela.saindo{animation:none}}
 .panel{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px 18px}
 .panel-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}.panel-head h4{margin:0;font-size:14px}
@@ -565,6 +591,10 @@ function animaGraficos(){
 // Número rolando como contagem: do valor antigo até o novo em ~1 s (formato pt-BR).
 function contaNumero(sp, antigoTxt){
   var em = sp.querySelector('em'); if (!em) return;
+  // Só conta rótulo que é número puro ("12.369"). "R$ 4,48 M" virava 448 ao tirar o que não é dígito,
+  // e esse 448 ficava gravado no rótulo até a próxima atualização (diretoria, 18/11).
+  var puro = /^[\d.]+$/;
+  if (!puro.test(em.textContent.trim()) || !puro.test(String(antigoTxt).trim())) return;
   var de = +String(antigoTxt).replace(/\D/g, '') || 0, ate = +em.textContent.replace(/\D/g, '') || 0, t0 = performance.now(), dur = 1000;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches || de === ate) return;
   sp.classList.add('conta');
@@ -1087,8 +1117,8 @@ function corAtingimento(pct){
   var t = Math.max(0, Math.min(1, (pct || 0)/100));
   return t < .5 ? tomCalor('#E0334F', '#F6BD00', t/.5) : tomCalor('#F6BD00', COR_PXR, (t - .5)/.5);
 }
-// Backlog: bater a meta é ficar ABAIXO do previsto. Bateu = verde; não bateu = âmbar.
-function corBacklog(pct){ return (pct || 0) <= 100 ? COR_PXR : '#F6BD00'; }
+// Backlog: verde só quando chega ao previsto (ou passa). Abaixo dele, âmbar (decisão 18/11).
+function corBacklog(pct){ return (pct || 0) >= 100 ? COR_PXR : '#F6BD00'; }
 
 // Anel de progresso do card. Substitui as barras compridas que ficavam no corpo da tela: ocupa o canto
 // do cartão, mostra o % no centro e deixa o espaço grande da tela para os gráficos.
@@ -1118,26 +1148,42 @@ var DOW_CURTO = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 function dowDe(iso){ var p = iso.split('-'); return DOW_CURTO[new Date(+p[0], +p[1]-1, +p[2]).getDay()]; }
 function graficoDias(linhas, cor, cor2, fmtV){
   if (!linhas.length) return null;
-  var mx = Math.max.apply(null, linhas.map(function(x){ return Math.max(x.real, x.plano); }).concat([1])) * 1.18;
-  var rola = linhas.length > JANELA_DIAS, larg = rola ? (linhas.length / JANELA_DIAS * 100).toFixed(2) : 100;
+  var n = linhas.length;
+  var mx = Math.max.apply(null, linhas.map(function(x){ return Math.max(x.real, x.plano); }).concat([1])) * 1.2;
+  var rola = n > JANELA_DIAS, larg = rola ? (n / JANELA_DIAS * 100).toFixed(2) : 100;
   var hoje = hojeOp();
   var cols = linhas.map(function(x){
-    // VERDE só quando o dia bate o planejamento. Abaixo dele, âmbar. Dia sem plano (fim de semana sem
-    // forecast) fica num tom neutro: não dá para dizer que bateu nem que deixou de bater.
-    var cf = !x.plano ? '#5A6B86' : x.real >= x.plano ? COR_PXR : '#F6BD00';
+    // VERDE quando o dia bate o planejamento; VERMELHO quando não bate; neutro quando não há plano
+    // (fim de semana sem forecast: não dá para dizer que bateu nem que deixou de bater).
+    var cf = !x.plano ? '#5A6B86' : x.real >= x.plano ? COR_PXR : '#E0334F';
+    // Rótulo x linha: quando o topo da coluna fica logo abaixo do planejamento, o rótulo cairia em cima
+    // do tracejado. Aí ele sobe para cima da linha. (bottom do rótulo é % da altura da própria coluna.)
+    var colide = x.plano && x.real > 0 && x.plano > x.real && (x.plano - x.real)/mx < 0.09;
+    var emSt = colide ? ' style="bottom:calc('+(x.plano/x.real*100).toFixed(1)+'% + 8px)"' : '';
     return '<span data-h="'+x.d+'" class="'+(x.d === hoje ? 'agora' : '')+'" style="height:'+(x.real/mx*100).toFixed(1)+'%;background-color:'+cf+'">'+
-      // o traço fica DENTRO da coluna, e aí o bottom é % da altura DELA: plano/real. Plano acima do
-      // realizado passa de 100% e o traço aparece acima da barra, que é exatamente o que se quer ver.
-      (x.plano && x.real > 0 ? '<u style="bottom:'+(x.plano/x.real*100).toFixed(1)+'%"></u>' : '')+
-      '<em>'+fmtV(x.real)+'</em></span>';
+      '<em'+emSt+'>'+fmtV(x.real)+'</em></span>';
+  }).join('');
+  // Linha do planejamento: UM traço contínuo por trecho de dias com o mesmo plano, desenhado no gráfico
+  // (não dentro de cada coluna). Antes cada coluna tinha o seu pedaço esticado para os lados: os pedaços
+  // se encostavam com o tracejado fora de fase e a linha parecia atropelada.
+  var GAP = 12, trechos = [], ini = -1;
+  for (var i = 0; i <= n; i++) {
+    var p = i < n ? linhas[i].plano : null;
+    if (ini >= 0 && (i === n || p !== linhas[ini].plano)) { trechos.push({ i: ini, k: i - ini, v: linhas[ini].plano }); ini = -1; }
+    if (i < n && p && ini < 0) ini = i;
+  }
+  var colW = '(100% - '+((n-1)*GAP)+'px) / '+n;
+  var planos = trechos.map(function(t){
+    return '<div class="plano" style="bottom:'+(t.v/mx*100).toFixed(2)+'%;'+
+      'left:calc('+colW+' * '+t.i+' + '+(t.i*GAP)+'px);width:calc('+colW+' * '+t.k+' + '+((t.k-1)*GAP)+'px)"></div>';
   }).join('');
   var rots = linhas.map(function(x){
     return '<i class="'+(x.d === hoje ? 'hoje' : '')+'"><b>'+dowDe(x.d)+'</b>'+x.d.slice(8,10)+'/'+x.d.slice(5,7)+'</i>';
   }).join('');
   var g = '<div class="grafico gdias'+(rola ? ' rola' : '')+'" style="--cor:'+cor+';--cor2:'+cor2+'">'+
-    '<div class="trilho" style="width:'+larg+'%"><div class="colunas">'+cols+'</div><div class="horas">'+rots+'</div></div></div>';
+    '<div class="trilho" style="width:'+larg+'%"><div class="colunas">'+cols+planos+'</div><div class="horas">'+rots+'</div></div></div>';
   if (rola) {
-    var vis = (JANELA_DIAS / linhas.length * 100).toFixed(2);
+    var vis = (JANELA_DIAS / n * 100).toFixed(2);
     g = '<div class="gwrap">'+g+'<div class="barra" style="--cor:'+cor+'"><b style="width:'+vis+'%;left:'+(100-vis).toFixed(2)+'%"></b></div></div>';
   }
   return g;
@@ -1241,6 +1287,7 @@ document.getElementById('selUn').addEventListener('click', function(e){
   if (novo === emRs) return;
   emRs = novo; marcaUnidade();
   redesenhar();
+  animaEntrada(telas[atual]);
 });
 
 /* ================= GIRO DAS TELAS ================= */
@@ -1265,8 +1312,17 @@ var COR_CAL = { telaC:['#297ADF','#7FB2EC','#fff'], telaA:['#EF5B5B','#F59A9A','
                 telaE:['#F6BD00','#FCE38A','#142032'], telaD:['#F5A524','#FBCB7A','#142032'],
                 telaF:['#45C645','#9BE49B','#0E1626'] };   // Plano x Real: verde
 var sentidoTroca = 1;   // 1 = avançou (botão >, seta → ou rodízio), -1 = voltou (botão <, seta ←)
+// Reinicia a entrada dos elementos da tela (também chamada no 1º dado e no toggle Itens/R$).
+var tEntrada = null;
+function animaEntrada(el){
+  if (!el) return;
+  clearTimeout(tEntrada);
+  el.classList.remove('entrando'); void el.offsetWidth; el.classList.add('entrando');
+  tEntrada = setTimeout(function(){ el.classList.remove('entrando'); }, 1800);
+}
 function entraTela(i){
   telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
+  animaEntrada(telas[i]);
   var cc = COR_CAL[telas[i].id] || COR_CAL.telaC, pal = document.getElementById('palco');
   pal.style.setProperty('--cc', cc[0]); pal.style.setProperty('--cc2', cc[1]); pal.style.setProperty('--cc-t', cc[2]);
   var tit = document.getElementById('titulo'), novoTit = telas[i].getAttribute('data-titulo');
@@ -1521,6 +1577,7 @@ async function iniciar(){
   mostraTela(0);
   await carregarForecast();            // o forecast muda 1x por mês: basta buscar ao abrir
   await carregar();
+  animaEntrada(telas[atual]);          // a 1ª tela abriu vazia: a entrada roda de novo com o dado
   setInterval(carregar, REFRESH_S*1000);
   var teste = MODO_OPERACAO ? 0 : +Q.get('comemorar');
   if (TIMES_COR[teste]) { fila.push({ n:teste, pecas:META_DIA_TIME[teste] }); proximaComemoracao(); }
