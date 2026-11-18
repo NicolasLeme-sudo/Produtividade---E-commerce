@@ -63,8 +63,6 @@ var GINCANAS_DIA = {
   '2026-11-29': ['Mímica Relâmpago', 'Desenho às Cegas', 'Roleta do Balão', 'Desfile de Fantasia']
 };
 var GINCANAS = GINCANAS_DIA['2026-11-28'].concat(GINCANAS_DIA['2026-11-29']);
-// Roleta do Balão (regra real, fora da apresentação a pedido do RH): balão solto numa caixa de papelão fechada;
-// os participantes espetam a caixa com palitos de churrasco e ganha a equipe que estourar o balão.
 var GINCANAS_DESC = {
   'Desafio do Balão': 'Encher um balão e usar o ar para derrubar copos plásticos na mesa. Ganha quem derrubar mais em 1 minuto.',
   'Torre Black': 'Montar e desmontar uma pirâmide de copos plásticos no menor tempo, sem deixar cair.',
@@ -72,7 +70,7 @@ var GINCANAS_DESC = {
   'Performance TikTok': 'Apresentação de dança do TikTok: expectativa × realidade.',
   'Mímica Relâmpago': 'Representar sem falar palavras do dia a dia da empresa. A equipe tem 60 segundos para acertar o máximo.',
   'Desenho às Cegas': 'De olhos vendados, desenhar um objeto sorteado. A equipe tem 1 minuto para adivinhar.',
-  'Roleta do Balão': 'Surpresa: a regra só é revelada na hora.',
+  'Roleta do Balão': 'Um balão solto dentro de uma caixa de papelão fechada: os participantes espetam a caixa com palitos de churrasco. Ganha a equipe que estourar o balão.',
   'Desfile de Fantasia': 'Pontos para o time com mais integrantes fantasiados, a fantasia mais bonita e a mais criativa.'
 };
 
