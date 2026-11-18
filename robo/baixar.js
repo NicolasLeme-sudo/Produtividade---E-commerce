@@ -405,7 +405,23 @@ async function iniciar(cfg, log, opcoes) {
     for (const id in abas) try { await abas[id].page.close(); } catch (e) {}
   }
 
-  const st = { maisAntigoOp: null, pausaAte: 0 };
+  // Nível 2 da auto-cura: refazer só a aba não resolveu, então o problema está no Chrome ou na sessão.
+  // Mata o Chrome do robô (perfil ChromeRobo, que é exclusivo dele) e deixa o conectar() abrir de novo
+  // pelo atalho e remontar as abas. Existe porque de madrugada não há ninguém para religar na mão.
+  async function reiniciarChrome() {
+    log("   auto-cura: reiniciando o Chrome do robô");
+    for (const id in abas) { try { await abas[id].page.close({ runBeforeUnload: false }); } catch (e) {} delete abas[id]; }
+    try { await browser.close(); } catch (e) {}
+    try {
+      require("child_process").execFileSync("powershell", ["-NoProfile", "-Command",
+        "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Where-Object { $_.CommandLine -match 'ChromeRobo' } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop } catch {} }"],
+        { stdio: "ignore", timeout: 30000 });
+    } catch (e) { log("   auto-cura: não consegui encerrar o Chrome (" + e.message.split(String.fromCharCode(10))[0] + ")"); }
+    await new Promise(function (r) { setTimeout(r, 3000); });
+    await conectar();
+  }
+
+  const st = { maisAntigoOp: null, pausaAte: 0, curaOp: 0 };
   const repetido = {};   // id da tela -> { tam, n } para a guarda de "arquivo igual N rodadas seguidas"
   // Itens de NF reaproveitado: a data inicial do filtro dele vira o "pedido mais antigo" até o próximo OP.
   if (abas.itensnf && abas.itensnf.chave) { const d = dataBR(abas.itensnf.chave.split("-")[0]); if (d) st.maisAntigoOp = d.getTime(); }
@@ -466,11 +482,23 @@ async function iniciar(cfg, log, opcoes) {
             const novoMs = await opcoes.maisNovoOp(arq).catch(function () { return null; });
             const dias = novoMs ? diasCorridos(novoMs) : null;
             if (dias !== null && dias >= DIAS_OP_PARADO) {
+              // Escada de auto-cura: cada rodada que continua velha sobe um degrau. Não desiste em
+              // nenhum degrau, porque desistir significaria esperar alguém religar na mão.
+              st.curaOp = (st.curaOp || 0) + 1;
               log("   ALERTA " + tela.nome + ": importação mais nova no arquivo é de " +
-                  ddmmaaaa(new Date(novoMs)) + " (" + dias + " dias) — aba presa num período velho; refazendo");
-              if (aba && !aba.page.isClosed()) { try { await aba.page.close({ runBeforeUnload: false }); } catch (x) {} }
-              delete abas[tela.id];
+                  ddmmaaaa(new Date(novoMs)) + " (" + dias + " dias) — auto-cura nível " + st.curaOp +
+                  (st.curaOp >= 2 ? " (reiniciando o Chrome)" : " (refazendo a aba)"));
+              if (st.curaOp >= 2) {
+                await reiniciarChrome();
+              } else {
+                if (aba && !aba.page.isClosed()) { try { await aba.page.close({ runBeforeUnload: false }); } catch (x) {} }
+                delete abas[tela.id];
+              }
               return rodar(tela, true);
+            }
+            if (dias !== null && st.curaOp) {
+              log("   auto-cura: OP voltou com importação de " + ddmmaaaa(new Date(novoMs)) + " (nível " + st.curaOp + " resolveu)");
+              st.curaOp = 0;
             }
           }
         }
