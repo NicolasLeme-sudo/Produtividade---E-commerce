@@ -115,25 +115,22 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .kpi.anel .lado .a2{font-size:17px;color:var(--text-muted);white-space:nowrap}
 .kpi.anel .lado .a3{font-size:17px;font-weight:800;white-space:nowrap}
 
-/* Gráfico de colunas por DIA (faturamento), no padrão do telão e com a mesma rolagem do por hora. */
-.gdias .cols{flex:1;min-height:0;display:flex;align-items:flex-end;gap:12px;padding-top:30px}
-.gdias .cols .slot{position:relative;flex:1;min-width:52px;height:100%;display:flex;align-items:flex-end}
-.gdias .cols .slot b{display:block;width:100%;border-radius:7px 7px 0 0;background:var(--cd,var(--accent));
-  transition:height .6s cubic-bezier(.2,.8,.2,1)}
-/* O valor fica DENTRO da coluna, encostado no topo: assim nunca disputa espaço com a linha do
-   planejamento, que foi o que embolou na primeira versão. Coluna baixa demais joga o rótulo para fora. */
-.gdias .cols .slot em{position:absolute;left:0;right:0;text-align:center;font-style:normal;font-size:19px;
-  font-weight:800;white-space:nowrap;color:#0E1626}
-.gdias .cols .slot em.fora{color:var(--text)}
-/* Linha do planejamento: branca, acima das colunas, com um respiro escuro em volta para não sumir. */
-.gdias .cols .slot u{position:absolute;left:-6px;right:-6px;height:3px;border-radius:2px;background:#fff;
-  text-decoration:none;box-shadow:0 0 0 3px rgba(15,22,35,.75);z-index:2}
-.gdias .rot{display:flex;gap:12px}
-.gdias .rot i{flex:1;min-width:52px;text-align:center;font-style:normal;font-size:19px;color:var(--text-muted);line-height:1.2}
-.gdias .rot i b{display:block;font-size:15px;font-weight:700;color:var(--text-muted);opacity:.75}
-.gdias .rot i.hoje,.gdias .rot i.hoje b{color:var(--text);font-weight:800;opacity:1}
+/* Gráfico de colunas por DIA (faturamento): usa as MESMAS classes do gráfico por hora
+   (.colunas / .horas / .media), para ficar com a cara dos outros gráficos do telão e herdar
+   a animação de entrada das colunas. Aqui só o que é próprio do por-dia. */
+.gdias .colunas{gap:12px}
+.gdias .colunas span{min-width:54px}
+.gdias .colunas em{font-size:19px}
+.gdias .horas{gap:12px}
+.gdias .horas i{min-width:54px;font-size:18px;line-height:1.25}
+.gdias .horas i b{display:block;font-size:15px;font-weight:700;opacity:.8}
+.gdias .horas i.hoje,.gdias .horas i.hoje b{color:var(--text);font-weight:800;opacity:1}
+/* Traço do planejamento do dia: tracejado e branco, igual à linha de média dos outros gráficos,
+   sem contorno em volta (o contorno é que estava pesando na tela). */
+.gdias .colunas span u{position:absolute;left:-6px;right:-6px;border-top:2px dashed #fff;
+  text-decoration:none;z-index:1}
 .leg-plano{display:flex;align-items:center;gap:8px;font-size:17px;color:var(--text-muted)}
-.leg-plano i{display:inline-block;width:20px;height:3px;border-radius:2px;background:#fff}
+.leg-plano i{display:inline-block;width:20px;border-top:2px dashed #fff}
 .selTurno button{height:34px;padding:0 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 40%, transparent);background:transparent;color:var(--text-muted);font-family:inherit;font-size:16px;font-weight:800;cursor:pointer}
 .selTurno button:hover{border-color:var(--cc,#297ADF);color:var(--text)}
 .selTurno button.on{background:color-mix(in srgb, var(--cc,#297ADF) 30%, transparent);border-color:var(--cc,#297ADF);color:#fff}
@@ -1125,30 +1122,26 @@ function graficoDias(linhas, cor, cor2, fmtV){
   var rola = linhas.length > JANELA_DIAS, larg = rola ? (linhas.length / JANELA_DIAS * 100).toFixed(2) : 100;
   var hoje = hojeOp();
   var cols = linhas.map(function(x){
-    var h = x.real/mx*100, hs = h.toFixed(1);
     // VERDE só quando o dia bate o planejamento. Abaixo dele, âmbar. Dia sem plano (fim de semana sem
     // forecast) fica num tom neutro: não dá para dizer que bateu nem que deixou de bater.
     var cf = !x.plano ? '#5A6B86' : x.real >= x.plano ? COR_PXR : '#F6BD00';
-    // rótulo dentro da coluna quando ela tem altura para isso; senão vai para fora, em cima
-    var dentro = h >= 11;
-    return '<span class="slot">'+
-      (x.plano ? '<u style="bottom:'+(x.plano/mx*100).toFixed(1)+'%"></u>' : '')+
-      '<b style="height:'+hs+'%;background:'+cf+'"></b>'+
-      '<em class="'+(dentro ? '' : 'fora')+'" style="bottom:'+(dentro ? 'calc('+hs+'% - 28px)' : 'calc('+hs+'% + 6px)')+'">'+fmtV(x.real)+'</em>'+
-      '</span>';
+    return '<span data-h="'+x.d+'" class="'+(x.d === hoje ? 'agora' : '')+'" style="height:'+(x.real/mx*100).toFixed(1)+'%;background-color:'+cf+'">'+
+      // o traço fica DENTRO da coluna, e aí o bottom é % da altura DELA: plano/real. Plano acima do
+      // realizado passa de 100% e o traço aparece acima da barra, que é exatamente o que se quer ver.
+      (x.plano && x.real > 0 ? '<u style="bottom:'+(x.plano/x.real*100).toFixed(1)+'%"></u>' : '')+
+      '<em>'+fmtV(x.real)+'</em></span>';
   }).join('');
   var rots = linhas.map(function(x){
     return '<i class="'+(x.d === hoje ? 'hoje' : '')+'"><b>'+dowDe(x.d)+'</b>'+x.d.slice(8,10)+'/'+x.d.slice(5,7)+'</i>';
   }).join('');
   var g = '<div class="grafico gdias'+(rola ? ' rola' : '')+'" style="--cor:'+cor+';--cor2:'+cor2+'">'+
-    '<div class="trilho" style="width:'+larg+'%"><div class="cols">'+cols+'</div><div class="rot">'+rots+'</div></div></div>';
+    '<div class="trilho" style="width:'+larg+'%"><div class="colunas">'+cols+'</div><div class="horas">'+rots+'</div></div></div>';
   if (rola) {
     var vis = (JANELA_DIAS / linhas.length * 100).toFixed(2);
     g = '<div class="gwrap">'+g+'<div class="barra" style="--cor:'+cor+'"><b style="width:'+vis+'%;left:'+(100-vis).toFixed(2)+'%"></b></div></div>';
   }
   return g;
 }
-
 function renderTelaF(res){
   var el = document.getElementById('telaF');
   // fora do modo diretoria, sem forecast ou em dia passado: a tela nem entra no giro
