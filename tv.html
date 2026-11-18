@@ -116,20 +116,24 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .kpi.anel .lado .a3{font-size:17px;font-weight:800;white-space:nowrap}
 
 /* Gráfico de colunas por DIA (faturamento), no padrão do telão e com a mesma rolagem do por hora. */
-.gdias .cols{flex:1;min-height:0;display:flex;align-items:flex-end;gap:12px;padding-top:26px}
-.gdias .cols .slot{position:relative;flex:1;min-width:46px;height:100%;display:flex;align-items:flex-end}
+.gdias .cols{flex:1;min-height:0;display:flex;align-items:flex-end;gap:12px;padding-top:30px}
+.gdias .cols .slot{position:relative;flex:1;min-width:52px;height:100%;display:flex;align-items:flex-end}
 .gdias .cols .slot b{display:block;width:100%;border-radius:7px 7px 0 0;background:var(--cd,var(--accent));
   transition:height .6s cubic-bezier(.2,.8,.2,1)}
-.gdias .cols .slot em{position:absolute;left:0;right:0;text-align:center;font-style:normal;font-size:16px;
-  font-weight:800;color:var(--text);white-space:nowrap}
-/* traço do plano do dia, igual à linha de previsão do indicador financeiro */
-.gdias .cols .slot u{position:absolute;left:-4px;right:-4px;height:4px;border-radius:2px;background:var(--amber);
-  text-decoration:none;box-shadow:0 0 0 2px rgba(15,22,35,.55)}
+/* O valor fica DENTRO da coluna, encostado no topo: assim nunca disputa espaço com a linha do
+   planejamento, que foi o que embolou na primeira versão. Coluna baixa demais joga o rótulo para fora. */
+.gdias .cols .slot em{position:absolute;left:0;right:0;text-align:center;font-style:normal;font-size:19px;
+  font-weight:800;white-space:nowrap;color:#0E1626}
+.gdias .cols .slot em.fora{color:var(--text)}
+/* Linha do planejamento: branca, acima das colunas, com um respiro escuro em volta para não sumir. */
+.gdias .cols .slot u{position:absolute;left:-6px;right:-6px;height:3px;border-radius:2px;background:#fff;
+  text-decoration:none;box-shadow:0 0 0 3px rgba(15,22,35,.75);z-index:2}
 .gdias .rot{display:flex;gap:12px}
-.gdias .rot i{flex:1;min-width:46px;text-align:center;font-style:normal;font-size:16px;color:var(--text-muted)}
-.gdias .rot i.hoje{color:var(--text);font-weight:800}
-.leg-plano{display:flex;align-items:center;gap:8px;font-size:16px;color:var(--text-muted)}
-.leg-plano i{display:inline-block;width:18px;height:4px;border-radius:2px;background:var(--amber)}
+.gdias .rot i{flex:1;min-width:52px;text-align:center;font-style:normal;font-size:19px;color:var(--text-muted);line-height:1.2}
+.gdias .rot i b{display:block;font-size:15px;font-weight:700;color:var(--text-muted);opacity:.75}
+.gdias .rot i.hoje,.gdias .rot i.hoje b{color:var(--text);font-weight:800;opacity:1}
+.leg-plano{display:flex;align-items:center;gap:8px;font-size:17px;color:var(--text-muted)}
+.leg-plano i{display:inline-block;width:20px;height:3px;border-radius:2px;background:#fff}
 .selTurno button{height:34px;padding:0 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 40%, transparent);background:transparent;color:var(--text-muted);font-family:inherit;font-size:16px;font-weight:800;cursor:pointer}
 .selTurno button:hover{border-color:var(--cc,#297ADF);color:var(--text)}
 .selTurno button.on{background:color-mix(in srgb, var(--cc,#297ADF) 30%, transparent);border-color:var(--cc,#297ADF);color:#fff}
@@ -1080,6 +1084,14 @@ function pctCor(pct, inverso){
   return pct >= 95 ? COR_PXR : pct >= 70 ? 'var(--amber)' : 'var(--red)';
 }
 var COR_PXR = '#45C645', COR_PXR2 = '#9BE49B';   // verde: cor de destaque da tela Plano x Real
+// Faturado: a cor acompanha o atingimento, do vermelho ao verde passando pelo âmbar — o dia começa
+// vermelho de manhã e vai esquentando até o verde quando o forecast é alcançado.
+function corAtingimento(pct){
+  var t = Math.max(0, Math.min(1, (pct || 0)/100));
+  return t < .5 ? tomCalor('#E0334F', '#F6BD00', t/.5) : tomCalor('#F6BD00', COR_PXR, (t - .5)/.5);
+}
+// Backlog: bater a meta é ficar ABAIXO do previsto. Bateu = verde; não bateu = âmbar.
+function corBacklog(pct){ return (pct || 0) <= 100 ? COR_PXR : '#F6BD00'; }
 
 // Anel de progresso do card. Substitui as barras compridas que ficavam no corpo da tela: ocupa o canto
 // do cartão, mostra o % no centro e deixa o espaço grande da tela para os gráficos.
@@ -1104,25 +1116,29 @@ function cardAnel(rot, pct, cor, real, plano, delta){
 // Gráfico de colunas por DIA (faturamento), no padrão do telão: coluna por dia, traço do plano em cada
 // uma (como a linha de previsão do indicador financeiro) e a mesma barra de rolagem do gráfico por hora,
 // abrindo encostado à direita (dia mais recente à vista).
-var JANELA_DIAS = 7;
+var JANELA_DIAS = 10;
+var DOW_CURTO = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function dowDe(iso){ var p = iso.split('-'); return DOW_CURTO[new Date(+p[0], +p[1]-1, +p[2]).getDay()]; }
 function graficoDias(linhas, cor, cor2, fmtV){
   if (!linhas.length) return null;
-  var mx = Math.max.apply(null, linhas.map(function(x){ return Math.max(x.real, x.plano); }).concat([1])) * 1.22;
-  var reais = linhas.map(function(x){ return x.real; }), maior = Math.max.apply(null, reais) || 1, menor = Math.min.apply(null, reais);
-  var forte = escurece(cor, .28);
+  var mx = Math.max.apply(null, linhas.map(function(x){ return Math.max(x.real, x.plano); }).concat([1])) * 1.18;
   var rola = linhas.length > JANELA_DIAS, larg = rola ? (linhas.length / JANELA_DIAS * 100).toFixed(2) : 100;
   var hoje = hojeOp();
   var cols = linhas.map(function(x){
-    var h = (x.real/mx*100).toFixed(1);
-    // abaixo do plano fica âmbar; no plano ou acima, na cor da tela (quanto maior, mais forte)
-    var cf = x.plano && x.real < x.plano*0.95 ? 'var(--amber)' : tomCalor(cor2, forte, maior > menor ? (x.real - menor)/(maior - menor) : 1);
+    var h = x.real/mx*100, hs = h.toFixed(1);
+    // VERDE só quando o dia bate o planejamento. Abaixo dele, âmbar. Dia sem plano (fim de semana sem
+    // forecast) fica num tom neutro: não dá para dizer que bateu nem que deixou de bater.
+    var cf = !x.plano ? '#5A6B86' : x.real >= x.plano ? COR_PXR : '#F6BD00';
+    // rótulo dentro da coluna quando ela tem altura para isso; senão vai para fora, em cima
+    var dentro = h >= 11;
     return '<span class="slot">'+
       (x.plano ? '<u style="bottom:'+(x.plano/mx*100).toFixed(1)+'%"></u>' : '')+
-      '<em style="bottom:calc('+h+'% + 7px)">'+fmtV(x.real)+'</em>'+
-      '<b style="height:'+h+'%;background:'+cf+'"></b></span>';
+      '<b style="height:'+hs+'%;background:'+cf+'"></b>'+
+      '<em class="'+(dentro ? '' : 'fora')+'" style="bottom:'+(dentro ? 'calc('+hs+'% - 28px)' : 'calc('+hs+'% + 6px)')+'">'+fmtV(x.real)+'</em>'+
+      '</span>';
   }).join('');
   var rots = linhas.map(function(x){
-    return '<i class="'+(x.d === hoje ? 'hoje' : '')+'">'+x.d.slice(8,10)+'/'+x.d.slice(5,7)+'</i>';
+    return '<i class="'+(x.d === hoje ? 'hoje' : '')+'"><b>'+dowDe(x.d)+'</b>'+x.d.slice(8,10)+'/'+x.d.slice(5,7)+'</i>';
   }).join('');
   var g = '<div class="grafico gdias'+(rola ? ' rola' : '')+'" style="--cor:'+cor+';--cor2:'+cor2+'">'+
     '<div class="trilho" style="width:'+larg+'%"><div class="cols">'+cols+'</div><div class="rot">'+rots+'</div></div></div>';
@@ -1147,13 +1163,13 @@ function renderTelaF(res){
   // ---- comparações de hoje ----
   var planoHoje = prev && prev.TOTAL ? num(prev.TOTAL) : 0, realHoje = num(fat);
   var pctHoje = planoHoje ? 100*realHoje/planoHoje : 0;
-  var corHoje = planoHoje ? pctCor(pctHoje) : 'var(--text-muted)';
+  var corHoje = planoHoje ? corAtingimento(pctHoje) : 'var(--text-muted)';
   // backlog: o plano só prevê em itens, então em R$ o previsto usa o ticket do forecast do dia
   var backPrev = prev && prev.BACKLOG_PREVISTO ? prev.BACKLOG_PREVISTO.itens : 0;
   if (emValor() && backPrev && prev && prev.TOTAL && prev.TOTAL.itens) backPrev = backPrev * (prev.TOTAL.rs/prev.TOTAL.itens);
   var realBack = emValor() ? res.rs : res.itens;
   var pctBack = backPrev ? 100*realBack/backPrev : 0;
-  var corBack = backPrev ? pctCor(pctBack, true) : 'var(--text-muted)';
+  var corBack = backPrev ? corBacklog(pctBack) : 'var(--text-muted)';
 
   // ---- 5 cartões: faturado (verde) · forecast (azul) · as duas comparações em anel · operação (laranja)
   var kpis =
@@ -1175,7 +1191,7 @@ function renderTelaF(res){
     var pf = forecast[d];
     dias.push({ d: d, real: num(res.faturado[d]), plano: pf && pf.TOTAL ? num(pf.TOTAL) : 0 });
   });
-  dias = dias.slice(-10);   // 10 dias corridos no máximo
+  dias = dias.slice(-JANELA_DIAS);   // 10 dias corridos
   var gd = graficoDias(dias, COR_PXR, COR_PXR2, cru);
   var sR = 0, sP = 0;
   dias.forEach(function(x){ sR += x.real; sP += x.plano; });
@@ -1191,7 +1207,7 @@ function renderTelaF(res){
   el.innerHTML = '<div class="kpis c5">'+kpis+'</div>'+
     '<div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
       '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturado por dia</span><span></span>'+
-        '<span class="tot" style="width:auto"><span class="leg-plano"><i></i>plano</span></span></div>'+
+        '<span class="tot" style="width:auto"><span class="leg-plano"><i></i>planejamento</span></span></div>'+
         (gd || '<div class="vazio">Sem faturamento no período.</div>')+
         '<div class="etapa total"><span class="nm">Acumulado · '+dias.length+(dias.length === 1 ? ' dia' : ' dias')+'</span><span></span>'+
           '<span class="tot">'+cru(sR)+'</span>'+
