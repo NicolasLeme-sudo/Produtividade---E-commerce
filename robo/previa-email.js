@@ -21,7 +21,7 @@ function png64(rel) { return "data:image/png;base64," + fs.readFileSync(path.joi
   const EMAILS = E.blocos(t);
   function corpo(tema) {
     return EMAILS.map(function (e) {
-      const ts = e.tabelas.map(function (t) { return E.tabela(t[0], t[1], t[2], tema, t[3], null, t[4]); });
+      const ts = e.tabelas.map(function (t) { return E.tabela(t[0], t[1], t[2], tema, t[3], null, t[4], t[5]); });
       const tot = ts.map(function (t, i) { return E.esc(e.tabelas[i][0]) + " " + E.fmt(t.total); }).join(" · ");
       return '<section class="email" id="' + e.id + "-" + tema + '">' +
         '<div class="email-hd"><div><p class="kicker">' + (e.dia ? "Canal Fechamento · dia inteiro" : "Canal " + e.tit + " · hora em hora e fechamento do turno") +

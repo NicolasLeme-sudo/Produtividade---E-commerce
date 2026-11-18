@@ -60,7 +60,7 @@ function tipoDaChave(k) { return String(k).indexOf(MARCA_REVERSA) !== -1 ? "Reve
 /* ---------------- uma tabela (um cartão por atividade) ---------------- */
 // pessoas = { usuário: [24] peças por hora }; turnos (opcional) = { usuário: "T01" } acrescenta a coluna Turno
 // à esquerda, usada nos e-mails de fechamento.  ->  { html, total, horas, pessoas }
-function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo) {
+function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm) {
   var email = tema === "email";                        // e-mail: paleta clara, sem zebra (ver nota abaixo)
   var T = TEMAS[tema === "escuro" ? "escuro" : "claro"];
   var corTotal = mistura(cor, T.mistura, T.pTotal);    // barra de totais: a mesma cor, mais fraca
@@ -129,9 +129,29 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo) {
     }).join("") +
     '<td style="background:' + corTotal + ";color:" + cor + ';font-weight:800"><b>' + fmt(total) + "</b></td></tr>";
   return {
-    html: '<div style="' + cartao + '">' + cabecalho + tbl + cab + corpo + rodape + "</table></div>",
+    html: '<div style="' + cartao + '">' + cabecalho + tbl + cab + corpo + rodape + "</table>" + aviso(titulo, horas, fonteEm, T) + "</div>",
     total: total, horas: horas, pessoas: linhas.length
   };
+}
+
+// Rodapé da tabela: a ÚLTIMA coluna nunca está fechada. O WMS é exportado de 30 em 30 min e, na
+// separação e na conferência, a tarefa só entra no relatório depois de terminada — em 18/11 a hora
+// das 08h apareceu com 23 peças no e-mail das 09h05 e fechou em 103 meia hora depois.
+function hhmmDe(ms) {
+  if (!ms) return null;
+  var d = new Date(ms);
+  return String(d.getHours()).padStart(2, "0") + "h" + String(d.getMinutes()).padStart(2, "0");
+}
+function aviso(titulo, horas, fonteEm, T) {
+  if (!horas || !horas.length) return "";
+  var ultima = rotHora(horas[horas.length - 1]);
+  var quando = hhmmDe(fonteEm);
+  var porTarefa = titulo === "Separado" || titulo === "Conferido";
+  return '<p style="' + FONTE + "margin:8px 0 0;padding:0 2px;font-size:11.5px;line-height:1.45;color:" + T.apoio + '">' +
+    "A coluna <b>" + ultima + "</b> ainda está parcial" +
+    (quando ? ": o WMS foi exportado às " + quando : "") +
+    (porTarefa ? " e a tarefa só entra no relatório depois de concluída" : "") +
+    ". A exportação é de 30 em 30 minutos, então essa hora ainda sobe depois.</p>";
 }
 
 /* ---------------- quem é de qual turno ---------------- */
@@ -295,7 +315,7 @@ function armazenagemPorUsuario(inbound, dia) {
 // Um bloco = um canal. O Outbound leva as 3 atividades na MESMA mensagem; se passar do
 // limite do Teams, `mensagens()` quebra sozinho em uma mensagem por atividade.
 function blocos(t) {
-  var C = CORES;
+  var C = CORES, F = t.fontes || {};
   var rot = {
     sep: rotulosTurno([["T01", t.sep.T01], ["T02", t.sep.T02]]),
     conf: rotulosTurno([["T01", t.conf.T01], ["T02", t.conf.T02]]),
@@ -306,17 +326,17 @@ function blocos(t) {
     // copiaFechamento: no fim do turno, o canal Fechamento recebe a mesma tabela.
     // Só T01 e ADM: o T02 não, porque a gestão recebe o agrupado do dia logo depois (17/11).
     { id: "out-t01", canal: "OUT_T01", copiaFechamento: "FECHAMENTO", tit: "Outbound · T01",
-      tabelas: [["Separado", t.sep.T01, C.sep], ["Conferido", t.conf.T01, C.conf], ["Expedido", t.exp.T01, C.exp]] },
+      tabelas: [["Separado", t.sep.T01, C.sep, null, 0, F.sep], ["Conferido", t.conf.T01, C.conf, null, 0, F.conf], ["Expedido", t.exp.T01, C.exp, null, 0, F.exp]] },
     { id: "out-t02", canal: "OUT_T02", tit: "Outbound · T02",
-      tabelas: [["Separado", t.sep.T02, C.sep], ["Conferido", t.conf.T02, C.conf], ["Expedido", t.exp.T02, C.exp]] },
-    { id: "in-adm", canal: "IN_ADM", copiaFechamento: "FECHAMENTO", tit: "Inbound · ADM", tabelas: [["Armazenado", t.arm.ADM, C.arm, null, 1]] },
-    { id: "in-t02", canal: "IN_T02", tit: "Inbound · T02", tabelas: [["Armazenado", t.arm.T02, C.arm, null, 1]] },
+      tabelas: [["Separado", t.sep.T02, C.sep, null, 0, F.sep], ["Conferido", t.conf.T02, C.conf, null, 0, F.conf], ["Expedido", t.exp.T02, C.exp, null, 0, F.exp]] },
+    { id: "in-adm", canal: "IN_ADM", copiaFechamento: "FECHAMENTO", tit: "Inbound · ADM", tabelas: [["Armazenado", t.arm.ADM, C.arm, null, 1, F.arm]] },
+    { id: "in-t02", canal: "IN_T02", tit: "Inbound · T02", tabelas: [["Armazenado", t.arm.T02, C.arm, null, 1, F.arm]] },
     { id: "fech-dia-out", canal: "FECHAMENTO", dia: 1, tit: "Fechamento do dia · Outbound", tabelas: [
-      ["Separado", juntarTurnos(t.sep.T01, t.sep.T02), C.sep, rot.sep],
-      ["Conferido", juntarTurnos(t.conf.T01, t.conf.T02), C.conf, rot.conf],
-      ["Expedido", juntarTurnos(t.exp.T01, t.exp.T02), C.exp, rot.exp]] },
+      ["Separado", juntarTurnos(t.sep.T01, t.sep.T02), C.sep, rot.sep, 0, F.sep],
+      ["Conferido", juntarTurnos(t.conf.T01, t.conf.T02), C.conf, rot.conf, 0, F.conf],
+      ["Expedido", juntarTurnos(t.exp.T01, t.exp.T02), C.exp, rot.exp, 0, F.exp]] },
     { id: "fech-dia-in", canal: "FECHAMENTO", dia: 1, tit: "Fechamento do dia · Inbound", tabelas: [
-      ["Armazenado", juntarTurnos(t.arm.ADM, t.arm.T02), C.arm, rot.arm, 1]] }
+      ["Armazenado", juntarTurnos(t.arm.ADM, t.arm.T02), C.arm, rot.arm, 1, F.arm]] }
   ];
 }
 // O Teams corta e-mail acima de 24 KB (vira "Exibir email original" e a tabela some).
@@ -337,7 +357,7 @@ function mensagens(bloco, dia, fech, horaTexto) {
 
 // Corpo do e-mail: tabelas no tema claro (fundo branco do Outlook/Teams) e um rodapé curto.
 function corpoEmail(bloco, dia, fech, horaTexto) {
-  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "email", x[3], null, x[4]); });
+  var ts = bloco.tabelas.map(function (x) { return tabela(x[0], x[1], x[2], "email", x[3], null, x[4], x[5]); });
   return '<div style="' + FONTE + 'padding:4px 2px">' + ts.map(function (t) { return t.html; }).join("<br><br>") + "</div>";
 }
 // O assunto vira o título da mensagem no canal do Teams: setor, turno, dia e a hora que a tabela

@@ -43,9 +43,22 @@ async function carregar(sb, dia, excluir) {
   const conf = semExcluidos(E.somarEm(E.analiticoPorUsuario((out.conferencia || {}).analitico, dia, ["checkout"]), E.colmeiaPorUsuario(out.conferencia, dia)), fora);
   const exp = semExcluidos(E.expedicaoPorUsuario(op, dia), fora);
   const arm = semExcluidos(E.armazenagemPorUsuario(inb, dia), fora);
+  // Hora da última exportação do WMS de cada relatório (dados.fontesEm, gravado pelo ingest.js):
+  // vai no rodapé da tabela, para o líder saber até quando a última coluna está completa.
+  const fe = function (pagina, cards) {
+    const f = (pg[pagina] || {}).fontesEm || {};
+    const hs = cards.map(function (c) { return f[c]; }).filter(Boolean);
+    return hs.length ? Math.min.apply(null, hs) : null;      // o mais atrasado manda
+  };
   const t = {
     sep: E.porTurno(sep, null, "T01"), conf: E.porTurno(conf, null, "T01"),
-    exp: E.porTurno(exp, null, "T01"), arm: E.porTurno(arm, null, "ADM")
+    exp: E.porTurno(exp, null, "T01"), arm: E.porTurno(arm, null, "ADM"),
+    fontes: {
+      sep: fe("outbound", ["up-separacao-analitica"]),
+      conf: fe("outbound", ["up-conferencia-analitica", "up-conf-colmeia"]),
+      exp: fe("operacao", ["up-kardex-geral"]),
+      arm: fe("inbound", ["up-kardex-geral"])
+    }
   };
   t.vazio = !Object.keys(sep).length && !Object.keys(conf).length && !Object.keys(exp).length && !Object.keys(arm).length;
   return t;
