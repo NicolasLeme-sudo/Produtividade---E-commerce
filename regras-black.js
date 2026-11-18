@@ -57,19 +57,23 @@ var DESAFIOS = {
   '2026-11-29': ['Quiz final', 'Desafio surpresa', 'Equipe mais engajada']
 };
 var PONTOS_DESAFIO = 100;
-// Banco de gincanas entre pisos (qualquer dia).
-var GINCANAS = ['Acerte o alvo', 'Corrida do palete', 'Montagem relâmpago', 'Quebra-cabeça da Black', 'Quem canta ganha',
-  'Corrida de entregas', 'Desafio dos líderes', 'TikTok dos líderes', 'Grito de guerra do time'];
+// Gincanas entre times, por dia (programação final do RH, 18/11; a Dupla Conectada de 29/11 virou Roleta do Balão).
+var GINCANAS_DIA = {
+  '2026-11-28': ['Desafio do Balão', 'Torre Black', 'Biscoito na Cara', 'Performance TikTok'],
+  '2026-11-29': ['Mímica Relâmpago', 'Desenho às Cegas', 'Roleta do Balão', 'Desfile de Fantasia']
+};
+var GINCANAS = GINCANAS_DIA['2026-11-28'].concat(GINCANAS_DIA['2026-11-29']);
+// Roleta do Balão (regra real, fora da apresentação a pedido do RH): balão solto numa caixa de papelão fechada;
+// os participantes espetam a caixa com palitos de churrasco e ganha a equipe que estourar o balão.
 var GINCANAS_DESC = {
-  'Acerte o alvo': 'Caixas de sapato abertas coladas num palete: ganha quem acertar mais bolinhas.',
-  'Corrida do palete': 'Empurrar um palete vazio de um ponto ao outro no menor tempo.',
-  'Montagem relâmpago': 'Montar o maior número de caixas corretamente em 1 minuto.',
-  'Quebra-cabeça da Black': 'Cada equipe monta o quebra-cabeça com o tema da campanha: ganha quem terminar primeiro.',
-  'Quem canta ganha': '5 segundos de música e o grupo precisa adivinhar o nome.',
-  'Corrida de entregas': 'Levar todas as caixas vazias até o ponto final sem deixar cair.',
-  'Desafio dos líderes': 'Provas rápidas entre líderes, como a corrida da colher com bolinha.',
-  'TikTok dos líderes': 'Os líderes dançam a coreografia escolhida pela equipe e o público vota no "Líder do Ritmo".',
-  'Grito de guerra do time': 'Cada time cria e apresenta o seu grito de guerra.'
+  'Desafio do Balão': 'Encher um balão e usar o ar para derrubar copos plásticos na mesa. Ganha quem derrubar mais em 1 minuto.',
+  'Torre Black': 'Montar e desmontar uma pirâmide de copos plásticos no menor tempo, sem deixar cair.',
+  'Biscoito na Cara': 'Biscoito na testa e levar até a boca só com os movimentos do rosto, sem as mãos. Ganha quem conseguir primeiro.',
+  'Performance TikTok': 'Apresentação de dança do TikTok: expectativa × realidade.',
+  'Mímica Relâmpago': 'Representar sem falar palavras do dia a dia da empresa. A equipe tem 60 segundos para acertar o máximo.',
+  'Desenho às Cegas': 'De olhos vendados, desenhar um objeto sorteado. A equipe tem 1 minuto para adivinhar.',
+  'Roleta do Balão': 'Surpresa: a regra só é revelada na hora.',
+  'Desfile de Fantasia': 'Pontos para o time com mais integrantes fantasiados, a fantasia mais bonita e a mais criativa.'
 };
 
 function fator(time) { return TIMES_COLMEIA[time] ? FATOR_COLMEIA : 1; }   // times 5 e 6 = colmeia
@@ -425,7 +429,7 @@ function acumulado(placares) {
 
 global.RegrasBlack = {
   DIAS: DIAS, TURNOS: TURNOS, P: P, FATOR_COLMEIA: FATOR_COLMEIA, GRAVIDADES: GRAVIDADES, CHECKLIST: CHECKLIST,
-  DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
+  DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DIA: GINCANAS_DIA, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
   placarDoDia: placarDoDia, minutosTrabalhados: minutosTrabalhados, acumulado: acumulado, isoLocal: isoLocal,
   META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, metaDoTime: metaDoTime, metaOuro: metaOuro, GRUPOS: GRUPOS, grupoDoTime: grupoDoTime,
   NUM_TIMES: NUM_TIMES, TIMES_COLMEIA: TIMES_COLMEIA, TIMES_VESTUARIO: TIMES_VESTUARIO, CAIXA_DUPLA: CAIXA_DUPLA, fatorConf: fatorConf, trocaDoDia: trocaDoDia, fatorConfDoDia: fatorConfDoDia, fatorMedioConf: fatorMedioConf, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional

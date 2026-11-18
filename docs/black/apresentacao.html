@@ -81,7 +81,7 @@ table.cmp td{padding:13px 18px;font-size:26px} table.cmp td.neg{color:var(--red)
 .dia-c{padding:30px 28px;gap:12px} .dia-c h3{font-size:32px;color:var(--gold)} .dia-c li{font-size:21px;color:#D5DEE8}
 .dia-c .atr{margin-top:auto;height:104px;flex:none;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}
 .dia-c .sub-t{font-size:18px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-top:6px}
-.dia-c .atr span{font-size:19px;color:var(--sky);font-weight:600} .dia-c .atr span::before{content:"♪ ";color:var(--gold)}
+.dia-c .atr span{font-size:19px;color:var(--sky);font-weight:600} .dia-c .atr span::before{content:"★ ";color:var(--gold)}
 .gam{display:grid;grid-template-columns:1.55fr 1fr;gap:48px;align-items:start}
 .gk{font-size:22px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--green);margin-bottom:8px} .gk.r{color:var(--red)} .gk small{font-size:16px;color:var(--muted);letter-spacing:1px;margin-left:10px}
 table.gt td{padding:7px 14px;font-size:21px} table.gt th{font-size:15px;padding:0 14px 8px} table.gt td:first-child,table.gt td:nth-child(3),table.gt td:nth-child(4){white-space:nowrap}
@@ -92,6 +92,18 @@ table.gt td{padding:7px 14px;font-size:21px} table.gt th{font-size:15px;padding:
 .gin-c{flex-direction:row;gap:22px;padding:24px 28px;align-items:flex-start}
 .gin-c .n{font-size:46px;font-weight:200;color:var(--gold);line-height:1;min-width:40px}
 .gin-c h3{font-size:28px;margin-bottom:6px} .gin-c p{font-size:20px;line-height:1.4;color:#D5DEE8}
+/* operação (18/11): gincanas por dia, times compactos, prêmio diário */
+.gdias{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.gdia{display:flex;flex-direction:column;gap:14px}
+.gdia .dt{display:flex;align-items:baseline;gap:14px;font-size:36px;font-weight:300;color:var(--gold);border-bottom:2px solid var(--gold);padding-bottom:8px;margin-bottom:4px}
+.gdia .dt small{font-size:20px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:600}
+.gdia .gin-c{padding:18px 26px;gap:20px} .gdia .gin-c .n{font-size:40px;min-width:30px} .gdia .gin-c h3{font-size:26px;margin-bottom:4px} .gdia .gin-c p{font-size:19px}
+.camp{grid-template-columns:1fr 1.35fr} .camp .stack{gap:18px} .camp .lev{padding:24px 36px} .camp .lev h3{font-size:30px;margin-bottom:6px} .camp .lev p{font-size:24px} .camp .lev .chips{margin-top:12px}
+.camp .pill{padding:30px 32px}
+table.cmp.mt td:first-child{white-space:nowrap} table.cmp.mt td{padding:24px 18px}
+.dia-do{border:1px solid var(--gold);background:linear-gradient(160deg,#2A2A12,var(--card));border-radius:18px;padding:36px 40px;display:flex;gap:28px}
+.dia-do .n{font-size:64px;line-height:.9;min-width:56px;color:var(--gold)}
+.dia-do h3{font-size:36px;color:var(--gold);margin-bottom:12px} .dia-do p{font-size:27px;line-height:1.45;color:#D5DEE8} .dia-do p b{color:var(--fg)}
 /* UI */
 #ui{position:fixed;right:20px;top:16px;display:flex;gap:8px;align-items:center;z-index:5;opacity:.35;transition:opacity .3s}
 #ui:hover,body.mouse #ui{opacity:1}
@@ -128,57 +140,57 @@ var S = [];
 S.push('<section class="slide capa"><img class="logo" src="img/logo-vulcabras.png" alt="Vulcabras"><div class="eyebrow">E-commerce · Vulcabras</div>' +
   '<h1>Missão Black 2026</h1><div class="rule"></div>' +
   '<p class="sub">27, 28 e 29 de novembro, com encerramento na segunda, 30/11: programação, gamificação e gincanas.</p>' +
-  '<div class="tag">Apresentação à coordenação · 03/11/2026</div><div class="big">BLACK</div></section>');
+  '<div class="tag">Apresentação à operação · 20/11/2026</div><div class="big">BLACK</div></section>');
 
 // 2 · linha do tempo
-var MARCOS = [['20/11','sex','Pré-Black',['Entrega das camisetas','Apresentação da gamificação']],
-  ['27/11','sex','Largada Black',['Abertura oficial e café','Primeiros desafios']],
-  ['28/11','sáb','Superação',['Apuração do 1º dia','Premiação e novos desafios']],
-  ['29/11','dom','Grande Final',['Apuração do 2º dia','Última rodada de desafios']],
-  ['30/11','seg','Encerramento',['Time campeão','Agradecimentos e café']]];
+var MARCOS = [['20/11','sex','Pré-Black',['Programação e times','Entrega das camisetas']],
+  ['27/11','sex','Largada Black',['Abertura com os gerentes','Gritos de guerra']],
+  ['28/11','sáb','Superação',['Resultados do dia 27','Gincana']],
+  ['29/11','dom','Grande Final',['Resultados do dia 28','Gincana e fantasia']],
+  ['30/11','seg','Encerramento',['Premiação dos ganhadores','Café de encerramento']]];
 S.push(slide('Visão geral', 'Do aquecimento ao <em>time campeão</em>',
   '<div class="tl">' + MARCOS.map(function(m, k){
     return '<div class="tl-m' + (k > 0 && k < 4 ? ' on' : '') + '"><span class="tl-d">' + m[0] + '<small>' + m[1] + '</small></span><div class="tl-p"><i></i></div><h3>' + m[2] + '</h3>' + li(m[3]) + '</div>';
   }).join('') + '</div>' +
-  '<p class="lead">Três dias de competição entre <b>8 times: 4 no checkout (um por andar), 2 no vestuário e 2 na colmeia, em cada turno</b>. Os pontos de cada dia são apurados <b>na manhã seguinte</b>.</p>',
+  '<p class="lead">Três dias de competição entre <b>8 times: 4 no checkout (um por andar), 2 no vestuário e 2 na colmeia, em cada turno</b>. Os pontos de cada dia são apurados <b>na manhã seguinte</b> e <b>todo dia o time que mais produzir é premiado</b>.</p>',
   RODAPE));
 
 // 3 · a campanha
 S.push(slide('A campanha', 'Um time de cada cor, <em>em cada turno</em>',
-  '<div class="two"><div class="stack">' +
+  '<div class="two camp"><div class="stack">' +
     Object.keys(R.TURNOS).filter(function(k){ return R.META_TURNO[k]; }).map(function(k){ var t = R.TURNOS[k].rot.split(' · '); return '<div class="pill"><span>' + t[0] + '</span><b>' + t[1] + '</b></div>'; }).join('') +
   '</div><div class="stack">' +
-    '<div class="lev"><div class="n">4</div><div><h3>Times no checkout</h3><p>Um time por andar, com separadores e conferentes. <b>Checkout disputa com checkout.</b></p><div style="margin-top:12px">' + chips(CORES.slice(0,4)) + '</div></div></div>' +
-    '<div class="lev"><div class="n">2</div><div><h3>Times no vestuário</h3><p>Uma caixa cada e metade da separação. <b>Vestuário disputa com vestuário.</b></p><div style="margin-top:12px">' + chips(CORES.slice(4,6)) + '</div></div></div>' +
-    '<div class="lev"><div class="n">2</div><div><h3>Times na colmeia</h3><p><b>Colmeia disputa com colmeia</b>.</p><div style="margin-top:12px">' + chips(CORES.slice(6)) + '</div></div></div>' +
+    '<div class="lev"><div class="n">4</div><div><h3>Times no checkout</h3><p>Um time por andar. <b>Checkout disputa com checkout.</b></p>' + chips(CORES.slice(0,4)) + '</div></div>' +
+    '<div class="lev"><div class="n">2</div><div><h3>Times no vestuário</h3><p>Uma caixa cada. <b>Vestuário disputa com vestuário.</b></p>' + chips(CORES.slice(4,6)) + '</div></div>' +
+    '<div class="lev"><div class="n">2</div><div><h3>Times na colmeia</h3><p><b>Colmeia disputa com colmeia.</b></p>' + chips(CORES.slice(6)) + '</div></div>' +
   '</div></div>',
   RODAPE));
 
 // 3b · metas (planilha "Divisão black" → meta do time, em regras-black.js META_TURNO; mesma meta para o grupo todo)
 var MT = R.META_TURNO;
-var METAS = [['T01 · 05h00–14h48','8h48',12600,4000,MT['1º Turno']], ['T02 · 14h48–00h16','8h28',8400,3000,MT['2º Turno']]];
+var METAS = [['T01','05h00–14h48','8h48',12600,4000,MT['1º Turno']], ['T02','14h48–00h16','8h28',8400,3000,MT['2º Turno']]];
 S.push(slide('Metas', 'Meta do dia <em>por turno e por time</em>',
   '<table class="cmp mt"><tr><th>Turno</th><th>Horas trabalhadas</th><th>Separação do turno</th><th>Conferência por caixa</th><th>Colmeia</th><th>Time checkout</th><th>Time vestuário</th><th>Time colmeia</th></tr>' +
-    METAS.map(function(m){ return '<tr><td><b>' + m[0] + '</b></td><td>' + m[1] + '</td><td><b>' + fmt(m[2]) + '</b></td><td><b>' + fmt(1200) + '</b><small class="mp">vestuário ' + fmt(800) + '</small></td><td><b>' + fmt(m[3]) + '</b></td>' +
-      '<td class="hl">' + fmt(m[4].checkout) + '</td><td class="hl">' + fmt(m[4].vestuario) + '</td><td class="hl">' + fmt(m[4].colmeia) + '</td></tr>'; }).join('') +
+    METAS.map(function(m){ return '<tr><td><b>' + m[0] + '</b><small class="mp">' + m[1] + '</small></td><td>' + m[2] + '</td><td><b>' + fmt(m[3]) + '</b></td><td><b>' + fmt(1200) + '</b><small class="mp">vestuário ' + fmt(800) + '</small></td><td><b>' + fmt(m[4]) + '</b></td>' +
+      '<td class="hl">' + fmt(m[5].checkout) + '</td><td class="hl">' + fmt(m[5].vestuario) + '</td><td class="hl">' + fmt(m[5].colmeia) + '</td></tr>'; }).join('') +
   '</table>' +
   '<p class="nota">Horas sem o almoço/janta. Mesma meta para todos os times do grupo. <b>Separação</b> do turno ÷ 5 áreas (4 andares + confecção; a confecção é dividida entre os 2 times do vestuário) + a conferência da caixa do time. ' +
   '<b>Colmeia</b> = meta da colmeia ÷ 2. Piso com 2ª caixa: cada conferente conta 0,5 por peça.</p>',
   'Meta do time = peças de separação + conferência dos membros no dia'));
 
 // 4 · cronograma e atrações
-var DIAS_C = [['20/11 · sex','Pré-Black',['Entrega das camisetas','Apresentação da gamificação','Folha de regras nos pisos'],null,[]],
-  ['27/11 · sex','Largada Black',['Abertura oficial','Fala do diretor e do gerente','Vídeo motivacional'],R.DESAFIOS['2026-11-27'],['DJ','Café de abertura']],
-  ['28/11 · sáb','Superação',['Apuração e premiação do 1º dia'],R.DESAFIOS['2026-11-28'],['DJ','Pastel e refrigerante']],
-  ['29/11 · dom','Grande Final',['Apuração e premiação do 2º dia'],R.DESAFIOS['2026-11-29'],['DJ','Kit energia: batata, energético e chocolate']],
-  ['30/11 · seg','Encerramento',['Apuração do 3º dia','Time campeão da gincana','Fala do diretor e do gerente'],null,['DJ','Café de encerramento']]];
+var DIAS_C = [['20/11 · sex','Pré-Black',['Apresentação da programação Black','Apresentação dos times','Entrega das camisetas'],['Criar o grito de guerra do time'],[]],
+  ['27/11 · sex','Largada Black',['Abertura com os gerentes','Apresentação dos gritos de guerra'],null,['Café de abertura']],
+  ['28/11 · sáb','Superação',['Resultados e pontuação do dia 27','Prêmio do time que mais produziu'],R.GINCANAS_DIA['2026-11-28'],['Pastel']],
+  ['29/11 · dom','Grande Final',['Resultados e pontuação do dia 28','Prêmio do time que mais produziu'],R.GINCANAS_DIA['2026-11-29'],['Kit energia']],
+  ['30/11 · seg','Encerramento',['Encerramento com os gerentes','Premiação dos ganhadores'],null,['Café de encerramento']]];
 S.push(slide('Cronograma e atrações', 'O que acontece <em>em cada dia</em>',
   '<div class="dias">' + DIAS_C.map(function(d){
     return '<div class="card dia-c"><p class="k">' + d[0] + '</p><h3>' + d[1] + '</h3>' + li(d[2]) +
-      (d[3] && d[3].length ? '<p class="sub-t">Desafios</p>' + li(d[3]) : '') +
+      (d[3] && d[3].length ? '<p class="sub-t">' + (d[3].length > 1 ? 'Gincana' : 'Desafio') + '</p>' + li(d[3]) : '') +
       '<div class="atr">' + d[4].map(function(a){ return '<span>' + a + '</span>'; }).join('') + '</div></div>';
   }).join('') + '</div>',
-  'Atrações em destaque no pé de cada dia'));
+  'Programação final da Black'));
 
 // 5 · gamificação
 var GANHA = [['Produtividade','cada peça separada ou conferida','1/peça','1/peça'],
@@ -206,16 +218,18 @@ S.push(slide('Vistoria', 'Segurança, qualidade e 5S <em>nos pisos</em>',
   '</div><p class="lead">Vistoria em <b>horário aleatório</b>, por time. O vistoriador marca o checklist e o desconto é lançado na hora. Vistoria sem nenhum apontamento vale <b>' + sinal(P.vistoriaLimpa) + '</b>.</p>',
   'Checklist impresso na mão dos líderes'));
 
-// 7 · gincanas
+// 7 · gincanas (por dia, RegrasBlack.GINCANAS_DIA)
+var DIAS_G = [['2026-11-28','28/11','sábado'],['2026-11-29','29/11','domingo']];
 S.push(slide('Gincanas', 'Competição entre times, <em>com prêmio no dia</em>',
-  '<div class="gin">' + R.GINCANAS.map(function(g, k){
-    return '<div class="card gin-c"><span class="n">' + (k + 1) + '</span><div><h3>' + g + '</h3><p>' + ((R.GINCANAS_DESC || {})[g] || '') + '</p></div></div>';
-  }).join('') + '</div>' +
-  '<p class="lead">Prêmio do dia para o time vencedor: <b>a decidir</b>. Cada gincana vale até ' + fmt(R.PONTOS_DESAFIO) + ' pontos por time, dentro do limite de ' + fmt(P.desafiosMax) + ' por dia.</p>',
-  RODAPE));
+  '<div class="gdias">' + DIAS_G.map(function(d){
+    return '<div class="gdia"><div class="dt">' + d[1] + '<small>' + d[2] + '</small></div>' + R.GINCANAS_DIA[d[0]].map(function(g, k){
+      return '<div class="card gin-c"><span class="n">' + (k + 1) + '</span><div><h3>' + g + '</h3><p>' + ((R.GINCANAS_DESC || {})[g] || '') + '</p></div></div>';
+    }).join('') + '</div>';
+  }).join('') + '</div>',
+  'O time vencedor leva prêmio no dia · cada gincana vale até ' + fmt(R.PONTOS_DESAFIO) + ' pontos por time, até ' + fmt(P.desafiosMax) + ' por dia'));
 
-// 8 · premiação e próximos passos
-S.push(slide('Reconhecimento e próximos passos', 'Quem leva <em>e o que falta decidir</em>',
+// 8 · premiação (versão da operação, 18/11: sem próximos passos)
+S.push(slide('Reconhecimento', 'Quem leva <em>o prêmio</em>',
   '<div class="two" style="grid-template-columns:1.25fr 1fr">' +
     '<div class="prem" style="grid-template-columns:1fr 1fr;gap:30px 44px">' +
       '<div><h3>Campeão Black Friday</h3><p>Maior pontuação acumulada nos 3 dias, por turno.</p></div>' +
@@ -225,7 +239,7 @@ S.push(slide('Reconhecimento e próximos passos', 'Quem leva <em>e o que falta d
       '<div><h3>Vistoria nota 10</h3><p>Mais vistorias sem apontamento.</p></div>' +
       '<div><h3>Prêmios instantâneos</h3><p>Brindes e Golden Tickets ao longo dos 3 dias.</p></div>' +
     '</div>' +
-    '<div class="lev"><div class="n">→</div><div><h3>Próximos passos</h3>' + li(['Escalação final com presença (planilha por cor)','Vistoriadores e agenda das horas de ouro']) + '</div></div>' +
+    '<div class="dia-do"><div class="n">★</div><div><h3>Prêmio todo dia</h3><p>Nos 3 dias da Black, <b>o time que mais produzir no dia é premiado</b>. O resultado sai na manhã seguinte.</p></div></div>' +
   '</div>',
   RODAPE));
 

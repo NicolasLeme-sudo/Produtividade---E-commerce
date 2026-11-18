@@ -30,7 +30,7 @@ Arquitetura detalhada: `README.md`. Site: https://produtividadee-commerce.vercel
 
 ## Pastas e entregas da Black
 - Arquivos que o Nicolas manda para eu ler: `C:\Leitura de Arquivos`. Entregas que eu gero: `C:\Entrega de Arquivos`.
-- Apresentação à coordenação (9 slides, com o de Metas; sem telão): `docs/black/apresentacao.html` → `python docs/black/embutir.py "C:/Entrega de Arquivos/Missao_Black_Apresentacao.html"`.
+- Apresentação **à operação** (9 slides; virou versão da operação em 18/11: sem "o que falta decidir", prêmio diário do time que mais produzir, programação final do RH, gincanas por dia em `RegrasBlack.GINCANAS_DIA` — 28/11 e 29/11, Roleta do Balão sem a regra, a pedido do RH): `docs/black/apresentacao.html` → `python docs/black/embutir.py "C:/Entrega de Arquivos/Missao_Black_Apresentacao_Operacao.html"`.
 - Para imprimir: `docs/black/checklist-vistoria.html` (2 fichas por A4) e `docs/black/regras.html` (3 págs.) → `node docs/black/gerar-pdfs.js "C:\Entrega de Arquivos"`.
 - Demonstração de meta batida no telão: botão **🏆 Meta batida** no topo (ao lado de Tela cheia; escolhe o time e toca moldura + carro + som; some com o mouse parado; não aparece no `?modo=operacao`; não marca nada) ou `tv.html?comemorar=N` (N = time).
 
