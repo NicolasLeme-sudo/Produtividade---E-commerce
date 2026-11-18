@@ -87,7 +87,9 @@ function pendentes(blocos, minAgora, feitos, fimDeRodada) {
     const slot = Math.min(fim, ini + Math.floor((minAgora - ini) / 60) * 60);
     if (minAgora - slot >= TOLERANCIA) return;
     const chave = b.id + "|h" + slot;
-    if (!feitos[chave]) saida.push({ bloco: b, chave: chave, horaTexto: "até " + hhmm(slot - 5) });
+    // Título = a última hora 100% fechada (18/11): o e-mail das 10h05 leva "09h00", não "10h00",
+    // porque a coluna das 10h ainda está correndo.
+    if (!feitos[chave]) saida.push({ bloco: b, chave: chave, horaTexto: "até " + hhmm(slot - 65) });
   });
   return saida;
 }
