@@ -128,8 +128,8 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 /* Linha do planejamento: tracejada e branca, igual à linha de média dos outros gráficos, sem contorno.
    Um traço contínuo por trecho de dias com o mesmo plano (posição calculada no graficoDias). */
 .gdias .colunas .plano{position:absolute;border-top:2px dashed #fff;z-index:1;pointer-events:none}
-.leg-plano{display:flex;align-items:center;gap:8px;font-size:17px;color:var(--text-muted)}
-.leg-plano i{display:inline-block;width:20px;border-top:2px dashed #fff}
+.leg-plano{display:flex;align-items:center;justify-content:flex-end;gap:10px;font-size:17px;color:var(--text-muted)}
+.leg-plano i{flex:none;display:inline-block;width:28px;border-top:2px dashed #fff}
 .selTurno button{height:34px;padding:0 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 40%, transparent);background:transparent;color:var(--text-muted);font-family:inherit;font-size:16px;font-weight:800;cursor:pointer}
 .selTurno button:hover{border-color:var(--cc,#297ADF);color:var(--text)}
 .selTurno button.on{background:color-mix(in srgb, var(--cc,#297ADF) 30%, transparent);border-color:var(--cc,#297ADF);color:#fff}
@@ -1263,7 +1263,7 @@ function renderTelaF(res){
   el.innerHTML = '<div class="kpis c5">'+kpis+'</div>'+
     '<div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
       '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturado por dia</span><span></span>'+
-        '<span class="tot" style="width:auto"><span class="leg-plano"><i></i>planejamento</span></span></div>'+
+        '<span class="tot" style="grid-column:3 / span 2"><span class="leg-plano"><i></i>planejamento</span></span></div>'+
         (gd || '<div class="vazio">Sem faturamento no período.</div>')+
         '<div class="etapa total"><span class="nm">Acumulado · '+dias.length+(dias.length === 1 ? ' dia' : ' dias')+'</span><span></span>'+
           '<span class="tot">'+cru(sR)+'</span>'+
