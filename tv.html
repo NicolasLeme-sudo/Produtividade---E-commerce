@@ -1089,6 +1089,10 @@ document.addEventListener('keydown', function(e){   // para quem estiver ao lado
 
 /* ================= RELÓGIO, SELO E ESCALA ================= */
 var atualizadoEm = {}, horaFonte = {}, falhou = false;   // data de atualização de cada snapshot (outbound, inbound)
+// Dias corridos sem nenhuma importação nova no Acompanhamento OP. O selo de "Dado de HH:MM" mede a hora
+// da ENTREGA; isto mede a idade do CONTEÚDO. Em 18/11 o OP chegava novinho de 30 em 30 min com pedidos de
+// 16/11 (aba do WMS presa num período antigo) e o selo ficava verde o tempo todo.
+var opDiasParado = 0;
 function relogio(){
   var d = new Date();
   document.getElementById('hora').textContent = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
@@ -1110,6 +1114,12 @@ function relogio(){
   if (!passado && dTela && dTela < hojeOp()) {   // tela mostrando o último dia com dado: o selo diz de que DIA é o dado, não a hora do envio
     s.textContent = '● Dados de ' + dTela.slice(8,10) + '/' + dTela.slice(5,7) + (falhou ? ' · sem conexão' : '');
     s.className = 'selo ' + (falhou ? 'velho' : 'atencao'); return;
+  }
+  // Entrega nova com conteúdo velho: as telas que dependem do OP avisam, mesmo com o envio recente.
+  var dependeOp = ((telas[atual] && horaFonte[telas[atual].id]) || []).some(function(f){ return f && f.nome === 'Acompanhamento OP'; });
+  if (!passado && dependeOp && opDiasParado >= 2) {
+    s.textContent = '⚠ OP sem importação há ' + opDiasParado + ' dias';
+    s.className = 'selo velho'; return;
   }
   s.textContent = '● Dados de ' + hh + dd + (falhou ? ' · sem conexão' : '');
   s.className = 'selo ' + (falhou || min > 120 ? 'velho' : min > 60 ? 'atencao' : 'ok');   // robô atualiza a cada 30–45 min
@@ -1192,6 +1202,12 @@ async function carregar(){
     // Hora de cada relatório de que a tela depende: o selo mostra o MAIS VELHO (antes mostrava o último envio
     // de qualquer relatório e dizia "atualizado" com o Kardex parado havia 3 h; 12/11).
     var fe = snap.fontesEm || {}, res = (op && op.resumo) || {};
+    (function(){   // idade do conteúdo do OP, em dias corridos
+      if (!res.maisNovo) { opDiasParado = 0; return; }
+      var a = new Date(res.maisNovo); a.setHours(0,0,0,0);
+      var b = new Date(); b.setHours(0,0,0,0);
+      opDiasParado = Math.round((b - a) / 86400000);
+    })();
     var semFe = !snap.fontesEm && atualizadoEm.outbound ? +atualizadoEm.outbound : null;   // snapshot antigo, sem a hora por relatório
     var F = function(nome, ms){ return ms ? { nome:nome, em:new Date(ms) } : null; };
     var fSep = F('Separação', fe['up-separacao-analitica'] || semFe), fConf = F('Conferência', fe['up-conferencia-analitica'] || semFe),

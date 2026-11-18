@@ -1353,7 +1353,11 @@ function resumoOperacao(op) {
     single: 0, multi: 0, singleRs: 0, multiRs: 0,   // itens por tipo de pedido (Classificação Tipo Pedido)
     etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, rs: 0, single: 0, multi: 0, singleRs: 0, multiRs: 0, marcas: {}, marcasRs: {} }; }),
     idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0, rs: 0, single: 0, multi: 0, singleRs: 0, multiRs: 0 }; }),
-    opEm: op.opEm || null, nfEm: op.nfEm || null };
+    opEm: op.opEm || null, nfEm: op.nfEm || null,
+    // Importação MAIS NOVA que veio no OP. O telão usa para avisar quando o relatório chega na hora
+    // mas com conteúdo velho (aba do WMS presa num período antigo, como em 18/11): o selo de "Dado de
+    // HH:MM" sozinho não enxerga isso, porque ele mede a entrega e não o conteúdo.
+    maisNovo: null };
   // Idade em DIAS ÚTEIS, mesma regra do Report E-commerce (diferencaDiasUteis): seg a sex sem feriados.
   var ref = new Date(op.opEm || Date.now()), cacheIdade = {};
   function idadeDias(imp) {
@@ -1376,6 +1380,7 @@ function resumoOperacao(op) {
     if (e[4]) { r.semColeta.itens += itens; r.semColeta.pedidos++; r.semColeta.rs += rs; r.semColeta[e[4] === 2 ? "colmeia" : "checkout"] += itens; }
     if (imp) {
       if (r.maisAntigo === null || imp < r.maisAntigo) { r.maisAntigo = imp; r.maisAntigoPedido = p; }
+      if (r.maisNovo === null || imp > r.maisNovo) r.maisNovo = imp;
       var faixa = r.idade[Math.min(3, idadeDias(imp))];
       faixa.itens += itens; faixa.pedidos++; faixa.rs += rs;
       if (tp) { faixa[tp] += itens; faixa[tp + "Rs"] += rs; }
