@@ -102,15 +102,34 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 /* T01 | T02 ao lado das setas (só na Corrida): o turno do horário vem marcado; escolher o outro vale até a tela trocar */
 .selTurno{display:inline-flex;gap:6px;margin-left:16px;vertical-align:middle}.selTurno[hidden]{display:none}
 /* ---------- Tela F · Plano × Real (modo diretoria) ---------- */
-.pxr{margin-bottom:20px}
-.pxr-tp{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
-.pxr-t{font-size:22px;font-weight:700;color:var(--text)}
-.pxr-p{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
-.pxr-tr{position:relative;height:30px;border-radius:9px;background:var(--bg-input);overflow:visible}
-.pxr-tr i{display:block;height:100%;border-radius:9px 0 0 9px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
-.pxr-tr u{position:absolute;top:-4px;bottom:-4px;width:4px;background:var(--text);opacity:.55;border-radius:2px}
-.pxr-lg{display:flex;justify-content:space-between;margin-top:8px;font-size:18px;color:var(--text-muted)}
-.pxr-lg b{color:var(--text);font-variant-numeric:tabular-nums}
+/* Valor NUNCA quebra linha: em R$ o número é longo e a coluna da lista é estreita. */
+.etapa .tot,.etapa .nm{white-space:nowrap}
+.kpi .v,.kpi .s{white-space:nowrap}
+
+/* Card com anel de progresso: substitui as barras de "x previsto" que ficavam no corpo da tela. */
+.kpi.anel{padding:12px 16px}
+.kpi.anel .cx{display:flex;align-items:center;gap:14px;margin-top:2px}
+.kpi.anel svg{width:84px;height:84px;flex:none}
+.kpi.anel .lado{min-width:0;display:grid;gap:3px}
+.kpi.anel .lado .a1{font-size:27px;font-weight:800;line-height:1.05;color:var(--vc,var(--text));white-space:nowrap}
+.kpi.anel .lado .a2{font-size:17px;color:var(--text-muted);white-space:nowrap}
+.kpi.anel .lado .a3{font-size:17px;font-weight:800;white-space:nowrap}
+
+/* Gráfico de colunas por DIA (faturamento), no padrão do telão e com a mesma rolagem do por hora. */
+.gdias .cols{flex:1;min-height:0;display:flex;align-items:flex-end;gap:12px;padding-top:26px}
+.gdias .cols .slot{position:relative;flex:1;min-width:46px;height:100%;display:flex;align-items:flex-end}
+.gdias .cols .slot b{display:block;width:100%;border-radius:7px 7px 0 0;background:var(--cd,var(--accent));
+  transition:height .6s cubic-bezier(.2,.8,.2,1)}
+.gdias .cols .slot em{position:absolute;left:0;right:0;text-align:center;font-style:normal;font-size:16px;
+  font-weight:800;color:var(--text);white-space:nowrap}
+/* traço do plano do dia, igual à linha de previsão do indicador financeiro */
+.gdias .cols .slot u{position:absolute;left:-4px;right:-4px;height:4px;border-radius:2px;background:var(--amber);
+  text-decoration:none;box-shadow:0 0 0 2px rgba(15,22,35,.55)}
+.gdias .rot{display:flex;gap:12px}
+.gdias .rot i{flex:1;min-width:46px;text-align:center;font-style:normal;font-size:16px;color:var(--text-muted)}
+.gdias .rot i.hoje{color:var(--text);font-weight:800}
+.leg-plano{display:flex;align-items:center;gap:8px;font-size:16px;color:var(--text-muted)}
+.leg-plano i{display:inline-block;width:18px;height:4px;border-radius:2px;background:var(--amber)}
 .selTurno button{height:34px;padding:0 12px;border-radius:8px;border:1px solid color-mix(in srgb, var(--cc,#297ADF) 40%, transparent);background:transparent;color:var(--text-muted);font-family:inherit;font-size:16px;font-weight:800;cursor:pointer}
 .selTurno button:hover{border-color:var(--cc,#297ADF);color:var(--text)}
 .selTurno button.on{background:color-mix(in srgb, var(--cc,#297ADF) 30%, transparent);border-color:var(--cc,#297ADF);color:#fff}
@@ -229,6 +248,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .painel .k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--pc,var(--text-muted))}
 .grafico{min-height:0;min-width:0;position:relative;overflow:hidden}
 .painel{min-width:0}
+.painel.p3{grid-template-rows:auto 1fr auto}   /* cabeçalho + gráfico + linha de total */
 .grafico .trilho{display:grid;grid-template-rows:1fr auto;gap:6px;height:100%;min-width:100%}
 .gwrap{display:grid;grid-template-rows:1fr auto;gap:8px;min-height:0;min-width:0}
 .grafico.rola{overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.grafico.rola::-webkit-scrollbar{display:none}
@@ -725,7 +745,15 @@ var COR_CAIDA = '#5B7F2B';   // verde musgo (o mesmo --verde-musgo do telão da 
 // vR(itens, rs) devolve o número na unidade escolhida; o R$ vem do mesmo snapshot, campo "rs".
 function emValor(){ return MODO_DIRETORIA && emRs; }
 function fmtRS(v){ return 'R$ ' + fmt(Math.round(v || 0)); }
-function vR(itens, rs){ return emValor() ? fmtRS(rs) : fmt(itens); }
+// R$ curto para as COLUNAS das listas, que são estreitas: R$ 1,74 M · R$ 509 K · R$ 840.
+// Nos cards grandes continua o valor inteiro, que é onde ele cabe e onde se quer o número exato.
+function fmtRSc(v){
+  v = v || 0;
+  if (Math.abs(v) >= 1e6) return 'R$ ' + (v/1e6).toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' M';
+  if (Math.abs(v) >= 1e3) return 'R$ ' + (v/1e3).toLocaleString('pt-BR', { maximumFractionDigits: v >= 1e4 ? 0 : 1 }) + ' Mil';
+  return 'R$ ' + fmt(Math.round(v));
+}
+function vR(itens, rs){ return emValor() ? fmtRSc(rs) : fmt(itens); }
 function nR(o){ return emValor() ? (o && o.rs) || 0 : (o && o.itens) || 0; }   // valor cru, para as barras
 
 function renderTelaC(res){
@@ -774,7 +802,7 @@ function renderTelaC(res){
     '<div class="painel"><div class="etapa cab"><span class="nm">'+(emValor() ? 'Valor por etapa' : 'Itens por etapa')+'</span><span></span><span class="tot">'+(emValor() ? 'R$' : 'Itens')+'</span><span class="tot">'+(emValor() ? 'Itens' : 'Pedidos')+'</span></div><div class="etapas">'+etapas+'</div>'+
       '<div class="etapa total"><span class="nm">Total geral</span><span></span><span class="tot">'+vR(res.itens, res.rs)+'</span><span class="tot ped">'+fmt(emValor() ? res.itens : res.pedidos)+'</span></div></div>'+
     '<div class="painel"><span class="k">'+(emValor() ? 'Valor por marca' : 'Itens por marca')+'</span>'+
-      (emValor() ? pizzaHtml(res.marcasRs || {}, res.rs, fmtRS, 'em R$') : pizzaHtml(res.marcas, res.itens))+'</div>'+
+      (emValor() ? pizzaHtml(res.marcasRs || {}, res.rs, fmtRSc, 'em R$') : pizzaHtml(res.marcas, res.itens))+'</div>'+
   '</div></div>';
 }
 
@@ -1048,21 +1076,63 @@ async function carregarForecast(){
 }
 // No backlog MENOS é melhor: ficar abaixo do previsto é que é bom, por isso a escala invertida.
 function pctCor(pct, inverso){
-  if (inverso) return pct <= 100 ? 'var(--olive)' : pct <= 130 ? 'var(--amber)' : 'var(--red)';
-  return pct >= 95 ? 'var(--olive)' : pct >= 70 ? 'var(--amber)' : 'var(--red)';
+  if (inverso) return pct <= 100 ? COR_PXR : pct <= 130 ? 'var(--amber)' : 'var(--red)';
+  return pct >= 95 ? COR_PXR : pct >= 70 ? 'var(--amber)' : 'var(--red)';
 }
-// Barra "realizado contra o previsto"; o traço marca os 100% do plano.
-function barraPlano(titulo, real, plano, rReal, rPlano, inverso){
-  if (!plano) return '<div class="pxr"><div class="pxr-tp"><span class="pxr-t">'+esc(titulo)+'</span>'+
-    '<span class="pxr-p" style="color:var(--text-muted);font-size:20px">sem plano</span></div>'+
-    '<div class="pxr-tr"></div><div class="pxr-lg"><span>Realizado <b>'+esc(rReal)+'</b></span></div></div>';
-  var pct = 100*real/plano, cor = pctCor(pct, inverso);
-  var larg = Math.min(100, pct), posMeta = pct > 100 ? 100*plano/real : 100;
-  return '<div class="pxr"><div class="pxr-tp"><span class="pxr-t">'+esc(titulo)+'</span>'+
-    '<span class="pxr-p" style="color:'+cor+'">'+pct.toFixed(0)+'%</span></div>'+
-    '<div class="pxr-tr"><i style="width:'+larg+'%;background:'+cor+'"></i><u style="left:calc('+posMeta+'% - 2px)"></u></div>'+
-    '<div class="pxr-lg"><span>Realizado <b>'+esc(rReal)+'</b></span><span>Plano <b>'+esc(rPlano)+'</b></span></div></div>';
+var COR_PXR = '#45C645', COR_PXR2 = '#9BE49B';   // verde: cor de destaque da tela Plano x Real
+
+// Anel de progresso do card. Substitui as barras compridas que ficavam no corpo da tela: ocupa o canto
+// do cartão, mostra o % no centro e deixa o espaço grande da tela para os gráficos.
+function anelHtml(pct, cor){
+  var R = 33, C = 2*Math.PI*R, f = Math.max(0, Math.min(1, (pct||0)/100));
+  return '<svg viewBox="0 0 80 80">'+
+    '<circle r="'+R+'" cx="40" cy="40" fill="none" stroke="var(--bg-input)" stroke-width="10"/>'+
+    '<circle r="'+R+'" cx="40" cy="40" fill="none" stroke="'+cor+'" stroke-width="10" stroke-linecap="round" '+
+      'stroke-dasharray="'+(f*C).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 40 40)"/>'+
+    '<text x="40" y="47" text-anchor="middle" fill="'+cor+'" font-size="22" font-weight="800">'+Math.round(pct||0)+'%</text></svg>';
 }
+// Card de comparação: anel + realizado + plano + a diferença que falta (ou que sobra)
+function cardAnel(rot, pct, cor, real, plano, delta){
+  return '<div class="kpi anel" style="--kc:'+cor+';--vc:'+cor+'"><span class="k">'+rot+'</span>'+
+    '<div class="cx">'+anelHtml(pct, cor)+'<div class="lado">'+
+      '<span class="a1">'+real+'</span>'+
+      '<span class="a2">de '+plano+'</span>'+
+      '<span class="a3" style="color:'+cor+'">'+delta+'</span>'+
+    '</div></div></div>';
+}
+
+// Gráfico de colunas por DIA (faturamento), no padrão do telão: coluna por dia, traço do plano em cada
+// uma (como a linha de previsão do indicador financeiro) e a mesma barra de rolagem do gráfico por hora,
+// abrindo encostado à direita (dia mais recente à vista).
+var JANELA_DIAS = 7;
+function graficoDias(linhas, cor, cor2, fmtV){
+  if (!linhas.length) return null;
+  var mx = Math.max.apply(null, linhas.map(function(x){ return Math.max(x.real, x.plano); }).concat([1])) * 1.22;
+  var reais = linhas.map(function(x){ return x.real; }), maior = Math.max.apply(null, reais) || 1, menor = Math.min.apply(null, reais);
+  var forte = escurece(cor, .28);
+  var rola = linhas.length > JANELA_DIAS, larg = rola ? (linhas.length / JANELA_DIAS * 100).toFixed(2) : 100;
+  var hoje = hojeOp();
+  var cols = linhas.map(function(x){
+    var h = (x.real/mx*100).toFixed(1);
+    // abaixo do plano fica âmbar; no plano ou acima, na cor da tela (quanto maior, mais forte)
+    var cf = x.plano && x.real < x.plano*0.95 ? 'var(--amber)' : tomCalor(cor2, forte, maior > menor ? (x.real - menor)/(maior - menor) : 1);
+    return '<span class="slot">'+
+      (x.plano ? '<u style="bottom:'+(x.plano/mx*100).toFixed(1)+'%"></u>' : '')+
+      '<em style="bottom:calc('+h+'% + 7px)">'+fmtV(x.real)+'</em>'+
+      '<b style="height:'+h+'%;background:'+cf+'"></b></span>';
+  }).join('');
+  var rots = linhas.map(function(x){
+    return '<i class="'+(x.d === hoje ? 'hoje' : '')+'">'+x.d.slice(8,10)+'/'+x.d.slice(5,7)+'</i>';
+  }).join('');
+  var g = '<div class="grafico gdias'+(rola ? ' rola' : '')+'" style="--cor:'+cor+';--cor2:'+cor2+'">'+
+    '<div class="trilho" style="width:'+larg+'%"><div class="cols">'+cols+'</div><div class="rot">'+rots+'</div></div></div>';
+  if (rola) {
+    var vis = (JANELA_DIAS / linhas.length * 100).toFixed(2);
+    g = '<div class="gwrap">'+g+'<div class="barra" style="--cor:'+cor+'"><b style="width:'+vis+'%;left:'+(100-vis).toFixed(2)+'%"></b></div></div>';
+  }
+  return g;
+}
+
 function renderTelaF(res){
   var el = document.getElementById('telaF');
   // fora do modo diretoria, sem forecast ou em dia passado: a tela nem entra no giro
@@ -1070,63 +1140,65 @@ function renderTelaF(res){
   el.dataset.vazia = '';
   var hoje = hojeOp(), fat = res.faturado[hoje] || null, prev = forecast[hoje] || null;
   var vlr = function(o){ return emValor() ? fmtRS(o && o.rs) : fmt((o && o.itens) || 0); };
+  var vlrC = function(o){ return emValor() ? fmtRSc(o && o.rs) : fmt((o && o.itens) || 0); };
   var num = function(o){ return emValor() ? (o && o.rs) || 0 : (o && o.itens) || 0; };
+  var cru = function(v){ return emValor() ? fmtRSc(v) : fmt(Math.round(v)); };
 
-  var pctHoje = fat && prev && prev.TOTAL && num(prev.TOTAL) ? 100*num(fat)/num(prev.TOTAL) : null;
-  var kpis = kpiHtml('Faturado hoje', fat ? vlr(fat) : '-',
-        fat ? fmt(fat.notas)+' notas | '+(emValor() ? fmt(fat.itens)+' itens' : fmtRS(fat.rs)) : 'nada faturado ainda',
-        'var(--accent)', null, '')+
-    kpiHtml('Forecast do dia', prev && prev.TOTAL ? vlr(prev.TOTAL) : '-',
-        prev && prev.CAPACITY ? 'Capacidade '+fmt(prev.CAPACITY.itens)+' itens' : '', 'var(--accent-light)', null, '')+
-    kpiHtml('% do plano', pctHoje == null ? '-' : pctHoje.toFixed(0)+'%',
-        pctHoje == null ? 'sem forecast hoje' : (pctHoje >= 100 ? 'acima do plano' : 'do forecast do dia'),
-        pctHoje == null ? 'var(--text-muted)' : pctCor(pctHoje), pctHoje == null ? null : pctCor(pctHoje), '')+
-    kpiHtml('Em operação', vlr(res), emValor() ? fmt(res.itens)+' itens' : fmtRS(res.rs), 'var(--amber)', null, '');
-
-  var barras = barraPlano('Faturado x forecast de hoje', num(fat), prev && prev.TOTAL ? num(prev.TOTAL) : 0,
-      fat ? vlr(fat) : '-', prev && prev.TOTAL ? vlr(prev.TOTAL) : '-');
+  // ---- comparações de hoje ----
+  var planoHoje = prev && prev.TOTAL ? num(prev.TOTAL) : 0, realHoje = num(fat);
+  var pctHoje = planoHoje ? 100*realHoje/planoHoje : 0;
+  var corHoje = planoHoje ? pctCor(pctHoje) : 'var(--text-muted)';
+  // backlog: o plano só prevê em itens, então em R$ o previsto usa o ticket do forecast do dia
   var backPrev = prev && prev.BACKLOG_PREVISTO ? prev.BACKLOG_PREVISTO.itens : 0;
-  if (emValor()) {
-    // o plano prevê backlog só em itens: o R$ previsto usa o ticket do forecast do dia
-    var tk = prev && prev.TOTAL && prev.TOTAL.itens ? prev.TOTAL.rs/prev.TOTAL.itens : 0;
-    barras += barraPlano('Backlog x previsto', res.rs, backPrev*tk, fmtRS(res.rs), backPrev*tk ? fmtRS(backPrev*tk) : '-', true);
-  } else {
-    barras += barraPlano('Backlog x previsto', res.itens, backPrev, fmt(res.itens), backPrev ? fmt(backPrev) : '-', true);
-  }
+  if (emValor() && backPrev && prev && prev.TOTAL && prev.TOTAL.itens) backPrev = backPrev * (prev.TOTAL.rs/prev.TOTAL.itens);
+  var realBack = emValor() ? res.rs : res.itens;
+  var pctBack = backPrev ? 100*realBack/backPrev : 0;
+  var corBack = backPrev ? pctCor(pctBack, true) : 'var(--text-muted)';
 
-  var mes = hoje.slice(0,7), sR = 0, sP = 0, linhas = [];
+  // ---- 5 cartões: faturado (verde) · forecast (azul) · as duas comparações em anel · operação (laranja)
+  var kpis =
+    kpiHtml('Faturado hoje', fat ? vlr(fat) : '—',
+        fat ? fmt(fat.notas)+' notas · '+(emValor() ? fmt(fat.itens)+' itens' : fmtRSc(fat.rs)) : 'nada faturado ainda',
+        COR_PXR, COR_PXR, '')+
+    kpiHtml('Forecast do dia', prev && prev.TOTAL ? vlr(prev.TOTAL) : '—',
+        prev && prev.CAPACITY ? 'Capacidade '+fmt(prev.CAPACITY.itens)+' itens' : '', 'var(--accent)', 'var(--accent)', '')+
+    cardAnel('Faturado × forecast', pctHoje, corHoje, cru(realHoje), cru(planoHoje),
+        planoHoje ? (realHoje >= planoHoje ? '+'+cru(realHoje-planoHoje)+' acima' : 'faltam '+cru(planoHoje-realHoje)) : 'sem plano')+
+    cardAnel('Backlog × previsto', pctBack, corBack, cru(realBack), cru(backPrev),
+        backPrev ? (realBack <= backPrev ? cru(backPrev-realBack)+' abaixo' : '+'+cru(realBack-backPrev)+' acima') : 'sem plano')+
+    kpiHtml('Em operação', vlr(res), emValor() ? fmt(res.itens)+' itens' : fmtRSc(res.rs), 'var(--orange)', 'var(--orange)', '');
+
+  // ---- faturado por dia: colunas com o traço do plano, 7 à vista e rolagem para o resto ----
+  var dias = [];
   Object.keys(res.faturado).sort().forEach(function(d){
-    if (d.slice(0,7) !== mes || d > hoje) return;
-    var f = res.faturado[d], p = forecast[d];
-    sR += num(f); if (p && p.TOTAL) sP += num(p.TOTAL);
-    linhas.push({ d: d, f: f, p: p && p.TOTAL });
+    if (d > hoje) return;
+    var pf = forecast[d];
+    dias.push({ d: d, real: num(res.faturado[d]), plano: pf && pf.TOTAL ? num(pf.TOTAL) : 0 });
   });
-  var tabela = linhas.slice().reverse().slice(0, 9).map(function(x){
-    var pc = x.p && num(x.p) ? 100*num(x.f)/num(x.p) : null;
-    return '<div class="etapa"><span class="nm">'+x.d.slice(8,10)+'/'+x.d.slice(5,7)+'</span>'+
-      '<div class="trilho"><div class="barra" style="width:'+(pc == null ? 0 : Math.min(100, pc)).toFixed(1)+'%;background:'+(pc == null ? 'var(--text-muted)' : pctCor(pc))+'"></div></div>'+
-      '<span class="tot">'+vlr(x.f)+'</span>'+
-      '<span class="tot ped" style="color:'+(pc == null ? 'var(--text-muted)' : pctCor(pc))+'">'+(pc == null ? '-' : pc.toFixed(0)+'%')+'</span></div>';
-  }).join('');
+  dias = dias.slice(-10);   // 10 dias corridos no máximo
+  var gd = graficoDias(dias, COR_PXR, COR_PXR2, cru);
+  var sR = 0, sP = 0;
+  dias.forEach(function(x){ sR += x.real; sP += x.plano; });
 
-  var marcas = ['Mizuno','Olympikus','Under Armour'].map(function(m){
-    var rm = (fat && fat.marcas && fat.marcas[m]) || { itens:0, rs:0 }, pm = prev && prev[m];
-    var pc = pm && num(pm) ? 100*num(rm)/num(pm) : null;
-    return '<div class="etapa"><span class="nm"><i style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(COR_MARCA[m]||'#8E9BB5')+';margin-right:10px;vertical-align:-1px"></i>'+esc(m)+'</span>'+
-      '<div class="trilho"><div class="barra" style="width:'+(pc == null ? 0 : Math.min(100, pc)).toFixed(1)+'%;background:'+(COR_MARCA[m]||'#8E9BB5')+'"></div></div>'+
-      '<span class="tot">'+vlr(rm)+'</span>'+
-      '<span class="tot ped">'+(pm ? vlr(pm) : '-')+'</span></div>';
-  }).join('');
+  // ---- faturamento por marca de hoje, em rosca ----
+  var porMarca = {};
+  ['Mizuno','Olympikus','Under Armour'].forEach(function(m){
+    var o = (fat && fat.marcas && fat.marcas[m]) || null;
+    if (o) porMarca[m] = emValor() ? o.rs : o.itens;
+  });
+  var totMarca = Object.keys(porMarca).reduce(function(a,m){ return a + porMarca[m]; }, 0);
 
-  el.innerHTML = '<div class="kpis c4">'+kpis+'</div>'+
+  el.innerHTML = '<div class="kpis c5">'+kpis+'</div>'+
     '<div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
-      '<div class="painel">'+barras+
-        '<div class="etapa cab" style="margin-top:18px"><span class="nm">Por marca | hoje</span><span></span><span class="tot">Real</span><span class="tot">Plano</span></div>'+
-        '<div class="etapas">'+marcas+'</div></div>'+
-      '<div class="painel"><div class="etapa cab"><span class="nm">Faturado por dia</span><span></span><span class="tot">'+(emValor() ? 'R$' : 'Itens')+'</span><span class="tot">% plano</span></div>'+
-        '<div class="etapas">'+tabela+'</div>'+
-        '<div class="etapa total"><span class="nm">Acumulado do mes</span><span></span><span class="tot">'+(emValor() ? fmtRS(sR) : fmt(sR))+'</span>'+
-          '<span class="tot ped" style="color:'+(sP ? pctCor(100*sR/sP) : 'var(--text-muted)')+'">'+(sP ? (100*sR/sP).toFixed(0)+'%' : '-')+'</span></div></div>'+
+      '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturado por dia</span><span></span>'+
+        '<span class="tot" style="width:auto"><span class="leg-plano"><i></i>plano</span></span></div>'+
+        (gd || '<div class="vazio">Sem faturamento no período.</div>')+
+        '<div class="etapa total"><span class="nm">Acumulado · '+dias.length+(dias.length === 1 ? ' dia' : ' dias')+'</span><span></span>'+
+          '<span class="tot">'+cru(sR)+'</span>'+
+          '<span class="tot ped" style="color:'+(sP ? pctCor(100*sR/sP) : 'var(--text-muted)')+'">'+(sP ? (100*sR/sP).toFixed(0)+'%' : '—')+'</span></div></div>'+
+      '<div class="painel"><span class="k">'+(emValor() ? 'Faturamento por marca · hoje' : 'Itens faturados por marca · hoje')+'</span>'+
+        (totMarca ? pizzaHtml(porMarca, totMarca, emValor() ? fmtRSc : fmt, emValor() ? 'em R$' : 'itens')
+                  : '<div class="vazio">Nada faturado hoje ainda.</div>')+'</div>'+
     '</div></div>';
 }
 
@@ -1144,9 +1216,11 @@ function redesenhar(){ desenharTelas(); relogio(); }
 /* ================= TOGGLE ITENS / R$ (só no modo diretoria) ================= */
 // Troca a unidade das telas que mostram valor. Não busca nada de novo: o R$ já vem no mesmo snapshot,
 // no campo "rs" ao lado de cada "itens". Fora do modo diretoria o seletor não existe na página.
+var TELAS_COM_VALOR = { telaC:1, telaF:1 };   // as outras não mudam nada com o toggle: ele some nelas
 function marcaUnidade(){
   var box = document.getElementById('selUn');
-  if (!MODO_DIRETORIA) { box.hidden = true; return; }
+  var t = telas && telas[atual] ? telas[atual].id : '';
+  if (!MODO_DIRETORIA || !TELAS_COM_VALOR[t]) { box.hidden = true; return; }
   box.hidden = false;
   Array.prototype.forEach.call(box.querySelectorAll('button'), function(b){
     b.classList.toggle('on', (b.dataset.u === 'rs') === emRs);
@@ -1179,7 +1253,8 @@ function mostraTela(i){
 }
 // Cor dos detalhes do calendário e da data em cada tela: [forte, clara, texto sobre a forte]
 var COR_CAL = { telaC:['#297ADF','#7FB2EC','#fff'], telaA:['#EF5B5B','#F59A9A','#fff'], telaB:['#2EC4B6','#8CEBDF','#0E1626'],
-                telaE:['#F6BD00','#FCE38A','#142032'], telaD:['#F5A524','#FBCB7A','#142032'] };
+                telaE:['#F6BD00','#FCE38A','#142032'], telaD:['#F5A524','#FBCB7A','#142032'],
+                telaF:['#45C645','#9BE49B','#0E1626'] };   // Plano x Real: verde
 var sentidoTroca = 1;   // 1 = avançou (botão >, seta → ou rodízio), -1 = voltou (botão <, seta ←)
 function entraTela(i){
   telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
@@ -1215,6 +1290,7 @@ setInterval(function(){
 function marcaTurno(){
   var el = document.getElementById('selTurno'), t = turnoEscolhido || RegrasBlack.turnoAtual(new Date()).turno;
   el.hidden = MODO_OPERACAO || !turnoTela || !telas[atual] || telas[atual].id !== 'telaA' || !document.getElementById('telaA').classList.contains('on');
+  if (typeof marcaUnidade === 'function') marcaUnidade();   // o toggle só aparece nas telas que mostram valor
   el.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-t') === t); });
 }
 document.querySelectorAll('#selTurno button').forEach(function(b){ b.addEventListener('click', function(e){
