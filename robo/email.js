@@ -134,24 +134,20 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm) {
   };
 }
 
-// Rodapé da tabela: a ÚLTIMA coluna nunca está fechada. O WMS é exportado de 30 em 30 min e, na
-// separação e na conferência, a tarefa só entra no relatório depois de terminada — em 18/11 a hora
-// das 08h apareceu com 23 peças no e-mail das 09h05 e fechou em 103 meia hora depois.
+// Rodapé da tabela: só quando a ÚLTIMA coluna ainda NÃO fechou, isto é, quando o WMS foi
+// exportado dentro dessa mesma hora. Exportação às 10h05 com a tabela indo até 09h = hora
+// fechada, sem aviso (18/11). Texto curto: o longo esticava a tabela no Teams.
 function hhmmDe(ms) {
   if (!ms) return null;
   var d = new Date(ms);
   return String(d.getHours()).padStart(2, "0") + "h" + String(d.getMinutes()).padStart(2, "0");
 }
 function aviso(titulo, horas, fonteEm, T) {
-  if (!horas || !horas.length) return "";
-  var ultima = rotHora(horas[horas.length - 1]);
-  var quando = hhmmDe(fonteEm);
-  var porTarefa = titulo === "Separado" || titulo === "Conferido";
-  return '<p style="' + FONTE + "margin:8px 0 0;padding:0 2px;font-size:11.5px;line-height:1.45;color:" + T.apoio + '">' +
-    "A coluna <b>" + ultima + "</b> ainda está parcial" +
-    (quando ? ": o WMS foi exportado às " + quando : "") +
-    (porTarefa ? " e a tarefa só entra no relatório depois de concluída" : "") +
-    ". A exportação é de 30 em 30 minutos, então essa hora ainda sobe depois.</p>";
+  if (!horas || !horas.length || !fonteEm) return "";
+  var ultima = horas[horas.length - 1];
+  if (ordemHora(new Date(fonteEm).getHours()) > ordemHora(ultima)) return "";   // a hora já fechou
+  return '<p style="' + FONTE + "margin:7px 0 0;padding:0 2px;font-size:11.5px;color:" + T.apoio + '">' +
+    rotHora(ultima) + " parcial · exportado às " + hhmmDe(fonteEm) + "</p>";
 }
 
 /* ---------------- quem é de qual turno ---------------- */
