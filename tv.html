@@ -38,8 +38,8 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
   --bg:#0F1623;--bg-card:#192032;--bg-input:#1E2A3D;--border:#253048;--text:#E8EBF2;--text-muted:#7C8BA8;--text-label:#9BAAC4;
   --cc:#297ADF;--cc2:#7FB2EC;--cc-t:#fff;
   --accent:#297ADF;--accent-light:#7FB2EC;--olive:#45C645;--amber:#F6BD00;--orange:#F5A524;--red:#E0334F;
-  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;--t7:#F28C28;--t8:#F2F2F2;
-  --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;--t7-soft:#3A2512;--t8-soft:#2C323D;
+  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;--t7:#F28C28;--t8:#F2F2F2;--t9:#F6BD00;--t10:#2EC4B6;--t11:#7FB2EC;--t12:#E0334F;
+  --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;--t7-soft:#3A2512;--t8-soft:#2C323D;--t9-soft:#332B10;--t10-soft:#10302D;--t11-soft:#16283F;--t12-soft:#3A1A1E;
   background:var(--bg);color:var(--text);font-size:16px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}
 
 /* ---------- CSS da pista e dos cards: copiado do index.html (Competição) ---------- */
@@ -249,6 +249,27 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .ct .l1 .comp-pos{margin-left:auto;font-size:13px}
 .ct .l2{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:var(--text-muted);white-space:nowrap}.ct .l2 b{color:var(--c);font-weight:800}
 .cl .comp-pista-grupo{grid-column:1 / -1}
+/* Corrida em duas telas (A e G, só no telão da Black): pista em largura total e, embaixo, um card por time como antes
+   de 09/11, agrupados por pista (o nome do grupo vai em cima de cada bloco). */
+.corrida-col{display:flex;flex-direction:column;gap:12px}
+.cb-linha{display:flex;gap:14px;align-items:stretch}
+.cb-grp{min-width:0;display:flex;flex-direction:column}
+.cb-grade{display:grid;gap:10px;flex:1}
+.cb{background:color-mix(in srgb,var(--c) 9%,var(--bg-card));border:1px solid var(--border);border-top:4px solid var(--c);border-radius:10px;padding:9px 14px 10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.cb.lider{box-shadow:0 0 0 1px var(--c) inset}
+.cb .c1{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;color:var(--c);white-space:nowrap}
+.cb .c1 i{width:11px;height:11px;border-radius:50%;background:var(--c);flex:none}
+.cb .c1 .comp-pos{margin-left:auto;font-size:13px}
+.cb .c2{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.cb .c2 .gr{display:flex;align-items:baseline;gap:7px}
+.cb .c2 .gr b{font-size:32px;font-weight:800;line-height:1.1}
+.cb .c2 small{font-size:14px;font-weight:600;color:var(--text-muted)}
+.cb .c2 .pm{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;line-height:1.05}
+.cb .c2 .pm b{font-size:22px;font-weight:800;color:var(--c)}
+.cb .c2 .pm em{font-style:normal;font-size:11px;color:var(--text-muted)}
+.cb .c3{font-size:14px;color:var(--text-muted);white-space:nowrap}.cb .c3 b{color:var(--c);font-weight:800}
+.cb.apoio .c2 .gr b{color:var(--text-muted)}
+.tela.entrando .cb{animation:entraFade .55s ease .2s both}
 /* Balões de acompanhamento (pontos ganhos/perdidos e meta batida): discretos, na cor do time, 10 s cada */
 #baloes{position:absolute;right:22px;bottom:70px;z-index:18;display:flex;flex-direction:column;gap:8px;width:380px;pointer-events:none}
 .balao{background:color-mix(in srgb,var(--c) 14%,var(--bg-card));border:1px solid color-mix(in srgb,var(--c) 40%,var(--border));border-left:5px solid var(--c);border-radius:9px;padding:7px 14px;box-shadow:0 10px 30px rgba(0,0,0,.45);animation:balaoEntra .35s ease-out both}
@@ -381,6 +402,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
     <section class="tela on" id="telaC" data-titulo="Operação agora" data-giro="90" data-fonte="operacao"></section>
     <section class="tela" id="telaF" data-titulo="Plano × Real" data-giro="90" data-fonte="operacao" data-vazia="1"></section>
     <section class="tela" id="telaA" data-titulo="Corrida Maluca" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
+    <section class="tela" id="telaG" data-titulo="Colmeia e Apoio" data-giro="120" data-fonte="outbound"><div class="vazio">Carregando a competição…</div></section>
     <section class="tela" id="telaB" data-titulo="Separação e Conferência" data-giro="90" data-fonte="outbound"></section>
     <section class="tela" id="telaE" data-titulo="Expedição" data-giro="90" data-fonte="operacao"></section>
     <section class="tela" id="telaD" data-titulo="Armazenagem" data-giro="60" data-fonte="inbound"></section>
@@ -415,6 +437,9 @@ var QUER_DIRETORIA = Q.get('modo') === 'diretoria';
 var MODO_DIRETORIA = false;                 // só liga depois do login, em temPerfil()
 var PERFIL_DIRETORIA = 'admin';             // perfis_acesso.role que pode ver R$
 var MODO_OPERACAO = Q.get('modo') === 'operacao' || QUER_DIRETORIA;
+// A 2ª tela da Corrida (G) só existe no telão da Black: nos modos operação e diretoria ela é tirada da página antes de
+// qualquer coisa, então a lista de telas e o rodízio ficam exatamente como eram.
+if (MODO_OPERACAO) { var telaGFora = document.getElementById('telaG'); if (telaGFora) { var antesG = telaGFora.previousSibling; if (antesG && antesG.nodeType === 3) antesG.parentNode.removeChild(antesG); telaGFora.parentNode.removeChild(telaGFora); } }
 var emRs = false;                           // unidade do toggle (só existe no modo diretoria)
 if (QUER_DIRETORIA) {
   document.getElementById('loginTit').textContent = 'Panorama · Diretoria';
@@ -471,91 +496,125 @@ function calcularCompeticao(snap, cadastro, diaAlvo){
   return c;
 }
 
-/* ================= TELA A · PLACAR DOS TIMES ================= */
-var pAnterior = {}, RAIA = 60, ultimoC = null, ordemAnterior = null;
+/* ================= TELAS A E G · CORRIDA ================= */
+// Duas telas com a mesma estrutura: pistas em largura total e, embaixo, um card por time (como antes de 09/11).
+// A = Checkout e Vestuário (6 times) · G = Colmeia + uma pista para cada time de apoio (Expedição, Corte, Pula).
+// Só existem no telão da Black: em ?modo=operacao e ?modo=diretoria a G é removida da página e a A fica vazia.
+var TELAS_CORRIDA = { telaA:1, telaG:1 };
+var pAnterior = {}, RAIA = 60, ultimoC = null, ordemAnterior = {};   // ordemAnterior: uma por tela
 // Posição do carro na pista: 1 = bico na linha de chegada; meta batida passa um pouco dela.
 var P_META_BATIDA = 1.06;
 function pPista(t){ return !t.meta ? 0 : t.total >= t.meta ? P_META_BATIDA : t.total/t.meta; }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
 // Times de um grupo na ordem da corrida (maior realizado em cima).
 function doGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
-function pistaHtml(c){
+// Times de apoio (tela G). Por enquanto só o MODELO (19/11): carro na largada, sem pontuação; a conta de cada um entra
+// depois. Cada time tem a sua pista. O FIFO fica reservado (Máquina do Mistério, corrida/t12.gif), fora da tela por ora.
+var TIMES_APOIO = [
+  { n:9,  grupo:'expedicao', cor:{ nome:'Expedição', c:'--t9',  s:'--t9-soft'  }, carro:{ h:34, ar:2.05 } },
+  { n:10, grupo:'corte',     cor:{ nome:'Corte',     c:'--t10', s:'--t10-soft' }, carro:{ h:40, ar:1.55 } },
+  { n:11, grupo:'pula',      cor:{ nome:'Pula',      c:'--t11', s:'--t11-soft' }, carro:{ h:40, ar:1.09 } },
+  { n:12, grupo:'fifo',      cor:{ nome:'FIFO',      c:'--t12', s:'--t12-soft' }, carro:{ h:40, ar:1.5 }, reservado:true }
+].map(function(t){ t.apoio = true; t.total = 0; t.meta = 0; t.pos = 0; return t; });
+// Grupos (pistas) de cada tela, já com os times na ordem da corrida.
+function gruposDaTela(id, c){
+  var rot = {}; RegrasBlack.GRUPOS.forEach(function(g){ rot[g.id] = g.rot; });
+  if (id === 'telaA') return ['checkout', 'vestuario'].map(function(g){ return { id:g, rot:rot[g], times:doGrupo(c, g) }; });
+  return [{ id:'colmeia', rot:rot.colmeia, times:doGrupo(c, 'colmeia') }].concat(
+    TIMES_APOIO.filter(function(t){ return !t.reservado; }).map(function(t){ return { id:t.grupo, rot:t.cor.nome, times:[t] }; }));
+}
+function pistaHtml(grupos, comTotal){
   function linhas(lista){
     return lista.map(function(t, i){
       var pct = pPista(t), x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0;
-      var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = CARROS[t.n] || CARROS[1], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - Math.min(1,pct)*.45).toFixed(2)+'s';
+      var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = t.carro || CARROS[t.n] || CARROS[1], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - Math.min(1,pct)*.45).toFixed(2)+'s';
       var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
       return '<div class="cl lt" data-k="r'+t.n+'">'+
-        '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(i+1)+'º '+t.cor.nome+'</div>'+
+        '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(lista.length > 1 ? (i+1)+'º ' : '')+t.cor.nome+'</div>'+
         '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
           '<span class="comp-rastro" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --p:'+ant+'"></span>'+
           '<span class="comp-carro" data-n="'+t.n+'" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --h:'+h+'px; --p:'+ant+'; --vel:'+vel+'">'+FUMACA_SVG+'<img src="corrida/t'+t.n+'.gif?v=2" alt=""></span></div>'+
           '<span class="comp-chegada" style="--cy:'+(-i*RAIA)+'px"></span></div>'+
-        '<div class="comp-raia-num"><b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span></div>'+
+        '<div class="comp-raia-num">'+(t.apoio ? '<b>—</b><span>—</span>' : '<b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span>')+'</div>'+
       '</div>';
     }).join('');
   }
-  // Cards dos times: painel separado à direita, com as mesmas linhas da pista (cada card na altura do carro).
-  function cards(lista){
-    return lista.map(function(t){
-      var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"', pm = t.meta ? Math.round(t.total/t.meta*100) : 0;
-      return '<div class="cr lt" data-k="c'+t.n+'"><div class="ct'+(t.pos === 1 ? ' lider' : '')+'" '+st+'><div class="l1"><i></i>Time '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
-        '<div class="l2"><span>Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b></span><span><b>'+pm+'%</b> da meta</span></div></div></div>';
-    }).join('');
-  }
-  var G = RegrasBlack.GRUPOS;
-  var totR = c.times.reduce(function(s,t){ return s+t.total; },0), totM = c.times.reduce(function(s,t){ return s+t.meta; },0);
+  var todos = [].concat.apply([], grupos.map(function(g){ return g.times; }));
+  var totR = todos.reduce(function(s,t){ return s+t.total; },0), totM = todos.reduce(function(s,t){ return s+t.meta; },0);
   // Cabeçalho numa linha só (1º grupo · progresso · realizado/meta); os outros grupos abrem com o nome deles.
-  return '<div class="corrida-lado"><div class="panel comp-pista">'+
-    '<div class="cl"><div class="comp-pista-hd comp-pista-g1">'+G[0].rot+'</div><div class="comp-pista-hd" style="text-align:center">Progresso das Equipes</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div></div>'+
-    G.map(function(g, k){ return (k ? '<div class="cl"><div class="comp-pista-grupo">'+g.rot+'</div></div>' : '')+linhas(doGrupo(c, g.id)); }).join('')+
-    '<div class="cl"><div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div></div></div>'+
-    '<div class="panel comp-cards"><div class="comp-pista-hd">Times</div>'+
-    G.map(function(g, k){ return (k ? '<div class="comp-pista-grupo">'+g.rot+'</div>' : '')+cards(doGrupo(c, g.id)); }).join('')+
-    '</div></div>';
+  return '<div class="panel comp-pista">'+
+    '<div class="cl"><div class="comp-pista-hd comp-pista-g1">'+grupos[0].rot+'</div><div class="comp-pista-hd" style="text-align:center">Progresso das Equipes</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div></div>'+
+    grupos.map(function(g, k){ return (k ? '<div class="cl"><div class="comp-pista-grupo">'+g.rot+'</div></div>' : '')+linhas(g.times); }).join('')+
+    (comTotal ? '<div class="cl"><div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div></div>' : '')+
+    '</div>';
+}
+// Cards embaixo, um por time, agrupados por pista (o nome do grupo vai em cima de cada bloco).
+function cardsBaixo(grupos){
+  return '<div class="cb-linha">'+grupos.map(function(g){
+    return '<div class="cb-grp" style="flex:'+g.times.length+' 1 0%"><div class="comp-pista-grupo">'+g.rot+'</div>'+
+      '<div class="cb-grade" style="grid-template-columns:repeat('+g.times.length+',minmax(0,1fr))">'+g.times.map(function(t){
+        var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"', pm = t.meta ? Math.round(t.total/t.meta*100) : 0;
+        if (t.apoio) return '<div class="cb apoio" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+'</div>'+
+          '<div class="c2"><span class="gr"><b>—</b><small>em breve</small></span></div><div class="c3">pontuação em definição</div></div>';
+        return '<div class="cb'+(t.pos === 1 ? ' lider' : '')+'" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
+          '<div class="c2"><span class="gr"><b>'+fmt(t.total)+'</b><small>peças</small></span><span class="pm"><b>'+pm+'%</b><em>da meta</em></span></div>'+
+          '<div class="c3">Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b></div></div>';
+      }).join('')+'</div></div>';
+  }).join('')+'</div>';
 }
 function ordemPista(c){ return [].concat.apply([], RegrasBlack.GRUPOS.map(function(g){ return doGrupo(c, g.id); })); }
-function renderTelaA(c){
-  var el = document.getElementById('telaA');
+function renderCorrida(id, c){
+  var el = document.getElementById(id);
+  if (!el) return;
   if (MODO_OPERACAO) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // TV da operação: sem Corrida
   if (!c.temDados) { el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência ainda.<br>Abasteça a base no site do Produtividade.</div>'; return; }
-  // Ultrapassagem (FLIP, só quando a ordem muda): o carro (com nome e números da linha) e o card deslizam da posição
-  // antiga para a nova; a pista fica parada (antes a linha inteira deslizava e a pista se deformava, 16/11).
-  var ordem = ordemPista(c).map(function(t){ return t.n; }).join(','), antes = {};
-  var anima = el.classList.contains('on') && ordemAnterior && ordem !== ordemAnterior && !matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (anima) el.querySelectorAll('.lt[data-k]').forEach(function(l){ antes[l.getAttribute('data-k')] = l.getBoundingClientRect().top; });
-  el.innerHTML = pistaHtml(c);
-  ordemAnterior = ordem;
+  var grupos = gruposDaTela(id, c), lista = [].concat.apply([], grupos.map(function(g){ return g.times; }));
+  // Ultrapassagem (FLIP, só quando a ordem muda): o carro (com nome e números da linha) desliza na vertical e o card na
+  // horizontal, da posição antiga para a nova; a pista fica parada (antes a linha inteira deslizava e a pista se deformava, 16/11).
+  var ordem = lista.map(function(t){ return t.n; }).join(','), antes = {}, antesC = {};
+  var anima = el.classList.contains('on') && ordemAnterior[id] && ordem !== ordemAnterior[id] && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (anima) {
+    el.querySelectorAll('.lt[data-k]').forEach(function(l){ antes[l.getAttribute('data-k')] = l.getBoundingClientRect().top; });
+    el.querySelectorAll('.cb[data-k]').forEach(function(l){ antesC[l.getAttribute('data-k')] = l.getBoundingClientRect().left; });
+  }
+  el.innerHTML = '<div class="corrida-col">'+pistaHtml(grupos, id === 'telaA')+cardsBaixo(grupos)+'</div>';
+  ordemAnterior[id] = ordem;
   if (anima) {
     var pc = document.getElementById('palco'), k = pc.getBoundingClientRect().width / pc.offsetWidth || 1;
     var pista = el.querySelector('.comp-pista');
     if (pista) { pista.classList.add('trocando'); setTimeout(function(){ pista.classList.remove('trocando'); }, 950); }
+    var desliza = function(e, de){ if (e.animate) e.animate([{ translate:de }, { translate:'0 0' }], { duration:900, easing:'cubic-bezier(.2,.8,.2,1)' }); };   // translate (e não transform): não briga com o transform do carro
     el.querySelectorAll('.lt[data-k]').forEach(function(l){
       var a = antes[l.getAttribute('data-k')]; if (a == null) return;
       var dy = (a - l.getBoundingClientRect().top) / k;
       if (Math.abs(dy) <= 1) return;
-      var alvos = l.classList.contains('cr') ? [l] : l.querySelectorAll('.comp-raia-nome, .comp-raia-num, .comp-carro, .comp-rastro');
-      Array.prototype.forEach.call(alvos, function(e){   // translate (e não transform): não briga com o transform do carro
-        if (e.animate) e.animate([{ translate:'0 '+dy+'px' }, { translate:'0 0' }], { duration:900, easing:'cubic-bezier(.2,.8,.2,1)' });
-      });
+      Array.prototype.forEach.call(l.querySelectorAll('.comp-raia-nome, .comp-raia-num, .comp-carro, .comp-rastro'), function(e){ desliza(e, '0 '+dy+'px'); });
+    });
+    el.querySelectorAll('.cb[data-k]').forEach(function(l){
+      var a = antesC[l.getAttribute('data-k')]; if (a == null) return;
+      var dx = (a - l.getBoundingClientRect().left) / k;
+      if (Math.abs(dx) > 1) desliza(l, dx+'px 0');
     });
   }
   // os carros andam da posição anterior até a nova, como no site
   requestAnimationFrame(function(){ requestAnimationFrame(function(){
     el.querySelectorAll('.comp-carro[data-p], .comp-rastro[data-p]').forEach(function(e){ e.style.setProperty('--p', e.getAttribute('data-p')); });
   }); });
-  c.times.forEach(function(t){ pAnterior[t.n] = pPista(t); });
+  lista.forEach(function(t){ pAnterior[t.n] = pPista(t); });
   ultimoC = c; requestAnimationFrame(ajustaAltura);
 }
-// Distribui a altura que sobra na tela: a maior parte vai para as raias (8 raias) e o resto fica de respiro.
+function renderTelaA(c){ renderCorrida('telaA', c); }
+function renderTelaG(c){ renderCorrida('telaG', c); }
+// Distribui a altura que sobra na tela aberta: a maior parte vai para as raias e o resto fica de respiro.
 function ajustaAltura(){
-  var tela = document.getElementById('telaA'), main = tela.parentNode;
-  if (!ultimoC || !tela.children.length || !tela.classList.contains('on')) return;
+  var tela = telas[atual];
+  if (!tela || !TELAS_CORRIDA[tela.id] || !ultimoC || !tela.children.length || !tela.classList.contains('on')) return;
+  var main = tela.parentNode, raias = tela.querySelectorAll('.comp-raia').length;
   var usado = 0; Array.prototype.forEach.call(tela.children, function(e){ var cs = getComputedStyle(e); usado += e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom); });
   var cs = getComputedStyle(main), livre = main.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - usado;
-  var nova = Math.max(44, Math.min(110, Math.floor(RAIA + livre*0.9/Math.max(1, ultimoC.times.length))));
-  if (Math.abs(nova - RAIA) < 2) return;
+  var nova = Math.max(44, Math.min(110, Math.floor(RAIA + livre*0.9/Math.max(1, raias))));
+  if (!isFinite(nova) || Math.abs(nova - RAIA) < 2) return;
   RAIA = nova; document.getElementById('palco').style.setProperty('--raia', RAIA+'px');
-  renderTelaA(ultimoC);
+  renderCorrida(tela.id, ultimoC);
 }
 
 /* ================= TELAS B (SEPARAÇÃO E CONFERÊNCIA) E D (ARMAZENAGEM) ================= */
@@ -1328,7 +1387,7 @@ function renderTelaF(res){
 var ultimoDesenho = null;
 function desenharTelas(){
   var u = ultimoDesenho; if (!u) return;
-  renderTelaA(u.c); renderTelaB(u.snap, u.res, u.diaOut); renderTelaC(u.res);
+  renderTelaA(u.c); renderTelaG(u.c); renderTelaB(u.snap, u.res, u.diaOut); renderTelaC(u.res);
   renderTelaF(u.res); renderTelaE(u.res); renderTelaD(u.snapIn);
   renderFaixa(u.c, u.snap, u.diaOut, u.res);
 }
@@ -1416,7 +1475,7 @@ function mostraTela(i){
   } else entraTela(i);
 }
 // Cor dos detalhes do calendário e da data em cada tela: [forte, clara, texto sobre a forte]
-var COR_CAL = { telaC:['#297ADF','#7FB2EC','#fff'], telaA:['#EF5B5B','#F59A9A','#fff'], telaB:['#2EC4B6','#8CEBDF','#0E1626'],
+var COR_CAL = { telaC:['#297ADF','#7FB2EC','#fff'], telaA:['#EF5B5B','#F59A9A','#fff'], telaG:['#EF5B5B','#F59A9A','#fff'], telaB:['#2EC4B6','#8CEBDF','#0E1626'],
                 telaE:['#F6BD00','#FCE38A','#142032'], telaD:['#F5A524','#FBCB7A','#142032'],
                 telaF:['#45C645','#9BE49B','#0E1626'] };   // Plano x Real: verde
 var sentidoTroca = 1;   // 1 = avançou (botão >, seta → ou rodízio), -1 = voltou (botão <, seta ←)
@@ -1438,10 +1497,10 @@ function entraTela(i){
   sentidoTroca = 1;
   document.getElementById('barra').hidden = telasAtivas().length < 2;   // com uma tela só não há o que girar
   document.querySelector('.navt').classList.toggle('so', telasAtivas().length < 2);
-  if (telas[i].id !== 'telaA' && turnoEscolhido) { turnoEscolhido = null; carregar(); }   // saiu da Corrida: volta ao turno do horário
+  if (!TELAS_CORRIDA[telas[i].id] && turnoEscolhido) { turnoEscolhido = null; carregar(); }   // saiu da Corrida: volta ao turno do horário
   marcaTurno();
   relogio();
-  if (telas[i].id === 'telaA') requestAnimationFrame(ajustaAltura);
+  if (TELAS_CORRIDA[telas[i].id]) requestAnimationFrame(ajustaAltura);
   requestAnimationFrame(function(){   // tela estava escondida: só agora dá para medir
     ajustaLinhaKpi();
     rolagemUsuario = {};   // tela nova: todos os gráficos voltam para a hora mais recente
@@ -1462,7 +1521,7 @@ setInterval(function(){
 // T01 | T02 ao lado das setas: só na Corrida, fora do ?modo=operacao e com escalação por turno
 function marcaTurno(){
   var el = document.getElementById('selTurno'), t = turnoEscolhido || RegrasBlack.turnoAtual(new Date()).turno;
-  el.hidden = MODO_OPERACAO || !turnoTela || !telas[atual] || telas[atual].id !== 'telaA' || !document.getElementById('telaA').classList.contains('on');
+  el.hidden = MODO_OPERACAO || !turnoTela || !telas[atual] || !TELAS_CORRIDA[telas[atual].id] || !telas[atual].classList.contains('on');
   if (typeof marcaUnidade === 'function') marcaUnidade();   // o toggle só aparece nas telas que mostram valor
   el.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-t') === t); });
 }
@@ -1628,6 +1687,7 @@ async function carregar(){
     marcaTurno();
     var diaOut = diaOutbound(snap);
     document.getElementById('telaA').dataset.dia = diaOut;
+    var telaGDia = document.getElementById('telaG'); if (telaGDia) telaGDia.dataset.dia = diaOut;
     var c = calcularCompeticao(snap, cadT, diaOut);
     var ouros = r[3].error ? [] : (r[3].data || []);
     var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
@@ -1649,7 +1709,7 @@ async function carregar(){
     var fSep = F('Separação', fe['up-separacao-analitica'] || semFe), fConf = F('Conferência', fe['up-conferencia-analitica'] || semFe),
         fColm = F('Colmeia', fe['up-conf-colmeia'] || semFe), fOp = F('Acompanhamento OP', res.opEm), fNf = F('Itens de NF', res.nfEm),
         fKx = F('Kardex', res.expedicao && res.expedicao.kardexEm);
-    horaFonte = { telaA:[fSep, fConf, fColm], telaB:[fSep, fConf, fColm, fOp], telaC:[fOp, fNf], telaE:[fKx, fOp], telaD:[fKx] };
+    horaFonte = { telaA:[fSep, fConf, fColm], telaG:[fSep, fConf, fColm], telaB:[fSep, fConf, fColm, fOp], telaC:[fOp, fNf], telaE:[fKx, fOp], telaD:[fKx] };
     ultimoDesenho = { c: c, snap: snap, snapIn: snapIn, diaOut: diaOut, res: op && op.resumo };
     desenharTelas();
     if (!MODO_OPERACAO && !outroTurno) verificaMetas(c);
