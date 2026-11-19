@@ -657,7 +657,10 @@ document.addEventListener('pointerdown', function(e){
 function ajustaLinhaKpi(){ document.querySelectorAll('.kpi .s').forEach(function(el){ el.style.fontSize = ''; var f = 21; while (el.scrollWidth > el.clientWidth + 1 && f > 14) el.style.fontSize = (--f)+'px'; }); }
 window.addEventListener('resize', ajustaLinhaKpi);
 new MutationObserver(function(m){ if (m.some(function(x){ return x.target.querySelector && x.target.querySelector('.kpi .s'); })) ajustaLinhaKpi(); }).observe(document.documentElement, { childList:true, subtree:true });
-new MutationObserver(function(){ document.querySelectorAll('.grafico.rola:not([data-rolou])').forEach(function(g){ var k = chaveGrafico(g); g.scrollLeft = k in rolagemUsuario ? rolagemUsuario[k] : g.scrollWidth; if (g.scrollWidth) g.dataset.rolou = '1'; }); }).observe(document.documentElement, { childList:true, subtree:true });
+new MutationObserver(function(){ document.querySelectorAll('.grafico.rola:not([data-rolou])').forEach(function(g){ var k = chaveGrafico(g); g.scrollLeft = k in rolagemUsuario ? rolagemUsuario[k] : g.scrollWidth;
+  // acerta a barrinha à mão: voltar a 0 num gráfico que já está em 0 (troca Itens/R$ no começo do mês) não dispara "scroll" e ela ficava na ponta direita
+  var b = g.nextElementSibling && g.nextElementSibling.firstChild; if (b && g.scrollWidth) b.style.left = (g.scrollLeft / g.scrollWidth * 100).toFixed(2)+'%';
+  if (g.scrollWidth) g.dataset.rolou = '1'; }); }).observe(document.documentElement, { childList:true, subtree:true });
 function graficoHoras(horas, dia, cor, cor2, rotMedia, h00){
   var vals = horas.slice(1).concat([h00 || 0]), labs = [];
   for (var k = 1; k <= 23; k++) labs.push(k); labs.push(0);
@@ -1308,7 +1311,7 @@ function renderTelaF(res){
       '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturamento bruto por dia</span><span></span>'+
         '<span class="tot" style="grid-column:3 / span 2"><span class="leg-plano"><i></i>planejamento</span></span></div>'+
         (gd || '<div class="vazio">Sem faturamento no período.</div>')+
-        '<div class="etapa total"><span class="nm">'+nomeMesTela.charAt(0).toUpperCase()+nomeMesTela.slice(1)+' · forecast do mês '+(fcMes ? cru(fcMes) : '—')+' · até '+ddmmT+' '+(fcAte ? cru(fcAte) : '—')+'</span><span></span>'+
+        '<div class="etapa total"><span class="nm">'+nomeMesTela.charAt(0).toUpperCase()+nomeMesTela.slice(1)+' · forecast do mês '+(fcMes ? cru(fcMes) : '—')+'</span><span></span>'+
           '<span class="tot">'+cru(realMes)+'</span>'+
           '<span class="tot ped" style="color:'+corMes+'">'+(fcAte ? pctMes.toFixed(0)+'%' : '—')+'</span></div>'+
         '</div>'+
