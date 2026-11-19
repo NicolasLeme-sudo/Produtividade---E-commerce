@@ -129,7 +129,7 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm) {
     }).join("") +
     '<td style="background:' + corTotal + ";color:" + cor + ';font-weight:800"><b>' + fmt(total) + "</b></td></tr>";
   return {
-    html: '<div style="' + cartao + '">' + cabecalho + tbl + cab + corpo + rodape + "</table>" + aviso(titulo, horas, fonteEm, T) + "</div>",
+    html: '<div style="' + cartao + '">' + cabecalho + tbl + cab + corpo + rodape + "</table>" + aviso(titulo, horas, fonteEm, T) + avisoVisitas(titulo, pessoas, T) + "</div>",
     total: total, horas: horas, pessoas: linhas.length
   };
 }
@@ -148,6 +148,16 @@ function aviso(titulo, horas, fonteEm, T) {
   if (ordemHora(new Date(fonteEm).getHours()) > ordemHora(ultima)) return "";   // a hora já fechou
   return '<p style="' + FONTE + "margin:7px 0 0;padding:0 2px;font-size:11.5px;color:" + T.apoio + '">' +
     rotHora(ultima) + " parcial · exportado às " + hhmmDe(fonteEm) + "</p>";
+}
+
+// Legenda: itens processados por usuário do 2º turno que trabalhou de manhã (carga de outro turno).
+// A produção fica no dia dele, na tabela da manhã; aqui só se avisa de onde veio (qualquer atividade).
+function avisoVisitas(titulo, pessoas, T) {
+  var v = pessoas && pessoas._visitasT2;
+  if (!v || !v.total) return "";
+  var hs = v.horas.slice().sort(function (a, b) { return ordemHora(a) - ordemHora(b); }).map(rotHora).join(", ");
+  return '<p style="' + FONTE + "margin:4px 0 0;padding:0 2px;font-size:11.5px;color:" + T.apoio + '">' +
+    fmt(v.total) + " itens processados às " + hs + " com " + (v.pessoas === 1 ? "um usuário" : v.pessoas + " usuários") + " do 2º turno</p>";
 }
 
 /* ---------------- quem é de qual turno ---------------- */
@@ -182,14 +192,30 @@ function turnoDaPessoa(arr, manha) {
 // { usuario: [24] } -> { <manha>: { nome: [24] }, T02: {...} }
 function porTurno(porUsuario, nomes, manha) {
   var out = {}; out[manha] = {}; out.T02 = {};
+  var visitas = { total: 0, horas: [], pessoas: 0 };   // produção de usuário do 2º turno dentro da tabela da manhã (legenda)
   Object.keys(porUsuario || {}).forEach(function (u) {
     var arr = porUsuario[u], cad = turnoCadastrado(u);
-    var t = cad ? (cad === "T02" ? "T02" : manha) : turnoDaPessoa(arr, manha);
+    // O cadastro do RH manda, com uma exceção: quem é T02 no cadastro mas produziu SÓ antes das 14h trabalhou de
+    // manhã naquele dia (troca de turno, apoio): a produção dele fica no turno da manhã, senão some do e-mail do
+    // T01 e a soma não bate com o telão (CARLOS.PAIXAO, 300 peças às 9h em 19/11).
+    var soDeManha = false;
+    if (cad === "T02") {
+      var temHora = false, tarde = false;
+      (arr || []).forEach(function (v, i) { if (!(v > 0)) return; temHora = true; if (ordemHora(i) >= Math.floor(TURNOS.T02.ini / 60)) tarde = true; });
+      soDeManha = temHora && !tarde;
+    }
+    var t = cad ? (cad === "T02" && !soDeManha ? "T02" : manha) : turnoDaPessoa(arr, manha);
     if (!t || !somaDe(arr)) return;
     var nome = (nomes && nomes[u]) || u;
     var alvo = out[t][nome] || (out[t][nome] = new Array(24).fill(0));
     arr.forEach(function (v, h) { alvo[h] += v || 0; });
+    if (soDeManha) {
+      visitas.pessoas++;
+      arr.forEach(function (v, h) { if (v > 0) { visitas.total += v; if (visitas.horas.indexOf(h) === -1) visitas.horas.push(h); } });
+    }
   });
+  // não enumerável: não aparece como "usuário" em quem percorre as chaves do mapa; a tabela lê daqui
+  if (visitas.total) Object.defineProperty(out[manha], "_visitasT2", { value: visitas, enumerable: false });
   return out;
 }
 // Fechamento do dia: os turnos somados numa tabela só (quem trabalhou nos dois aparece uma vez,
