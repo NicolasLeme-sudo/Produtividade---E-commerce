@@ -1272,10 +1272,10 @@ function renderTelaF(res){
   // Todos os dias do mês do dia mostrado, do dia 1 até ele. 8 colunas à vista e barra de rolagem até o começo
   // do mês (abre encostado no dia mais recente). Dia sem registro (robô fora do ar, domingo, feriado) fica
   // marcado "sem registro": mostrar zero diria que não houve faturamento, o que é falso.
-  var dias = [], diaN = +hoje.slice(8, 10);
+  var dias = [], diaN = +hoje.slice(8, 10), primeiroReg = Object.keys(res.faturado).sort()[0] || '';   // antes do 1º dia gravado: "sem registro"; depois dele, dia sem nota = 0
   for (var k = 1; k <= diaN; k++) {
     var d = hoje.slice(0, 8) + String(k).padStart(2, '0'), f = res.faturado[d], pf = forecast[d];
-    dias.push({ d: d, real: f ? num(f) : 0, plano: pf && pf.TOTAL ? num(pf.TOTAL) : 0, sem: !f });
+    dias.push({ d: d, real: f ? num(f) : 0, plano: pf && pf.TOTAL ? num(pf.TOTAL) : 0, sem: !f && d < primeiroReg });
   }
   var gd = graficoDias(dias, COR_PXR, COR_PXR2, cru);
   var sR = 0, sP = 0, comDado = 0;
