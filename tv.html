@@ -1313,7 +1313,7 @@ function renderTelaF(res){
       '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturamento bruto por dia</span><span></span>'+
         '<span class="tot" style="grid-column:3 / span 2"><span class="leg-plano"><i></i>planejamento</span></span></div>'+
         (gd || '<div class="vazio">Sem faturamento no período.</div>')+
-        '<div class="etapa total"><span class="nm">'+nomeMesTela.charAt(0).toUpperCase()+nomeMesTela.slice(1)+' · forecast até '+ddmmT+' '+(fcAte ? cru(fcAte) : '—')+'</span><span></span>'+
+        '<div class="etapa total"><span class="nm">'+nomeMesTela.charAt(0).toUpperCase()+nomeMesTela.slice(1)+' · forecast até '+ddmmT+' · '+(fcAte ? cru(fcAte) : '—')+'</span><span></span>'+
           '<span class="tot">'+cru(realMes)+'</span>'+
           '<span class="tot ped" style="color:'+corMes+'">'+(fcAte ? pctMes.toFixed(0)+'%' : '—')+'</span></div>'+
         '</div>'+
