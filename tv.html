@@ -112,6 +112,7 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .kpi.anel svg{width:84px;height:84px;flex:none}
 .kpi.anel .lado{min-width:0;display:grid;gap:3px}
 .kpi.anel .lado .a1{font-size:27px;font-weight:800;line-height:1.05;color:var(--vc,var(--text));white-space:nowrap}
+.kpi.anel .lado small{font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;opacity:.75}
 .kpi.anel .lado .a2{font-size:17px;color:var(--text-muted);white-space:nowrap}
 .kpi.anel .lado .a3{font-size:17px;font-weight:800;white-space:nowrap}
 
@@ -1149,11 +1150,11 @@ function anelHtml(pct, cor){
     '<text x="40" y="47" text-anchor="middle" fill="'+cor+'" font-size="22" font-weight="800">'+Math.round(pct||0)+'%</text></svg>';
 }
 // Card de comparação: anel + realizado + plano + a diferença que falta (ou que sobra)
-function cardAnel(rot, pct, cor, real, plano, delta){
+function cardAnel(rot, pct, cor, real, plano, delta, rEf, rPrev){
   return '<div class="kpi anel" style="--kc:'+cor+';--vc:'+cor+'"><span class="k">'+rot+'</span>'+
     '<div class="cx">'+anelHtml(pct, cor)+'<div class="lado">'+
-      '<span class="a1">'+real+'</span>'+
-      '<span class="a2">de '+plano+'</span>'+
+      '<span class="a1">'+real+(rEf ? ' <small>'+rEf+'</small>' : '')+'</span>'+
+      '<span class="a2">'+(rPrev ? plano+' <small>'+rPrev+'</small>' : 'de '+plano)+'</span>'+
       '<span class="a3" style="color:'+cor+'">'+delta+'</span>'+
     '</div></div></div>';
 }
@@ -1223,9 +1224,13 @@ function renderTelaF(res){
   var pctHoje = planoHoje ? 100*realHoje/planoHoje : 0;
   var corHoje = planoHoje ? corAtingimento(pctHoje) : 'var(--text-muted)';
   // backlog: o plano só prevê em itens, então em R$ o previsto usa o ticket do forecast do dia
-  var backPrev = prev && prev.BACKLOG_PREVISTO ? prev.BACKLOG_PREVISTO.itens : 0;
+  // Backlog INICIAL do dia: fixo o dia todo. Efetivo = foto do OP na 1ª leitura do dia (res.backlogDias);
+  // previsto = POSICAO_INICIAL do forecast. (BACKLOG_PREVISTO é a posição no FIM do dia: não serve aqui.)
+  // Se o robô não pegou a foto de hoje, cai no valor atual em operação.
+  var backPrev = prev && prev.POSICAO_INICIAL ? prev.POSICAO_INICIAL.itens : 0;
   if (emValor() && backPrev && prev && prev.TOTAL && prev.TOTAL.itens) backPrev = backPrev * (prev.TOTAL.rs/prev.TOTAL.itens);
-  var realBack = emValor() ? res.rs : res.itens;
+  var bkIni = res.backlogDias && res.backlogDias[hoje] ? res.backlogDias[hoje] : res;
+  var realBack = emValor() ? bkIni.rs : bkIni.itens;
   var pctBack = backPrev ? 100*realBack/backPrev : 0;
   var corBack = backPrev ? corBacklog(pctBack) : 'var(--text-muted)';
 
@@ -1238,8 +1243,8 @@ function renderTelaF(res){
         prev && prev.CAPACITY ? 'Capacidade '+fmt(prev.CAPACITY.itens)+' itens' : '', 'var(--accent)', 'var(--accent)', '')+
     cardAnel('Faturado × forecast', pctHoje, corHoje, cru(realHoje), cru(planoHoje),
         planoHoje ? (realHoje >= planoHoje ? '+'+cru(realHoje-planoHoje)+' acima' : 'faltam '+cru(planoHoje-realHoje)) : 'sem plano')+
-    cardAnel('Backlog × previsto', pctBack, corBack, cru(realBack), cru(backPrev),
-        backPrev ? (realBack <= backPrev ? cru(backPrev-realBack)+' abaixo' : '+'+cru(realBack-backPrev)+' acima') : 'sem plano')+
+    cardAnel('Backlog inicial × previsto', pctBack, corBack, cru(realBack), cru(backPrev),
+        backPrev ? (realBack <= backPrev ? cru(backPrev-realBack)+' abaixo' : '+'+cru(realBack-backPrev)+' acima') : 'sem plano', 'Efetivo', 'Previsto')+
     // verde mais escuro que o do Faturado hoje: mesma família da tela, sem confundir os dois cartões
     kpiHtml('Em operação', vlr(res), emValor() ? fmt(res.itens)+' itens' : fmtRSc(res.rs), '#2E9E4A', '#2E9E4A', '');
 
@@ -1282,15 +1287,13 @@ function renderTelaF(res){
 
   el.innerHTML = '<div class="kpis c5">'+kpis+'</div>'+
     '<div class="linhas" style="grid-template-rows:1fr"><div class="linha">'+
-      '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturado por dia</span><span></span>'+
+      '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturamento bruto por dia</span><span></span>'+
         '<span class="tot" style="grid-column:3 / span 2"><span class="leg-plano"><i></i>planejamento</span></span></div>'+
         (gd || '<div class="vazio">Sem faturamento no período.</div>')+
         '<div class="etapa total"><span class="nm">'+nomeMesTela.charAt(0).toUpperCase()+nomeMesTela.slice(1)+' · forecast do mês '+(fcMes ? cru(fcMes) : '—')+'</span><span></span>'+
           '<span class="tot">'+cru(realMes)+'</span>'+
           '<span class="tot ped" style="color:'+corMes+'">'+(fcMes ? (100*realMes/fcMes).toFixed(0)+'%' : '—')+'</span></div>'+
-        '<div class="etapa total"><span class="nm">Período · '+(comDado === dias.length ? dias.length+' dias' : comDado+' de '+dias.length+' dias com registro')+' · contra o planejado</span><span></span>'+
-          '<span class="tot">'+cru(sR)+'</span>'+
-          '<span class="tot ped" style="color:'+(sP ? pctCor(100*sR/sP) : 'var(--text-muted)')+'">'+(sP ? (100*sR/sP).toFixed(0)+'%' : '—')+'</span></div></div>'+
+        '</div>'+
       '<div class="painel"><span class="k">'+(emValor() ? 'Faturamento por marca · hoje' : 'Itens faturados por marca · hoje')+'</span>'+
         (totMarca ? pizzaHtml(porMarca, totMarca, emValor() ? fmtRSc : fmt, emValor() ? 'em R$' : 'itens')
                   : '<div class="vazio">Nada faturado hoje ainda.</div>')+'</div>'+

@@ -1395,6 +1395,7 @@ function resumoOperacao(op) {
   });
   r.maisAntigoDias = r.maisAntigo === null ? null : idadeDias(r.maisAntigo);
   r.caida = op.caidaDias || null;   // caída de pedidos por dia (Itens de NF)
+  r.backlogDias = op.backlogDias || null;   // backlog inicial de cada dia (fixo o dia todo)
   r.faturado = op.fatDias || null;  // faturado por dia: itens, notas e R$ (Itens de NF, Data de Emissão)
   r.expedicao = resumoExpedicao(op);
   return r;
@@ -1495,6 +1496,19 @@ async function atualizarOperacao(novo) {
   }
   if (exp) juntarExpedicao(op, exp, new Date());
   if (info) guardarInfoNf(op, info, novo.pedidos ? info : null);
+  // Backlog inicial do dia: foto do que está em operação na 1ª leitura do OP do dia operacional (antes das 8h,
+  // ou seja, antes de a produção mexer nele). Fica fixo o dia todo; o telão compara com a posição inicial
+  // do plano (POSICAO_INICIAL do forecast). Gravado 1× por dia, 31 dias.
+  if (novo.pedidos) {
+    var diaBk = diaOperacionalIngest(new Date()), bk = op.backlogDias || {};
+    if (!bk[diaBk] && new Date().getHours() < 8) {
+      var bi = 0, br = 0;
+      Object.keys(op.pedidos || {}).forEach(function (p) { bi += op.pedidos[p][1]; br += op.pedidos[p][6] || 0; });
+      bk[diaBk] = { itens: bi, rs: Math.round(br * 100) / 100, em: Date.now() };
+      var bo = {}; Object.keys(bk).sort().slice(-31).forEach(function (d) { bo[d] = bk[d]; });
+      op.backlogDias = bo;
+    }
+  }
   op.resumo = resumoOperacao(op);
   await salvarSnapshot("operacao", op);
   return op.resumo;
