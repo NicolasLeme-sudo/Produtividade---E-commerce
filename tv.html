@@ -1256,6 +1256,22 @@ function renderTelaF(res){
   var sR = 0, sP = 0, comDado = 0;
   dias.forEach(function(x){ if (x.sem) return; comDado++; sR += x.real; sP += x.plano; });
 
+  // ---- mês: faturado até hoje contra o forecast do mês inteiro (soma dos dias do forecast) ----
+  var mes = hoje.slice(0, 7), fcMes = 0, realMes = 0, planoAteOntem = 0, realAteOntem = 0;
+  Object.keys(forecast).forEach(function(d){
+    if (d.slice(0, 7) !== mes || !forecast[d].TOTAL) return;
+    var v = num(forecast[d].TOTAL); fcMes += v;
+    if (d < hoje) planoAteOntem += v;
+  });
+  Object.keys(res.faturado).forEach(function(d){
+    if (d.slice(0, 7) !== mes || d > hoje) return;
+    var v = num(res.faturado[d]); realMes += v;
+    if (d < hoje) realAteOntem += v;
+  });
+  var nomeMesTela = new Date(+mes.slice(0, 4), +mes.slice(5, 7) - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
+  // cor: ritmo do mês (faturado até ontem contra o previsto até ontem); o número mostra quanto do mês já foi
+  var corMes = planoAteOntem ? pctCor(100*realAteOntem/planoAteOntem) : 'var(--text-muted)';
+
   // ---- faturamento por marca de hoje, em rosca ----
   var porMarca = {};
   ['Mizuno','Olympikus','Under Armour'].forEach(function(m){
@@ -1269,7 +1285,10 @@ function renderTelaF(res){
       '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturado por dia</span><span></span>'+
         '<span class="tot" style="grid-column:3 / span 2"><span class="leg-plano"><i></i>planejamento</span></span></div>'+
         (gd || '<div class="vazio">Sem faturamento no período.</div>')+
-        '<div class="etapa total"><span class="nm">Acumulado · '+(comDado === dias.length ? dias.length+' dias' : comDado+' de '+dias.length+' dias com registro')+'</span><span></span>'+
+        '<div class="etapa total"><span class="nm">'+nomeMesTela.charAt(0).toUpperCase()+nomeMesTela.slice(1)+' · forecast do mês '+(fcMes ? cru(fcMes) : '—')+'</span><span></span>'+
+          '<span class="tot">'+cru(realMes)+'</span>'+
+          '<span class="tot ped" style="color:'+corMes+'">'+(fcMes ? (100*realMes/fcMes).toFixed(0)+'%' : '—')+'</span></div>'+
+        '<div class="etapa total"><span class="nm">Período · '+(comDado === dias.length ? dias.length+' dias' : comDado+' de '+dias.length+' dias com registro')+' · contra o planejado</span><span></span>'+
           '<span class="tot">'+cru(sR)+'</span>'+
           '<span class="tot ped" style="color:'+(sP ? pctCor(100*sR/sP) : 'var(--text-muted)')+'">'+(sP ? (100*sR/sP).toFixed(0)+'%' : '—')+'</span></div></div>'+
       '<div class="painel"><span class="k">'+(emValor() ? 'Faturamento por marca · hoje' : 'Itens faturados por marca · hoje')+'</span>'+
