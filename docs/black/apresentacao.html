@@ -100,7 +100,13 @@ table.gt td{padding:7px 14px;font-size:21px} table.gt th{font-size:15px;padding:
 .gdia .gin-c{padding:18px 26px;gap:20px} .gdia .gin-c .n{font-size:40px;min-width:30px} .gdia .gin-c h3{font-size:26px;margin-bottom:4px} .gdia .gin-c p{font-size:19px}
 .camp{grid-template-columns:1fr 1.35fr} .camp .stack{gap:18px} .camp .lev{padding:24px 36px} .camp .lev h3{font-size:30px;margin-bottom:6px} .camp .lev p{font-size:24px} .camp .lev .chips{margin-top:12px}
 .camp .pill{padding:30px 32px}
-table.cmp.mt td:first-child{white-space:nowrap} table.cmp.mt td{padding:24px 18px}
+table.cmp.mt td:first-child{white-space:nowrap} table.cmp.mt td{padding:14px 18px} table.cmp.mt th{padding-bottom:12px}
+.sh{font-size:22px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:14px;margin-top:4px} .sh::before{content:"";width:30px;height:3px;background:var(--gold);border-radius:2px}
+.big{font-size:150px;font-weight:200;line-height:.9;color:var(--gold);font-variant-numeric:tabular-nums}
+.exp{grid-template-columns:.8fr 1.2fr;gap:36px;align-items:stretch}
+.exp .card{padding:40px 44px;gap:18px} .exp .card h3{font-size:36px} .exp .card p{font-size:26px;line-height:1.45;color:#D5DEE8} .exp .card p b{color:var(--fg)}
+.exp .stack{gap:22px} .exp .card.fr{flex-direction:row;gap:26px;align-items:flex-start;padding:30px 34px} .exp .card.fr h3{font-size:28px;margin-bottom:4px} .exp .card.fr p{font-size:23px} .fr .n{font-size:28px;font-weight:800;letter-spacing:2px;color:var(--gold);min-width:118px;padding-top:4px} .fr h3{font-size:28px;margin-bottom:4px} .fr p{font-size:23px;line-height:1.4;color:#D5DEE8} .fr p b{color:var(--fg)}
+.pend{display:inline-block;font-size:18px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold);border-radius:999px;padding:4px 14px;margin-top:8px}
 .dia-do{border:1px solid var(--gold);background:linear-gradient(160deg,#2A2A12,var(--card));border-radius:18px;padding:36px 40px;display:flex;gap:28px}
 .dia-do .n{font-size:64px;line-height:.9;min-width:56px;color:var(--gold)}
 .dia-do h3{font-size:36px;color:var(--gold);margin-bottom:12px} .dia-do p{font-size:27px;line-height:1.45;color:#D5DEE8} .dia-do p b{color:var(--fg)}
@@ -152,7 +158,7 @@ S.push(slide('Visão geral', 'Do aquecimento ao <em>time campeão</em>',
   '<div class="tl">' + MARCOS.map(function(m, k){
     return '<div class="tl-m' + (k > 0 && k < 4 ? ' on' : '') + '"><span class="tl-d">' + m[0] + '<small>' + m[1] + '</small></span><div class="tl-p"><i></i></div><h3>' + m[2] + '</h3>' + li(m[3]) + '</div>';
   }).join('') + '</div>' +
-  '<p class="lead">Três dias de competição entre <b>8 times: 4 no checkout (um por andar), 2 no vestuário e 2 na colmeia, em cada turno</b>. Os pontos de cada dia são apurados <b>na manhã seguinte</b> e <b>todo dia o time que mais produzir é premiado</b>.</p>',
+  '<p class="lead">Três dias de competição entre <b>8 times: 4 no checkout (um por andar), 2 no vestuário e 2 na colmeia, em cada turno</b>. Os pontos de cada dia são apurados <b>na manhã seguinte</b> e <b>em cada turno o time que mais produzir é premiado</b>.</p>',
   RODAPE));
 
 // 3 · a campanha
@@ -174,15 +180,37 @@ S.push(slide('Metas', 'Meta do dia <em>por turno e por time</em>',
     METAS.map(function(m){ return '<tr><td><b>' + m[0] + '</b><small class="mp">' + m[1] + '</small></td><td>' + m[2] + '</td><td><b>' + fmt(m[3]) + '</b></td><td><b>' + fmt(1200) + '</b><small class="mp">vestuário ' + fmt(800) + '</small></td><td><b>' + fmt(m[4]) + '</b></td>' +
       '<td class="hl">' + fmt(m[5].checkout) + '</td><td class="hl">' + fmt(m[5].vestuario) + '</td><td class="hl">' + fmt(m[5].colmeia) + '</td></tr>'; }).join('') +
   '</table>' +
-  '<p class="nota">Horas sem o almoço/janta. Mesma meta para todos os times do grupo. <b>Separação</b> do turno ÷ 5 áreas (4 andares + confecção; a confecção é dividida entre os 2 times do vestuário) + a conferência da caixa do time. ' +
-  '<b>Colmeia</b> = meta da colmeia ÷ 2. Piso com 2ª caixa: cada conferente conta 0,5 por peça.</p>',
+  '<p class="sh">Meta por pessoa</p>' +
+  '<table class="cmp mt"><tr><th>Turno</th><th>Separador</th><th>Conferente</th><th>Colmeia</th></tr>' +
+    METAS.map(function(m, k){ var E = R.ESCALA_META[k ? '2º Turno' : '1º Turno'];
+      return '<tr><td><b>' + m[0] + '</b><small class="mp">' + m[1] + '</small></td>' +
+        '<td class="hl">' + fmt(Math.round(m[3] / E.separadores)) + '<small class="mp">' + fmt(m[3]) + ' ÷ ' + E.separadores + ' separadores</small></td>' +
+        '<td class="hl">' + fmt(1200) + '<small class="mp">vestuário ' + fmt(800) + ' · 1 conferente por caixa</small></td>' +
+        '<td class="hl">' + fmt(Math.round(m[4] / E.colmeia)) + '<small class="mp">' + fmt(m[4]) + ' ÷ ' + E.colmeia + ' pessoas</small></td></tr>'; }).join('') +
+  '</table>' +
+  '<p class="nota" style="margin-top:0">Horas sem o almoço/janta. Mesma meta para todos os times do grupo. Piso com 2ª caixa: cada conferente conta 0,5 por peça.</p>',
   'Meta do time = peças de separação + conferência dos membros no dia'));
+
+// 3c · expedição e gestão de estoque (19/11): metas por resultado, fora da corrida dos times
+S.push(slide('Metas · Expedição e Gestão de Estoque', 'Outras equipes, <em>outras metas</em>',
+  '<div class="two exp">' +
+    '<div class="card"><div class="k">Expedição</div><div class="big">' + R.META_EXPEDICAO_PCT + '%</div>' +
+      '<h3>Embarcar do que foi conferido</h3>' +
+      '<p>O time embarca <b>' + R.META_EXPEDICAO_PCT + '% do que for conferido nos caixas de faturamento</b>, com a <b>colmeia e os caixas do checkout somados</b>.</p></div>' +
+    '<div class="stack"><div class="k" style="font-size:24px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:600">Gestão de Estoque · 3 frentes</div>' +
+      '<div class="card fr"><span class="n">CORTES</span><div><h3>Atender o que foi sinalizado como corte</h3>' +
+        '<p>Atender uma parte de <b>todo o material sinalizado como corte durante o período do ADM</b>. Atendendo, a meta é batida.</p><span class="pend">% a confirmar</span></div></div>' +
+      '<div class="card fr"><span class="n">PULAS</span><div><h3>Meta em definição</h3></div></div>' +
+      '<div class="card fr"><span class="n">FIFO</span><div><h3>Meta em definição</h3></div></div>' +
+    '</div>' +
+  '</div>',
+  'Metas por resultado, fora da corrida dos times'));
 
 // 4 · cronograma e atrações
 var DIAS_C = [['20/11 · sex','Pré-Black',['Apresentação da programação Black','Apresentação dos times','Entrega das camisetas'],['Criar o grito de guerra do time'],[]],
   ['27/11 · sex','Largada Black',['Abertura com os gerentes','Apresentação dos gritos de guerra'],null,['Café de abertura']],
-  ['28/11 · sáb','Superação',['Resultados e pontuação do dia 27','Prêmio do time que mais produziu'],R.GINCANAS_DIA['2026-11-28'],['Pastel']],
-  ['29/11 · dom','Grande Final',['Resultados e pontuação do dia 28','Prêmio do time que mais produziu'],R.GINCANAS_DIA['2026-11-29'],['Kit energia']],
+  ['28/11 · sáb','Superação',['Resultados e pontuação do dia 27','Prêmio do time que mais produziu no T01 e no T02'],R.GINCANAS_DIA['2026-11-28'],['Pastel']],
+  ['29/11 · dom','Grande Final',['Resultados e pontuação do dia 28','Prêmio do time que mais produziu no T01 e no T02'],R.GINCANAS_DIA['2026-11-29'],['Kit energia']],
   ['30/11 · seg','Encerramento',['Encerramento com os gerentes','Premiação dos ganhadores'],null,['Café de encerramento']]];
 S.push(slide('Cronograma e atrações', 'O que acontece <em>em cada dia</em>',
   '<div class="dias">' + DIAS_C.map(function(d){
@@ -239,7 +267,7 @@ S.push(slide('Reconhecimento', 'Quem leva <em>o prêmio</em>',
       '<div><h3>Vistoria nota 10</h3><p>Mais vistorias sem apontamento.</p></div>' +
       '<div><h3>Prêmios instantâneos</h3><p>Brindes e Golden Tickets ao longo dos 3 dias.</p></div>' +
     '</div>' +
-    '<div class="dia-do"><div class="n">★</div><div><h3>Prêmio todo dia</h3><p>Nos 3 dias da Black, <b>o time que mais produzir no dia é premiado</b>. O resultado sai na manhã seguinte.</p></div></div>' +
+    '<div class="dia-do"><div class="n">★</div><div><h3>Prêmio por turno, todo dia</h3><p>Na sexta, no sábado e no domingo, <b>o time que mais produzir no turno é premiado, no T01 e no T02</b>. O resultado sai na manhã seguinte.</p></div></div>' +
   '</div>',
   RODAPE));
 

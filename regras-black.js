@@ -131,6 +131,12 @@ var META_TURNO = {
   '1º Turno': { checkout: 3720, vestuario: 2060, colmeia: 2000 },
   '2º Turno': { checkout: 2880, vestuario: 1640, colmeia: 1500 }
 };
+// Meta por pessoa (19/11, só para a apresentação): escalados da planilha "Divisão black" (com os reforços).
+//   Separador = separação do turno ÷ separadores (T01 12.600 ÷ 25 = 504 · T02 8.400 ÷ 18 ≈ 467).
+//   Conferente = a meta da caixa (1 faturista por caixa: andar 1.200, vestuário 800). Colmeia = meta ÷ pessoas (T01 4.000 ÷ 20 · T02 3.000 ÷ 16).
+var ESCALA_META = { '1º Turno': { separadores: 25, colmeia: 20 }, '2º Turno': { separadores: 18, colmeia: 16 } };
+// Expedição (19/11): embarcar 97% do que foi conferido nos caixas de faturamento (checkout + colmeia somados).
+var META_EXPEDICAO_PCT = 97;
 // Piso com 2 caixas de conferência: cada conferente desse time conta 0,5 por peça, para a soma das duas
 // caixas ficar na mesma régua dos outros andares. { turno: [times] } (posição ainda a confirmar).
 // Vale a partir do 1º dia da Black (antes disso o piso tem uma caixa só); dia = último dia da conta.
@@ -429,7 +435,7 @@ global.RegrasBlack = {
   DIAS: DIAS, TURNOS: TURNOS, P: P, FATOR_COLMEIA: FATOR_COLMEIA, GRAVIDADES: GRAVIDADES, CHECKLIST: CHECKLIST,
   DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DIA: GINCANAS_DIA, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
   placarDoDia: placarDoDia, minutosTrabalhados: minutosTrabalhados, acumulado: acumulado, isoLocal: isoLocal,
-  META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, metaDoTime: metaDoTime, metaOuro: metaOuro, GRUPOS: GRUPOS, grupoDoTime: grupoDoTime,
+  META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, ESCALA_META: ESCALA_META, META_EXPEDICAO_PCT: META_EXPEDICAO_PCT, metaDoTime: metaDoTime, metaOuro: metaOuro, GRUPOS: GRUPOS, grupoDoTime: grupoDoTime,
   NUM_TIMES: NUM_TIMES, TIMES_COLMEIA: TIMES_COLMEIA, TIMES_VESTUARIO: TIMES_VESTUARIO, CAIXA_DUPLA: CAIXA_DUPLA, fatorConf: fatorConf, trocaDoDia: trocaDoDia, fatorConfDoDia: fatorConfDoDia, fatorMedioConf: fatorMedioConf, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
 };
 })(typeof window !== 'undefined' ? window : globalThis);
