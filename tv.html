@@ -1112,7 +1112,7 @@ function isoDe(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,
 async function carregarForecast(){
   if (!MODO_DIRETORIA) return;
   try {
-    var hoje = new Date(), de = new Date(hoje.getFullYear(), hoje.getMonth(), Math.min(1, hoje.getDate() - 15));
+    var hoje = new Date(), de = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);   // mês anterior também: o calendário deixa ver o mês passado
     var ate = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0);
     var r = await clienteReport().rpc('produtividade_forecast', { de: isoDe(de), ate: isoDe(ate) });
     if (r.error) throw r.error;
@@ -1173,7 +1173,7 @@ function cardAnel(rot, pct, cor, real, plano, delta, rEf, rPrev){
 // Gráfico de colunas por DIA (faturamento), no padrão do telão: coluna por dia, traço do plano em cada
 // uma (como a linha de previsão do indicador financeiro) e a mesma barra de rolagem do gráfico por hora,
 // abrindo encostado à direita (dia mais recente à vista).
-var JANELA_DIAS = 10;
+var JANELA_DIAS = 8;
 var DOW_CURTO = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 function dowDe(iso){ var p = iso.split('-'); return DOW_CURTO[new Date(+p[0], +p[1]-1, +p[2]).getDay()]; }
 function graficoDias(linhas, cor, cor2, fmtV){
@@ -1221,10 +1221,12 @@ function graficoDias(linhas, cor, cor2, fmtV){
 }
 function renderTelaF(res){
   var el = document.getElementById('telaF');
-  // fora do modo diretoria, sem forecast ou em dia passado: a tela nem entra no giro
-  if (!MODO_DIRETORIA || !forecast || !res || !res.faturado || !ehHoje()) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }
+  // fora do modo diretoria ou sem forecast: a tela nem entra no giro. Em dia passado (calendário) ela fica e
+  // mostra o MÊS do dia escolhido; backlog e "em operação" são do momento, então ficam em "—".
+  if (!MODO_DIRETORIA || !forecast || !res || !res.faturado) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }
   el.dataset.vazia = '';
-  var hoje = hojeOp(), fat = res.faturado[hoje] || null, prev = forecast[hoje] || null;
+  var hoje = diaTela(), ativo = ehHoje(), fat = res.faturado[hoje] || null, prev = forecast[hoje] || null;
+  var ddmmT = hoje.slice(8, 10)+'/'+hoje.slice(5, 7), qd = ativo ? 'hoje' : 'em '+ddmmT;
   var vlr = function(o){ return emValor() ? fmtRS(o && o.rs) : fmt((o && o.itens) || 0); };
   var vlrC = function(o){ return emValor() ? fmtRSc(o && o.rs) : fmt((o && o.itens) || 0); };
   var num = function(o){ return emValor() ? (o && o.rs) || 0 : (o && o.itens) || 0; };
@@ -1252,46 +1254,46 @@ function renderTelaF(res){
 
   // ---- 5 cartões: faturado (verde) · forecast (azul) · as duas comparações em anel · operação (laranja)
   var kpis =
-    kpiHtml('Faturado hoje', fat ? vlr(fat) : '—',
+    kpiHtml(ativo ? 'Faturado hoje' : 'Faturado em '+ddmmT, fat ? vlr(fat) : '—',
         fat ? fmt(fat.notas)+' notas · '+(emValor() ? fmt(fat.itens)+' itens' : fmtRSc(fat.rs)) : 'nada faturado ainda',
         COR_PXR, COR_PXR, '')+
     kpiHtml('Forecast do dia', prev && prev.TOTAL ? vlr(prev.TOTAL) : '—',
         prev && prev.CAPACITY ? 'Capacidade '+fmt(prev.CAPACITY.itens)+' itens' : '', 'var(--accent)', 'var(--accent)', '')+
     cardAnel('Faturado × forecast', pctHoje, corHoje, cru(realHoje), cru(planoHoje),
         planoHoje ? (realHoje >= planoHoje ? '+'+cru(realHoje-planoHoje)+' acima' : 'faltam '+cru(planoHoje-realHoje)) : 'sem plano')+
+    (!ativo ? kpiHtml('Backlog inicial × previsto', '—', 'só no dia atual', 'var(--text-muted)', 'var(--text-muted)', '') :
     cardAnel('Backlog inicial × previsto', pctBack, corBack, cru(realBack), cru(backPrev),
-        backPrev ? (realBack <= backPrev ? cru(backPrev-realBack)+' abaixo' : '+'+cru(realBack-backPrev)+' acima') : 'sem plano', 'Efetivo', 'Previsto')+
+        backPrev ? (realBack <= backPrev ? cru(backPrev-realBack)+' abaixo' : '+'+cru(realBack-backPrev)+' acima') : 'sem plano', 'Efetivo', 'Previsto'))+
     // verde mais escuro que o do Faturado hoje: mesma família da tela, sem confundir os dois cartões
-    kpiHtml('Em operação', vlr(res), emValor() ? fmt(res.itens)+' itens' : fmtRSc(res.rs), '#2E9E4A', '#2E9E4A', '');
+    (!ativo ? kpiHtml('Em operação', '—', 'só no dia atual', 'var(--text-muted)', 'var(--text-muted)', '') :
+    kpiHtml('Em operação', vlr(res), emValor() ? fmt(res.itens)+' itens' : fmtRSc(res.rs), '#2E9E4A', '#2E9E4A', ''));
 
   // ---- faturado por dia: colunas com o traço do plano, 7 à vista e rolagem para o resto ----
-  // Sempre os 10 dias corridos até hoje, tenham registro ou não. Dia sem registro (antes de o faturado
-  // passar a ser gravado, ou robô fora do ar) fica com o espaço reservado e marcado "sem registro":
-  // mostrar zero diria que não houve faturamento, o que é falso.
-  var dias = [];
-  for (var k = JANELA_DIAS - 1; k >= 0; k--) {
-    var d = somaDias(hoje, -k), f = res.faturado[d], pf = forecast[d];
+  // Todos os dias do mês do dia mostrado, do dia 1 até ele. 8 colunas à vista e barra de rolagem até o começo
+  // do mês (abre encostado no dia mais recente). Dia sem registro (robô fora do ar, domingo, feriado) fica
+  // marcado "sem registro": mostrar zero diria que não houve faturamento, o que é falso.
+  var dias = [], diaN = +hoje.slice(8, 10);
+  for (var k = 1; k <= diaN; k++) {
+    var d = hoje.slice(0, 8) + String(k).padStart(2, '0'), f = res.faturado[d], pf = forecast[d];
     dias.push({ d: d, real: f ? num(f) : 0, plano: pf && pf.TOTAL ? num(pf.TOTAL) : 0, sem: !f });
   }
   var gd = graficoDias(dias, COR_PXR, COR_PXR2, cru);
   var sR = 0, sP = 0, comDado = 0;
   dias.forEach(function(x){ if (x.sem) return; comDado++; sR += x.real; sP += x.plano; });
 
-  // ---- mês: faturado até hoje contra o forecast do mês inteiro (soma dos dias do forecast) ----
-  var mes = hoje.slice(0, 7), fcMes = 0, realMes = 0, planoAteOntem = 0, realAteOntem = 0;
+  // ---- mês: faturado do dia 1 até o dia mostrado contra o forecast ATÉ esse dia (inclusive); o forecast do
+  // mês inteiro fica à esquerda, para ver quanto falta fazer ----
+  var mes = hoje.slice(0, 7), fcMes = 0, fcAte = 0, realMes = 0;
   Object.keys(forecast).forEach(function(d){
     if (d.slice(0, 7) !== mes || !forecast[d].TOTAL) return;
     var v = num(forecast[d].TOTAL); fcMes += v;
-    if (d < hoje) planoAteOntem += v;
+    if (d <= hoje) fcAte += v;
   });
   Object.keys(res.faturado).forEach(function(d){
-    if (d.slice(0, 7) !== mes || d > hoje) return;
-    var v = num(res.faturado[d]); realMes += v;
-    if (d < hoje) realAteOntem += v;
+    if (d.slice(0, 7) === mes && d <= hoje) realMes += num(res.faturado[d]);
   });
   var nomeMesTela = new Date(+mes.slice(0, 4), +mes.slice(5, 7) - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
-  // cor: ritmo do mês (faturado até ontem contra o previsto até ontem); o número mostra quanto do mês já foi
-  var corMes = planoAteOntem ? pctCor(100*realAteOntem/planoAteOntem) : 'var(--text-muted)';
+  var pctMes = fcAte ? 100*realMes/fcAte : 0, corMes = fcAte ? pctCor(pctMes) : 'var(--text-muted)';
 
   // ---- faturamento por marca de hoje, em rosca ----
   var porMarca = {};
@@ -1306,11 +1308,11 @@ function renderTelaF(res){
       '<div class="painel p3"><div class="etapa cab"><span class="nm">Faturamento bruto por dia</span><span></span>'+
         '<span class="tot" style="grid-column:3 / span 2"><span class="leg-plano"><i></i>planejamento</span></span></div>'+
         (gd || '<div class="vazio">Sem faturamento no período.</div>')+
-        '<div class="etapa total"><span class="nm">'+nomeMesTela.charAt(0).toUpperCase()+nomeMesTela.slice(1)+' · forecast do mês '+(fcMes ? cru(fcMes) : '—')+'</span><span></span>'+
+        '<div class="etapa total"><span class="nm">'+nomeMesTela.charAt(0).toUpperCase()+nomeMesTela.slice(1)+' · forecast do mês '+(fcMes ? cru(fcMes) : '—')+' · até '+ddmmT+' '+(fcAte ? cru(fcAte) : '—')+'</span><span></span>'+
           '<span class="tot">'+cru(realMes)+'</span>'+
-          '<span class="tot ped" style="color:'+corMes+'">'+(fcMes ? (100*realMes/fcMes).toFixed(0)+'%' : '—')+'</span></div>'+
+          '<span class="tot ped" style="color:'+corMes+'">'+(fcAte ? pctMes.toFixed(0)+'%' : '—')+'</span></div>'+
         '</div>'+
-      '<div class="painel"><span class="k">'+(emValor() ? 'Faturamento por marca · hoje' : 'Itens faturados por marca · hoje')+'</span>'+
+      '<div class="painel"><span class="k">'+(emValor() ? 'Faturamento por marca · '+qd : 'Itens faturados por marca · '+qd)+'</span>'+
         (totMarca ? pizzaHtml(porMarca, totMarca, emValor() ? fmtRSc : fmt, emValor() ? 'em R$' : 'itens')
                   : '<div class="vazio">Nada faturado hoje ainda.</div>')+'</div>'+
     '</div></div>';

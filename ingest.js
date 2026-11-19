@@ -1347,7 +1347,7 @@ function juntarFaturado(op, novo) {
   var f = op.fatDias || {}, dias = Object.keys(novo).sort();
   dias.forEach(function (d, i) { f[d] = i === 0 && f[d] && f[d].rs > novo[d].rs ? f[d] : novo[d]; });
   var o = {};
-  Object.keys(f).sort().slice(-31).forEach(function (d) { o[d] = f[d]; });
+  Object.keys(f).sort().slice(-100).forEach(function (d) { o[d] = f[d]; });   // 100 dias: o telão da diretoria mostra o mês anterior
   op.fatDias = o;
 }
 
