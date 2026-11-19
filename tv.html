@@ -1296,6 +1296,7 @@ function renderTelaF(res){
     if (d.slice(0, 7) === mes && d <= hoje) realMes += num(res.faturado[d]);
   });
   var nomeMesTela = new Date(+mes.slice(0, 4), +mes.slice(5, 7) - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
+  // o número da % é sobre o forecast do MÊS (o que o rodapé mostra à esquerda); a COR é o ritmo: realizado contra o forecast até o dia mostrado
   var pctMes = fcAte ? 100*realMes/fcAte : 0, corMes = fcAte ? pctCor(pctMes) : 'var(--text-muted)';
 
   // ---- faturamento por marca de hoje, em rosca ----
@@ -1313,7 +1314,7 @@ function renderTelaF(res){
         (gd || '<div class="vazio">Sem faturamento no período.</div>')+
         '<div class="etapa total"><span class="nm">'+nomeMesTela.charAt(0).toUpperCase()+nomeMesTela.slice(1)+' · forecast do mês '+(fcMes ? cru(fcMes) : '—')+'</span><span></span>'+
           '<span class="tot">'+cru(realMes)+'</span>'+
-          '<span class="tot ped" style="color:'+corMes+'">'+(fcAte ? pctMes.toFixed(0)+'%' : '—')+'</span></div>'+
+          '<span class="tot ped" style="color:'+corMes+'">'+(fcMes ? (100*realMes/fcMes).toFixed(0)+'%' : '—')+'</span></div>'+
         '</div>'+
       '<div class="painel"><span class="k">'+(emValor() ? 'Faturamento por marca · '+qd : 'Itens faturados por marca · '+qd)+'</span>'+
         (totMarca ? pizzaHtml(porMarca, totMarca, emValor() ? fmtRSc : fmt, emValor() ? 'em R$' : 'itens')
