@@ -1124,6 +1124,17 @@ async function carregarForecast(){
     forecast = dias;
   } catch(e) { console.error('Telao: forecast indisponivel', e); }   // sem forecast a tela sai do giro
 }
+// Backlog efetivo do Report (Análise Prevista de Backlog): posição no fim de ontem = backlog INICIAL de hoje,
+// fixo o dia todo. RPC no banco do Report; só vale se o snapshot do Report é de hoje.
+var backlogRep = null;
+async function carregarBacklogReport(){
+  if (!MODO_DIRETORIA) return;
+  try {
+    var r = await clienteReport().rpc('produtividade_backlog_report');
+    if (r.error) throw r.error;
+    backlogRep = r.data && r.data.efetivo != null ? r.data : null;
+  } catch(e) { console.error('Telao: backlog do Report indisponivel', e); }
+}
 // No backlog MENOS é melhor: ficar abaixo do previsto é que é bom, por isso a escala invertida.
 function pctCor(pct, inverso){
   if (inverso) return pct <= 100 ? COR_PXR : pct <= 130 ? 'var(--amber)' : 'var(--red)';
@@ -1229,8 +1240,13 @@ function renderTelaF(res){
   // Se o robô não pegou a foto de hoje, cai no valor atual em operação.
   var backPrev = prev && prev.POSICAO_INICIAL ? prev.POSICAO_INICIAL.itens : 0;
   if (emValor() && backPrev && prev && prev.TOTAL && prev.TOTAL.itens) backPrev = backPrev * (prev.TOTAL.rs/prev.TOTAL.itens);
+  // Efetivo: 1º o do Report (fim de ontem); se não houver, a foto do robô; por último o valor atual.
   var bkIni = res.backlogDias && res.backlogDias[hoje] ? res.backlogDias[hoje] : res;
   var realBack = emValor() ? bkIni.rs : bkIni.itens;
+  if (backlogRep && backlogRep.dia === hoje) {
+    realBack = backlogRep.efetivo;
+    if (emValor()) realBack = res.itens ? backlogRep.efetivo * (res.rs / res.itens) : 0;   // R$ pelo ticket do que está em operação
+  }
   var pctBack = backPrev ? 100*realBack/backPrev : 0;
   var corBack = backPrev ? corBacklog(pctBack) : 'var(--text-muted)';
 
@@ -1583,6 +1599,7 @@ var forecastDe = null;   // dia em que o forecast foi buscado: renova na virada
 async function carregar(){
   if (MODO_DIRETORIA && forecastDe && forecastDe !== hojeOp()) { forecastDe = hojeOp(); await carregarForecast(); }
   if (MODO_DIRETORIA && !forecastDe) forecastDe = hojeOp();
+  if (MODO_DIRETORIA && (!backlogRep || backlogRep.dia !== hojeOp())) await carregarBacklogReport();   // o Report pode gravar o dia depois da TV abrir
   try {
     var r = await Promise.all([
       sb.from('dashboard_snapshots').select('pagina, dados, atualizado_em').in('pagina', ['outbound','inbound']),
@@ -1660,6 +1677,7 @@ async function iniciar(){
   document.getElementById('login').classList.remove('on');
   marcaUnidade();
   mostraTela(0);
+  await carregarBacklogReport();
   await carregarForecast();            // o forecast muda 1x por mês: basta buscar ao abrir
   await carregar();
   animaEntrada(telas[atual]);          // a 1ª tela abriu vazia: a entrada roda de novo com o dado
