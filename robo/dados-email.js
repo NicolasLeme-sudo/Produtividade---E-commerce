@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const E = require("./email");
+const T = require("./turnos");
 
 const RAIZ = path.join(__dirname, "..");
 
@@ -32,8 +33,22 @@ function semExcluidos(mapa, fora) {
   return out;
 }
 
+// Cadastro de turnos do RH, lido da Base de Ativos (base_ativos) que o Admin do Produtividade atualiza: lista nova processada lá
+// vale no próximo e-mail, sem gerar arquivo nem religar o robô. Se a leitura falhar, fica o cadastro que já estava na memória
+// (turnos-wms.json ou a leitura anterior) e tenta de novo em 1 min.
+let cadastroEm = 0;
+async function atualizarCadastro(sb) {
+  if (Date.now() - cadastroEm < 10 * 60 * 1000) return;
+  try {
+    const m = T.montarDeLinhas(await T.linhasDoBanco(sb));
+    if (Object.keys(m.mapa).length) { E.definirCadastro(m.mapa); cadastroEm = Date.now(); return; }
+  } catch (e) { /* segue com o cadastro que já está na memória */ }
+  cadastroEm = Date.now() - 9 * 60 * 1000;
+}
+
 // -> { sep:{T01,T02}, conf:{T01,T02}, exp:{T01,T02}, arm:{ADM,T02}, vazio }
 async function carregar(sb, dia, excluir) {
+  await atualizarCadastro(sb);
   const fora = String(excluir || "").split(",").map(function (x) { return x.trim().toUpperCase(); }).filter(Boolean);
   const q = await sb.from("dashboard_snapshots").select("pagina, dados").in("pagina", ["outbound", "inbound", "operacao"]);
   if (q.error) throw q.error;
@@ -64,4 +79,4 @@ async function carregar(sb, dia, excluir) {
   return t;
 }
 
-module.exports = { cliente: cliente, carregar: carregar, diaOperacional: diaOperacional, RAIZ: RAIZ };
+module.exports = { cliente: cliente, carregar: carregar, atualizarCadastro: atualizarCadastro, diaOperacional: diaOperacional, RAIZ: RAIZ };

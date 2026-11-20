@@ -169,6 +169,8 @@ var CADASTRO = (function () {
   catch (e) { return {}; }
 })();
 function turnoCadastrado(usuario) { return CADASTRO[usuarioDaChave(usuario).replace(/,/g, ".").toUpperCase()] || null; }
+// O robô troca o cadastro pelo da Base de Ativos do banco (dados-email.js · atualizarCadastro); o arquivo é só o de partida.
+function definirCadastro(mapa) { if (mapa && typeof mapa === "object" && Object.keys(mapa).length) CADASTRO = mapa; }
 
 // Pelo PESO da produção até as 14h48, quando o T02 entra: quem produziu mais antes disso é da
 // manhã (T01 ou ADM), senão é do T02. A 1ª produção sozinha não servia (o T02 começa 14h48 e as
@@ -401,6 +403,6 @@ module.exports = {
   ordemHora: ordemHora, rotHora: rotHora, fmt: fmt, esc: esc, dataBR: dataBR, mistura: mistura,
   blocos: blocos, corpoEmail: corpoEmail, assuntoDe: assuntoDe, mensagens: mensagens, LIMITE_TEAMS: LIMITE_TEAMS,
   tabela: tabela, porTurno: porTurno, turnoDaPessoa: turnoDaPessoa, somarEm: somarEm, juntarTurnos: juntarTurnos, rotulosTurno: rotulosTurno,
-  turnoCadastrado: turnoCadastrado, usuarioDaChave: usuarioDaChave, tipoDaChave: tipoDaChave, analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
+  turnoCadastrado: turnoCadastrado, definirCadastro: definirCadastro, usuarioDaChave: usuarioDaChave, tipoDaChave: tipoDaChave, analiticoPorUsuario: analiticoPorUsuario, colmeiaPorUsuario: colmeiaPorUsuario,
   expedicaoPorUsuario: expedicaoPorUsuario, armazenagemPorUsuario: armazenagemPorUsuario
 };
