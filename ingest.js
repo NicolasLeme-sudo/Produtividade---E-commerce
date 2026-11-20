@@ -2569,6 +2569,18 @@ function grupoAbastecimento(titulo, itensHtml, id) {
   return '<div class="grupo-abastecimento"' + (id ? ' id="' + id + '"' : "") + '><div class="grupo-titulo">' + titulo + '</div><div class="grupo-itens">' + itensHtml.join("") + '</div></div>';
 }
 
+// Cartão dos dias com operação extra, no mesmo modelo dos uploads: título com
+// selo "Feito", caixa tracejada (campo + botão à direita) e barra de status.
+function cartaoDiasExtras(atual) {
+  var tem = (atual || []).length > 0;
+  var lista = (atual || []).map(fmtDataBRIngest).join(", ");
+  return '<div class="panel" id="dias-extras-card"><div class="panel-head"><div><p class="kicker">Cadastro manual</p><h4>Dias com operação extra <span class="badge-feito" id="dias-extras-badge"' + (tem ? "" : " hidden") + '>✓ Feito</span></h4></div></div>' +
+    '<div class="upload-box">' +
+    '<input type="text" id="input-dias-extras" placeholder="14/11/2026, 22/11/2026" value="' + lista + '" style="flex:1 1 260px;max-width:420px;padding:8px 12px;border-radius:7px;background:var(--bg-card);color:var(--text);border:1px solid var(--border);font-size:.8rem;font-family:inherit">' +
+    '<button class="btn" id="btn-salvar-dias-extras">Salvar</button>' +
+    '<div class="upload-status' + (tem ? " ok" : "") + '" id="dias-extras-status">' + (tem ? "✓ " + atual.length + " dia(s) cadastrado(s) · " + lista : "") + '</div></div></div>';
+}
+
 async function renderAbastecimento() {
   var el = document.getElementById("bloco-abastecimento");
   if (!el) return;
@@ -2582,15 +2594,7 @@ async function renderAbastecimento() {
       caixaUpload("up-kardex-geral", "Kardex (sem filtro)", "Alimenta <strong>Pendente de fechamento</strong> (Outbound), <strong>Pula</strong> (Gestão de Estoque) e <strong>Armazenagem</strong> (Inbound) — mesmo relatório, o sistema separa pelo Tipo do Local e pelo prefixo do Local."),
       caixaUpload("up-gerenciador-or-geral", "Gerenciador de OR (sem filtro)", "Alimenta <strong>Recebimento</strong> (Inbound) e <strong>Vinculação</strong> (Reversa) — mesmo relatório, o sistema separa pelo Tipo do Recebimento."),
       caixaUpload("up-controle-nf-geral", "Controle de Nota Fiscal (sem filtro)", "Alimenta <strong>Cancelamentos WMS</strong> (Gestão de Estoque) e <strong>Integração</strong> (Reversa) — mesmo relatório, o sistema separa pela Operação/Status."),
-      '<div class="upload-card" style="border-left:3px solid var(--olive)">' +
-        '<h4 style="margin:0 0 6px">Dias com operação extra</h4>' +
-        '<p style="font-size:12px;color:var(--text-muted);margin:0 0 8px">Sábados ou feriados com operação. Afeta a <strong>idade dos pedidos</strong> (Tela C e Report) e o <strong>backlog previsto</strong>.</p>' +
-        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
-          '<input type="text" id="input-dias-extras" placeholder="14/11/2026, 22/11/2026" value="' + diasExtrasAtual.map(function (d) { var p = d.split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }).join(", ") + '" style="padding:6px 10px;width:280px;border-radius:6px;background:var(--bg-input);color:var(--text);border:1px solid var(--border);font-size:13px">' +
-          '<button class="btn" id="btn-salvar-dias-extras">Salvar</button>' +
-          '<span class="upload-status" id="status-dias-extras"></span>' +
-        '</div>' +
-      '</div>',
+      cartaoDiasExtras(diasExtrasAtual),
     ], "adm-compartilhados") +
     grupoAbastecimento("Outbound", [
       caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
@@ -2616,12 +2620,22 @@ async function renderAbastecimento() {
   restaurarStatusAbastecimento();
   var btnExtras = document.getElementById("btn-salvar-dias-extras");
   if (btnExtras) btnExtras.addEventListener("click", async function () {
-    var st = document.getElementById("status-dias-extras");
+    var st = document.getElementById("dias-extras-status");
+    var badge = document.getElementById("dias-extras-badge");
     try {
       var txt = document.getElementById("input-dias-extras").value;
       var lista = txt.split(/[\s,;]+/).filter(Boolean);
       var datas = await window.ProdutividadeIngest.salvarDiasExtras(lista);
-      st.textContent = "✓ " + datas.length + " dia(s) salvo(s)."; st.className = "upload-status ok";
+      var agora = new Date();
+      var quando = agora.toLocaleDateString("pt-BR") + " às " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      if (badge) badge.hidden = !datas.length;
+      if (!datas.length) { st.textContent = "Nenhum dia extra cadastrado · " + quando; st.className = "upload-status"; }
+      else {
+        var ignoradas = lista.length - datas.length;
+        st.textContent = "✓ " + datas.length + " dia(s) salvo(s) · " + datas.map(fmtDataBRIngest).join(", ") + " · " + quando +
+          (ignoradas ? " · " + ignoradas + " entrada(s) fora do formato dd/mm/aaaa ignorada(s)" : "");
+        st.className = "upload-status " + (ignoradas ? "pendente" : "ok");
+      }
       if (window.recarregarSnapshots) window.recarregarSnapshots(true);
     } catch (e) { st.textContent = "Erro: " + e.message; st.className = "upload-status erro"; }
   });
