@@ -558,7 +558,7 @@ function cardsBaixo(grupos){
       '<div class="cb-grade" style="grid-template-columns:repeat('+g.times.length+',minmax(0,1fr))">'+g.times.map(function(t){
         var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"', pm = t.meta ? Math.round(t.total/t.meta*100) : 0;
         if (t.apoio) return '<div class="cb apoio" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+'</div>'+
-          '<div class="c2"><span class="gr"><b>—</b><small>em breve</small></span></div><div class="c3">pontuação em definição</div></div>';
+          '<div class="c2"><span class="gr"><b>—</b><small>'+(t.aguarda ? 'carregando' : 'em breve')+'</small></span></div><div class="c3">'+(t.aguarda ? 'calculando a meta do dia' : 'pontuação em definição')+'</div></div>';
         return '<div class="cb'+(t.pos === 1 ? ' lider' : '')+'" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
           '<div class="c2"><span class="gr"><b>'+fmt(t.total)+'</b><small>peças</small></span><span class="pm"><b>'+pm+'%</b><em>da meta</em></span></div>'+
           '<div class="c3">'+(t.rodape || 'Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b>')+'</div></div>';
@@ -619,7 +619,7 @@ var saldoExp = {}, saldoExpErro = {};   // dia -> 'busca' | { pecas, pedidos } |
 async function carregarSaldoExp(dia){
   if (MODO_OPERACAO || !dia) return;   // operação e diretoria não chamam nada novo
   if (saldoExp[dia] && saldoExp[dia] !== false) return;   // buscando ou já tem
-  if (saldoExp[dia] === false && Date.now() - (saldoExpErro[dia] || 0) < 5*60000) return;   // falhou há pouco: tenta de novo em 5 min
+  if (saldoExp[dia] === false && Date.now() - (saldoExpErro[dia] || 0) < 60000) return;   // falhou há pouco: tenta de novo em 1 min
   saldoExp[dia] = 'busca';
   try {
     var r = await clienteReport().rpc('produtividade_expedicao_saldo', { dia: dia });
@@ -632,17 +632,18 @@ async function carregarSaldoExp(dia){
 function calcularExpedicao(res, snap, dia){
   if (MODO_OPERACAO) return null;
   var ex = ((((res||{}).expedicao||{}).dias) || []).filter(function(x){ return x.data === dia; })[0], s = saldoExp[dia];
-  if (!ex || s === undefined || s === 'busca') return null;   // sem embarque no dia, ou o saldo ainda não chegou
+  if (!ex) return null;   // sem embarque no dia
+  if (!s || s === 'busca') return { aguarda: true };   // o saldo do Report ainda não chegou (ou falhou e tenta de novo em 1 min): sem número errado na TV
   var conf = (snap||{}).conferencia || {};
   var tConf = somaObj(itensDoDia(conf.confCheckoutDia, dia)) + somaObj(itensDoDia(conf.confColmeiaUnitDia, dia));
-  var saldo = s ? s.pecas : 0;
-  return { total: ex.pecas, meta: Math.round((tConf + saldo) * RegrasBlack.META_EXPEDICAO_PCT / 100), conf: tConf, saldo: saldo, semSaldo: !s };
+  return { total: ex.pecas, meta: Math.round((tConf + s.pecas) * RegrasBlack.META_EXPEDICAO_PCT / 100), conf: tConf };
 }
 function aplicaExpedicao(e){
   var t = TIMES_APOIO.filter(function(x){ return x.n === 9; })[0];
   if (!t) return;
-  t.apoio = !e; t.total = e ? e.total : 0; t.meta = e ? e.meta : 0;
-  t.rodape = e ? 'Conf. <b>'+fmt(e.conf)+'</b> · Saldo <b>'+(e.semSaldo ? '—' : fmt(e.saldo))+'</b>' : '';
+  var ok = !!(e && !e.aguarda);
+  t.apoio = !ok; t.aguarda = !!(e && e.aguarda); t.total = ok ? e.total : 0; t.meta = ok ? e.meta : 0;
+  t.rodape = ok ? 'Conf. <b>'+fmt(e.conf)+'</b> · Exp <b>'+fmt(e.total)+'</b>' : '';   // conferido e expedido lado a lado
 }
 function renderTelaG(c, exp){ aplicaExpedicao(exp); renderCorrida('telaG', c); }
 // Distribui a altura que sobra na tela aberta: a maior parte vai para as raias e o resto fica de respiro.
