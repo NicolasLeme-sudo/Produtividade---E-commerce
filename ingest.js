@@ -1218,18 +1218,18 @@ var FERIADOS_2026 = new Set(["2026-01-01", "2026-04-18", "2026-04-21", "2026-05-
   "2026-09-18", "2026-10-12", "2026-11-02", "2026-11-15", "2026-11-20", "2026-12-25"]);
 var DIAS_EXTRAS = new Set();
 function carregarDiasExtras(arr) { DIAS_EXTRAS = new Set((arr || []).map(function (d) { return String(d).slice(0, 10); })); }
-function ehDiaUtil(date) {
+function ehDiaUtil(date, extras) {
   var iso = paraDataISOLocal(date);
-  if (DIAS_EXTRAS.has(iso)) return true;
+  if (DIAS_EXTRAS.has(iso) || (extras && extras.has(iso))) return true;
   var dow = date.getDay();
   if (dow === 0 || dow === 6) return false;
   return !FERIADOS_2026.has(iso);
 }
 // Dias úteis completos entre duas datas (como no Backlog FIFO do Report): hoje ou ontem = 0/1, 2+ = fora do prazo.
-function diferencaDiasUteis(dataInicial, dataFinal) {
+function diferencaDiasUteis(dataInicial, dataFinal, extras) {
   var d = new Date(dataInicial.getFullYear(), dataInicial.getMonth(), dataInicial.getDate());
   var fim = new Date(dataFinal.getFullYear(), dataFinal.getMonth(), dataFinal.getDate()), contados = 0;
-  while (d <= fim) { if (ehDiaUtil(d)) contados++; d.setDate(d.getDate() + 1); }
+  while (d <= fim) { if (ehDiaUtil(d, extras)) contados++; d.setDate(d.getDate() + 1); }
   return contados - 1;
 }
 
@@ -1402,7 +1402,7 @@ function juntarFaturado(op, novo) {
   op.fatDias = o;
 }
 
-function resumoOperacao(op) {
+function resumoOperacao(op, diasExtras) {
   var pedidos = op.pedidos || {}, marcas = op.marcas || {};
   // Todo campo "rs" é o R$ (Valor Total da NF do OP) do mesmo recorte do campo "itens" ao lado: são para o
   // telão da diretoria, que troca a unidade da tela no toggle. O telão da operação lê só os campos de itens.
@@ -1411,6 +1411,9 @@ function resumoOperacao(op) {
     single: 0, multi: 0, singleRs: 0, multiRs: 0,   // itens por tipo de pedido (Classificação Tipo Pedido)
     etapas: ETAPAS_OPERACAO.map(function (nome) { return { nome: nome, itens: 0, pedidos: 0, rs: 0, single: 0, multi: 0, singleRs: 0, multiRs: 0, marcas: {}, marcasRs: {} }; }),
     idade: ["Hoje", "Ontem", "2 dias", "3+ dias"].map(function (l) { return { label: l, itens: 0, pedidos: 0, rs: 0, single: 0, multi: 0, singleRs: 0, multiRs: 0 }; }),
+    // FIFO da Black (20/11): itens com 2+ dias contando TAMBÉM os dias com operação extra do Admin (feriado trabalhado, sábado e domingo da
+    // Black). A "idade" acima segue a regra do Report (sem esses dias) e é a que o telão da operação lê; só o FIFO da Black lê este campo.
+    fifo: { itens: 0, pedidos: 0, rs: 0 },
     opEm: op.opEm || null, nfEm: op.nfEm || null,
     // Importação MAIS NOVA que veio no OP. O telão usa para avisar quando o relatório chega na hora
     // mas com conteúdo velho (aba do WMS presa num período antigo, como em 18/11): o selo de "Dado de
@@ -1422,6 +1425,12 @@ function resumoOperacao(op) {
     var d = new Date(imp), k = paraDataISOLocal(d);
     if (cacheIdade[k] == null) cacheIdade[k] = Math.max(0, diferencaDiasUteis(d, ref));
     return cacheIdade[k];
+  }
+  var extrasFifo = new Set((diasExtras || []).map(function (d) { return String(d).slice(0, 10); })), cacheFifo = {};
+  function idadeFifo(imp) {
+    var d = new Date(imp), k = paraDataISOLocal(d);
+    if (cacheFifo[k] == null) cacheFifo[k] = Math.max(0, diferencaDiasUteis(d, ref, extrasFifo));
+    return cacheFifo[k];
   }
   Object.keys(pedidos).forEach(function (p) {
     var e = pedidos[p], etapa = r.etapas[e[0]], itens = e[1], imp = e[2], rs = e[6] || 0, marca = marcas[p] || "Olympikus";   // sem produto no Itens de NF: mesma reserva da regra de marca
@@ -1442,6 +1451,7 @@ function resumoOperacao(op) {
       var faixa = r.idade[Math.min(3, idadeDias(imp))];
       faixa.itens += itens; faixa.pedidos++; faixa.rs += rs;
       if (tp) { faixa[tp] += itens; faixa[tp + "Rs"] += rs; }
+      if (idadeFifo(imp) >= 2) { r.fifo.itens += itens; r.fifo.pedidos++; r.fifo.rs += rs; }
     }
   });
   r.maisAntigoDias = r.maisAntigo === null ? null : idadeDias(r.maisAntigo);
@@ -1560,7 +1570,7 @@ async function atualizarOperacao(novo) {
       op.backlogDias = bo;
     }
   }
-  op.resumo = resumoOperacao(op);
+  op.resumo = resumoOperacao(op, (await lerSnapshot("config")).dias_extras);
   await salvarSnapshot("operacao", op);
   return op.resumo;
 }
@@ -2632,6 +2642,32 @@ function cartaoDiasExtras(atual) {
     '<div class="upload-status' + (tem ? " ok" : "") + '" id="dias-extras-status">' + (tem ? "✓ " + atual.length + " dia(s) cadastrado(s) · " + lista : "") + '</div></div></div>';
 }
 
+// Liga o botão Salvar do cartão de dias extras. O cartão fica no fim do Admin (abaixo da Base de ativos) e é desenhado
+// por renderAtivos, então a ligação também é feita lá.
+function ligarDiasExtras() {
+  var btnExtras = document.getElementById("btn-salvar-dias-extras");
+  if (btnExtras) btnExtras.addEventListener("click", async function () {
+    var st = document.getElementById("dias-extras-status");
+    var badge = document.getElementById("dias-extras-badge");
+    try {
+      var txt = document.getElementById("input-dias-extras").value;
+      var lista = txt.split(/[\s,;]+/).filter(Boolean);
+      var datas = await window.ProdutividadeIngest.salvarDiasExtras(lista);
+      var agora = new Date();
+      var quando = agora.toLocaleDateString("pt-BR") + " às " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      if (badge) badge.hidden = !datas.length;
+      if (!datas.length) { st.textContent = "Nenhum dia extra cadastrado · " + quando; st.className = "upload-status"; }
+      else {
+        var ignoradas = lista.length - datas.length;
+        st.textContent = "✓ " + datas.length + " dia(s) salvo(s) · " + datas.map(fmtDataBRIngest).join(", ") + " · " + quando +
+          (ignoradas ? " · " + ignoradas + " entrada(s) fora do formato dd/mm/aaaa ignorada(s)" : "");
+        st.className = "upload-status " + (ignoradas ? "pendente" : "ok");
+      }
+      if (window.recarregarSnapshots) window.recarregarSnapshots(true);
+    } catch (e) { st.textContent = "Erro: " + e.message; st.className = "upload-status erro"; }
+  });
+}
+
 async function renderAbastecimento() {
   var el = document.getElementById("bloco-abastecimento");
   if (!el) return;
@@ -2639,13 +2675,11 @@ async function renderAbastecimento() {
   var cicloAtivo = !!(cfg && cfg.ciclo_inventario_ativo);
   var snapEstoque = await lerSnapshot("estoque");
   var metaCfg = snapEstoque.inventario && snapEstoque.inventario.metaConfig;
-  var diasExtrasAtual = (await lerSnapshot("config")).dias_extras || [];
   el.innerHTML =
     grupoAbastecimento("Compartilhados entre setores", [
       caixaUpload("up-kardex-geral", "Kardex (sem filtro)", "Alimenta <strong>Pendente de fechamento</strong> (Outbound), <strong>Pula</strong> (Gestão de Estoque) e <strong>Armazenagem</strong> (Inbound) — mesmo relatório, o sistema separa pelo Tipo do Local e pelo prefixo do Local."),
       caixaUpload("up-gerenciador-or-geral", "Gerenciador de OR (sem filtro)", "Alimenta <strong>Recebimento</strong> (Inbound) e <strong>Vinculação</strong> (Reversa) — mesmo relatório, o sistema separa pelo Tipo do Recebimento."),
       caixaUpload("up-controle-nf-geral", "Controle de Nota Fiscal (sem filtro)", "Alimenta <strong>Cancelamentos WMS</strong> (Gestão de Estoque) e <strong>Integração</strong> (Reversa) — mesmo relatório, o sistema separa pela Operação/Status."),
-      cartaoDiasExtras(diasExtrasAtual),
     ], "adm-compartilhados") +
     grupoAbastecimento("Outbound", [
       caixaUpload("up-acompanhamento-op", "Acompanhamento_Op", "Alimenta os KPIs <strong>Itens em separação (SINGLE/MULTI)</strong> e <strong>Aguardando geração de onda</strong>, pelo Status da Nota Fiscal + Classificação Tipo Pedido — mesmo relatório usado no Report E-commerce."),
@@ -2669,27 +2703,6 @@ async function renderAbastecimento() {
     grupoAbastecimento("Vistoria", ['<div id="pb-bloco-vistoria"></div>'], "adm-vistoria") +
     grupoAbastecimento("Ajustes", ['<div id="pb-bloco-extrair"></div><div class="pb-ajustes"><div id="pb-bloco-gincanas"></div><div id="pb-bloco-ajuste"></div><div id="pb-bloco-ouro"></div></div>'], "adm-ajustes");
   restaurarStatusAbastecimento();
-  var btnExtras = document.getElementById("btn-salvar-dias-extras");
-  if (btnExtras) btnExtras.addEventListener("click", async function () {
-    var st = document.getElementById("dias-extras-status");
-    var badge = document.getElementById("dias-extras-badge");
-    try {
-      var txt = document.getElementById("input-dias-extras").value;
-      var lista = txt.split(/[\s,;]+/).filter(Boolean);
-      var datas = await window.ProdutividadeIngest.salvarDiasExtras(lista);
-      var agora = new Date();
-      var quando = agora.toLocaleDateString("pt-BR") + " às " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      if (badge) badge.hidden = !datas.length;
-      if (!datas.length) { st.textContent = "Nenhum dia extra cadastrado · " + quando; st.className = "upload-status"; }
-      else {
-        var ignoradas = lista.length - datas.length;
-        st.textContent = "✓ " + datas.length + " dia(s) salvo(s) · " + datas.map(fmtDataBRIngest).join(", ") + " · " + quando +
-          (ignoradas ? " · " + ignoradas + " entrada(s) fora do formato dd/mm/aaaa ignorada(s)" : "");
-        st.className = "upload-status " + (ignoradas ? "pendente" : "ok");
-      }
-      if (window.recarregarSnapshots) window.recarregarSnapshots(true);
-    } catch (e) { st.textContent = "Erro: " + e.message; st.className = "upload-status erro"; }
-  });
   renderCompeticaoAdmin(true);
 }
 
@@ -2742,12 +2755,16 @@ async function renderAtivos() {
     var body = arr.map(function (e) { return "<tr><td>" + e[0] + "</td><td class=\"num\">" + e[1] + "</td></tr>"; }).join("");
     return body + '<tr class="total"><td>Total</td><td class="num">' + lista.length + "</td></tr>";
   }
+  var diasExtrasAtual = (await lerSnapshot("config")).dias_extras || [];
   el.innerHTML =
     '<div class="panel"><div class="panel-head"><div><p class="kicker">Usuário do WMS → nome, gestor, turno e setor</p><h4>' + lista.length + " colaboradores cadastrados</h4></div></div>" +
     '<div class="duo"><div><table class="op"><tr><th>Setor</th><th class="num">Colaboradores</th></tr>' + linhasTabela(porSetor) + "</table></div>" +
     '<div><table class="op"><tr><th>Turno</th><th class="num">Colaboradores</th></tr>' + linhasTabela(porTurno) + "</table></div></div>" +
-    caixaUpload("up-base-ativos", "Base de Ativos (planilha RH)", "Colunas: Código, Nome, Estabelecimento, Cargo, Lotação, Jornada, Horário, Admissão, Situação, Gestor, Setor. Usuário sem cadastro nunca é descartado — aparece como \"não cadastrado\" nos relatórios.") +
-    '</div>';
+    '<div style="margin-top:18px">' + caixaUpload("up-base-ativos", "Base de Ativos (planilha RH)", "Colunas: Código, Nome, Estabelecimento, Cargo, Lotação, Jornada, Horário, Admissão, Situação, Gestor, Setor. Usuário sem cadastro nunca é descartado — aparece como \"não cadastrado\" nos relatórios.") + '</div>' +
+    '</div>' +
+    '<div style="margin-top:18px">' + cartaoDiasExtras(diasExtrasAtual) + '</div>';
+  restaurarStatusAbastecimento();
+  ligarDiasExtras();
 }
 
 // -------------------------------------------------------------------------

@@ -372,7 +372,7 @@ async function iniciar(cfg, log, opcoes) {
   // INTERVALO_MIN no .env: todos os relatórios a cada N minutos (sem ele: rápidos a cada 5, lentos a cada 10).
   const nMin = Number(cfg.INTERVALO_MIN) || 0;
   const intervalo = Object.assign({}, nMin > 0 ? { rapido: nMin * MIN, lento: nMin * MIN } : INTERVALO);
-  intervalo.black = intervalo.lento;   // Corte e Pula da Black: mesmo ritmo do lento, mas depois dele
+  intervalo.black = Math.min(intervalo.lento, (Number(cfg.INTERVALO_BLACK_MIN) || 10) * MIN);   // Corte e Pula da Black: a cada 10 min (INTERVALO_BLACK_MIN no .env), depois do rápido e do lento
   // Usa SÓ o Chrome aberto pelo atalho "abrir-chrome-robo.bat" (porta 9222). Nunca abre outro Chrome.
   // Só um baixador por vez (dois disputam o Chrome e os downloads).
   const trava = path.join(__dirname, argumento("--trava") || "baixar.lock");   // --trava só em teste, com outro Chrome (--porta)

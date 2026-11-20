@@ -689,7 +689,8 @@ function modeloPula(blk){
 }
 function modeloFifo(res){
   if (!res || !res.itens || !res.idade) return null;
-  var velhos = res.idade[2].itens + res.idade[3].itens;
+  // res.fifo (robô, 20/11) = 2+ dias contando também os dias com operação extra do Admin; sem ele (robô antigo) vale a idade do Report
+  var velhos = res.fifo && res.fifo.itens != null ? res.fifo.itens : res.idade[2].itens + res.idade[3].itens;
   return modeloTeto(velhos/res.itens*100, RegrasBlack.TETO_FIFO_PCT, '<b>'+fmt(velhos)+'</b> de <b>'+fmt(res.itens)+'</b> itens', 'fora do prazo');
 }
 function poeApoio(n, m){
