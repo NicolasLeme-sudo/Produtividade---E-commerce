@@ -986,10 +986,10 @@ function renderTelaE(opRes){
       '<span class="tot">'+fmt(x.p)+'</span><span class="tot ped">'+fmt(x.q)+'</span></div>';
   }).join('');
   el.innerHTML = '<div class="kpis c4">'+
-    kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+' · Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças')+
+    kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+' · Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças', '<span class="seg">| <b>'+fmt(d.pedidos)+'</b> pedidos</span>')+
     // Conferido sem expedição: foto atual do Acompanhamento OP (FATURADO com "Faturado em" e sem Carga)
     (dia !== hojeOp() ? kpiHtml('Conferido sem expedição', '—', 'só no dia de hoje', COR_EXP2, COR_EXP2)
-      : opRes.semColeta && opRes.semColeta.checkout != null ? kpiHtml('Conferido sem expedição', fmt(opRes.semColeta.itens), 'Checkout '+qt(opRes.semColeta.checkout)+' · Colmeia '+qt(opRes.semColeta.colmeia), COR_EXP2, COR_EXP2, 'itens')
+      : opRes.semColeta && opRes.semColeta.checkout != null ? kpiHtml('Conferido sem expedição', fmt(opRes.semColeta.itens), 'Checkout '+qt(opRes.semColeta.checkout)+' · Colmeia '+qt(opRes.semColeta.colmeia), COR_EXP2, COR_EXP2, 'itens', '<span class="seg">| <b>'+fmt(opRes.semColeta.pedidos)+'</b> pedidos</span>')
       : kpiHtml('Conferido sem expedição', '—', 'aguardando o próximo Acompanhamento OP', COR_EXP2, COR_EXP2))+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', '#DFBD41', null)+
     kpiPrevisao('Previsão do dia', exp.previsao, d.pecas, COR_EXP, COR_EXP, dia)+
