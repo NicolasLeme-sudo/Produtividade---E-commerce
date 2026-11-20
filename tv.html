@@ -38,8 +38,8 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
   --bg:#0F1623;--bg-card:#192032;--bg-input:#1E2A3D;--border:#253048;--text:#E8EBF2;--text-muted:#7C8BA8;--text-label:#9BAAC4;
   --cc:#297ADF;--cc2:#7FB2EC;--cc-t:#fff;
   --accent:#297ADF;--accent-light:#7FB2EC;--olive:#45C645;--amber:#F6BD00;--orange:#F5A524;--red:#E0334F;
-  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;--t7:#F28C28;--t8:#F2F2F2;--t9:#F6BD00;--t10:#2EC4B6;--t11:#7FB2EC;--t12:#E0334F;
-  --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;--t7-soft:#3A2512;--t8-soft:#2C323D;--t9-soft:#332B10;--t10-soft:#10302D;--t11-soft:#16283F;--t12-soft:#3A1A1E;
+  --t1:#EF5B5B;--t2:#4C95F0;--t3:#45C665;--t4:#F6C400;--t5:#EC4FA0;--t6:#A773EA;--t7:#F28C28;--t8:#F2F2F2;--t9:#F6BD00;--t10:#F53A3D;--t11:#9AA7B4;--t12:#98C13D;
+  --t1-soft:#3A1A1E;--t2-soft:#16283F;--t3-soft:#173322;--t4-soft:#332B10;--t5-soft:#3A1530;--t6-soft:#281C3D;--t7-soft:#3A2512;--t8-soft:#2C323D;--t9-soft:#332B10;--t10-soft:#3A1A1E;--t11-soft:#262E36;--t12-soft:#243016;
   background:var(--bg);color:var(--text);font-size:16px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}
 
 /* ---------- CSS da pista e dos cards: copiado do index.html (Competição) ---------- */
@@ -572,6 +572,10 @@ function renderCorrida(id, c){
   if (MODO_OPERACAO) { el.dataset.vazia = '1'; el.innerHTML = ''; return; }   // TV da operação: sem Corrida
   if (!c.temDados) { el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência ainda.<br>Abasteça a base no site do Produtividade.</div>'; return; }
   var grupos = gruposDaTela(id, c), lista = [].concat.apply([], grupos.map(function(g){ return g.times; }));
+  // Cor de destaque da tela (calendário, setas, T01|T02, barra do giro) = a do time na frente (o carro mais perto da chegada); sem pontuação ainda, a padrão.
+  var lider = lista.filter(function(t){ return !t.apoio && t.meta > 0 && t.total > 0; }).sort(function(a,b){ return pPista(b) - pPista(a) || a.n - b.n; })[0];
+  corLider[id] = lider && lider.cor.hex ? [lider.cor.hex, 'color-mix(in srgb, '+lider.cor.hex+' 55%, #fff)', lider.cor.escuro ? '#0E1626' : '#fff'] : null;
+  if (telas[atual] && telas[atual].id === id) aplicaCorTela(id);
   // Ultrapassagem (FLIP, só quando a ordem muda): o carro (com nome e números da linha) desliza na vertical e o card na
   // horizontal, da posição antiga para a nova; a pista fica parada (antes a linha inteira deslizava e a pista se deformava, 16/11).
   var ordem = lista.map(function(t){ return t.n; }).join(','), antes = {}, antesC = {};
@@ -1482,6 +1486,12 @@ function mostraTela(i){
 var COR_CAL = { telaC:['#297ADF','#7FB2EC','#fff'], telaA:['#EF5B5B','#F59A9A','#fff'], telaG:['#EF5B5B','#F59A9A','#fff'], telaB:['#2EC4B6','#8CEBDF','#0E1626'],
                 telaE:['#F6BD00','#FCE38A','#142032'], telaD:['#F5A524','#FBCB7A','#142032'],
                 telaF:['#45C645','#9BE49B','#0E1626'] };   // Plano x Real: verde
+// Corrida (telas A e G): a cor de destaque é a do time que está na frente (renderCorrida); sem líder vale a de COR_CAL.
+var corLider = {};
+function aplicaCorTela(id){
+  var cc = corLider[id] || COR_CAL[id] || COR_CAL.telaC, pal = document.getElementById('palco');
+  pal.style.setProperty('--cc', cc[0]); pal.style.setProperty('--cc2', cc[1]); pal.style.setProperty('--cc-t', cc[2]);
+}
 var sentidoTroca = 1;   // 1 = avançou (botão >, seta → ou rodízio), -1 = voltou (botão <, seta ←)
 // Reinicia a entrada dos elementos da tela (também chamada no 1º dado e no toggle Itens/R$).
 var tEntrada = null;
@@ -1494,8 +1504,7 @@ function animaEntrada(el){
 function entraTela(i){
   telas.forEach(function(t, k){ t.classList.toggle('on', k === i); });
   animaEntrada(telas[i]);
-  var cc = COR_CAL[telas[i].id] || COR_CAL.telaC, pal = document.getElementById('palco');
-  pal.style.setProperty('--cc', cc[0]); pal.style.setProperty('--cc2', cc[1]); pal.style.setProperty('--cc-t', cc[2]);
+  aplicaCorTela(telas[i].id);
   var tit = document.getElementById('titulo'), novoTit = telas[i].getAttribute('data-titulo');
   if (tit.textContent !== novoTit) { tit.textContent = novoTit; tit.classList.remove('troca', 'recua'); void tit.offsetWidth; tit.classList.add('troca'); if (sentidoTroca < 0) tit.classList.add('recua'); }   // avançar: entra pela direita; voltar: pela esquerda
   sentidoTroca = 1;
