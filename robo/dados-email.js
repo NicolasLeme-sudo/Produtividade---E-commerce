@@ -41,7 +41,7 @@ async function atualizarCadastro(sb) {
   if (Date.now() - cadastroEm < 10 * 60 * 1000) return;
   try {
     const m = T.montarDeLinhas(await T.linhasDoBanco(sb));
-    if (Object.keys(m.mapa).length) { E.definirCadastro(m.mapa); cadastroEm = Date.now(); return; }
+    if (Object.keys(m.mapa).length) { E.definirCadastro(m.mapa, m.lista); cadastroEm = Date.now(); return; }
   } catch (e) { /* segue com o cadastro que já está na memória */ }
   cadastroEm = Date.now() - 9 * 60 * 1000;
 }

@@ -164,13 +164,23 @@ function avisoVisitas(titulo, pessoas, T) {
 // Cadastro do RH (robo/turnos-wms.json, gerado pelo turnos.js a partir da lista de Ativos):
 // { USUARIO.WMS: "T01" | "T02" | "ADM" }. É ele que manda; o horário da produção só decide
 // quem não está no cadastro (temporário, terceiro, usuário de sistema).
+var TURNOS_RH = require("./turnos");
 var CADASTRO = (function () {
   try { return JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "turnos-wms.json"), "utf8")).turnos || {}; }
   catch (e) { return {}; }
 })();
-function turnoCadastrado(usuario) { return CADASTRO[usuarioDaChave(usuario).replace(/,/g, ".").toUpperCase()] || null; }
+// Nome abreviado, colado ou com grafia parecida (JAQUE.SANTANA, ANAPINHEIRO, SANIELI.SILVA...) casa pela lista do RH
+// (turnos.js · casarAbreviado), uma vez por usuário a cada leitura da base.
+var PESSOAS = [], MEMO = {};
+function turnoCadastrado(usuario) {
+  var k = usuarioDaChave(usuario).replace(/,/g, ".").toUpperCase();
+  if (CADASTRO[k]) return CADASTRO[k];
+  if (!PESSOAS.length) return null;
+  if (!(k in MEMO)) MEMO[k] = TURNOS_RH.casarAbreviado(k, PESSOAS);
+  return MEMO[k];
+}
 // O robô troca o cadastro pelo da Base de Ativos do banco (dados-email.js · atualizarCadastro); o arquivo é só o de partida.
-function definirCadastro(mapa) { if (mapa && typeof mapa === "object" && Object.keys(mapa).length) CADASTRO = mapa; }
+function definirCadastro(mapa, lista) { if (mapa && typeof mapa === "object" && Object.keys(mapa).length) { CADASTRO = mapa; PESSOAS = lista || []; MEMO = {}; } }
 
 // Pelo PESO da produção até as 14h48, quando o T02 entra: quem produziu mais antes disso é da
 // manhã (T01 ou ADM), senão é do T02. A 1ª produção sozinha não servia (o T02 começa 14h48 e as
