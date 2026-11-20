@@ -572,8 +572,8 @@ function cardsBaixo(grupos){
         var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"', pm = t.meta ? Math.round(t.total/t.meta*100) : 0;
         if (t.apoio) return '<div class="cb apoio" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+'</div>'+
           '<div class="c2"><span class="gr"><b>—</b><small>'+(t.aguarda ? 'carregando' : t.msgA || 'sem dados')+'</small></span></div><div class="c3">'+(t.aguarda ? 'calculando a meta do dia' : t.msgB || 'aguardando o robô')+'</div></div>';
-        return '<div class="cb'+(t.pos === 1 ? ' lider' : '')+'" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
-          '<div class="c2">'+(t.card ? '<span class="gr"><b>'+t.card.gr+'</b><small>'+t.card.un+'</small></span><span class="pm"'+(t.card.pmCor ? ' style="--c:'+t.card.pmCor+'"' : '')+'><b>'+t.card.pm+'</b><em>'+t.card.pmRot+'</em></span>'
+        return '<div class="cb'+(t.pos === 1 ? ' lider' : '')+'" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+(t.card && t.card.tetoRot ? '<span class="comp-pos"'+(t.card.pmCor ? ' style="--c:'+t.card.pmCor+'; --cs:rgba(255,107,107,.18)"' : '')+'>'+t.card.tetoRot+'</span>' : t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
+          '<div class="c2">'+(t.card ? '<span class="gr"><b>'+t.card.gr+'</b><small>'+t.card.un+'</small></span>'+(t.card.tetoRot ? '' : '<span class="pm"><b>'+t.card.pm+'</b><em>'+t.card.pmRot+'</em></span>')
             : '<span class="gr"><b>'+fmt(t.total)+'</b><small>peças</small></span><span class="pm"><b>'+pm+'%</b><em>da meta</em></span>')+'</div>'+
           '<div class="c3">'+(t.rodape || 'Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b>')+'</div></div>';
       }).join('')+'</div></div>';
@@ -668,11 +668,11 @@ function aplicaExpedicao(e){
      cartão mostra o percentual atual contra o teto. Pula = itens das ondas "TRATAR PULA" ainda em tela ÷ itens de todas as ondas da colmeia em tela
      (estoque.black.pula; teto TETO_PULA_PCT %). FIFO = itens com 2+ dias úteis ÷ itens em operação (OP: resumo.idade e resumo.itens; teto TETO_FIFO_PCT %).
      Ao vivo: sem dia passado. O fechamento do turno (bateu ou não) ainda não é gravado. */
-function pct1(x){ return (Math.round(x*10)/10).toString().replace('.', ',')+'%'; }
+function pct2(x){ return x.toFixed(2).replace('.', ',')+'%'; }   // 2 casas (20/11): perto do teto de 1% e 2% a exatidão importa
 function modeloTeto(atual, teto, rodape, un){
   var dentro = atual <= teto, folga = Math.max(0, Math.min(1, 1 - atual/teto));
-  return { total: Math.round(folga*1000), meta: 1000, teto: true, rodape: rodape, rotulo: [pct1(atual), '≤ '+teto+'%'],
-    card: { gr: pct1(atual), un: un, pm: teto+'%', pmRot: dentro ? 'teto' : 'acima do teto', pmCor: dentro ? null : '#FF6B6B' } };
+  return { total: Math.round(folga*1000), meta: 1000, teto: true, rodape: rodape, rotulo: [pct2(atual), '≤ '+teto+'%'],
+    card: { gr: pct2(atual), un: un, tetoRot: (dentro ? 'teto ' : 'acima de ')+teto+'%', pmCor: dentro ? null : '#FF6B6B' } };   // o teto vai no canto do título (como o 1º dos outros cartões): sobra largura para o número com 2 casas
 }
 function modeloCorte(blk, dia){
   var c = blk && blk.corte; if (!c || !c.dias) return null;
