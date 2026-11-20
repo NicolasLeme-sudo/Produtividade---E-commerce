@@ -509,13 +509,17 @@ var TELAS_CORRIDA = { telaA:1, telaG:1 };
 var pAnterior = {}, RAIA = 60, ultimoC = null, ordemAnterior = {};   // ordemAnterior: uma por tela
 // Posição do carro na pista: 1 = bico na linha de chegada; meta batida passa um pouco dela.
 var P_META_BATIDA = 1.06;
-function pPista(t){ return !t.meta ? 0 : t.total >= t.meta ? P_META_BATIDA : t.total/t.meta; }
-// Quem passa da meta continua correndo (20/11): o carro fica parado onde está (um pouco depois da linha) e a LINHA DE CHEGADA dessa raia
-// recua para trás dele, mais longe quanto mais produz (escala própria de cada raia: P_META_BATIDA ÷ realizado/meta). Quem ainda não
-// bateu a meta não muda nada: cruza a linha onde sempre cruzou. P_LINHA_MIN impede a linha de encostar na largada.
+// Quem passa da meta continua correndo (20/11), com UMA escala por CAMPO de corrida (Checkout, Vestuário, Colmeia, e cada time de apoio sozinho).
+// S = o maior entre P_META_BATIDA e a maior razão realizado/meta do campo. Enquanto ninguém passou de P_META_BATIDA × a meta, S = P_META_BATIDA e
+// tudo fica como sempre (linha em 93%; quem bate a meta segue um pouco além dela). Passou disso: o líder do campo para onde está e a linha de
+// chegada recua para trás dele, e os outros carros do campo encolhem na MESMA proporção: cada um segue cruzando a linha quando bate a meta e a
+// distância entre eles e até a linha continua fiel. Campo com um carro só (Expedição, Corte, Pula, FIFO): a linha apenas se afasta do carro.
+// P_LINHA_MIN impede a linha de encostar na largada.
 var P_LINHA_MIN = 0.12, plAnterior = {};
 function razao(t){ return !t.meta ? 0 : t.total/t.meta; }
-function pLinha(t){ var r = razao(t); return r <= P_META_BATIDA ? 1 : Math.max(P_LINHA_MIN, P_META_BATIDA/r); }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
+function escalaCampo(times){ var s = P_META_BATIDA; times.forEach(function(t){ s = Math.max(s, razao(t)); }); return Math.min(s, P_META_BATIDA/P_LINHA_MIN); }
+function posCarro(t, s){ return Math.min(P_META_BATIDA, razao(t) * P_META_BATIDA / s); }
+function posLinha(s){ return P_META_BATIDA / s; }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
 // Times de um grupo na ordem da corrida (maior realizado em cima).
 function doGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
 // Times de apoio (tela G). Cada um tem a sua pista; a conta de cada um roda desde 20/11 (Expedição, Corte, Pula e FIFO, ver abaixo; sem dado
@@ -536,8 +540,9 @@ function gruposDaTela(id, c){
 }
 function pistaHtml(grupos, comTotal){
   function linhas(lista){
+    var S = escalaCampo(lista);   // escala única do campo (grupo de raias)
     return lista.map(function(t, i){
-      var pct = pPista(t), x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0, pl = pLinha(t), plAnt = plAnterior[t.n] != null ? plAnterior[t.n] : 1;
+      var pct = posCarro(t, S), x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0, pl = posLinha(S), plAnt = plAnterior[t.n] != null ? plAnterior[t.n] : 1;
       var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = t.carro || CARROS[t.n] || CARROS[1], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - Math.min(1,pct)*.45).toFixed(2)+'s';
       var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
       return '<div class="cl lt" data-k="r'+t.n+'">'+
@@ -617,7 +622,7 @@ function renderCorrida(id, c){
     el.querySelectorAll('.comp-carro[data-p], .comp-rastro[data-p]').forEach(function(e){ e.style.setProperty('--p', e.getAttribute('data-p')); });
     el.querySelectorAll('.comp-chegada[data-pl]').forEach(function(e){ e.style.setProperty('--pl', e.getAttribute('data-pl')); });
   }); });
-  lista.forEach(function(t){ pAnterior[t.n] = pPista(t); plAnterior[t.n] = pLinha(t); });
+  grupos.forEach(function(g){ var S = escalaCampo(g.times); g.times.forEach(function(t){ pAnterior[t.n] = posCarro(t, S); plAnterior[t.n] = posLinha(S); }); });
   ultimoC = c; requestAnimationFrame(ajustaAltura);
 }
 function renderTelaA(c){ renderCorrida('telaA', c); }
