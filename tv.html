@@ -72,6 +72,9 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 /* fumaça na cor suavizada do time (--c vem do carro; sem cor fica branca) */
 .comp-fumaca path[fill="#cdd5df"]{fill:color-mix(in srgb, var(--c, #cdd5df) 65%, #cdd5df);}
 .comp-fumaca path[fill="#fbfcfd"]{fill:color-mix(in srgb, var(--c, #fbfcfd) 40%, #fbfcfd);}
+/* fumaça própria dos times de apoio (tela G, só no telão da Black): --fm1 = corpo, --fm2 = realce, vindos de TIMES_APOIO */
+.comp-carro.fm .comp-fumaca path[fill="#cdd5df"]{fill:var(--fm1);}
+.comp-carro.fm .comp-fumaca path[fill="#fbfcfd"]{fill:var(--fm2);}
 @property --p{ syntax:'<number>'; inherits:false; initial-value:0; }
 .comp-carro,.comp-rastro{transition:--p 2.6s cubic-bezier(.25,.8,.3,1);}
 @media (prefers-reduced-motion:reduce){ .comp-carro img,.comp-fumaca{animation:none;} .comp-carro,.comp-rastro{transition:none;} }
@@ -508,19 +511,20 @@ function pPista(t){ return !t.meta ? 0 : t.total >= t.meta ? P_META_BATIDA : t.t
 // Times de um grupo na ordem da corrida (maior realizado em cima).
 function doGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
 // Times de apoio (tela G). Por enquanto só o MODELO (19/11): carro na largada, sem pontuação; a conta de cada um entra
-// depois. Cada time tem a sua pista. O FIFO fica reservado (Máquina do Mistério, corrida/t12.gif), fora da tela por ora.
+// depois. Cada time tem a sua pista; fumaca = [corpo, realce] da fumaça do carro (20/11: Expedição cinza-escuro, Corte
+// avermelhada, Pula quase preta, FIFO alaranjada). O FIFO é a Máquina do Mistério (corrida/t12.gif).
 var TIMES_APOIO = [
-  { n:9,  grupo:'expedicao', cor:{ nome:'Expedição', c:'--t9',  s:'--t9-soft'  }, carro:{ h:34, ar:2.05 } },
-  { n:10, grupo:'corte',     cor:{ nome:'Corte',     c:'--t10', s:'--t10-soft' }, carro:{ h:40, ar:1.55 } },
-  { n:11, grupo:'pula',      cor:{ nome:'Pula',      c:'--t11', s:'--t11-soft' }, carro:{ h:40, ar:1.09 } },
-  { n:12, grupo:'fifo',      cor:{ nome:'FIFO',      c:'--t12', s:'--t12-soft' }, carro:{ h:40, ar:1.5 }, reservado:true }
+  { n:9,  grupo:'expedicao', cor:{ nome:'Expedição', c:'--t9',  s:'--t9-soft'  }, carro:{ h:34, ar:2.05 }, fumaca:['#3A3F47', '#565D68'] },
+  { n:10, grupo:'corte',     cor:{ nome:'Corte',     c:'--t10', s:'--t10-soft' }, carro:{ h:40, ar:1.55 }, fumaca:['#A92E2A', '#DA4A42'] },
+  { n:11, grupo:'pula',      cor:{ nome:'Pula',      c:'--t11', s:'--t11-soft' }, carro:{ h:40, ar:1.09 }, fumaca:['#14161A', '#2A2D33'] },
+  { n:12, grupo:'fifo',      cor:{ nome:'FIFO',      c:'--t12', s:'--t12-soft' }, carro:{ h:40, ar:1.5  }, fumaca:['#D26A12', '#F28C2E'] }
 ].map(function(t){ t.apoio = true; t.total = 0; t.meta = 0; t.pos = 0; return t; });
 // Grupos (pistas) de cada tela, já com os times na ordem da corrida.
 function gruposDaTela(id, c){
   var rot = {}; RegrasBlack.GRUPOS.forEach(function(g){ rot[g.id] = g.rot; });
   if (id === 'telaA') return ['checkout', 'vestuario'].map(function(g){ return { id:g, rot:rot[g], times:doGrupo(c, g) }; });
   return [{ id:'colmeia', rot:rot.colmeia, times:doGrupo(c, 'colmeia') }].concat(
-    TIMES_APOIO.filter(function(t){ return !t.reservado; }).map(function(t){ return { id:t.grupo, rot:t.cor.nome, times:[t] }; }));
+    TIMES_APOIO.map(function(t){ return { id:t.grupo, rot:t.cor.nome, times:[t] }; }));
 }
 function pistaHtml(grupos, comTotal){
   function linhas(lista){
@@ -532,7 +536,7 @@ function pistaHtml(grupos, comTotal){
         '<div class="comp-raia-nome" style="--c:var('+t.cor.c+')"><i></i>'+(lista.length > 1 ? (i+1)+'º ' : '')+t.cor.nome+'</div>'+
         '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
           '<span class="comp-rastro" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --p:'+ant+'"></span>'+
-          '<span class="comp-carro" data-n="'+t.n+'" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --h:'+h+'px; --p:'+ant+'; --vel:'+vel+'">'+FUMACA_SVG+'<img src="corrida/t'+t.n+'.gif?v=2" alt=""></span></div>'+
+          '<span class="comp-carro'+(t.fumaca ? ' fm' : '')+'" data-n="'+t.n+'" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --h:'+h+'px; --p:'+ant+'; --vel:'+vel+(t.fumaca ? '; --fm1:'+t.fumaca[0]+'; --fm2:'+t.fumaca[1] : '')+'">'+FUMACA_SVG+'<img src="corrida/t'+t.n+'.gif?v=2" alt=""></span></div>'+
           '<span class="comp-chegada" style="--cy:'+(-i*RAIA)+'px"></span></div>'+
         '<div class="comp-raia-num">'+(t.apoio ? '<b>—</b><span>—</span>' : '<b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span>')+'</div>'+
       '</div>';
