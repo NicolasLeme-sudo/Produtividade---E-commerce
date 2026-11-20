@@ -517,9 +517,11 @@ var P_META_BATIDA = 1.06;
 // P_LINHA_MIN impede a linha de encostar na largada.
 var P_LINHA_MIN = 0.12, plAnterior = {};
 function razao(t){ return !t.meta ? 0 : t.total/t.meta; }
-function escalaCampo(times){ var s = P_META_BATIDA; times.forEach(function(t){ s = Math.max(s, razao(t)); }); return Math.min(s, P_META_BATIDA/P_LINHA_MIN); }
-function posCarro(t, s){ return Math.min(P_META_BATIDA, razao(t) * P_META_BATIDA / s); }
-function posLinha(s){ return P_META_BATIDA / s; }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
+// 20/11 (2ª versão): a linha recua assim que alguém passa de 100% da meta (antes só a partir de 106%). Escala = maior razão do campo (mín. 1);
+// cada carro anda razão ÷ escala e, tendo batido a meta, fica P_META_BATIDA − 1 (6%) além da linha; a linha fica em 1 ÷ escala.
+function escalaCampo(times){ var s = 1; times.forEach(function(t){ s = Math.max(s, razao(t)); }); return Math.min(s, 1/P_LINHA_MIN); }
+function posCarro(t, s){ var r = razao(t); return Math.min(P_META_BATIDA, r/s + (r >= 1 ? P_META_BATIDA - 1 : 0)); }
+function posLinha(s){ return 1 / s; }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
 // Times de um grupo na ordem da corrida (maior realizado em cima).
 function doGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
 // Times de apoio (tela G). Cada um tem a sua pista; a conta de cada um roda desde 20/11 (Expedição, Corte, Pula e FIFO, ver abaixo; sem dado
