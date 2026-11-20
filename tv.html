@@ -510,7 +510,7 @@ var P_META_BATIDA = 1.06;
 function pPista(t){ return !t.meta ? 0 : t.total >= t.meta ? P_META_BATIDA : t.total/t.meta; }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
 // Times de um grupo na ordem da corrida (maior realizado em cima).
 function doGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
-// Times de apoio (tela G). Por enquanto só o MODELO (19/11): carro na largada, sem pontuação; a conta de cada um entra
+// Times de apoio (tela G). MODELO (19/11): carro na largada, sem pontuação; a conta de cada um entra (a da Expedição já roda, 20/11)
 // depois. Cada time tem a sua pista; fumaca = [corpo, realce] da fumaça do carro (20/11: Expedição cinza-escuro, Corte
 // avermelhada, Pula quase preta, FIFO alaranjada). O FIFO é a Máquina do Mistério (corrida/t12.gif).
 var TIMES_APOIO = [
@@ -561,7 +561,7 @@ function cardsBaixo(grupos){
           '<div class="c2"><span class="gr"><b>—</b><small>em breve</small></span></div><div class="c3">pontuação em definição</div></div>';
         return '<div class="cb'+(t.pos === 1 ? ' lider' : '')+'" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
           '<div class="c2"><span class="gr"><b>'+fmt(t.total)+'</b><small>peças</small></span><span class="pm"><b>'+pm+'%</b><em>da meta</em></span></div>'+
-          '<div class="c3">Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b></div></div>';
+          '<div class="c3">'+(t.rodape || 'Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b>')+'</div></div>';
       }).join('')+'</div></div>';
   }).join('')+'</div>';
 }
@@ -611,7 +611,40 @@ function renderCorrida(id, c){
   ultimoC = c; requestAnimationFrame(ajustaAltura);
 }
 function renderTelaA(c){ renderCorrida('telaA', c); }
-function renderTelaG(c){ renderCorrida('telaG', c); }
+/* ---- Expedição, time de apoio da tela G (desde 20/11; só no telão da Black) ----
+   Realizado = peças embarcadas no dia (Kardex DOCA, resumo.expedicao). Meta = META_EXPEDICAO_PCT % de (conferido do dia, o mesmo da Tela B
+   + conferido sem expedição na ABERTURA do dia). O saldo de abertura vem do Report (RPC produtividade_expedicao_saldo: pedidos conferidos
+   até a abertura e ainda não processados); o conferido e o embarcado do telão batem com os do Report em menos de 0,3%. */
+var saldoExp = {}, saldoExpErro = {};   // dia -> 'busca' | { pecas, pedidos } | false (falhou: segue sem saldo); hora do último erro
+async function carregarSaldoExp(dia){
+  if (MODO_OPERACAO || !dia) return;   // operação e diretoria não chamam nada novo
+  if (saldoExp[dia] && saldoExp[dia] !== false) return;   // buscando ou já tem
+  if (saldoExp[dia] === false && Date.now() - (saldoExpErro[dia] || 0) < 5*60000) return;   // falhou há pouco: tenta de novo em 5 min
+  saldoExp[dia] = 'busca';
+  try {
+    var r = await clienteReport().rpc('produtividade_expedicao_saldo', { dia: dia });
+    if (r.error) throw r.error;
+    saldoExp[dia] = r.data && r.data.pecas != null ? { pecas: Number(r.data.pecas) || 0, pedidos: Number(r.data.pedidos) || 0 } : false;
+  } catch(e) { console.error('Telão: saldo da Expedição indisponível', e); saldoExp[dia] = false; }
+  if (!saldoExp[dia]) saldoExpErro[dia] = Date.now();
+  redesenhar();
+}
+function calcularExpedicao(res, snap, dia){
+  if (MODO_OPERACAO) return null;
+  var ex = ((((res||{}).expedicao||{}).dias) || []).filter(function(x){ return x.data === dia; })[0], s = saldoExp[dia];
+  if (!ex || s === undefined || s === 'busca') return null;   // sem embarque no dia, ou o saldo ainda não chegou
+  var conf = (snap||{}).conferencia || {};
+  var tConf = somaObj(itensDoDia(conf.confCheckoutDia, dia)) + somaObj(itensDoDia(conf.confColmeiaUnitDia, dia));
+  var saldo = s ? s.pecas : 0;
+  return { total: ex.pecas, meta: Math.round((tConf + saldo) * RegrasBlack.META_EXPEDICAO_PCT / 100), conf: tConf, saldo: saldo, semSaldo: !s };
+}
+function aplicaExpedicao(e){
+  var t = TIMES_APOIO.filter(function(x){ return x.n === 9; })[0];
+  if (!t) return;
+  t.apoio = !e; t.total = e ? e.total : 0; t.meta = e ? e.meta : 0;
+  t.rodape = e ? 'Conf. <b>'+fmt(e.conf)+'</b> · Saldo <b>'+(e.semSaldo ? '—' : fmt(e.saldo))+'</b>' : '';
+}
+function renderTelaG(c, exp){ aplicaExpedicao(exp); renderCorrida('telaG', c); }
 // Distribui a altura que sobra na tela aberta: a maior parte vai para as raias e o resto fica de respiro.
 function ajustaAltura(){
   var tela = telas[atual];
@@ -1395,7 +1428,7 @@ function renderTelaF(res){
 var ultimoDesenho = null;
 function desenharTelas(){
   var u = ultimoDesenho; if (!u) return;
-  renderTelaA(u.c); renderTelaG(u.c); renderTelaB(u.snap, u.res, u.diaOut); renderTelaC(u.res);
+  renderTelaA(u.c); renderTelaG(u.c, calcularExpedicao(u.res, u.snap, u.diaOut)); renderTelaB(u.snap, u.res, u.diaOut); renderTelaC(u.res);
   renderTelaF(u.res); renderTelaE(u.res); renderTelaD(u.snapIn);
   renderFaixa(u.c, u.snap, u.diaOut, u.res);
 }
@@ -1699,6 +1732,7 @@ async function carregar(){
     turnoTela = cadT === cadAll ? null : tVer;
     marcaTurno();
     var diaOut = diaOutbound(snap);
+    carregarSaldoExp(diaOut);   // saldo de abertura da Expedição (Report); redesenha quando chega
     document.getElementById('telaA').dataset.dia = diaOut;
     var telaGDia = document.getElementById('telaG'); if (telaGDia) telaGDia.dataset.dia = diaOut;
     var c = calcularCompeticao(snap, cadT, diaOut);
@@ -1722,7 +1756,7 @@ async function carregar(){
     var fSep = F('Separação', fe['up-separacao-analitica'] || semFe), fConf = F('Conferência', fe['up-conferencia-analitica'] || semFe),
         fColm = F('Colmeia', fe['up-conf-colmeia'] || semFe), fOp = F('Acompanhamento OP', res.opEm), fNf = F('Itens de NF', res.nfEm),
         fKx = F('Kardex', res.expedicao && res.expedicao.kardexEm);
-    horaFonte = { telaA:[fSep, fConf, fColm], telaG:[fSep, fConf, fColm], telaB:[fSep, fConf, fColm, fOp], telaC:[fOp, fNf], telaE:[fKx, fOp], telaD:[fKx] };
+    horaFonte = { telaA:[fSep, fConf, fColm], telaG:[fSep, fConf, fColm, fKx], telaB:[fSep, fConf, fColm, fOp], telaC:[fOp, fNf], telaE:[fKx, fOp], telaD:[fKx] };
     ultimoDesenho = { c: c, snap: snap, snapIn: snapIn, diaOut: diaOut, res: op && op.resumo };
     desenharTelas();
     if (!MODO_OPERACAO && !outroTurno) verificaMetas(c);
