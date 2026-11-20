@@ -123,20 +123,24 @@ var NUM_TIMES = [1, 2, 3, 4, 5, 6, 7, 8], TIMES_COLMEIA = { 5: true, 6: true }, 
 function grupoDoTime(n) { return TIMES_COLMEIA[n] ? 'colmeia' : TIMES_VESTUARIO[n] ? 'vestuario' : 'checkout'; }
 // Meta do time por dia, por turno (peças de separação + conferência). Base (09/11): planilha "Divisão black",
 // mesma meta para todos os times do grupo, independente da quantidade de pessoas (a escalação é igualada).
-//   Separação do turno (T01 12.600 · T02 8.400) ÷ 5 áreas (Confecção + 4 andares); a parte da Confecção
+//   20/11, escalação final: meta individual do separador = 550 (T01 30 separadores · T02 20), antes 504 e 467.
+//   Separação do turno (T01 16.500 · T02 11.000) ÷ 5 áreas (Confecção + 4 andares); a parte da Confecção
 //   é dividida entre os 2 times do vestuário. Conferência por caixa: andar 1.200 · vestuário 800.
-//   Checkout = 2.520 + 1.200 (T01) · 1.680 + 1.200 (T02) · Vestuário = 1.260 + 800 · 840 + 800
-//   Colmeia = meta da colmeia ÷ 2 (T01 4.000 · T02 3.000). Sem ADM na Black.
+//   Checkout = 3.300 + 1.200 (T01) · 2.200 + 1.200 (T02) · Vestuário = 1.650 + 800 · 1.100 + 800
+//   Colmeia = meta da colmeia ÷ 2 (T01 4.000 · T02 3.000 = 20 e 15 colmeias de ~200 itens). Sem ADM na Black.
 var META_TURNO = {
-  '1º Turno': { checkout: 3720, vestuario: 2060, colmeia: 2000 },
-  '2º Turno': { checkout: 2880, vestuario: 1640, colmeia: 1500 }
+  '1º Turno': { checkout: 4500, vestuario: 2450, colmeia: 2000 },
+  '2º Turno': { checkout: 3400, vestuario: 1900, colmeia: 1500 }
 };
-// Meta por pessoa (19/11, só para a apresentação): escalados da planilha "Divisão black" (com os reforços).
-//   Separador = separação do turno ÷ separadores (T01 12.600 ÷ 25 = 504 · T02 8.400 ÷ 18 ≈ 467).
-//   Conferente = a meta da caixa (1 faturista por caixa: andar 1.200, vestuário 800). Colmeia = meta ÷ pessoas (T01 4.000 ÷ 20 · T02 3.000 ÷ 16).
-var ESCALA_META = { '1º Turno': { separadores: 25, colmeia: 20 }, '2º Turno': { separadores: 18, colmeia: 16 } };
+// Meta por pessoa (só para a apresentação): escalação final de 20/11 ("ORGANIZAÇÃO - TIMES PARA A BLACK", com os reforços).
+//   Separador = separação do turno ÷ separadores (T01 16.500 ÷ 30 = 550 · T02 11.000 ÷ 20 = 550).
+//   Conferente = a meta da caixa (1 faturista por caixa: andar 1.200, vestuário 800). Colmeia = meta ÷ pessoas (T01 4.000 ÷ 22 · T02 3.000 ÷ 16).
+var ESCALA_META = { '1º Turno': { separadores: 30, colmeia: 22 }, '2º Turno': { separadores: 20, colmeia: 16 } };
 // Expedição (19/11): embarcar 97% do que foi conferido nos caixas de faturamento (checkout + colmeia somados).
 var META_EXPEDICAO_PCT = 97;
+// Corte, Pula e FIFO (20/11): Corte = 97% dos itens sinalizados dentro do período do ADM (07h55–17h33); Pula = itens das ondas
+// "TRATAR PULA" ainda em tela ≤ 1% dos itens de todas as ondas da colmeia em tela; FIFO = itens com 2+ dias úteis ≤ 2% dos itens em operação.
+var META_CORTE_PCT = 97, TETO_PULA_PCT = 1, TETO_FIFO_PCT = 2;
 // Piso com 2 caixas de conferência: cada conferente desse time conta 0,5 por peça, para a soma das duas
 // caixas ficar na mesma régua dos outros andares. { turno: [times] }. 20/11, escalação final: os pisos 2, 3 e 4 (times 2 Azul,
 // 3 Verde e 4 Amarelo) têm 2 faturistas no T01; o piso 1 (Vermelho) e o T02 têm uma só.
@@ -436,7 +440,7 @@ global.RegrasBlack = {
   DIAS: DIAS, TURNOS: TURNOS, P: P, FATOR_COLMEIA: FATOR_COLMEIA, GRAVIDADES: GRAVIDADES, CHECKLIST: CHECKLIST,
   DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DIA: GINCANAS_DIA, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
   placarDoDia: placarDoDia, minutosTrabalhados: minutosTrabalhados, acumulado: acumulado, isoLocal: isoLocal,
-  META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, ESCALA_META: ESCALA_META, META_EXPEDICAO_PCT: META_EXPEDICAO_PCT, metaDoTime: metaDoTime, metaOuro: metaOuro, GRUPOS: GRUPOS, grupoDoTime: grupoDoTime,
+  META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, ESCALA_META: ESCALA_META, META_EXPEDICAO_PCT: META_EXPEDICAO_PCT, META_CORTE_PCT: META_CORTE_PCT, TETO_PULA_PCT: TETO_PULA_PCT, TETO_FIFO_PCT: TETO_FIFO_PCT, metaDoTime: metaDoTime, metaOuro: metaOuro, GRUPOS: GRUPOS, grupoDoTime: grupoDoTime,
   NUM_TIMES: NUM_TIMES, TIMES_COLMEIA: TIMES_COLMEIA, TIMES_VESTUARIO: TIMES_VESTUARIO, CAIXA_DUPLA: CAIXA_DUPLA, fatorConf: fatorConf, trocaDoDia: trocaDoDia, fatorConfDoDia: fatorConfDoDia, fatorMedioConf: fatorMedioConf, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
 };
 })(typeof window !== 'undefined' ? window : globalThis);

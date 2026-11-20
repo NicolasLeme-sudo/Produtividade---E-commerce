@@ -62,7 +62,7 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .comp-tk.ult{border-bottom:1px solid var(--border); border-radius:0 0 8px 8px;}
 .comp-tk.prim.ult{border-radius:8px;}
 .comp-largada{position:absolute; left:4%; top:0; bottom:0; border-left:2px dashed color-mix(in srgb, var(--text-muted) 60%, transparent);}
-.comp-chegada{position:absolute; left:93%; top:0; height:42px; width:14px; margin-left:-7px; z-index:1; background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/14px 14px;}
+.comp-chegada{position:absolute; left:calc(4% + 100px + (89% - 100px) * var(--pl,1)); top:0; height:42px; width:14px; margin-left:-7px; z-index:1; background:conic-gradient(#fff 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/14px 14px;}
 .comp-rastro{position:absolute; left:4%; bottom:6px; height:5px; width:calc((89% - 100px) * var(--p) + 112px - var(--w)); border-radius:3px; background:linear-gradient(90deg, transparent, var(--c));}
 .comp-carro{position:absolute; left:calc(4% + 100px + (89% - 100px) * var(--p)); bottom:3px; width:var(--w); height:var(--h); margin-left:calc(var(--w) * -1); z-index:2;}
 .comp-carro img{display:block; width:100%; height:100%; transform:scaleX(-1); position:relative; z-index:2; animation:comp-treme .16s steps(2) infinite;}
@@ -76,8 +76,10 @@ html,body{margin:0;height:100%;background:#05080E;overflow:hidden}
 .comp-carro.fm .comp-fumaca path[fill="#cdd5df"]{fill:var(--fm1);}
 .comp-carro.fm .comp-fumaca path[fill="#fbfcfd"]{fill:var(--fm2);}
 @property --p{ syntax:'<number>'; inherits:false; initial-value:0; }
+@property --pl{ syntax:'<number>'; inherits:false; initial-value:1; }
 .comp-carro,.comp-rastro{transition:--p 2.6s cubic-bezier(.25,.8,.3,1);}
-@media (prefers-reduced-motion:reduce){ .comp-carro img,.comp-fumaca{animation:none;} .comp-carro,.comp-rastro{transition:none;} }
+.comp-chegada{transition:--pl 2.6s cubic-bezier(.25,.8,.3,1);}
+@media (prefers-reduced-motion:reduce){ .comp-carro img,.comp-fumaca{animation:none;} .comp-carro,.comp-rastro,.comp-chegada{transition:none;} }
 .comp-raia-num{display:grid; grid-template-columns:1fr 1fr; text-align:right; font-variant-numeric:tabular-nums; font-size:.86rem; gap:8px;}
 .comp-raia-num b{color:var(--accent-light);}
 .comp-raia-num span{color:var(--text); font-weight:600;}
@@ -507,11 +509,17 @@ var TELAS_CORRIDA = { telaA:1, telaG:1 };
 var pAnterior = {}, RAIA = 60, ultimoC = null, ordemAnterior = {};   // ordemAnterior: uma por tela
 // Posição do carro na pista: 1 = bico na linha de chegada; meta batida passa um pouco dela.
 var P_META_BATIDA = 1.06;
-function pPista(t){ return !t.meta ? 0 : t.total >= t.meta ? P_META_BATIDA : t.total/t.meta; }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
+function pPista(t){ return !t.meta ? 0 : t.total >= t.meta ? P_META_BATIDA : t.total/t.meta; }
+// Quem passa da meta continua correndo (20/11): o carro fica parado onde está (um pouco depois da linha) e a LINHA DE CHEGADA dessa raia
+// recua para trás dele, mais longe quanto mais produz (escala própria de cada raia: P_META_BATIDA ÷ realizado/meta). Quem ainda não
+// bateu a meta não muda nada: cruza a linha onde sempre cruzou. P_LINHA_MIN impede a linha de encostar na largada.
+var P_LINHA_MIN = 0.12, plAnterior = {};
+function razao(t){ return !t.meta ? 0 : t.total/t.meta; }
+function pLinha(t){ var r = razao(t); return r <= P_META_BATIDA ? 1 : Math.max(P_LINHA_MIN, P_META_BATIDA/r); }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
 // Times de um grupo na ordem da corrida (maior realizado em cima).
 function doGrupo(c, g){ return c.times.filter(function(t){ return t.grupo === g; }).sort(function(a,b){ return b.total - a.total || a.n - b.n; }); }
-// Times de apoio (tela G). MODELO (19/11): carro na largada, sem pontuação; a conta de cada um entra (a da Expedição já roda, 20/11)
-// depois. Cada time tem a sua pista; fumaca = [corpo, realce] da fumaça do carro (20/11: Expedição cinza-escuro, Corte
+// Times de apoio (tela G). Cada um tem a sua pista; a conta de cada um roda desde 20/11 (Expedição, Corte, Pula e FIFO, ver abaixo; sem dado
+// do robô o time fica na largada com "sem dados"); fumaca = [corpo, realce] da fumaça do carro (20/11: Expedição cinza-escuro, Corte
 // avermelhada, Pula quase preta, FIFO alaranjada). O FIFO é a Máquina do Mistério (corrida/t12.gif).
 var TIMES_APOIO = [
   { n:9,  grupo:'expedicao', cor:{ nome:'Expedição', c:'--t9',  s:'--t9-soft'  }, carro:{ h:34, ar:2.05 }, fumaca:['#3A3F47', '#565D68'] },
@@ -529,7 +537,7 @@ function gruposDaTela(id, c){
 function pistaHtml(grupos, comTotal){
   function linhas(lista){
     return lista.map(function(t, i){
-      var pct = pPista(t), x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0;
+      var pct = pPista(t), x = pct.toFixed(4), ant = pAnterior[t.n] != null ? pAnterior[t.n] : 0, pl = pLinha(t), plAnt = plAnterior[t.n] != null ? plAnterior[t.n] : 1;
       var esc = CARRO_ESCALA*Math.min(1.5, RAIA/60), car = t.carro || CARROS[t.n] || CARROS[1], h = Math.round(car.h*esc), w = Math.round(car.h*car.ar*esc), vel = (.9 - Math.min(1,pct)*.45).toFixed(2)+'s';
       var cls = 'comp-tk' + (i === 0 ? ' prim' : '') + (i === lista.length-1 ? ' ult' : '');
       return '<div class="cl lt" data-k="r'+t.n+'">'+
@@ -537,8 +545,8 @@ function pistaHtml(grupos, comTotal){
         '<div class="comp-raia"><div class="'+cls+'"><span class="comp-largada"></span>'+
           '<span class="comp-rastro" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --p:'+ant+'"></span>'+
           '<span class="comp-carro'+(t.fumaca ? ' fm' : '')+'" data-n="'+t.n+'" data-p="'+x+'" style="--c:var('+t.cor.c+'); --w:'+w+'px; --h:'+h+'px; --p:'+ant+'; --vel:'+vel+(t.fumaca ? '; --fm1:'+t.fumaca[0]+'; --fm2:'+t.fumaca[1] : '')+'">'+FUMACA_SVG+'<img src="corrida/t'+t.n+'.gif?v='+(t.gifV || 2)+'" alt=""></span></div>'+
-          '<span class="comp-chegada" style="--cy:'+(-i*RAIA)+'px"></span></div>'+
-        '<div class="comp-raia-num">'+(t.apoio ? '<b>—</b><span>—</span>' : '<b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span>')+'</div>'+
+          '<span class="comp-chegada" data-pl="'+pl.toFixed(4)+'" style="--cy:'+(-i*RAIA)+'px; --pl:'+plAnt+'"></span></div>'+
+        '<div class="comp-raia-num">'+(t.apoio ? '<b>—</b><span>—</span>' : t.rotulo ? '<b>'+t.rotulo[0]+'</b><span>'+t.rotulo[1]+'</span>' : '<b>'+fmt(t.total)+'</b><span>'+fmt(t.meta)+'</span>')+'</div>'+
       '</div>';
     }).join('');
   }
@@ -558,9 +566,10 @@ function cardsBaixo(grupos){
       '<div class="cb-grade" style="grid-template-columns:repeat('+g.times.length+',minmax(0,1fr))">'+g.times.map(function(t){
         var st = 'style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"', pm = t.meta ? Math.round(t.total/t.meta*100) : 0;
         if (t.apoio) return '<div class="cb apoio" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+'</div>'+
-          '<div class="c2"><span class="gr"><b>—</b><small>'+(t.aguarda ? 'carregando' : 'em breve')+'</small></span></div><div class="c3">'+(t.aguarda ? 'calculando a meta do dia' : 'pontuação em definição')+'</div></div>';
+          '<div class="c2"><span class="gr"><b>—</b><small>'+(t.aguarda ? 'carregando' : t.msgA || 'sem dados')+'</small></span></div><div class="c3">'+(t.aguarda ? 'calculando a meta do dia' : t.msgB || 'aguardando o robô')+'</div></div>';
         return '<div class="cb'+(t.pos === 1 ? ' lider' : '')+'" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+(t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
-          '<div class="c2"><span class="gr"><b>'+fmt(t.total)+'</b><small>peças</small></span><span class="pm"><b>'+pm+'%</b><em>da meta</em></span></div>'+
+          '<div class="c2">'+(t.card ? '<span class="gr"><b>'+t.card.gr+'</b><small>'+t.card.un+'</small></span><span class="pm"'+(t.card.pmCor ? ' style="--c:'+t.card.pmCor+'"' : '')+'><b>'+t.card.pm+'</b><em>'+t.card.pmRot+'</em></span>'
+            : '<span class="gr"><b>'+fmt(t.total)+'</b><small>peças</small></span><span class="pm"><b>'+pm+'%</b><em>da meta</em></span>')+'</div>'+
           '<div class="c3">'+(t.rodape || 'Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b>')+'</div></div>';
       }).join('')+'</div></div>';
   }).join('')+'</div>';
@@ -573,7 +582,7 @@ function renderCorrida(id, c){
   if (!c.temDados) { el.innerHTML = '<div class="vazio">Sem dados de Separação e Conferência ainda.<br>Abasteça a base no site do Produtividade.</div>'; return; }
   var grupos = gruposDaTela(id, c), lista = [].concat.apply([], grupos.map(function(g){ return g.times; }));
   // Cor de destaque da tela (calendário, setas, T01|T02, barra do giro) = a do time na frente (o carro mais perto da chegada); sem pontuação ainda, a padrão.
-  var lider = lista.filter(function(t){ return !t.apoio && t.meta > 0 && t.total > 0; }).sort(function(a,b){ return pPista(b) - pPista(a) || a.n - b.n; })[0];
+  var lider = lista.filter(function(t){ return !t.apoio && !t.teto && t.meta > 0 && t.total > 0; }).sort(function(a,b){ return razao(b) - razao(a) || a.n - b.n; })[0];
   corLider[id] = lider && lider.cor.hex ? [lider.cor.hex, 'color-mix(in srgb, '+lider.cor.hex+' 55%, #fff)', lider.cor.escuro ? '#0E1626' : '#fff'] : null;
   if (telas[atual] && telas[atual].id === id) aplicaCorTela(id);
   // Ultrapassagem (FLIP, só quando a ordem muda): o carro (com nome e números da linha) desliza na vertical e o card na
@@ -606,8 +615,9 @@ function renderCorrida(id, c){
   // os carros andam da posição anterior até a nova, como no site
   requestAnimationFrame(function(){ requestAnimationFrame(function(){
     el.querySelectorAll('.comp-carro[data-p], .comp-rastro[data-p]').forEach(function(e){ e.style.setProperty('--p', e.getAttribute('data-p')); });
+    el.querySelectorAll('.comp-chegada[data-pl]').forEach(function(e){ e.style.setProperty('--pl', e.getAttribute('data-pl')); });
   }); });
-  lista.forEach(function(t){ pAnterior[t.n] = pPista(t); });
+  lista.forEach(function(t){ pAnterior[t.n] = pPista(t); plAnterior[t.n] = pLinha(t); });
   ultimoC = c; requestAnimationFrame(ajustaAltura);
 }
 function renderTelaA(c){ renderCorrida('telaA', c); }
@@ -644,8 +654,56 @@ function aplicaExpedicao(e){
   var ok = !!(e && !e.aguarda);
   t.apoio = !ok; t.aguarda = !!(e && e.aguarda); t.total = ok ? e.total : 0; t.meta = ok ? e.meta : 0;
   t.rodape = ok ? 'Conf. <b>'+fmt(e.conf)+'</b> · Exp <b>'+fmt(e.total)+'</b>' : '';   // conferido e expedido lado a lado
+  t.msgA = 'sem dados'; t.msgB = 'sem embarque no dia';
 }
-function renderTelaG(c, exp){ aplicaExpedicao(exp); renderCorrida('telaG', c); }
+/* ---- Corte, Pula e FIFO, times de apoio da tela G (20/11; só no telão da Black) ----
+   Corte: dentro do período do ADM (07h55–17h33) a meta é META_CORTE_PCT % dos ITENS sinalizados; ACEITO e RECUSADO contam como resolvido
+     (robô: estoque.black.corte.dias[dia] = { sinal, res, ag, fora }, cada um em cortes c e itens i). Cada dia é uma turma: só o sinalizado no ADM daquele dia.
+   Pula e FIFO têm TETO: a raia mostra o quanto o time está abaixo dele (1 − atual ÷ teto: zerado = linha de chegada, no teto ou acima = largada) e o
+     cartão mostra o percentual atual contra o teto. Pula = itens das ondas "TRATAR PULA" ainda em tela ÷ itens de todas as ondas da colmeia em tela
+     (estoque.black.pula; teto TETO_PULA_PCT %). FIFO = itens com 2+ dias úteis ÷ itens em operação (OP: resumo.idade e resumo.itens; teto TETO_FIFO_PCT %).
+     Ao vivo: sem dia passado. O fechamento do turno (bateu ou não) ainda não é gravado. */
+function pct1(x){ return (Math.round(x*10)/10).toString().replace('.', ',')+'%'; }
+function modeloTeto(atual, teto, rodape, un){
+  var dentro = atual <= teto, folga = Math.max(0, Math.min(1, 1 - atual/teto));
+  return { total: Math.round(folga*1000), meta: 1000, teto: true, rodape: rodape, rotulo: [pct1(atual), '≤ '+teto+'%'],
+    card: { gr: pct1(atual), un: un, pm: teto+'%', pmRot: dentro ? 'teto' : 'acima do teto', pmCor: dentro ? null : '#FF6B6B' } };
+}
+function modeloCorte(blk, dia){
+  var c = blk && blk.corte; if (!c || !c.dias) return null;
+  var d = c.dias[dia], sinal = d && d.sinal ? d.sinal.i : 0, res = d && d.res ? d.res.i : 0;
+  if (!sinal) return { msgA:'sem cortes', msgB:'no período do ADM' };
+  var meta = Math.ceil(sinal*RegrasBlack.META_CORTE_PCT/100);
+  return { total: res, meta: meta, rodape: 'Sinal. <b>'+fmt(sinal)+'</b> · Resolv. <b>'+fmt(res)+'</b>',
+    card: { gr: fmt(res), un: 'itens', pm: Math.round(res/meta*100)+'%', pmRot: 'da meta' } };
+}
+function modeloPula(blk){
+  var p = blk && blk.pula; if (!p) return null;
+  var tot = p.colmeiaItens || 0, pula = p.pulaItens || 0;
+  return modeloTeto(tot ? pula/tot*100 : 0, RegrasBlack.TETO_PULA_PCT, tot ? 'Pula <b>'+fmt(pula)+'</b> de <b>'+fmt(tot)+'</b> itens' : 'Sem ondas na colmeia', 'pula');
+}
+function modeloFifo(res){
+  if (!res || !res.itens || !res.idade) return null;
+  var velhos = res.idade[2].itens + res.idade[3].itens;
+  return modeloTeto(velhos/res.itens*100, RegrasBlack.TETO_FIFO_PCT, '<b>'+fmt(velhos)+'</b> de <b>'+fmt(res.itens)+'</b> itens', 'fora do prazo');
+}
+function poeApoio(n, m){
+  var t = TIMES_APOIO.filter(function(x){ return x.n === n; })[0];
+  if (!t) return;
+  var ok = !!(m && m.meta);
+  t.apoio = !ok; t.aguarda = false;
+  t.total = ok ? m.total : 0; t.meta = ok ? m.meta : 0; t.rodape = ok ? m.rodape : ''; t.rotulo = ok ? m.rotulo || null : null;
+  t.card = ok ? m.card || null : null; t.teto = ok && !!m.teto;
+  t.msgA = m && m.msgA || ''; t.msgB = m && m.msgB || '';
+}
+function aplicaApoio(u){
+  u = u || {};
+  var vivo = ehHoje(), passado = { msgA:'só ao vivo', msgB:'sem dia passado' };
+  poeApoio(10, modeloCorte(u.blk, u.diaOut));
+  poeApoio(11, vivo ? modeloPula(u.blk) : passado);
+  poeApoio(12, vivo ? modeloFifo(u.res) : passado);
+}
+function renderTelaG(c, exp, u){ aplicaExpedicao(exp); aplicaApoio(u); renderCorrida('telaG', c); }
 // Distribui a altura que sobra na tela aberta: a maior parte vai para as raias e o resto fica de respiro.
 function ajustaAltura(){
   var tela = telas[atual];
@@ -1429,7 +1487,7 @@ function renderTelaF(res){
 var ultimoDesenho = null;
 function desenharTelas(){
   var u = ultimoDesenho; if (!u) return;
-  renderTelaA(u.c); renderTelaG(u.c, calcularExpedicao(u.res, u.snap, u.diaOut)); renderTelaB(u.snap, u.res, u.diaOut); renderTelaC(u.res);
+  renderTelaA(u.c); renderTelaG(u.c, calcularExpedicao(u.res, u.snap, u.diaOut), u); renderTelaB(u.snap, u.res, u.diaOut); renderTelaC(u.res);
   renderTelaF(u.res); renderTelaE(u.res); renderTelaD(u.snapIn);
   renderFaixa(u.c, u.snap, u.diaOut, u.res);
 }
@@ -1719,7 +1777,9 @@ async function carregar(){
       sb.from('competicao_times').select('*'),
       sb.from('dashboard_snapshots').select('resumo:dados->resumo, atualizado_em').eq('pagina', 'operacao').maybeSingle(),
       sb.from('competicao_hora_ouro').select('dia, turno, hora, meta_piso, meta_colmeia'),
-      MODO_OPERACAO ? Promise.resolve({ data:[] }) : sb.from('competicao_pontos').select('id, dia, turno, time, categoria, item, pontos, motivo, criado_em').eq('dia', RegrasBlack.turnoAtual(new Date()).dia).eq('turno', RegrasBlack.turnoAtual(new Date()).turno)
+      MODO_OPERACAO ? Promise.resolve({ data:[] }) : sb.from('competicao_pontos').select('id, dia, turno, time, categoria, item, pontos, motivo, criado_em').eq('dia', RegrasBlack.turnoAtual(new Date()).dia).eq('turno', RegrasBlack.turnoAtual(new Date()).turno),
+      // Corte e Pula do robô (estoque.black): só o telão da Black lê; operação e diretoria não fazem esta chamada
+      MODO_OPERACAO ? Promise.resolve({ data:null }) : sb.from('dashboard_snapshots').select('black:dados->black').eq('pagina', 'estoque').maybeSingle()
     ]);
     if (r[0].error || r[1].error) throw (r[0].error || r[1].error);
     var pg = {}; (r[0].data || []).forEach(function(l){ pg[l.pagina] = l; if (l.atualizado_em) atualizadoEm[l.pagina] = new Date(l.atualizado_em); });
@@ -1757,8 +1817,10 @@ async function carregar(){
     var fSep = F('Separação', fe['up-separacao-analitica'] || semFe), fConf = F('Conferência', fe['up-conferencia-analitica'] || semFe),
         fColm = F('Colmeia', fe['up-conf-colmeia'] || semFe), fOp = F('Acompanhamento OP', res.opEm), fNf = F('Itens de NF', res.nfEm),
         fKx = F('Kardex', res.expedicao && res.expedicao.kardexEm);
-    horaFonte = { telaA:[fSep, fConf, fColm], telaG:[fSep, fConf, fColm, fKx], telaB:[fSep, fConf, fColm, fOp], telaC:[fOp, fNf], telaE:[fKx, fOp], telaD:[fKx] };
-    ultimoDesenho = { c: c, snap: snap, snapIn: snapIn, diaOut: diaOut, res: op && op.resumo };
+    var blk = (r[5] && !r[5].error && r[5].data && r[5].data.black) || null, bc = (blk && blk.corte) || {};
+    var fCt = F('Corte', bc.tela && Date.parse(bc.tela.em)), fRc = F('Relatório de Corte', bc.relEm && Date.parse(bc.relEm)), fOn = F('Ondas da colmeia', blk && blk.pula && Date.parse(blk.pula.em));
+    horaFonte = { telaA:[fSep, fConf, fColm], telaG:[fSep, fConf, fColm, fKx, fCt, fRc, fOn], telaB:[fSep, fConf, fColm, fOp], telaC:[fOp, fNf], telaE:[fKx, fOp], telaD:[fKx] };
+    ultimoDesenho = { c: c, snap: snap, snapIn: snapIn, diaOut: diaOut, res: op && op.resumo, blk: blk };
     desenharTelas();
     if (!MODO_OPERACAO && !outroTurno) verificaMetas(c);
     if (!MODO_OPERACAO && !outroTurno && ehHoje() && !r[4].error) verificaBaloes(c, cadT, r[4].data || [], ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);

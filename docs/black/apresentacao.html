@@ -174,7 +174,7 @@ S.push(slide('A campanha', 'Um time de cada cor, <em>em cada turno</em>',
 
 // 3b · metas (planilha "Divisão black" → meta do time, em regras-black.js META_TURNO; mesma meta para o grupo todo)
 var MT = R.META_TURNO;
-var METAS = [['T01','05h00–14h48','8h48',12600,4000,MT['1º Turno']], ['T02','14h48–00h16','8h28',8400,3000,MT['2º Turno']]];
+var METAS = [['T01','05h00–14h48','8h48',16500,4000,MT['1º Turno']], ['T02','14h48–00h16','8h28',11000,3000,MT['2º Turno']]];
 S.push(slide('Metas', 'Meta do dia <em>por turno e por time</em>',
   '<table class="cmp mt"><tr><th>Turno</th><th>Horas trabalhadas</th><th>Separação do turno</th><th>Conferência por caixa</th><th>Colmeia</th><th>Time checkout</th><th>Time vestuário</th><th>Time colmeia</th></tr>' +
     METAS.map(function(m){ return '<tr><td><b>' + m[0] + '</b><small class="mp">' + m[1] + '</small></td><td>' + m[2] + '</td><td><b>' + fmt(m[3]) + '</b></td><td><b>' + fmt(1200) + '</b><small class="mp">vestuário ' + fmt(800) + '</small></td><td><b>' + fmt(m[4]) + '</b></td>' +
@@ -195,13 +195,15 @@ S.push(slide('Metas', 'Meta do dia <em>por turno e por time</em>',
 S.push(slide('Metas · Expedição e Gestão de Estoque', 'Outras equipes, <em>outras metas</em>',
   '<div class="two exp">' +
     '<div class="card"><div class="k">Expedição</div><div class="big">' + R.META_EXPEDICAO_PCT + '%</div>' +
-      '<h3>Embarcar do que foi conferido</h3>' +
-      '<p>O time embarca <b>' + R.META_EXPEDICAO_PCT + '% do que for conferido nos caixas de faturamento</b>, com a <b>colmeia e os caixas do checkout somados</b>.</p></div>' +
+      '<h3>Processar do que foi conferido</h3>' +
+      '<p>O time processa <b>' + R.META_EXPEDICAO_PCT + '% do que for conferido no dia</b> (colmeia e caixas do checkout somados), mais o que ficou conferido e sem processar na abertura do dia.</p></div>' +
     '<div class="stack"><div class="k" style="font-size:24px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:600">Gestão de Estoque · 3 frentes</div>' +
-      '<div class="card fr"><span class="n">CORTES</span><div><h3>Atender o que foi sinalizado como corte</h3>' +
-        '<p>Atender uma parte de <b>todo o material sinalizado como corte durante o período do ADM</b>. Atendendo, a meta é batida.</p><span class="pend">% a confirmar</span></div></div>' +
-      '<div class="card fr"><span class="n">PULAS</span><div><h3>Meta em definição</h3></div></div>' +
-      '<div class="card fr"><span class="n">FIFO</span><div><h3>Meta em definição</h3></div></div>' +
+      '<div class="card fr"><span class="n">CORTES</span><div><h3>Resolver o que foi sinalizado como corte</h3>' +
+        '<p>Resolver <b>' + R.META_CORTE_PCT + '% dos itens sinalizados como corte durante o período do ADM</b> (07h55–17h33). Corte aceito ou recusado conta como resolvido.</p></div></div>' +
+      '<div class="card fr"><span class="n">PULAS</span><div><h3>Pula em tela abaixo de ' + R.TETO_PULA_PCT + '%</h3>' +
+        '<p>Ao fechar o turno, os itens das ondas <b>"tratar pula"</b> ainda em tela não passam de <b>' + R.TETO_PULA_PCT + '% dos itens em tela nas colmeias</b>. Quanto mais longe do teto, melhor.</p></div></div>' +
+      '<div class="card fr"><span class="n">FIFO</span><div><h3>FIFO abaixo de ' + R.TETO_FIFO_PCT + '%</h3>' +
+        '<p>Ao fechar o turno, os itens com <b>2 ou mais dias úteis</b> não passam de <b>' + R.TETO_FIFO_PCT + '% dos itens em operação</b>. Quanto mais longe do teto, melhor.</p></div></div>' +
     '</div>' +
   '</div>',
   'Metas por resultado, fora da corrida dos times'));
