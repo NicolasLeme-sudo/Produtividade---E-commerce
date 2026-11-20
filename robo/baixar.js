@@ -196,6 +196,36 @@ const TELAS = [
       await p.waitForTimeout(2000);
       await esperarCarregar(p, ESPERA_ABRIR_MS);
     } },
+  // ---- Telão da Black (20/11/2026): Corte e Pula. Grupo "black": roda DEPOIS do "lento" (os e-mails das :05 não esperam por ele)
+  // e só no horário de operação. Os arquivos só alimentam estoque.black, que só as telas da Black leem.
+  { id: "cortetela", nome: "Corte Físico", grupo: "black", busca: "corte", itemPapel: { role: "treeitem", name: "Corte Físico", exact: true }, refresh: ATUALIZAR_GRID,
+    semGuardaIgual: true,
+    chave: function () { return ddmmaaaa(hoje()); },
+    filtros: async function (p) { await esperarCarregar(p, ESPERA_ABRIR_MS); } },
+  { id: "corterel", nome: "Relatório de Corte Físico", grupo: "black", busca: "corte", itemPapel: { role: "treeitem", name: "Relatório de Corte Físico" }, refresh: ATUALIZAR_GRID,
+    semGuardaIgual: true,
+    chave: function () { return ddmmaaaa(hoje()); },
+    // 3 dias até hoje: o dia (com o que foi sinalizado e resolvido) e os anteriores, para o histórico.
+    filtros: function (p) { return datasParametros(p, "#ParametersDialog_Data_Inicio", "#ParametersDialog_Data_Termino", new Date(inicioDoDia().getTime() - 3 * 864e5), hoje()); } },
+  { id: "ondas", nome: "Gerenciador de Expedição", grupo: "black", busca: "gerenciador", item: "Gerenciador de Expedição", refresh: ATUALIZAR_NAVEGACAO,
+    semGuardaIgual: true,
+    chave: function () { return ddmmaaaa(hoje()); },
+    // A grade fica num iframe (nome muda a cada abertura): acha o que tem o filtro da onda. Ondas da COLMEIA ainda não separadas.
+    filtros: async function (p) {
+      let fr = null;
+      for (let t = 0; t < 12 && !fr; t++) {
+        for (const f of p.frames()) { if (await f.locator("#filter-CONFIGURACAOONDA").count()) { fr = f; break; } }
+        if (!fr) await p.waitForTimeout(3000);
+      }
+      if (!fr) throw new Error("Gerenciador de Expedição: filtro da onda não apareceu");
+      const onda = fr.locator("#filter-CONFIGURACAOONDA");
+      await onda.click(); await onda.fill("COLMEIA"); await onda.press("Enter");
+      const sep = fr.locator("#filter-SEPARADO");
+      await sep.selectOption("N"); await sep.press("Enter");
+      await p.waitForTimeout(2500);
+      await p.locator(ATUALIZAR_NAVEGACAO + ":visible").first().click();
+      await esperarCarregar(p, ESPERA_ABRIR_MS);
+    } },
 ];
 
 // Itens de NF começa no dia do pedido mais antigo em tela no último OP baixado.
@@ -281,7 +311,9 @@ async function abrirTela(page, tela) {
   const busca = await buscaDoMenu(page);
   const item = tela.itemSeletor
     ? page.locator(tela.itemSeletor + ":visible").first()
-    : page.getByText(tela.item).first();
+    : tela.itemPapel
+      ? page.getByRole(tela.itemPapel.role, { name: tela.itemPapel.name, exact: !!tela.itemPapel.exact }).first()
+      : page.getByText(tela.item).first();
   // Digita devagar e confirma com Enter: sem o Enter o WMS não carrega as sugestões.
   for (let t = 1; ; t++) {
     await busca.click();
@@ -339,17 +371,18 @@ async function iniciar(cfg, log, opcoes) {
   const visivel = String(cfg.MOSTRAR_NAVEGADOR || "sim").toLowerCase() !== "nao" && !process.argv.includes("--escondido");
   // INTERVALO_MIN no .env: todos os relatórios a cada N minutos (sem ele: rápidos a cada 5, lentos a cada 10).
   const nMin = Number(cfg.INTERVALO_MIN) || 0;
-  const intervalo = nMin > 0 ? { rapido: nMin * MIN, lento: nMin * MIN } : INTERVALO;
+  const intervalo = Object.assign({}, nMin > 0 ? { rapido: nMin * MIN, lento: nMin * MIN } : INTERVALO);
+  intervalo.black = intervalo.lento;   // Corte e Pula da Black: mesmo ritmo do lento, mas depois dele
   // Usa SÓ o Chrome aberto pelo atalho "abrir-chrome-robo.bat" (porta 9222). Nunca abre outro Chrome.
   // Só um baixador por vez (dois disputam o Chrome e os downloads).
-  const trava = path.join(__dirname, "baixar.lock");
+  const trava = path.join(__dirname, argumento("--trava") || "baixar.lock");   // --trava só em teste, com outro Chrome (--porta)
   try {
     const pid = Number(fs.readFileSync(trava, "utf8"));
     if (pid && pid !== process.pid) { process.kill(pid, 0); throw new Error("Já tem um baixador rodando (processo " + pid + ")"); }
   } catch (e) { if (/Já tem/.test(e.message)) throw e; }
   fs.writeFileSync(trava, String(process.pid));
   process.on("exit", function () { try { if (fs.readFileSync(trava, "utf8") === String(process.pid)) fs.unlinkSync(trava); } catch (e) {} });
-  const porta = cfg.CHROME_PORTA || "9222";
+  const porta = argumento("--porta") || cfg.CHROME_PORTA || "9222";
   // Uma "alça" (page) por relatório: é por ela que o robô volta em cada aba.
   const abas = {};          // id -> { page, chave }
   let browser, contexto, caiu = false;
@@ -506,7 +539,7 @@ async function iniciar(cfg, log, opcoes) {
       // GUARDA 2 (tela que parou de atualizar): em operação nenhum relatório fica idêntico por 1h30.
       // Pega qualquer aba congelada, não só a do OP. Fora do horário de operação não vale: de madrugada
       // é normal o arquivo não mudar. Aqui só marca para refazer na próxima rodada, sem travar esta.
-      if (emOperacao()) {
+      if (emOperacao() && !tela.semGuardaIgual) {
         fim.then(function (arq) {
           if (!arq) return;
           let tam = 0;
@@ -557,6 +590,7 @@ async function iniciar(cfg, log, opcoes) {
       if (RODADAS > 1) log("=== " + r + "ª leva" + (r === 1 ? ": abrir as abas e exportar" : ": passar pelas abas, recarregar e exportar") + " ===");
       await grupo("rapido");
       await grupo("lento");
+      await grupo("black");
       await Promise.all(Array.from(pendentes));  // espera os downloads em 2º plano
     }
     if (!MANTER_ABAS) await fechar();
@@ -571,7 +605,7 @@ async function iniciar(cfg, log, opcoes) {
     while (t <= agora) t += ms;
     return t;
   }
-  const proximo = { rapido: 0, lento: 0 };
+  const proximo = { rapido: 0, lento: 0, black: 0 };
   incluirOntem = !PERIODO.de;
   if (incluirOntem) { inicioPrimeira = calcularInicioPrimeira(); log("1ª rodada: de " + ddmmaaaa(inicioPrimeira) + " até hoje (completa o que rodou com o robô desligado); as próximas, só hoje"); }
   // HORARIOS_EXTRA no .env (ex.: 07:55,17:20): além do intervalo, uma rodada completa em cada horário.
@@ -589,7 +623,7 @@ async function iniciar(cfg, log, opcoes) {
     const operando = emOperacao();
     if (operando !== modoAnterior) {
       log(operando ? "Horário de operação: atualizando os 6 relatórios" : "Fora do horário de operação: só Acompanhamento OP e Itens de NF");
-      if (modoAnterior !== null) { proximo.rapido = 0; proximo.lento = 0; }   // mudou o modo: roda já
+      if (modoAnterior !== null) { proximo.rapido = 0; proximo.lento = 0; proximo.black = 0; }   // mudou o modo: roda já
       modoAnterior = operando;
     }
     const so = operando ? null : SO_FORA_OPERACAO;
@@ -598,9 +632,9 @@ async function iniciar(cfg, log, opcoes) {
     if (extra != null) {
       feitosExtra[chaveExtra(extra)] = 1;
       log("Rodada extra das " + String(Math.floor(extra / 60)).padStart(2, "0") + "h" + String(extra % 60).padStart(2, "0"));
-      proximo.rapido = 0; proximo.lento = 0;       // roda tudo agora; o intervalo volta a contar daqui
+      proximo.rapido = 0; proximo.lento = 0; proximo.black = 0;       // roda tudo agora; o intervalo volta a contar daqui
     }
-    for (const g of ["rapido", "lento"]) {          // rápido tem prioridade
+    for (const g of ["rapido", "lento", "black"]) {          // rápido tem prioridade; o black (Corte e Pula) vai por último
       if (Date.now() >= proximo[g]) {
         proximo[g] = proximoDoRelogio(intervalo[g]);
         await grupo(g, so);

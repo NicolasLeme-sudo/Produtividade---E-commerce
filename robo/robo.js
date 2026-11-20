@@ -54,6 +54,10 @@ const RELATORIOS = [
   { id: "up-kardex-geral",          nome: "Kardex",                todas: ["Local", "Tipo do Local", "Complementar", "Estoque Antes", "Usuário"] },
   { id: "up-acompanhamento-op",     nome: "Acompanhamento OP",     todas: ["Pedido de Venda", "Status da Nota Fiscal", "Classificação Tipo Pedido", "Cancelado Pelo ERP", "Qtde. Total de Produto"] },
   { id: "up-itens-nf-saida",        nome: "Itens de NF de Saída",  todas: ["Chave Acesso NF-e", "Pedido de Venda", "Produto", "Barra", "Qtde. Faturada"] },
+  // Telão da Black (20/11/2026): Corte e Pula. Só alimentam estoque.black, que só as telas da Black leem.
+  { id: "up-black-corte-tela",      nome: "Corte Físico (Black)",  todas: ["Nro. Onda", "Título da Onda", "idCorteFisico", "Data"] },
+  { id: "up-black-corte-rel",       nome: "Relatório de Corte Físico (Black)", todas: ["Onda", "Pedido", "Qtde Corte", "Status", "Data Corte", "Data Resolução"] },
+  { id: "up-black-ondas",           nome: "Ondas da colmeia (Black)", todas: ["idOnda", "Onda", "Configuração da Onda", "Qtde. Total de Produto", "Separado"] },
   // Base de embalagem salva em Downloads toda semana: envia quando muda e NÃO tira o arquivo de lá.
   { id: "up-embalas",               nome: "Embalas",               todas: ["SKU", "Artigo", "MARCA"], naoMover: true },
 ];

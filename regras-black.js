@@ -138,9 +138,10 @@ var ESCALA_META = { '1º Turno': { separadores: 25, colmeia: 20 }, '2º Turno': 
 // Expedição (19/11): embarcar 97% do que foi conferido nos caixas de faturamento (checkout + colmeia somados).
 var META_EXPEDICAO_PCT = 97;
 // Piso com 2 caixas de conferência: cada conferente desse time conta 0,5 por peça, para a soma das duas
-// caixas ficar na mesma régua dos outros andares. { turno: [times] } (posição ainda a confirmar).
+// caixas ficar na mesma régua dos outros andares. { turno: [times] }. 20/11, escalação final: os pisos 2, 3 e 4 (times 2 Azul,
+// 3 Verde e 4 Amarelo) têm 2 faturistas no T01; o piso 1 (Vermelho) e o T02 têm uma só.
 // Vale a partir do 1º dia da Black (antes disso o piso tem uma caixa só); dia = último dia da conta.
-var CAIXA_DUPLA = { '1º Turno': [4] }, FATOR_CAIXA_DUPLA = 0.5, CAIXA_DUPLA_DESDE = DIAS[0][0];
+var CAIXA_DUPLA = { '1º Turno': [2, 3, 4] }, FATOR_CAIXA_DUPLA = 0.5, CAIXA_DUPLA_DESDE = DIAS[0][0];
 function fatorConf(r, dia) {
   if (!dia || dia < CAIXA_DUPLA_DESDE) return 1;
   var l = CAIXA_DUPLA[r && r.turno];

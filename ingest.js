@@ -890,6 +890,57 @@ function processarCorteResolvido(rows) {
   return { aceitos: aceitos, noEndereco: noEndereco, porDia: Array.from(porDia.values()).sort(function (a, b) { return a.data.localeCompare(b.data); }) };
 }
 
+// ---- 10b) Corte e Pula do telão da Black (20/11/2026) ----
+// Três relatórios do WMS que o robô baixa a cada rodada e que só alimentam as telas da Black (Corte e Pula na Corrida).
+// Ficam no snapshot "estoque", na chave "black" (aditiva: o resto do site não lê). Corte: só vale o que foi sinalizado
+// DENTRO do período do ADM (07h55–17h33, pela hora do corte); ACEITO e RECUSADO contam como resolvido.
+// Pula: ondas da colmeia ainda não separadas; as de título com TRATAR e PULA são as do time do Pula.
+var ADM_INI_MIN = 7 * 60 + 55, ADM_FIM_MIN = 17 * 60 + 33;
+function dataHoraBR(v) {
+  var m = /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/.exec(String(v || "").trim());
+  if (!m) return null;
+  var hh = m[4] != null ? +m[4] : 0, mm = m[5] != null ? +m[5] : 0;
+  return { dia: m[3] + "-" + m[2] + "-" + m[1], min: hh * 60 + mm, iso: m[3] + "-" + m[2] + "-" + m[1] + "T" + String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0") };
+}
+function processarBlackCorteTela(rows) {
+  var maisAntigo = null, porDia = {};
+  rows.forEach(function (r) {
+    var d = dataHoraBR(obterCampo(r, ["Data"]));
+    if (!d) return;
+    porDia[d.dia] = (porDia[d.dia] || 0) + 1;
+    if (!maisAntigo || d.iso < maisAntigo) maisAntigo = d.iso;
+  });
+  return { total: rows.length, maisAntigo: maisAntigo, porDia: porDia };
+}
+function processarBlackCorteRel(rows) {
+  var dias = {};
+  rows.forEach(function (r) {
+    var dc = dataHoraBR(obterCampo(r, ["Data Corte"]));
+    if (!dc) return;
+    var st = normalizarTexto(obterCampo(r, ["Status"])), q = numero(obterCampo(r, ["Qtde Corte"])) || 0;
+    var d = dias[dc.dia] || (dias[dc.dia] = { sinal: { c: 0, i: 0 }, res: { c: 0, i: 0 }, ag: { c: 0, i: 0 }, fora: { c: 0, i: 0 } });
+    if (dc.min < ADM_INI_MIN || dc.min > ADM_FIM_MIN) { d.fora.c++; d.fora.i += q; return; }
+    d.sinal.c++; d.sinal.i += q;
+    if (st === "ACEITO" || st === "RECUSADO") { d.res.c++; d.res.i += q; } else { d.ag.c++; d.ag.i += q; }
+  });
+  return dias;
+}
+function processarBlackOndas(rows) {
+  var r = { ondas: 0, colmeiaItens: 0, pulaItens: 0, ondasPula: [] };
+  rows.forEach(function (x) {
+    if (normalizarTexto(obterCampo(x, ["Configuração da Onda"])).indexOf("COLMEIA") === -1) return;
+    var sep = normalizarTexto(obterCampo(x, ["Separado"]));
+    if (sep !== "N" && sep !== "NAO") return;   // só o que ainda está em tela (não separado)
+    var q = numero(obterCampo(x, ["Qtde. Total de Produto"])) || 0, tit = normalizarTexto(obterCampo(x, ["Título", "Titulo"]));
+    r.ondas++; r.colmeiaItens += q;
+    if (tit.indexOf("TRATAR") !== -1 && tit.indexOf("PULA") !== -1) {
+      r.pulaItens += q;
+      r.ondasPula.push({ onda: String(obterCampo(x, ["Onda"]) || ""), titulo: tit.slice(0, 60), itens: q });
+    }
+  });
+  return r;
+}
+
 // ---- 11) Cancelamentos WMS ----
 // Controle de Nota Fiscal: linhas com Data de Cancelamento preenchida,
 // agrupadas por Motivo e por Usuário Cancelamento, quebra SINGLE/MULTI.
@@ -2754,6 +2805,32 @@ async function processar(id) {
       var n = await processarBaseAtivos(input.files[0]);
       definirStatus(id, "✓ " + n + " colaboradores atualizados na Base de Ativos.", "ok");
       renderAtivos();
+      return;
+    }
+
+    // Corte e Pula do telão da Black: só gravam em estoque.black (não mexem em mais nada do site)
+    if (id === "up-black-corte-tela" || id === "up-black-corte-rel" || id === "up-black-ondas") {
+      var rowsB = await parseArquivoGenerico(input.files[0]);
+      var estB = await lerSnapshot("estoque");
+      var bl = estB.black = estB.black || {}, emB = new Date().toISOString(), msgB;
+      if (id === "up-black-corte-tela") {
+        var rt = processarBlackCorteTela(rowsB);
+        bl.corte = Object.assign({}, bl.corte, { tela: { em: emB, total: rt.total, maisAntigo: rt.maisAntigo, porDia: rt.porDia } });
+        msgB = "✓ Corte Físico (Black): " + rt.total + " aguardando" + (rt.maisAntigo ? ", o mais antigo de " + rt.maisAntigo.replace("T", " ") : "") + ".";
+      } else if (id === "up-black-corte-rel") {
+        var dB = processarBlackCorteRel(rowsB), ch = Object.keys(dB);
+        var diasB = Object.assign({}, bl.corte && bl.corte.dias);
+        ch.forEach(function (k) { diasB[k] = dB[k]; });
+        Object.keys(diasB).sort().slice(0, Math.max(0, Object.keys(diasB).length - 31)).forEach(function (k) { delete diasB[k]; });
+        bl.corte = Object.assign({}, bl.corte, { dias: diasB, relEm: emB });
+        msgB = "✓ Relatório de Corte Físico (Black): " + rowsB.length + " linha(s), " + ch.length + " dia(s).";
+      } else {
+        var rp = processarBlackOndas(rowsB);
+        bl.pula = { em: emB, ondas: rp.ondas, colmeiaItens: rp.colmeiaItens, pulaItens: rp.pulaItens, ondasPula: rp.ondasPula };
+        msgB = "✓ Ondas da colmeia (Black): " + rp.ondas + " onda(s), " + rp.colmeiaItens + " itens em tela, " + rp.pulaItens + " de pula.";
+      }
+      await salvarSnapshot("estoque", estB);
+      definirStatus(id, msgB, "ok");
       return;
     }
 
