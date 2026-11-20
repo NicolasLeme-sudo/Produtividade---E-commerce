@@ -105,8 +105,8 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm) {
   var eTh = 'style="background:' + cor + ";color:" + (claraDemais ? "#1C2333" : "#fff") + '"';
   var eTot = 'style="background:' + corTotal + ";color:" + T.texto + '"';
   var zebra = email ? null : T.zebra;
-  var tbl = '<table border="1" bordercolor="' + T.borda + '" cellspacing="0" cellpadding="5" style="' + FONTE +
-    "border-collapse:collapse;font-size:13px;width:100%;text-align:right;white-space:nowrap;color:" + T.texto + ";background:" + T.cartao + '">';
+  var tbl = '<table border="1" bordercolor="' + T.borda + '" cellspacing="0" cellpadding="2" style="' + FONTE +
+    "border-collapse:collapse;font-size:13px;line-height:1.15;width:100%;text-align:right;white-space:nowrap;color:" + T.texto + ";background:" + T.cartao + '">';
   var cab = '<tr align="right" style="font-weight:600">' +
     (colTurno ? '<th align="left" ' + eTh + ">Turno</th>" : "") +
     (colTipo ? '<th align="left" ' + eTh + ">Tipo</th>" : "") + '<th align="left" ' + eTh + ">Usuário</th>" +
