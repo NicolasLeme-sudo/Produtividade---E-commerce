@@ -1264,7 +1264,8 @@ function processarOperacaoOp(rows) {
     var clTipo = normalizarTexto(obterCampo(row, ["Classificação Tipo Pedido", "Classificacao Tipo Pedido"]));
     pedidos[pedido] = [etapa, numero(obterCampo(row, ["Qtde. Total de Produto"])), dataHoraParaMs(obterCampo(row, ["Importado em"])), semConf, semColeta,
       clTipo.indexOf("MULTI") !== -1 ? "M" : clTipo.indexOf("SINGLE") !== -1 ? "S" : "",
-      numero(obterCampo(row, ["Valor Total da NF"]))];   // R$ do pedido (telão da diretoria); confere 100% com o SAP
+      numero(obterCampo(row, ["Valor Total da NF"])),   // R$ do pedido (telão da diretoria); confere 100% com o SAP
+      dataHoraParaMs(obterCampo(row, ["Faturado em"])) || null];   // quando faturou (faturado por dia, 23/11)
   });
   return pedidos;
 }
@@ -1404,6 +1405,29 @@ function juntarFaturado(op, novo) {
   var o = {};
   Object.keys(f).sort().slice(-100).forEach(function (d) { o[d] = f[d]; });   // 100 dias: o telão da diretoria mostra o mês anterior
   op.fatDias = o;
+}
+
+// Faturado por dia pelo "Faturado em" do Acompanhamento OP (Nicolas, 23/11: o Itens de NF não tem data de faturamento e a "Data de Emissão" dele é
+// provisória nas notas IMPORTADA: mostrou R$ 1,5 M no sábado e no domingo, sem operação). O OP é uma foto do que ainda está em operação, então cada
+// rodada soma os pedidos faturados que ainda não tinham sido contados (op.fatVistos guarda os ids dos últimos 4 dias). Vale de FAT_OP_INI em diante;
+// os dias anteriores ficam como o Itens de NF gravou (histórico) e ele não sobrescreve mais os dias seguintes.
+var FAT_OP_INI = "2026-11-21";
+function juntarFaturadoOp(op) {
+  var ped = op.pedidos || {}, marcas = op.marcas || {}, vistos = op.fatVistos || {}, f = op.fatDias || {};
+  if (!op.fatOpIni) { op.fatOpIni = FAT_OP_INI; Object.keys(f).forEach(function (d) { if (d >= FAT_OP_INI) delete f[d]; }); }
+  Object.keys(ped).forEach(function (p) {
+    var ms = ped[p][7]; if (!ms) return;
+    var dia = paraDataISOLocal(new Date(ms));
+    if (dia < FAT_OP_INI) return;
+    var v = vistos[dia] || (vistos[dia] = {});
+    if (v[p]) return;
+    v[p] = 1;
+    var d = f[dia] || (f[dia] = { itens: 0, notas: 0, rs: 0, marcas: {} }), it = ped[p][1], rs = ped[p][6] || 0, m = marcas[p] || "Olympikus";
+    d.itens += it; d.notas++; d.rs += rs;
+    var mm = d.marcas[m] || (d.marcas[m] = { itens: 0, rs: 0 }); mm.itens += it; mm.rs += rs;
+  });
+  var vo = {}; Object.keys(vistos).sort().slice(-4).forEach(function (d) { vo[d] = vistos[d]; }); op.fatVistos = vo;
+  var o = {}; Object.keys(f).sort().slice(-100).forEach(function (d) { o[d] = f[d]; }); op.fatDias = o;
 }
 
 function resumoOperacao(op, diasExtras) {
@@ -1557,7 +1581,7 @@ async function atualizarOperacao(novo) {
     op.marcas = m;
     info = processarInfoNf(linhasNf);
     juntarCaida(op, processarCaidaItensNf(linhasNf));
-    juntarFaturado(op, processarFaturadoItensNf(linhasNf, op.embalas));
+    juntarFaturado(op, (function (n) { var o = {}; Object.keys(n).forEach(function (d) { if (d < FAT_OP_INI) o[d] = n[d]; }); return o; })(processarFaturadoItensNf(linhasNf, op.embalas)));
   }
   if (exp) juntarExpedicao(op, exp, new Date());
   if (info) guardarInfoNf(op, info, novo.pedidos ? info : null);
@@ -1574,6 +1598,7 @@ async function atualizarOperacao(novo) {
       op.backlogDias = bo;
     }
   }
+  juntarFaturadoOp(op);
   op.resumo = resumoOperacao(op, (await lerSnapshot("config")).dias_extras);
   await salvarSnapshot("operacao", op);
   return op.resumo;
