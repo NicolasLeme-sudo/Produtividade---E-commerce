@@ -139,8 +139,8 @@ var ESCALA_META = { '1º Turno': { separadores: 30, colmeia: 22 }, '2º Turno': 
 // Expedição (19/11): embarcar 97% do que foi conferido nos caixas de faturamento (checkout + colmeia somados).
 var META_EXPEDICAO_PCT = 97;
 // Corte, Pula e FIFO (20/11): Corte = 97% dos itens sinalizados dentro do período do ADM (07h55–17h33); Pula = itens das ondas
-// "TRATAR PULA" ainda em tela ≤ 1% dos itens de todas as ondas da colmeia em tela; FIFO = itens com 2+ dias úteis ≤ 2% dos itens em operação.
-var META_CORTE_PCT = 97, TETO_PULA_PCT = 1, TETO_FIFO_PCT = 2;
+// "TRATAR PULA" ainda em tela ≤ 1% dos itens de todas as ondas da colmeia em tela; FIFO = itens com 2+ dias úteis ≤ 1% dos itens em operação (era 2% até 23/11).
+var META_CORTE_PCT = 97, TETO_PULA_PCT = 1, TETO_FIFO_PCT = 1;
 // Piso com 2 caixas de conferência: cada conferente desse time conta 0,5 por peça, para a soma das duas
 // caixas ficar na mesma régua dos outros andares. { turno: [times] }. 20/11, escalação final: os pisos 2, 3 e 4 (times 2 Azul,
 // 3 Verde e 4 Amarelo) têm 2 faturistas no T01; o piso 1 (Vermelho) e o T02 têm uma só.
