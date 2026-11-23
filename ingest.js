@@ -1581,7 +1581,7 @@ async function atualizarOperacao(novo) {
     op.marcas = m;
     info = processarInfoNf(linhasNf);
     juntarCaida(op, processarCaidaItensNf(linhasNf));
-    juntarFaturado(op, (function (n) { var o = {}; Object.keys(n).forEach(function (d) { if (d < FAT_OP_INI) o[d] = n[d]; }); return o; })(processarFaturadoItensNf(linhasNf, op.embalas)));
+    juntarFaturado(op, (function (n) { var o = {}; Object.keys(n).forEach(function (d) { if (d < FAT_OP_INI && !(op.fatDias && op.fatDias[d])) o[d] = n[d]; }); return o; })(processarFaturadoItensNf(linhasNf, op.embalas)));
   }
   if (exp) juntarExpedicao(op, exp, new Date());
   if (info) guardarInfoNf(op, info, novo.pedidos ? info : null);
