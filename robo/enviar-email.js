@@ -139,7 +139,7 @@ async function verificar(cfg, log, opcoes) {
   for (const item of lista) {
     const b = item.bloco;
     const total = totalDoBloco(b);
-    if (!total && !item.fech) continue;                     // sem produção ainda: não manda e-mail vazio
+    if (!total) continue;                                   // sem produção (nem no fechamento: dia sem operação, 21/11 e 22/11): não manda e-mail vazio
     const para = opcoes.para || cfg["CANAL_" + b.canal];
     if (!para) { log("   sem endereço de canal para " + b.id + " (CANAL_" + b.canal + " no .env)"); continue; }
     const msgs = E.mensagens(b, dia, item.fech, item.horaTexto);

@@ -129,9 +129,19 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm) {
     }).join("") +
     '<td style="background:' + corTotal + ";color:" + cor + ';font-weight:800"><b>' + fmt(total) + "</b></td></tr>";
   return {
-    html: '<div style="' + cartao + '">' + cabecalho + tbl + cab + corpo + rodape + "</table>" + aviso(titulo, horas, fonteEm, T) + avisoVisitas(titulo, pessoas, T) + "</div>",
+    html: '<div style="' + cartao + '">' + cabecalho + tbl + compacta(cab + corpo + rodape) + "</table>" + aviso(titulo, horas, fonteEm, T) + avisoVisitas(titulo, pessoas, T) + "</div>",
     total: total, horas: horas, pessoas: linhas.length
   };
+}
+
+// O Teams põe um respiro próprio nas células (~8 px em cima e embaixo) e ignora o cellpadding: só o padding no style de CADA célula deixa a linha baixa (20/11, 23/11).
+var PAD_CELULA = "padding:1px 4px";
+var PAD_ON = true;   // desligado só quando a mensagem passa do limite do Teams mesmo dividida (ex.: tabela do dia inteiro)
+function compacta(h) {
+  if (!PAD_ON) return h;
+  return h.replace(/<(td|th)([^>]*)>/g, function (m, tag, attrs) {
+    return /style="/.test(attrs) ? "<" + tag + attrs.replace('style="', 'style="' + PAD_CELULA + ";") + ">" : "<" + tag + attrs + ' style="' + PAD_CELULA + '">';
+  });
 }
 
 // Rodapé da tabela: só quando a ÚLTIMA coluna ainda NÃO fechou, isto é, quando o WMS foi
@@ -376,14 +386,21 @@ function blocos(t) {
 // O Teams corta e-mail acima de 24 KB (vira "Exibir email original" e a tabela some).
 // Aqui se monta a(s) mensagem(ns) do bloco: uma só quando cabe, uma por atividade quando não cabe.
 var LIMITE_TEAMS = 23000;   // o Teams corta em 24 KB; 23 KB segura a mensagem única por mais tempo (pedido 17/11)
+function corpoCabendo(b, dia, fech, horaTexto) {
+  PAD_ON = true;
+  var h = corpoEmail(b, dia, fech, horaTexto);
+  if (h.length > LIMITE_TEAMS) { PAD_ON = false; h = corpoEmail(b, dia, fech, horaTexto); PAD_ON = true; }   // não cabe com o padding: volta ao formato antigo
+  return h;
+}
 function mensagens(bloco, dia, fech, horaTexto) {
+  PAD_ON = true;
   var html = corpoEmail(bloco, dia, fech, horaTexto);
   if (html.length <= LIMITE_TEAMS || bloco.tabelas.length < 2) {
     return [{ assunto: assuntoDe(bloco, dia, fech, horaTexto), html: html, tamanho: html.length }];
   }
   return bloco.tabelas.map(function (x) {
     var b = { tit: bloco.tit + " · " + (ATIVIDADE[x[0]] || x[0]).replace("Produtividade de ", ""), tabelas: [x] };
-    var h = corpoEmail(b, dia, fech, horaTexto);
+    var h = corpoCabendo(b, dia, fech, horaTexto);
     b.dia = bloco.dia;
     return { assunto: assuntoDe(b, dia, fech, horaTexto), html: h, tamanho: h.length };
   });
