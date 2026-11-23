@@ -678,10 +678,12 @@ function modeloTeto(atual, teto, rodape, un){
 }
 function modeloCorte(blk, dia){
   var c = blk && blk.corte; if (!c || !c.dias) return null;
-  var d = c.dias[dia], sinal = d && d.sinal ? d.sinal.i : 0, res = d && d.res ? d.res.i : 0;
-  if (!sinal) return { msgA:'sem cortes', msgB:'no período do ADM' };
-  var meta = Math.ceil(sinal*RegrasBlack.META_CORTE_PCT/100);
-  return { total: res, meta: meta, rodape: 'Sinal. <b>'+fmt(sinal)+'</b> · Resolv. <b>'+fmt(res)+'</b>',
+  var d = c.dias[dia], sinal = d && d.sinal ? d.sinal.i : 0, res = d && d.res ? d.res.i : 0, ab = 0;
+  // cortes saem em ordem de FIFO (o de ontem é resolvido hoje): vale o resolvido do dia pela Data Resolução e a meta inclui o saldo de abertura (robô de 23/11; dia antigo sem rs/ab segue a regra velha)
+  if (d && d.rs && d.ab) { res = d.rs.i; ab = d.ab.i; }
+  if (!sinal && !ab) return { msgA:'sem cortes', msgB:'no período do ADM' };
+  var meta = Math.ceil((sinal+ab)*RegrasBlack.META_CORTE_PCT/100);
+  return { total: res, meta: meta, rodape: (ab ? 'Sinal. <b>'+fmt(sinal)+'</b> + saldo <b>'+fmt(ab)+'</b>' : 'Sinal. <b>'+fmt(sinal)+'</b>')+' · Resolv. <b>'+fmt(res)+'</b>',
     card: { gr: fmt(res), un: 'itens', pm: Math.round(res/meta*100)+'%', pmRot: 'da meta' } };
 }
 function modeloPula(blk){

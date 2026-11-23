@@ -913,15 +913,31 @@ function processarBlackCorteTela(rows) {
   return { total: rows.length, maisAntigo: maisAntigo, porDia: porDia };
 }
 function processarBlackCorteRel(rows) {
-  var dias = {};
+  var dias = {}, lista = [], minDia = null;
   rows.forEach(function (r) {
     var dc = dataHoraBR(obterCampo(r, ["Data Corte"]));
     if (!dc) return;
     var st = normalizarTexto(obterCampo(r, ["Status"])), q = numero(obterCampo(r, ["Qtde Corte"])) || 0;
     var d = dias[dc.dia] || (dias[dc.dia] = { sinal: { c: 0, i: 0 }, res: { c: 0, i: 0 }, ag: { c: 0, i: 0 }, fora: { c: 0, i: 0 } });
+    if (minDia === null || dc.dia < minDia) minDia = dc.dia;
+    var resolvido = st === "ACEITO" || st === "RECUSADO";
+    var dr = resolvido ? dataHoraBR(obterCampo(r, ["Data Resolução", "Data Resolucao"])) : null;
+    lista.push({ corte: dc.dia, res: dr ? dr.dia : null, q: q });   // qualquer hora do corte: a fila FIFO resolve também o que foi sinalizado fora do ADM
     if (dc.min < ADM_INI_MIN || dc.min > ADM_FIM_MIN) { d.fora.c++; d.fora.i += q; return; }
     d.sinal.c++; d.sinal.i += q;
-    if (st === "ACEITO" || st === "RECUSADO") { d.res.c++; d.res.i += q; } else { d.ag.c++; d.ag.i += q; }
+    if (resolvido) { d.res.c++; d.res.i += q; } else { d.ag.c++; d.ag.i += q; }
+  });
+  // Os cortes são resolvidos em ordem de FIFO (o de ontem sai hoje): o resolvido do dia D (rs) conta pela Data Resolução, seja de que dia for o corte,
+  // e o saldo de abertura (ab) são os cortes dos dias anteriores (a qualquer hora) ainda não resolvidos até o início de D. Meta do dia = 97% de (sinalizado + ab).
+  // Só vale a partir do 2º dia da janela do relatório (o 1º não enxerga os cortes anteriores a ele).
+  Object.keys(dias).forEach(function (D) {
+    if (D <= minDia) return;
+    var rs = { c: 0, i: 0 }, ab = { c: 0, i: 0 };
+    lista.forEach(function (x) {
+      if (x.res === D) { rs.c++; rs.i += x.q; }
+      if (x.corte < D && (!x.res || x.res >= D)) { ab.c++; ab.i += x.q; }
+    });
+    dias[D].rs = rs; dias[D].ab = ab;
   });
   return dias;
 }
@@ -2866,7 +2882,10 @@ async function processar(id) {
       } else if (id === "up-black-corte-rel") {
         var dB = processarBlackCorteRel(rowsB), ch = Object.keys(dB);
         var diasB = Object.assign({}, bl.corte && bl.corte.dias);
-        ch.forEach(function (k) { diasB[k] = dB[k]; });
+        ch.forEach(function (k) {
+          var ant = diasB[k]; diasB[k] = dB[k];
+          if (ant) ["rs", "ab"].forEach(function (f) { if (ant[f] && (!diasB[k][f] || ant[f].i > diasB[k][f].i)) diasB[k][f] = ant[f]; });
+        });
         Object.keys(diasB).sort().slice(0, Math.max(0, Object.keys(diasB).length - 31)).forEach(function (k) { delete diasB[k]; });
         bl.corte = Object.assign({}, bl.corte, { dias: diasB, relEm: emB });
         msgB = "✓ Relatório de Corte Físico (Black): " + rowsB.length + " linha(s), " + ch.length + " dia(s).";
