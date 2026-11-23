@@ -1367,7 +1367,11 @@ function juntarCaida(op, novo) {
 function processarFaturadoItensNf(rows, embalas) {
   var notas = {};
   rows.forEach(function (row) {
-    if (normalizarTexto(obterCampo(row, ["Status"])).indexOf("CANCELAD") === 0) return;
+    var stNf = normalizarTexto(obterCampo(row, ["Status"]));
+    if (stNf.indexOf("CANCELAD") === 0) return;
+    // IMPORTADA = a nota só entrou no WMS, ainda não foi faturada: a "Data de Emissão" dela é provisória (igual à Data de Cadastro) e só vira a
+    // data real quando fatura. Sem isto, o sábado e o domingo (sem operação) apareciam com R$ 1,5 M cada (23/11).
+    if (stNf.indexOf("IMPORTAD") === 0) return;
     var dia = paraDataISO(obterCampo(row, ["Data de Emissão", "Data de Emissao"]));
     var id = String(obterCampo(row, ["idNotaFiscal"]) || "").trim();
     if (!dia || !id) return;
