@@ -135,7 +135,7 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm) {
 }
 
 // O Teams põe um respiro próprio nas células (~8 px em cima e embaixo) e ignora o cellpadding: só o padding no style de CADA célula deixa a linha baixa (20/11, 23/11).
-var PAD_CELULA = "padding:1px 4px";
+var PAD_CELULA = "padding:1px 4px;line-height:15px;mso-line-height-rule:exactly";
 var PAD_ON = true;   // desligado só quando a mensagem passa do limite do Teams mesmo dividida (ex.: tabela do dia inteiro)
 function compacta(h) {
   if (!PAD_ON) return h;
@@ -394,7 +394,7 @@ function corpoCabendo(b, dia, fech, horaTexto) {
 }
 function mensagens(bloco, dia, fech, horaTexto) {
   PAD_ON = true;
-  var html = corpoEmail(bloco, dia, fech, horaTexto);
+  var html = bloco.tabelas.length < 2 ? corpoCabendo(bloco, dia, fech, horaTexto) : corpoEmail(bloco, dia, fech, horaTexto);   // várias tabelas: com padding e, se passar, divide
   if (html.length <= LIMITE_TEAMS || bloco.tabelas.length < 2) {
     return [{ assunto: assuntoDe(bloco, dia, fech, horaTexto), html: html, tamanho: html.length }];
   }
