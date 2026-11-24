@@ -2355,7 +2355,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
 // MISSÃO BLACK — lançamento de pontos (vistoria, desafios, ajustes) e horas de ouro.
 // Valores em regras-black.js. Nada é editado ou apagado: correção = estorno (lançamento inverso).
 // =========================================================================
-var pb = { dia: null, turno: null, time: 1 };
+var pb = { dia: null, turno: null, time: 1, ginPara: "todos" };
 async function renderPontosBlack() {
   var RB = window.RegrasBlack;
   var caixas = { vistoria: document.getElementById("pb-bloco-vistoria"), gincanas: document.getElementById("pb-bloco-gincanas"),
@@ -2370,6 +2370,7 @@ async function renderPontosBlack() {
 
   var rL = await supabaseClient.from("competicao_pontos").select("*").eq("dia", pb.dia).eq("turno", pb.turno).order("criado_em", { ascending: false });
   var rO = await supabaseClient.from("competicao_hora_ouro").select("*").eq("dia", pb.dia).eq("turno", pb.turno).order("hora");
+  var rM = await supabaseClient.from("competicao_times").select("usuario_wms,nome,time,turno").eq("turno", pb.turno);
   var semTabela = (rL.error && /competicao_pontos/.test(rL.error.message)) || (rO.error && /competicao_hora_ouro/.test(rO.error.message));
   var lanc = rL.data || [], ouros = rO.data || [];
 
@@ -2408,12 +2409,21 @@ async function renderPontosBlack() {
     linhaCampos(campo("Observação", '<input id="pb-vis-obs" placeholder="local, corredor, quem viu">') + '<button class="btn" id="pb-btn-vistoria">Lançar vistoria</button>') +
     tabelaLanc("vistoria"));
 
-  // Gincanas: mesmo valor para os 8 times
+  // Gincanas: para os 8 times, para um time ou para o time de um colaborador (24/11)
   var gincanas = (RB.DESAFIOS[pb.dia] || []).concat(RB.GINCANAS || [], ["Outra gincana"]);
+  var membros = {}; (rM.data || []).forEach(function (m) { if (m.usuario_wms && !/^REFORCO\./.test(m.usuario_wms) && COMP_TIMES[m.time]) membros[m.usuario_wms] = m; });
+  var listaMembros = Object.keys(membros).map(function (u) { return membros[u]; })
+    .sort(function (a, b) { return String(a.nome || a.usuario_wms).localeCompare(String(b.nome || b.usuario_wms)); });
+  var selPara = '<select id="pb-gin-para">' + opcoes([["todos", "Todos os times"]], pb.ginPara) +
+    '<optgroup label="Time">' + opcoes(COMP_NUM_TIMES.map(function (n) { return ["t:" + n, "Time " + COMP_TIMES[n][0]]; }), pb.ginPara) + "</optgroup>" +
+    (listaMembros.length ? '<optgroup label="Colaborador (pontos vão para o time dele)">' +
+      opcoes(listaMembros.map(function (m) { return ["u:" + m.usuario_wms, (m.nome || m.usuario_wms) + " · " + COMP_TIMES[m.time][0]]; }), pb.ginPara) + "</optgroup>" : "") +
+    "</select>";
   caixas.gincanas.innerHTML = cartao("gincanas", "Gincanas", seletores(false) +
     linhaCampos(campo("Gincana", '<select id="pb-desafio">' + opcoes(gincanas, gincanas[0]) + "</select>") +
       campo("Pontos", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">')) +
-      '<div><button class="btn" id="pb-btn-desafio">Lançar para todos os times</button></div>' +
+    linhaCampos(campo("Para", selPara)) +
+      '<div><button class="btn" id="pb-btn-desafio">Lançar</button></div>' +
     tabelaLanc("desafio"));
 
   // Ajuste de pontuação (+ extração da planilha)
@@ -2466,12 +2476,28 @@ async function renderPontosBlack() {
     if (!confirm("Lançar vistoria do time " + COMP_TIMES[pb.time][0] + ": " + (tot > 0 ? "+" : "") + tot + " pontos?")) return;
     gravar("vistoria", linhas, "✓ Vistoria lançada: " + (tot > 0 ? "+" : "") + tot + " pontos para o " + COMP_TIMES[pb.time][0] + ".");
   });
+  document.getElementById("pb-gin-para").addEventListener("change", function () { pb.ginPara = this.value; });
   document.getElementById("pb-btn-desafio").addEventListener("click", function () {
     var nome = document.getElementById("pb-desafio").value, v = parseInt(document.getElementById("pb-des-pts").value, 10);
+    var para = document.getElementById("pb-gin-para").value;
     if (!v) { aviso("gincanas", "Informe os pontos.", "pendente"); return; }
-    var linhas = COMP_NUM_TIMES.map(function (n) { return { time: n, categoria: "desafio", item: nome, pontos: RB.pts(v, n), motivo: null }; });
-    if (!confirm("Lançar \"" + nome + "\" para os 8 times: " + v + " pontos cada?")) return;
-    gravar("gincanas", linhas, "✓ Gincana lançada para os 8 times.");
+    var linhas, alvo, ok;
+    if (para === "todos") {
+      linhas = COMP_NUM_TIMES.map(function (n) { return { time: n, categoria: "desafio", item: nome, pontos: RB.pts(v, n), motivo: null }; });
+      alvo = "os 8 times: " + v + " pontos cada"; ok = "✓ Gincana lançada para os 8 times.";
+    } else if (para.indexOf("t:") === 0) {
+      var n = Number(para.slice(2));
+      linhas = [{ time: n, categoria: "desafio", item: nome, pontos: RB.pts(v, n), motivo: null }];
+      alvo = "o time " + COMP_TIMES[n][0] + ": " + v + " pontos"; ok = "✓ Gincana lançada para o " + COMP_TIMES[n][0] + ".";
+    } else {
+      var m = membros[para.slice(2)];
+      if (!m) { aviso("gincanas", "Colaborador não encontrado no turno.", "erro"); return; }
+      linhas = [{ time: m.time, categoria: "desafio", item: nome, pontos: RB.pts(v, m.time), motivo: "Colaborador: " + (m.nome || m.usuario_wms) }];
+      alvo = (m.nome || m.usuario_wms) + " (time " + COMP_TIMES[m.time][0] + "): " + v + " pontos";
+      ok = "✓ Gincana lançada para o " + COMP_TIMES[m.time][0] + " (" + (m.nome || m.usuario_wms) + ").";
+    }
+    if (!confirm("Lançar \"" + nome + "\" para " + alvo + "?")) return;
+    gravar("gincanas", linhas, ok);
   });
   document.getElementById("pb-btn-ajuste").addEventListener("click", function () {
     var v = parseInt(document.getElementById("pb-aj-pts").value, 10), m = document.getElementById("pb-aj-motivo").value.trim();
