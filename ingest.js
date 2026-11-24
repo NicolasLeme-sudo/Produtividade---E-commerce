@@ -2177,13 +2177,25 @@ async function renderCompeticaoAdmin(recarregarBase) {
   pessoasTroca.sort(function (a, b) { return COMP_NUM_TIMES.indexOf(a.time) - COMP_NUM_TIMES.indexOf(b.time) || String(a.nome || a.usuario_wms).localeCompare(String(b.nome || b.usuario_wms)); });
   var hojeT = new Date(), hojeIsoT = hojeT.getFullYear() + "-" + ("0" + (hojeT.getMonth() + 1)).slice(-2) + "-" + ("0" + hojeT.getDate()).slice(-2);
   var diaTroca = COMP_DIAS_BLACK.some(function (d) { return d[0] === hojeIsoT; }) ? hojeIsoT : COMP_DIAS_BLACK[0][0];
+  // "Inverter" com nome do efeito (24/11): sem destino, a troca alterna o valor da conferência da
+  // pessoa entre 0,5 (2ª caixa do piso) e 1. O texto diz para onde ela vai, pela caixa de hoje.
+  var naCaixaDupla = function (usuario, dia) {
+    var RBx = window.RegrasBlack;
+    if (!RBx || !RBx.fatorConf) return false;
+    return doTurno.some(function (l) { return l.usuario_wms === usuario && RBx.fatorConf(l, dia) < 1; });
+  };
+  var rotuloInverte = function (usuario, dia, curto) {
+    var sai = naCaixaDupla(usuario, dia);
+    if (curto) return sai ? "sai da 2ª caixa" : "vai para a 2ª caixa";
+    return sai ? "Sair da 2ª caixa (conferência vale 1)" : "Ir para a 2ª caixa (conferência vale 0,5)";
+  };
   var htmlTrocas = [];
   pessoasTroca.forEach(function (l) {
     var tr = (l.presenca || {}).troca || {};
     Object.keys(tr).sort().forEach(function (d) {
       var mt = /^(\d{2}:\d{2})(?:>(\d))?$/.exec(tr[d]) || [];
       htmlTrocas.push('<div class="comp-membro"><span>' + fmtDataBRIngest(d).slice(0, 5) + " · " + (mt[1] || htmlSeguro(tr[d])) + " · " + htmlSeguro(l.nome || l.usuario_wms) +
-        "<small>" + COMP_TIMES[l.time][0] + " → " + (mt[2] ? COMP_TIMES[+mt[2]][0] : "inverte") + '</small></span><button class="btn ghost" style="color:var(--red)" data-troca-rem="' + htmlSeguro(l.usuario_wms) + "|" + d + '">Remover</button></div>');
+        "<small>" + COMP_TIMES[l.time][0] + " → " + (mt[2] ? COMP_TIMES[+mt[2]][0] : rotuloInverte(l.usuario_wms, d, true)) + '</small></span><button class="btn ghost" style="color:var(--red)" data-troca-rem="' + htmlSeguro(l.usuario_wms) + "|" + d + '">Remover</button></div>');
     });
   });
 
@@ -2208,7 +2220,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
       '<div class="comp-add"><select id="comp-troca-dia" aria-label="Dia">' + opcoes(COMP_DIAS_BLACK, diaTroca) + "</select>" +
         '<select id="comp-troca-pessoa" aria-label="Pessoa">' + opcoes(pessoasTroca.map(function (l) { return [l.usuario_wms, (l.nome || l.usuario_wms) + " · " + COMP_TIMES[l.time][0]]; }), "") + "</select>" +
         '<input type="time" id="comp-troca-hora" value="10:00" aria-label="Horário da troca">' +
-        '<select id="comp-troca-destino" aria-label="Para">' + opcoes([["", "Inverter"]].concat(COMP_NUM_TIMES.map(function (n) { return [n, "Para " + COMP_TIMES[n][0]]; })), "") + "</select>" +
+        '<select id="comp-troca-destino" aria-label="Para">' + opcoes([["", rotuloInverte(pessoasTroca[0] ? pessoasTroca[0].usuario_wms : "", diaTroca)]].concat(COMP_NUM_TIMES.map(function (n) { return [n, "Para " + COMP_TIMES[n][0]]; })), "") + "</select>" +
         '<button class="btn" id="comp-btn-troca">Lançar</button></div>' +
       '<div class="upload-status" id="comp-troca-status"></div><div class="comp-lista-membros">' + htmlTrocas.join("") + "</div>" +
     "</div>" +
@@ -2224,6 +2236,11 @@ async function renderCompeticaoAdmin(recarregarBase) {
 
   document.getElementById("comp-sel-turno").addEventListener("change", function () { compAdm.turno = this.value; compAdm.editando = null; renderCompeticaoAdmin(false); });
 
+  var atualizaInverte = function () {
+    var op = document.querySelector('#comp-troca-destino option[value=""]');
+    if (op) op.textContent = rotuloInverte(document.getElementById("comp-troca-pessoa").value, document.getElementById("comp-troca-dia").value);
+  };
+  ["comp-troca-pessoa", "comp-troca-dia"].forEach(function (id) { var e = document.getElementById(id); if (e) e.addEventListener("change", atualizaInverte); });
   var avisoTroca = function (t, classe) { var a = document.getElementById("comp-troca-status"); if (a) { a.textContent = t; a.className = "upload-status" + (classe ? " " + classe : ""); } };
   var gravarTroca = async function (usuario, dia, valor) {   // valor vazio = remove a troca do dia
     var linhasP = compAdm.linhas.filter(function (l) { return l.usuario_wms === usuario && l.turno === compAdm.turno; });
