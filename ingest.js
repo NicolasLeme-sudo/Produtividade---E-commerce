@@ -1539,6 +1539,14 @@ function resumoExpedicao(op) {
   var info = lerInfoNf(op), porDia = {};
   (op.expDias || []).forEach(function (d) { porDia[d.data] = d; });
   Object.keys(op.expNfs || {}).forEach(function (dia) { porDia[dia] = agregarExpedicaoDia(dia, op.expNfs[dia], info); });
+  // Notas já embarcadas num dia anterior, estornadas e processadas DE NOVO neste dia (25/11: 394 notas das 23h de 24/11): contam no realizado
+  // do dia novo, então entram também na carga (meta) dele. repro = { pecas, pedidos } só das que ainda valem no dia.
+  Object.keys(op.expRepro || {}).forEach(function (dia) {
+    var a = porDia[dia], nfs = (op.expNfs || {})[dia]; if (!a || !nfs) return;
+    var rp = { pecas: 0, pedidos: 0 };
+    Object.keys(op.expRepro[dia]).forEach(function (id) { if (nfs[id]) { rp.pecas += nfs[id][2] || 0; rp.pedidos++; } });
+    a.repro = rp;
+  });
   var dias = Object.keys(porDia).sort().slice(-31).map(function (k) { return porDia[k]; });
   return { dias: dias, previsao: op.expPrev || null, kardexEm: op.kardexEm || null };
 }
@@ -1548,10 +1556,15 @@ function juntarExpedicao(op, exp, agora) {
   Object.keys(exp.dias || {}).forEach(function (dia) {
     var alvo = raw[dia] || (raw[dia] = {});
     Object.keys(exp.dias[dia]).forEach(function (id) {
-      Object.keys(raw).forEach(function (d) { if (d !== dia) delete raw[d][id]; });   // reprocessada em outro dia: fica só no último
+      Object.keys(raw).forEach(function (d) {
+        if (d === dia) return;
+        if (raw[d][id] && d < dia) { var rr = op.expRepro || (op.expRepro = {}); (rr[dia] || (rr[dia] = {}))[id] = 1; }   // já embarcada antes e processada de novo: é carga do dia novo
+        delete raw[d][id];   // reprocessada em outro dia: fica só no último
+      });
       alvo[id] = exp.dias[dia][id];
     });
   });
+  if (op.expRepro) { var kr = {}; Object.keys(op.expRepro).sort().slice(-3).forEach(function (d) { kr[d] = op.expRepro[d]; }); op.expRepro = kr; }
   // Só os 2 dias mais recentes ficam crus; os outros viram resumo congelado.
   var dias = Object.keys(raw).sort(), info = lerInfoNf(op), congelados = {};
   (op.expDias || []).forEach(function (d) { congelados[d.data] = d; });
