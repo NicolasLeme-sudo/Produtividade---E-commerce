@@ -7,7 +7,7 @@ const { pathToFileURL } = require("url");
 const { chromium } = require(path.join(__dirname, "..", "..", "robo", "node_modules", "playwright"));
 
 const destino = process.argv[2] || ".";
-const ARQUIVOS = [["checklist-vistoria.html", "Checklist_Vistoria.pdf"], ["regras.html", "Regras_e_Pontuacao.pdf"]];
+const ARQUIVOS = [["checklist-vistoria.html", "Checklist_Vistoria.pdf"], ["regras.html", "Regras_e_Pontuacao.pdf"], ["pontuacao-operacao.html", "Pontuacao_Black_Operacao.pdf"]];
 
 (async function () {
   const browser = await chromium.launch({ channel: "chrome" });
