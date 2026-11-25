@@ -519,7 +519,7 @@ var P_LINHA_MIN = 0.12, plAnterior = {};
 function razao(t){ return !t.meta ? 0 : t.total/t.meta; }
 // 20/11 (2ª versão): a linha recua assim que alguém passa de 100% da meta (antes só a partir de 106%). Escala = maior razão do campo (mín. 1);
 // cada carro anda razão ÷ escala e, tendo batido a meta, fica P_META_BATIDA − 1 (6%) além da linha; a linha fica em 1 ÷ escala.
-function escalaCampo(times){ var s = 1; times.forEach(function(t){ s = Math.max(s, razao(t)); }); return Math.min(s, 1/P_LINHA_MIN); }
+function escalaCampo(times){ return 1; }   // 25/11: voltou a faixa de chegada fixa; quem bate a meta passa um pouco da linha (P_META_BATIDA) sem recuar a faixa nem encolher os outros carros (a regra de recuo de 20/11 está no git: 171b30e e anteriores)
 function posCarro(t, s){ var r = razao(t); return Math.min(P_META_BATIDA, r/s + (r >= 1 ? P_META_BATIDA - 1 : 0)); }
 function posLinha(s){ return 1 / s; }   // RAIA: altura de cada raia, ajustada ao espaço livre da tela
 // Times de um grupo na ordem da corrida (maior realizado em cima).
