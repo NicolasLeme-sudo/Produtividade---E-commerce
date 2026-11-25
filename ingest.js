@@ -949,7 +949,8 @@ function processarBlackOndas(rows) {
     if (sep !== "N" && sep !== "NAO") return;   // só o que ainda está em tela (não separado)
     var q = numero(obterCampo(x, ["Qtde. Total de Produto"])) || 0, tit = normalizarTexto(obterCampo(x, ["Título", "Titulo"]));
     r.ondas++; r.colmeiaItens += q;
-    if (tit.indexOf("TRATAR") !== -1 && tit.indexOf("PULA") !== -1) {
+    // o time do Outbound sinaliza a onda no título (25/11): qualquer uma das palavras-chave TRATAR, PULA ou PENDENCIA (sem acento) conta
+    if (tit.indexOf("TRATAR") !== -1 || tit.indexOf("PULA") !== -1 || tit.indexOf("PENDENCIA") !== -1) {
       r.pulaItens += q;
       r.ondasPula.push({ onda: String(obterCampo(x, ["Onda"]) || ""), titulo: tit.slice(0, 60), itens: q });
     }
