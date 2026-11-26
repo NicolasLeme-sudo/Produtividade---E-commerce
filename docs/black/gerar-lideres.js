@@ -23,7 +23,7 @@ const limpa = s => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").re
 
 function pessoa(p) {
   const tags = (p.t || []).concat(p.a ? ["“" + p.a + "”"] : []);
-  return '<li><i class="ck"></i><span>' + esc(p.n) + (tags.length ? ' <small>' + esc(tags.join(" · ")) + "</small>" : "") + "</span></li>";
+  return '<li' + (p.dia ? ' class="dia"' : '') + '><i class="ck"></i><span>' + esc(p.n) + (tags.length ? ' <small>' + esc(tags.join(" · ")) + "</small>" : "") + "</span></li>";
 }
 function bloco(titulo, sub, pessoas, cor) {
   if (!pessoas || !pessoas.length) return "";
@@ -62,7 +62,8 @@ function htmlLider(g, HEX, logo) {
   const total = g.times.reduce((a, T) => a + totalTime(T), 0);
   const chips = g.times.map(T => '<span class="chip" style="--c:' + (HEX[T.cor] || "#999") + '"><i></i>' + esc(nomeCor(T.cor)) + "</span>").join("");
   return '<div class="pg"><header><img src="' + logo + '" alt=""><div><p class="k">Missão Black Friday 2026 · Times do líder</p><h1>' + esc(g.lider) + '</h1>' +
-    '<p class="s">' + esc(rot) + " · " + esc(hr) + " · " + (g.fonte === "D" ? "Distribuidora" : "E-commerce") + '</p></div></header>' +
+    '<p class="s">' + esc(rot) + " · " + esc(hr) + " · " + (g.fonte === "D" ? "Distribuidora" : "E-commerce") + '</p>' +
+    (g.times.some(T => T.apoioLider) ? '<p class="s"><b>Apoio ao líder:</b> ' + esc(g.times.find(T => T.apoioLider).apoioLider) + '</p>' : '') + '</div></header>' +
     '<div class="resumo"><div class="chips">' + chips + '</div><div class="tot"><b>' + total + "</b><span>pessoas nos seus times</span></div></div>" +
     g.times.map(T => htmlTime(T, g.fonte, HEX)).join("") +
     '<footer>Lista para uso da liderança. Confirme a presença na chamada e avise qualquer troca ao gestor do turno.</footer></div>';
@@ -93,6 +94,7 @@ h1{margin:0;font-size:25px;font-weight:900;line-height:1.1}
 ul{list-style:none;margin:0;padding:0}
 li{display:flex;align-items:center;gap:7px;padding:1.5px 2px;font-size:12.5px}
 li small{font-size:10.5px}
+li.dia span{font-weight:800;color:color-mix(in srgb,var(--c) 45%,#000)}
 .ck{flex:none;width:11px;height:11px;border:1.3px solid #111;border-radius:2px}
 footer{margin-top:14px;border-top:1px solid #999;padding-top:6px;font-size:10.5px}
 `;
