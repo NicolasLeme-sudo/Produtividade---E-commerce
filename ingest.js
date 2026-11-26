@@ -379,18 +379,38 @@ async function salvarSnapshot(pagina, dadosNovos) {
   var { data: sessao } = await supabaseClient.auth.getSession();
   // atualizado_por é uuid (references auth.users.id) — precisa do id da sessão, não do e-mail.
   var userId = sessao && sessao.session ? sessao.session.user.id : null;
-  var { error } = await supabaseClient.from("dashboard_snapshots").upsert({
-    pagina: pagina,
-    dados: dadosNovos,
-    atualizado_em: new Date().toISOString(),
-    atualizado_por: userId,
-  }, { onConflict: "pagina" });
-  if (error) throw new Error("Falha ao gravar snapshot de " + pagina + ": " + error.message);
+  // 26/11: o snapshot "operacao" (2,5 MB) estourou o statement timeout do banco às 17h04 e a Expedição do Kardex ficou sem gravar.
+  // Erro passageiro (timeout, rede, 5xx) = tenta de novo até 4 vezes, esperando 4, 10 e 20 s; erro de permissão/regra não repete.
+  var espera = [4000, 10000, 20000], tentativa = 0, error = null;
+  for (;;) {
+    var r = await supabaseClient.from("dashboard_snapshots").upsert({
+      pagina: pagina,
+      dados: dadosNovos,
+      atualizado_em: new Date().toISOString(),
+      atualizado_por: userId,
+    }, { onConflict: "pagina" });
+    error = r.error;
+    if (!error) return;
+    var passageiro = /statement timeout|canceling statement|timeout|fetch failed|network|ECONNRESET|50[234]|temporarily/i.test(String(error.message || "") + " " + String(error.code || ""));
+    if (!passageiro || tentativa >= espera.length) break;
+    console.warn("Snapshot " + pagina + ": " + error.message + " · nova tentativa em " + (espera[tentativa] / 1000) + " s");
+    await new Promise(function (ok) { setTimeout(ok, espera[tentativa]); });
+    tentativa++;
+  }
+  throw new Error("Falha ao gravar snapshot de " + pagina + ": " + error.message + (tentativa ? " (após " + (tentativa + 1) + " tentativas)" : ""));
 }
 
 async function lerSnapshot(pagina) {
-  var { data, error } = await supabaseClient.from("dashboard_snapshots").select("dados").eq("pagina", pagina).maybeSingle();
-  if (error) { console.error(error); return {}; }
+  // Erro de leitura NÃO pode virar {}: quem lê para depois gravar (mergeSnapshot, Expedição, Corte) apagaria o snapshot inteiro. Tenta 3 vezes e falha.
+  var data = null, error = null;
+  for (var i = 0; i < 3; i++) {
+    var r = await supabaseClient.from("dashboard_snapshots").select("dados").eq("pagina", pagina).maybeSingle();
+    data = r.data; error = r.error;
+    if (!error) break;
+    console.warn("Leitura do snapshot " + pagina + ": " + error.message + " · tentativa " + (i + 1) + "/3");
+    await new Promise(function (ok) { setTimeout(ok, 3000 * (i + 1)); });
+  }
+  if (error) throw new Error("Falha ao ler snapshot de " + pagina + ": " + error.message);
   return (data && data.dados) || {};
 }
 
