@@ -1775,11 +1775,19 @@ function relogio(){
 setInterval(relogio, 15000); relogio();
 // O palco tem 1500 px de base e estica na outra direção até preencher a janela inteira,
 // seja qual for a proporção (TV 16:9, navegador com barra de endereço, monitor ultrawide).
+var escalaW = 0, escalaH = 0;
 function escala(){
-  var k = Math.min(innerWidth/1500, innerHeight/844), palco = document.getElementById('palco');
-  palco.style.width = (innerWidth/k)+'px'; palco.style.height = (innerHeight/k)+'px';
+  var vv = window.visualViewport, w = Math.max(innerWidth, document.documentElement.clientWidth, vv ? Math.round(vv.width) : 0), h = Math.max(innerHeight, document.documentElement.clientHeight, vv ? Math.round(vv.height) : 0);
+  escalaW = innerWidth; escalaH = innerHeight;
+  var k = Math.min(w/1500, h/844), palco = document.getElementById('palco');
+  palco.style.width = (w/k)+'px'; palco.style.height = (h/k)+'px';
   palco.style.transform = 'translate(-50%,-50%) scale('+k+')';
 }
+// Celular: ao girar a tela o navegador dispara o resize antes de medir a janela nova; recalcula depois e confere de tempos em tempos.
+function escalaDepois(){ escala(); [150, 500, 1200].forEach(function(ms){ setTimeout(function(){ escala(); requestAnimationFrame(ajustaAltura); }, ms); }); }
+addEventListener('orientationchange', escalaDepois);
+if (window.visualViewport) visualViewport.addEventListener('resize', escalaDepois);
+setInterval(function(){ if (innerWidth !== escalaW || innerHeight !== escalaH) { escala(); requestAnimationFrame(ajustaAltura); } }, 2000);
 /* ---------- tela cheia e cursor escondido ---------- */
 function telaCheiaAtiva(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
 function atualizaBotaoTC(){
