@@ -5,5 +5,5 @@ REM (O Chrome so deixa o robo controlar uma janela com perfil separado, por isso
 REM Os --disable-background... mantem as abas do WMS funcionando com a janela minimizada.
 REM "abrir-chrome-robo.bat escondido" (MOSTRAR_NAVEGADOR=nao no .env): abre sem janela nenhuma (headless).
 set EXTRA=
-if /I "%~1"=="escondido" set EXTRA=--headless=new --window-size=1920,1080
+if /I "%~1"=="escondido" set EXTRA=--headless=new --window-size=1920,1080 --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
 start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\ChromeRobo" --no-first-run --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding %EXTRA% https://vulcaprd.seniorcloud.com.br/siltwms/
