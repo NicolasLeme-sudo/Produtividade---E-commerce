@@ -180,6 +180,8 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .cal .d:hover:not(:disabled){background:var(--bg-input);border-color:var(--border)}
 .cal .d:disabled{color:#38445C;cursor:default}
 .cal .d.hoje{border-color:var(--cc);color:var(--cc2)}
+.cal .rod .somar{margin-right:6px}
+.cal .rod .somar.on{background:var(--cc);border-color:var(--cc);color:var(--cc-t)}
 .cal .d.sel{background:var(--cc);border-color:var(--cc);color:var(--cc-t);font-weight:800}
 .cal .d.dado::after{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--cc2)}
 .cal .d.sel.dado::after{background:var(--cc-t)}
@@ -462,14 +464,31 @@ var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: {
 // com as setas ↑/↓ ou por ?dia=aaaa-mm-dd. Escolha pelo telão volta sozinha para hoje depois de 30 min.
 var diaEscolhido = /^\d{4}-\d{2}-\d{2}$/.test(Q.get('dia') || '') ? Q.get('dia') : null, escolhidoEm = Date.now();
 function hojeOp(){ return RegrasBlack.diaOperacional(new Date()); }
-function diaTela(){ return diaEscolhido && diaEscolhido < hojeOp() ? diaEscolhido : hojeOp(); }
+// Vários dias somados (26/11): no calendário, Ctrl/Shift+clique ou o botão "Somar dias". diasSoma = 2+ dias em ordem; a Corrida soma peças, metas e
+// posições dos dias; as outras telas seguem mostrando o ÚLTIMO dia da soma (diaTela). Sem comemoração, hora de ouro nem balões.
+var diasSoma = (function(){ var l = (Q.get('dias') || '').split(',').filter(function(x){ return /^\d{4}-\d{2}-\d{2}$/.test(x); }); return l.length > 1 ? l.sort() : []; })();
+function modoSoma(){ return diasSoma.length > 1; }
+function diaTela(){
+  if (modoSoma()) { var u = diasSoma[diasSoma.length-1]; return u < hojeOp() ? u : hojeOp(); }
+  return diaEscolhido && diaEscolhido < hojeOp() ? diaEscolhido : hojeOp();
+}
 function ehHoje(){ return diaTela() === hojeOp(); }
+function diasDaSelecao(){ return modoSoma() ? diasSoma.slice() : [diaTela()]; }
+function alternaDiaSoma(iso){
+  var l = diasDaSelecao(), i = l.indexOf(iso);
+  if (i >= 0) l.splice(i, 1); else l.push(iso);
+  l.sort();
+  if (l.length < 2) { escolheDia(l.length && l[0] !== hojeOp() ? l[0] : null); return; }
+  diasSoma = l; diaEscolhido = null; escolhidoEm = Date.now();
+  if (typeof carregar === 'function') carregar();
+}
 function somaDias(iso, n){ var p = iso.split('-'), d = new Date(+p[0], +p[1]-1, +p[2] + n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function escolheDia(iso){
+  diasSoma = [];
   diaEscolhido = iso && iso < hojeOp() ? iso : null; escolhidoEm = Date.now();
   if (typeof carregar === 'function') carregar();
 }
-setInterval(function(){ if (diaEscolhido && Date.now() - escolhidoEm > 30*60000 && diaEscolhido !== Q.get('dia')) escolheDia(null); }, 60000);
+setInterval(function(){ if ((diaEscolhido || modoSoma()) && Date.now() - escolhidoEm > 30*60000 && diaEscolhido !== Q.get('dia') && !Q.get('dias')) escolheDia(null); }, 60000);
 // Dia mostrado numa tela: o escolhido no calendário; senão hoje, se hoje já tem dado; senão o último dia
 // anterior com dado (o topo mostra "⚠ Sem dados de hoje"). temDado(dia) diz se a tela tem produção no dia.
 function diaComFallback(temDado, dias){
@@ -495,6 +514,24 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ re
 function nomeBonito(u){ return String(u||'').split(/[.\s]+/).filter(Boolean).map(function(x){ return x.charAt(0).toUpperCase()+x.slice(1).toLowerCase(); }).join(' '); }
 /* ================= CONTA DA COMPETIÇÃO (regras-black.js, filtros fixos do padrão) ================= */
 var ultimoDia = RegrasBlack.ultimoDia;
+// Soma de vários dias: cada dia é calculado sozinho (2ª caixa, troca de posto e meta do dia valem para o próprio dia) e depois soma por time e por pessoa.
+function calcularCompeticaoDias(snap, cadastro, dias){
+  var cs = dias.map(function(d){ return calcularCompeticao(snap, cadastro, d); }), base = cs[cs.length-1];
+  base.times.forEach(function(t, i){
+    var mem = {}, meta = 0;
+    cs.forEach(function(c){
+      var x = c.times[i]; meta += x.meta;
+      x.lista.forEach(function(m){ var a = mem[m.usuario] || (mem[m.usuario] = Object.assign({}, m, { sep:0, conf:0 })); a.sep += m.sep; a.conf += m.conf; a.valor = a.sep + a.conf; });
+    });
+    t.lista = Object.keys(mem).map(function(k){ return mem[k]; }).sort(function(a, b){ return b.valor - a.valor; });
+    t.sep = t.lista.reduce(function(s, m){ return s + m.sep; }, 0); t.conf = t.lista.reduce(function(s, m){ return s + m.conf; }, 0); t.total = t.sep + t.conf; t.meta = meta;
+  });
+  RegrasBlack.GRUPOS.forEach(function(G){
+    base.times.filter(function(t){ return t.grupo === G.id; }).sort(function(a, b){ return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.total - a.total; }).forEach(function(t, i){ t.pos = t.lista.length ? i + 1 : null; });
+  });
+  base.temDados = cs.some(function(c){ return c.temDados; }); base.dias = dias.slice();
+  return base;
+}
 function calcularCompeticao(snap, cadastro, diaAlvo){
   var c = RegrasBlack.calcularCompeticao(snap, cadastro, diaAlvo);
   c.times.forEach(function(t){ t.cor = TIMES_COR[t.n]; });
@@ -561,7 +598,7 @@ function pistaHtml(grupos, comTotal){
   var totR = todos.reduce(function(s,t){ return s+t.total; },0), totM = todos.reduce(function(s,t){ return s+t.meta; },0);
   // Cabeçalho numa linha só (1º grupo · progresso · realizado/meta); os outros grupos abrem com o nome deles.
   return '<div class="panel comp-pista">'+
-    '<div class="cl"><div class="comp-pista-hd comp-pista-g1">'+grupos[0].rot+'</div><div class="comp-pista-hd" style="text-align:center">Progresso das Equipes</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>Meta do dia</span></div></div>'+
+    '<div class="cl"><div class="comp-pista-hd comp-pista-g1">'+grupos[0].rot+'</div><div class="comp-pista-hd" style="text-align:center">Progresso das Equipes</div><div class="comp-pista-hd comp-raia-num"><b>Realizado</b><span>'+(modoSoma() ? 'Meta dos dias' : 'Meta do dia')+'</span></div></div>'+
     grupos.map(function(g, k){ return (k ? '<div class="cl"><div class="comp-pista-grupo">'+g.rot+'</div></div>' : '')+linhas(g.times); }).join('')+
     (comTotal ? '<div class="cl"><div class="comp-pista-total">Total</div><div class="comp-pista-total"></div><div class="comp-raia-num comp-pista-total"><b>'+fmt(totR)+'</b><span>'+fmt(totM)+'</span></div></div>' : '')+
     '</div>';
@@ -1178,7 +1215,7 @@ var primeiraLeitura = true;
 // é marcado como comemorado, sem festa, para não abrir uma fila de comemorações.
 function verificaMetas(c){
   var primeira = primeiraLeitura; primeiraLeitura = false;
-  if (!c.dia || c.dia !== hojeOp() || !ehHoje()) return;
+  if (!c.dia || c.dia !== hojeOp() || !ehHoje() || modoSoma()) return;
   c.times.forEach(function(t){
     if (t.meta && t.total >= t.meta && !jaComemorou(c.dia, t.n)) {
       marcaComemorou(c.dia, t.n);
@@ -1660,34 +1697,38 @@ document.addEventListener('keydown', function(e){   // para quem estiver ao lado
 });
 // Calendário do dia exibido (no lugar do calendário nativo do Chrome, que não segue a identidade).
 (function(){
-  var cal = document.getElementById('cal'), lbl = document.getElementById('data'), mesCal = null;
+  var cal = document.getElementById('cal'), lbl = document.getElementById('data'), mesCal = null, somando = false;
   var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   function iso(a, m, d){ return a+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
   function desenha(){
-    var hj = hojeOp(), sel = diaTela(), a = mesCal[0], m = mesCal[1];
+    var hj = hojeOp(), sel = diasDaSelecao(), a = mesCal[0], m = mesCal[1];
     var ini = new Date(a, m, 1).getDay(), n = new Date(a, m+1, 0).getDate(), temProx = (m === 11 ? iso(a+1, 0, 1) : iso(a, m+1, 1)) <= hj;
     var h = '<div class="kk">Dia exibido</div><div class="cab"><button type="button" class="nav" data-mes="-1" aria-label="Mês anterior">‹</button>'+
       '<span class="mes">'+MESES[m]+' de '+a+'</span><button type="button" class="nav" data-mes="1" aria-label="Próximo mês"'+(temProx ? '' : ' disabled')+'>›</button></div>'+
       '<div class="grade">'+['D','S','T','Q','Q','S','S'].map(function(x){ return '<span class="sm">'+x+'</span>'; }).join('');
     for (var b = 0; b < ini; b++) h += '<span></span>';
     for (var d = 1; d <= n; d++) {
-      var k = iso(a, m, d), cls = 'd'+(k === hj ? ' hoje' : '')+(k === sel ? ' sel' : '')+(diasComDado[k] ? ' dado' : '');
+      var k = iso(a, m, d), cls = 'd'+(k === hj ? ' hoje' : '')+(sel.indexOf(k) >= 0 ? ' sel' : '')+(diasComDado[k] ? ' dado' : '');
       h += '<button type="button" class="'+cls+'" data-dia="'+k+'"'+(k > hj ? ' disabled' : '')+'>'+d+'</button>';
     }
-    cal.innerHTML = h + '</div><div class="rod"><span><i></i>dia com produção</span><button type="button" data-dia="'+hj+'">Hoje</button></div>';
+    cal.innerHTML = h + '</div><div class="rod"><span><i></i>dia com produção</span><button type="button" data-soma="1" class="somar'+(somando ? ' on' : '')+'" title="Clique em vários dias para somar (ou Ctrl/Shift+clique)">Somar dias</button><button type="button" data-dia="'+hj+'">Hoje</button></div>';
   }
   function fecha(){ cal.hidden = true; lbl.classList.remove('aberto'); }
   lbl.addEventListener('click', function(e){
     e.stopPropagation();
     if (!cal.hidden) { fecha(); return; }
-    var p = diaTela().split('-'); mesCal = [+p[0], +p[1]-1];
+    var p = diaTela().split('-'); mesCal = [+p[0], +p[1]-1]; somando = modoSoma();
     desenha(); cal.hidden = false; lbl.classList.add('aberto');
   });
   cal.addEventListener('click', function(e){
     e.stopPropagation();
     var b = e.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.mes) { var m = mesCal[1] + (+b.dataset.mes); mesCal = [mesCal[0] + Math.floor(m/12), (m%12+12)%12]; desenha(); return; }
-    if (b.dataset.dia) { escolheDia(b.dataset.dia === hojeOp() ? null : b.dataset.dia); fecha(); }
+    if (b.dataset.soma) { somando = !somando; desenha(); return; }
+    if (b.dataset.dia) {
+      if (somando || e.ctrlKey || e.shiftKey || e.metaKey) { alternaDiaSoma(b.dataset.dia); desenha(); return; }   // soma: o calendário fica aberto
+      escolheDia(b.dataset.dia === hojeOp() ? null : b.dataset.dia); fecha();
+    }
   });
   document.addEventListener('click', fecha);
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') fecha(); });
@@ -1703,10 +1744,10 @@ var opDiasParado = 0;
 function relogio(){
   var d = new Date();
   document.getElementById('hora').textContent = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-  var dia = diaTela(), passado = !ehHoje();
-  document.getElementById('data').textContent = rotDia(dia);
+  var dia = diaTela(), passado = !ehHoje() || modoSoma();
+  document.getElementById('data').textContent = modoSoma() ? diasSoma.length + ' dias' : rotDia(dia);
   var lv = document.getElementById('aoVivo');
-  lv.textContent = passado ? '⚠ EXIBINDO ' + rotDia(dia).toUpperCase() : '● AO VIVO';
+  lv.textContent = modoSoma() ? '⚠ SOMA ' + diasSoma.map(function(x){ return x.slice(8,10)+'/'+x.slice(5,7); }).join(' + ') : passado ? '⚠ EXIBINDO ' + rotDia(dia).toUpperCase() : '● AO VIVO';
   lv.classList.toggle('passado', passado);
   document.getElementById('btnHoje').hidden = !passado;
   var dTela = telas[atual] ? telas[atual].dataset.dia : '';
@@ -1807,10 +1848,10 @@ async function carregar(){
     carregarSaldoExp(diaOut);   // saldo de abertura da Expedição (Report); redesenha quando chega
     document.getElementById('telaA').dataset.dia = diaOut;
     var telaGDia = document.getElementById('telaG'); if (telaGDia) telaGDia.dataset.dia = diaOut;
-    var c = calcularCompeticao(snap, cadT, diaOut);
+    var c = modoSoma() ? calcularCompeticaoDias(snap, cadT, diasSoma) : calcularCompeticao(snap, cadT, diaOut);
     var ouros = r[3].error ? [] : (r[3].data || []);
     var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
-    ouroAtivo = MODO_OPERACAO || !ehHoje() || outroTurno ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
+    ouroAtivo = MODO_OPERACAO || !ehHoje() || modoSoma() || outroTurno ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
     atualizaOuro();
     var op = r[2].error ? null : r[2].data;   // Tela C é opcional: erro nela não derruba as outras
     if (op && op.atualizado_em) atualizadoEm.operacao = new Date(op.atualizado_em);
@@ -1834,7 +1875,7 @@ async function carregar(){
     ultimoDesenho = { c: c, snap: snap, snapIn: snapIn, diaOut: diaOut, res: op && op.resumo, blk: blk };
     desenharTelas();
     if (!MODO_OPERACAO && !outroTurno) verificaMetas(c);
-    if (!MODO_OPERACAO && !outroTurno && ehHoje() && !r[4].error) verificaBaloes(c, cadT, r[4].data || [], ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);
+    if (!MODO_OPERACAO && !outroTurno && ehHoje() && !modoSoma() && !r[4].error) verificaBaloes(c, cadT, r[4].data || [], ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho
