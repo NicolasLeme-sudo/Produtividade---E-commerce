@@ -163,13 +163,28 @@ async function prepararIngest(cfg) {
   log("Conectado ao Produtividade como " + cfg.PROD_EMAIL + (TESTE ? " (modo teste: nada será gravado)" : ""));
   return ingest;
 }
-async function enviar(arq, cfg) {
+// Renova o login quando a sessão está vencida ou perto de vencer (o token dura 1 h; o refresh automático não aguentou ~18 h no ar).
+async function garantirSessao(cfg, ing) {
+  if (TESTE) return ing;
+  try {
+    const { data } = await ing.cliente.auth.getSession();
+    const exp = data && data.session ? data.session.expires_at * 1000 : 0;
+    if (exp - Date.now() > 5 * 60 * 1000) return ing;
+    const r = await ing.cliente.auth.refreshSession();
+    if (!r.error && r.data && r.data.session) return ing;
+  } catch (e) { /* cai no novo login */ }
+  log("   renovando o login do robô no banco");
+  ingest = null;
+  return await prepararIngest(cfg);
+}
+async function enviar(arq, cfg, repeticao) {
   const id = identificar(arq);
   if (!id.rel) {
     log((id.ignorado ? "Reconhecido, mas ainda não enviado (fase 2): " + id.ignorado : "Não reconhecido") + " · " + path.basename(arq) + (id.ignorado ? "" : " · colunas: " + id.cab.slice(0, 6).join(" | ")));
     return false;
   }
-  const ing = await prepararIngest(cfg);
+  let ing = await prepararIngest(cfg);
+  ing = await garantirSessao(cfg, ing);
   log("Enviando " + id.rel.nome + " · " + path.basename(arq) + " (" + Math.round(fs.statSync(arq).size / 1024) + " KB)");
   const t0 = Date.now();
   ing.inputs[id.rel.id] = arquivoComoFile(arq);
@@ -177,6 +192,13 @@ async function enviar(arq, cfg) {
   const st = ing.status[id.rel.id + "-status"];
   const msg = st ? st.textContent : "";
   const ok = st && st.className.indexOf("erro") === -1 && /✓/.test(msg);
+  // 26/11: depois de ~18 h no ar a sessão do robô no banco deixou de valer e TODA gravação falhou com "row-level security policy"
+  // (o telão ficou parado de 08h45 às 10h36). Erro desse tipo = entra de novo e tenta mais uma vez.
+  if (!ok && !repeticao && /row-level security|JWT|not authenticated|permission denied|401/i.test(msg)) {
+    log("   sessão do robô no banco inválida (" + msg.slice(0, 80) + ") · entrando de novo e reenviando");
+    ingest = null;
+    return enviar(arq, cfg, true);
+  }
   log((ok ? "OK " : "ERRO ") + id.rel.nome + " em " + Math.round((Date.now() - t0) / 1000) + " s · " + msg);
   return ok;
 }
