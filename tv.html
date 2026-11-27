@@ -691,14 +691,14 @@ function calcularExpedicao(res, snap, dia){
   var conf = (snap||{}).conferencia || {};
   var tConf = somaObj(itensDoDia(conf.confCheckoutDia, dia)) + somaObj(itensDoDia(conf.confColmeiaUnitDia, dia));
   var rp = ex.repro ? ex.repro.pecas : 0;   // notas de dia anterior estornadas e processadas de novo hoje (robô de 25/11): entram no realizado, então entram na carga
-  return { total: ex.pecas, meta: Math.round((tConf + s.pecas + rp) * RegrasBlack.META_EXPEDICAO_PCT / 100), conf: tConf, repro: rp };
+  return { total: ex.pecas, meta: Math.round((tConf + s.pecas + rp) * RegrasBlack.META_EXPEDICAO_PCT / 100), conf: tConf, repro: rp, saldo: s.pecas };
 }
 function aplicaExpedicao(e){
   var t = TIMES_APOIO.filter(function(x){ return x.n === 9; })[0];
   if (!t) return;
   var ok = !!(e && !e.aguarda);
   t.apoio = !ok; t.aguarda = !!(e && e.aguarda); t.total = ok ? e.total : 0; t.meta = ok ? e.meta : 0;
-  t.rodape = ok ? 'Conf. <b>'+fmt(e.conf)+'</b>'+(e.repro ? ' + reproc. <b>'+fmt(e.repro)+'</b>' : '')+' · Exp <b>'+fmt(e.total)+'</b>' : '';   // conferido e expedido lado a lado
+  t.rodape = ok ? 'Conf. <b>'+fmt(e.conf)+'</b>'+(e.saldo ? ' + ontem <b>'+fmt(e.saldo)+'</b>' : '')+(e.repro ? ' + reproc. <b>'+fmt(e.repro)+'</b>' : '')+' · Exp <b>'+fmt(e.total)+'</b>' : '';   // conferido e expedido lado a lado
   t.msgA = 'sem dados'; t.msgB = 'sem embarque no dia';
 }
 /* ---- Corte, Pula e FIFO, times de apoio da tela G (20/11; só no telão da Black) ----
