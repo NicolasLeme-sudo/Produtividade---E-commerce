@@ -74,7 +74,10 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm, col
   }).filter(function (l) { return l.total > 0; });
   // Recebimento primeiro, reversa depois (a coluna Tipo agrupa); dentro de cada um, do maior para o menor
   linhas.sort(function (a, b) {
-    if (colAtiv) return usuarioDaChave(a.nome).localeCompare(usuarioDaChave(b.nome)) || String(colAtiv[a.nome]).localeCompare(String(colAtiv[b.nome]), "pt-BR");   // por pessoa; Conferência antes de Separação
+    if (colAtiv) {   // 1º todas as Conferências, depois as Separações; em cada bloco do maior para o menor
+      var oa = colAtiv[a.nome] === "Conferência" ? 0 : 1, ob = colAtiv[b.nome] === "Conferência" ? 0 : 1;
+      return oa - ob || b.total - a.total || usuarioDaChave(a.nome).localeCompare(usuarioDaChave(b.nome));
+    }
     var ta = tipoDaChave(a.nome) === "Reversa" ? 1 : 0, tb = tipoDaChave(b.nome) === "Reversa" ? 1 : 0;
     return ta - tb || b.total - a.total || a.nome.localeCompare(b.nome);
   });
@@ -113,9 +116,13 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm, col
     (colAtiv ? '<th align="left" ' + eTh + ">Atividade</th>" : "") +
     (colTipo ? '<th align="left" ' + eTh + ">Tipo</th>" : "") + '<th align="left" ' + eTh + ">Usuário</th>" +
     horas.map(function (h) { return "<th " + eTh + ">" + rotHora(h) + "</th>"; }).join("") + "<th " + eTh + ">Total</th></tr>";
+  var nCols = 2 + (colTurno ? 1 : 0) + (colTipo ? 1 : 0) + (colAtiv ? 1 : 0) + horas.length;
   var corpo = linhas.map(function (l, i) {
+    // barra na cor do time entre o bloco da Conferência e o da Separação
+    var barra = colAtiv && i > 0 && colAtiv[l.nome] !== colAtiv[linhas[i - 1].nome]
+      ? '<tr><td colspan="' + nCols + '" style="padding:0;height:4px;line-height:4px;font-size:1px;mso-line-height-rule:exactly;background:' + cor + '">&nbsp;</td></tr>' : "";
     var fundo = zebra && i % 2 ? ' bgcolor="' + zebra + '" style="color:' + T.texto + '"' : "";
-    return '<tr align="right"' + fundo + ">" +
+    return barra + '<tr align="right"' + fundo + ">" +
       (colTurno ? '<td align="left">' + esc(turnos[l.nome] || "—") + "</td>" : "") +
       (colAtiv ? '<td align="left">' + esc(colAtiv[l.nome] || "") + "</td>" : "") +
       (colTipo ? '<td align="left">' + tipoDaChave(l.nome) + "</td>" : "") +
