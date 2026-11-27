@@ -1106,7 +1106,13 @@ function renderTelaE(opRes){
   el.innerHTML = '<div class="kpis c4">'+
     kpiHtml(rotuloDia('Expedido', dia), fmt(d.pecas), 'Checkout '+qt(d.tipo.checkout[0])+' · Colmeia '+qt(d.tipo.colmeia[0]), COR_EXP, COR_EXP, 'peças', '<span class="seg">| <b>'+fmt(d.pedidos)+'</b> pedidos</span>')+
     // Conferido sem expedição: foto atual do Acompanhamento OP (FATURADO com "Faturado em" e sem Carga)
-    (dia !== hojeOp() ? kpiHtml('Conferido sem expedição', '—', 'só no dia de hoje', COR_EXP2, COR_EXP2)
+    // dia passado (27/11): o que ficou conferido e não expedido no fim do dia = saldo de abertura do dia seguinte (RPC do Report, a mesma da meta)
+    (dia !== hojeOp() ? (function(){
+        if (MODO_OPERACAO) return kpiHtml('Conferido sem expedição', '—', 'só no dia de hoje', COR_EXP2, COR_EXP2);
+        var prox = somaDias(dia, 1), f = saldoExp[prox];
+        if (!f || f === 'busca') { carregarSaldoExp(prox); return kpiHtml('Ficou conferido sem expedição', '…', 'buscando o fechamento do dia', COR_EXP2, COR_EXP2); }
+        return kpiHtml('Ficou conferido sem expedição', fmt(f.pecas), 'foi para a meta de '+prox.slice(8,10)+'/'+prox.slice(5,7), COR_EXP2, COR_EXP2, 'peças', '<span class="seg">| <b>'+fmt(f.pedidos)+'</b> pedidos</span>');
+      })()
       : opRes.semColeta && opRes.semColeta.checkout != null ? kpiHtml('Conferido sem expedição', fmt(opRes.semColeta.itens), 'Checkout '+qt(opRes.semColeta.checkout)+' · Colmeia '+qt(opRes.semColeta.colmeia), COR_EXP2, COR_EXP2, 'itens', '<span class="seg">| <b>'+fmt(opRes.semColeta.pedidos)+'</b> pedidos</span>')
       : kpiHtml('Conferido sem expedição', '—', 'aguardando o próximo Acompanhamento OP', COR_EXP2, COR_EXP2))+
     kpiHtml('Operadores no dia', fmt(Object.keys(pessoas).filter(function(k){ return pessoas[k] > 0; }).length), 'pessoas bipando na doca', '#DFBD41', null)+
