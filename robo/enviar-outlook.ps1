@@ -15,6 +15,7 @@ try {
   $mail.To = $msg.para
   $mail.Subject = $msg.assunto
   $mail.HTMLBody = $msg.html
+  if ($msg.importancia -eq 2) { $mail.Importance = 2 }   # 2 = olImportanceHigh (alerta do robo)
   $mail.Send()
   'OK'
 } catch {

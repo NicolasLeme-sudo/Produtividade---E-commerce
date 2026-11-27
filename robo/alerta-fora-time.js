@@ -51,11 +51,16 @@ async function verificar(cfg, log) {
     return !feitos[k] || prod[k] >= feitos[k] * 2;
   }).sort(function (a, b) { return prod[b] - prod[a]; });
   if (!novos.length) return 0;
-  const linhas = novos.map(function (k) { return "<tr><td style=\"padding:2px 10px\">" + k + "</td><td style=\"padding:2px 10px;text-align:right\">" + prod[k] + " peças</td></tr>"; }).join("");
-  const html = "<p>Usuários do WMS que <b>produziram hoje e não estão em nenhum time</b> da escalação:</p><table style=\"border-collapse:collapse\">" + linhas + "</table>" +
-    "<p>Se for alguém que está usando o usuário de outra pessoa, ou um colaborador que faltou lançar no time, ajuste a escalação no Admin. (Aviso automático do robô, limite " + limite + " peças.)</p>";
+  const th = "padding:6px 14px;border:1px solid #9AA7B4;background:#031F44;color:#fff;text-align:left;font-weight:700";
+  const td = "padding:6px 14px;border:1px solid #C9D1DC";
+  const linhas = novos.map(function (k, i) {
+    return "<tr style=\"background:" + (i % 2 ? "#F3F6FA" : "#fff") + "\"><td style=\"" + td + "\">" + k + "</td><td style=\"" + td + ";text-align:right\">" + prod[k] + "</td></tr>";
+  }).join("");
+  const html = "<p>Usuários do WMS que <b>produziram hoje e não estão em nenhum time</b> da escalação:</p>" +
+    "<table style=\"border-collapse:collapse;font-family:Segoe UI,Arial,sans-serif;font-size:14px\"><thead><tr><th style=\"" + th + "\">Usuário WMS</th><th style=\"" + th + ";text-align:right\">Peças no dia</th></tr></thead><tbody>" + linhas + "</tbody></table>" +
+    "<p>Se for alguém usando o usuário de outra pessoa, ou um colaborador que faltou lançar no time, ajuste a escalação no Admin. (Aviso automático do robô, limite " + limite + " peças.)</p>";
   const arq = path.join(require("os").tmpdir(), "alerta-robo-" + Date.now() + ".json");
-  fs.writeFileSync(arq, JSON.stringify({ para: cfg.EMAIL_TESTE, assunto: "Alerta Black · " + novos.length + " usuário(s) produzindo fora dos times", html: html }), "utf8");
+  fs.writeFileSync(arq, JSON.stringify({ para: cfg.EMAIL_TESTE, importancia: 2, assunto: "Alerta Black · " + novos.length + " usuário(s) produzindo fora dos times", html: html }), "utf8");
   try {
     const r = execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", PS1, "-Arquivo", arq], { encoding: "utf8", timeout: 120000, windowsHide: true });
     if (!/OK/.test(r)) throw new Error(String(r).trim().split("\n")[0]);
