@@ -354,6 +354,51 @@ async function exportar(page, tela, pasta) {
   return { salvo: d.saveAs(temp).then(function () { fs.renameSync(temp, final); return final; }) };
 }
 
+// Gerenciador de Expedição (grade num iframe slick): para cada onda sinalizada seleciona a linha, aperta "Acompanhamento", exporta a aba nova
+// (Exportacao_acomp_<hora>.tsv, que o vigia envia como up-black-acomp) e fecha só essa aba, deixando o gerenciador como estava (14 ondas, filtros).
+// Qualquer erro aqui só é registrado: o resto da rodada não pode parar por causa do Pula.
+const SINAL_PULA = /TRATAR|PULA|PENDENCIA|PENDÊNCIA/i;
+async function acompanharPula(page, pasta, log) {
+  const t0 = Date.now();
+  const gridFrame = function () { return page.frames().find(function (f) { return /simpleGrid/.test(f.url()); }); };
+  try {
+    const fr = gridFrame(); if (!fr) return;
+    const ondas = await fr.evaluate(function (re) {
+      return Array.from(document.querySelectorAll(".slick-row")).map(function (r) { const c = r.querySelectorAll(".slick-cell"); return { onda: c[1] && c[1].textContent.trim(), titulo: c[3] && c[3].textContent.trim() }; })
+        .filter(function (x) { return x.onda && new RegExp(re, "i").test(x.titulo || ""); });
+    }, SINAL_PULA.source);
+    for (const o of ondas) {
+      try {
+        for (let tent = 1; ; tent++) {   // a grade acabou de recarregar: o iframe pode ter trocado, então refaz a busca até 3 vezes
+          try {
+            await gridFrame().locator(".slick-row", { hasText: o.titulo }).first().locator(".slick-cell.l3").click({ timeout: 15000 });
+            await page.waitForTimeout(600);
+            await page.locator("#tb-Separacao-Acompanhamento:visible").first().click({ timeout: 15000 });
+            break;
+          } catch (e) { if (tent >= 3) throw e; await page.waitForTimeout(3000); }
+        }
+        const aba = page.locator('.x-tab-strip li:has-text("Acompanhamento da Separação")').first();
+        await aba.waitFor({ timeout: 30000 });
+        for (let t = 0; t < 20; t++) {   // espera a grade da aba nova ter linhas
+          const fs2 = page.frames().filter(function (f) { return /simpleGrid/.test(f.url()); });
+          let n = 0; for (const f of fs2) n = Math.max(n, await f.locator(".slick-row").count().catch(function () { return 0; }));
+          if (fs2.length >= 2 && n > 0) break;
+          await page.waitForTimeout(1500);
+        }
+        await esperarCarregar(page, 20000).catch(function () {});
+        const salvo = (await exportar(page, { id: "acomp" }, pasta)).salvo; await salvo;
+        log("   Acompanhamento da onda " + o.onda + " exportado");
+      } catch (e) { log("   Acompanhamento da onda " + o.onda + ": " + e.message.split("\n")[0]); }
+      // fecha só a aba do Acompanhamento (mesmo em erro), voltando ao gerenciador
+      try {
+        const x = page.locator('.x-tab-strip li:has-text("Acompanhamento da Separação") a.x-tab-strip-close');
+        while (await x.count()) { await x.first().click({ force: true }); await page.waitForTimeout(1200); }
+      } catch (e) {}
+    }
+    if (ondas.length) log("   Pula: " + ondas.length + " onda(s) sinalizada(s) acompanhada(s) em " + Math.round((Date.now() - t0) / 1000) + " s");
+  } catch (e) { log("   Pula (acompanhamento): " + e.message.split("\n")[0]); }
+}
+
 async function printErro(page, tela) {
   try {
     fs.mkdirSync(PASTA_ERROS, { recursive: true });
@@ -500,6 +545,8 @@ async function iniciar(cfg, log, opcoes) {
         return arq;
       }, function (e) { pendentes.delete(fim); log("ERRO ao salvar " + tela.nome + ": " + e.message.split("\n")[0]); return null; });
       pendentes.add(fim);
+      // Pula (26/11): nas ondas sinalizadas (TRATAR/PULA/PENDENCIA) abre o Acompanhamento da Separação, exporta e fecha, e volta ao mesmo gerenciador.
+      if (tela.id === "ondas") { await fim; await acompanharPula(aba.page, cfg.PASTA, log); }
       // Só o OP espera o arquivo: a data inicial do Itens de NF sai dele. Os outros seguem em 2º plano.
       if (tela.id === "op" && opcoes.maisAntigoOp) {
         const arq = await fim;
