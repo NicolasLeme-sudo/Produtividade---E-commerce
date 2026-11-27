@@ -691,14 +691,22 @@ function calcularExpedicao(res, snap, dia){
   var conf = (snap||{}).conferencia || {};
   var tConf = somaObj(itensDoDia(conf.confCheckoutDia, dia)) + somaObj(itensDoDia(conf.confColmeiaUnitDia, dia));
   var rp = ex.repro ? ex.repro.pecas : 0;   // notas de dia anterior estornadas e processadas de novo hoje (robô de 25/11): entram no realizado, então entram na carga
-  return { total: ex.pecas, meta: Math.round((tConf + s.pecas + rp) * RegrasBlack.META_EXPEDICAO_PCT / 100), conf: tConf, repro: rp, saldo: s.pecas };
+  // dia passado (27/11): mostra também o que ficou conferido e não expedido para o dia seguinte (= saldo de abertura dele, mesma RPC do Report)
+  var ficou = null;
+  if (dia < hojeOp()) {
+    var dS = new Date(dia + 'T12:00:00'); dS.setDate(dS.getDate() + 1);
+    var prox = dS.getFullYear() + '-' + String(dS.getMonth() + 1).padStart(2, '0') + '-' + String(dS.getDate()).padStart(2, '0');
+    carregarSaldoExp(prox);
+    if (saldoExp[prox] && saldoExp[prox] !== 'busca') ficou = saldoExp[prox].pecas;
+  }
+  return { total: ex.pecas, meta: Math.round((tConf + s.pecas + rp) * RegrasBlack.META_EXPEDICAO_PCT / 100), conf: tConf, repro: rp, saldo: s.pecas, ficou: ficou };
 }
 function aplicaExpedicao(e){
   var t = TIMES_APOIO.filter(function(x){ return x.n === 9; })[0];
   if (!t) return;
   var ok = !!(e && !e.aguarda);
   t.apoio = !ok; t.aguarda = !!(e && e.aguarda); t.total = ok ? e.total : 0; t.meta = ok ? e.meta : 0;
-  t.rodape = ok ? 'Conf. <b>'+fmt(e.conf)+'</b>'+(e.saldo ? ' + ontem <b>'+fmt(e.saldo)+'</b>' : '')+(e.repro ? ' + reproc. <b>'+fmt(e.repro)+'</b>' : '')+' · Exp <b>'+fmt(e.total)+'</b>' : '';   // conferido e expedido lado a lado
+  t.rodape = ok ? 'Conf. <b>'+fmt(e.conf)+'</b>'+(e.saldo ? ' + ontem <b>'+fmt(e.saldo)+'</b>' : '')+(e.repro ? ' + reproc. <b>'+fmt(e.repro)+'</b>' : '')+(e.ficou != null ? '<br>Ficou p/ o dia seguinte: <b>'+fmt(e.ficou)+'</b> peças' : '') : '';   // conferido e expedido lado a lado
   t.msgA = 'sem dados'; t.msgB = 'sem embarque no dia';
 }
 /* ---- Corte, Pula e FIFO, times de apoio da tela G (20/11; só no telão da Black) ----
@@ -722,7 +730,7 @@ function modeloCorte(blk, dia){
   if (d && d.rs && d.ab) { res = d.rs.i; ab = d.ab.i; }
   if (!sinal) return { msgA:'sem cortes', msgB:'no período do ADM' };
   var meta = Math.ceil(sinal*RegrasBlack.META_CORTE_PCT/100);
-  return { total: res, meta: meta, rodape: 'Sinal. no ADM <b>'+fmt(sinal)+'</b> · Resolv. <b>'+fmt(res)+'</b>'+(ab ? ' · saldo <b>'+fmt(ab)+'</b>' : ''),
+  return { total: res, meta: meta, rodape: 'Sinal. no ADM <b>'+fmt(sinal)+'</b> · Resolv. <b>'+fmt(res)+'</b>'+(ab ? '<br>Saldo de dias anteriores: <b>'+fmt(ab)+'</b>' : ''),
     card: { gr: fmt(res), un: 'itens', pm: Math.round(res/meta*100)+'%', pmRot: 'da meta' } };
 }
 function modeloPula(blk){
