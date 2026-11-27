@@ -44,6 +44,7 @@
   --t1-soft:#3A1A1E; --t2-soft:#16283F; --t3-soft:#173322; --t4-soft:#332B10;
   --t5:#EC4FA0; --t6:#A773EA; --t5-soft:#3A1530; --t6-soft:#281C3D;
   --t7:#F28C28; --t8:#F2F2F2; --t7-soft:#3A2512; --t8-soft:#2C323D;
+  --t9:#F6BD00; --t10:#F53A3D; --t11:#9AA7B4; --t12:#98C13D; --t9-soft:#332B10; --t10-soft:#3A1A1E; --t11-soft:#262E36; --t12-soft:#243016;
 }
 [data-tema="claro"] {
   --bg:#F3F4F7; --bg-card:#FFFFFF; --bg-sidebar:#132043; --bg-input:#F8F9FB;
@@ -56,6 +57,7 @@
   --t1-soft:#FBE6E6; --t2-soft:#E6F0FC; --t3-soft:#E3F4E8; --t4-soft:#FBF3D6;
   --t5:#D63384; --t6:#8A4FD1; --t5-soft:#FBE3EF; --t6-soft:#EFE6FB;
   --t7:#E07A10; --t8:#8A94A3; --t7-soft:#FDEBD8; --t8-soft:#EEF0F3;
+  --t9:#B58A00; --t10:#D42A2D; --t11:#6B7785; --t12:#6E9A1E; --t9-soft:#FFF4D1; --t10-soft:#FDE3E4; --t11-soft:#EEF0F3; --t12-soft:#EDF5DE;
 }
 *, *::before, *::after { box-sizing:border-box; }
 html, body { height:100%; margin:0; }
@@ -1770,7 +1772,8 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
   var TIMES_COR = {
     1:{nome:'Vermelho', c:'--t1', s:'--t1-soft'}, 2:{nome:'Azul', c:'--t2', s:'--t2-soft'}, 3:{nome:'Verde', c:'--t3', s:'--t3-soft'},
     4:{nome:'Amarelo', c:'--t4', s:'--t4-soft'}, 5:{nome:'Rosa', c:'--t5', s:'--t5-soft'}, 6:{nome:'Roxo', c:'--t6', s:'--t6-soft'},
-    7:{nome:'Laranja', c:'--t7', s:'--t7-soft'}, 8:{nome:'Branco', c:'--t8', s:'--t8-soft'}
+    7:{nome:'Laranja', c:'--t7', s:'--t7-soft'}, 8:{nome:'Branco', c:'--t8', s:'--t8-soft'},
+    9:{nome:'Expedição', c:'--t9', s:'--t9-soft'}, 10:{nome:'Corte', c:'--t10', s:'--t10-soft'}, 11:{nome:'Pula', c:'--t11', s:'--t11-soft'}, 12:{nome:'FIFO', c:'--t12', s:'--t12-soft'}
   };
   var NUM_TIMES = RegrasBlack.NUM_TIMES;
   var TIMES_COLMEIA = RegrasBlack.TIMES_COLMEIA;
@@ -2475,7 +2478,26 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         return '<div class="comp-pl-grupo" style="--n:'+lista.length+'"><p class="comp-faixa">'+G.rot+'</p><div class="comp-pl-linha">'+lista.map(card).join('')+'</div></div>';
       }).join('')+'</div>';
     }
-    return faixas.map(function(f){ return '<p class="comp-faixa comp-faixa-tit">'+f.titulo+'</p>'+linhaFiltrada('comp-equipes', f.card); }).join('');
+    var htmlCorrida = (fil === 'g:apoio' || /^t:(9|1[0-2])$/.test(fil)) ? '' : faixas.map(function(f){ return '<p class="comp-faixa comp-faixa-tit">'+f.titulo+'</p>'+linhaFiltrada('comp-equipes', f.card); }).join('');
+    return htmlCorrida + apoioHtml(fil);
+  }
+  // Times de apoio (27/11): Expedição, Corte, Pula e FIFO não têm corrida por peças aqui; o card só mostra a escalação
+  // (líder e membros) para conferir quem é de cada time na hora do lançamento manual de pontos.
+  var TIMES_APOIO_N = [9, 10, 11, 12];
+  function apoioHtml(fil){
+    var ns = TIMES_APOIO_N.filter(function(n){ return fil === 'todos' || fil === 'g:apoio' || fil === 't:'+n; });
+    var cards = ns.map(function(n){
+      var rs = competicaoTimes.filter(function(r){ return r.time === n && (compEstado.turno === 'Todos' || r.turno === compEstado.turno || r.turno === 'ADM'); });
+      if (!rs.length) return '';
+      var cor = TIMES_COR[n], vistos = {};
+      var lis = rs.filter(function(r){ if (vistos[r.nome]) return false; vistos[r.nome] = 1; return true; })
+        .sort(function(a,b){ return (b.lider?1:0) - (a.lider?1:0) || String(a.nome).localeCompare(String(b.nome)); })
+        .map(function(r){ var nome = esc(nomeCurto(nomeBonito(r.nome||r.usuario_wms))); return r.lider ? '<li class="comp-li-lider"><span class="nm">'+nome+' · líder</span></li>' : '<li><span class="rk">·</span><span class="nm" title="'+esc(r.nome||'')+'">'+nome+'<span class="meta">'+esc(/^SEMWMS/.test(r.usuario_wms) ? 'sem usuário WMS' : r.usuario_wms)+'</span></span><b></b></li>'; }).join('');
+      var membros = rs.filter(function(r){ return !r.lider; }).length;
+      return '<div class="comp-eq" style="--c:var('+cor.c+'); --cs:var('+cor.s+')"><div class="comp-eq-head"><span>Time '+cor.nome+'</span></div><div class="comp-eq-sub"><span>'+membros+' '+(membros === 1 ? 'membro' : 'membros')+'</span></div><ol>'+lis+'</ol></div>';
+    }).filter(Boolean);
+    if (!cards.length) return fil === 'g:apoio' || /^t:(9|1[0-2])$/.test(fil) ? '<p class="comp-vazio-mini">Nenhum membro cadastrado neste time de apoio.</p>' : '';
+    return '<p class="comp-faixa comp-faixa-tit">Times de apoio</p><div class="comp-equipes"><div class="comp-pl-grupo" style="--n:'+cards.length+'"><p class="comp-faixa">Apoio · só escalação (pontos pelo Admin)</p><div class="comp-pl-linha">'+cards.join('')+'</div></div></div>';
   }
   function montaFiltroMembros(){
     var sel = document.getElementById('comp-mem-filtro');
@@ -2485,6 +2507,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       h += '<optgroup label="'+G.rot+'"><option value="g:'+G.id+'">'+G.rot+' · todos</option>' +
         G.times.map(function(n){ return '<option value="t:'+n+'">Time '+TIMES_COR[n].nome+'</option>'; }).join('') + '</optgroup>';
     });
+    h += '<optgroup label="Apoio"><option value="g:apoio">Apoio · todos</option>' + TIMES_APOIO_N.map(function(n){ return '<option value="t:'+n+'">Time '+TIMES_COR[n].nome+'</option>'; }).join('') + '</optgroup>';
     sel.innerHTML = h; sel.value = compEstado.memFiltro || 'todos';
     sel.addEventListener('change', function(){ compEstado.memFiltro = sel.value; renderCompeticao(); });
   }

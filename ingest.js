@@ -2035,7 +2035,11 @@ async function salvarMetaInventario() {
 // =========================================================================
 var COMP_TURNOS = ["1º Turno", "2º Turno", "3º Turno", "ADM"];
 var COMP_ATIVS = [["sep", "Separação"], ["conf", "Conferência"], ["emb", "Embalagem"], ["exp", "Embarque"], ["org", "Organização"]];
-var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Rosa", "--t5"], 6: ["Roxo", "--t6"], 7: ["Laranja", "--t7"], 8: ["Branco", "--t8"] };
+var COMP_TIMES = { 1: ["Vermelho", "--t1"], 2: ["Azul", "--t2"], 3: ["Verde", "--t3"], 4: ["Amarelo", "--t4"], 5: ["Rosa", "--t5"], 6: ["Roxo", "--t6"], 7: ["Laranja", "--t7"], 8: ["Branco", "--t8"],
+  9: ["Expedição", "--t9"], 10: ["Corte", "--t10"], 11: ["Pula", "--t11"], 12: ["FIFO", "--t12"] };
+// Times de apoio (27/11): só para escalação e pontos manuais (vistoria, gincana, ajuste); não entram na Corrida por peças.
+var COMP_TIMES_APOIO = [9, 10, 11, 12], COMP_TIMES_PONTOS = COMP_NUM_TIMES_BASE().concat([9, 10, 11, 12]);
+function COMP_NUM_TIMES_BASE() { return [1, 2, 3, 4, 7, 8, 5, 6]; }
 var COMP_NUM_TIMES = [1, 2, 3, 4, 7, 8, 5, 6];   // ordem das abas e listas: checkout, vestuário, colmeia
 // Grupo (corrida) de cada time, para os rótulos: times 5–6 colmeia, 7–8 vestuário.
 function grupoTimeRot(n) { return n === 5 || n === 6 ? "colmeia" : n === 7 || n === 8 ? "vestuário" : ""; }
@@ -2428,7 +2432,7 @@ async function renderPontosBlack() {
   if (!pb.dia) { pb.dia = ta.dia; pb.turno = ta.turno; }
   var dias = RB.DIAS.map(function (d) { return [d[0], d[1] + " · " + d[2]]; });
   if (!RB.DIAS.some(function (d) { return d[0] === pb.dia; })) dias.unshift([pb.dia, fmtDataBRIngest(pb.dia) + " (teste)"]);
-  var times = COMP_NUM_TIMES.map(function (n) { return [n, COMP_TIMES[n][0] + (grupoTimeRot(n) ? " (" + grupoTimeRot(n) + ")" : "")]; });
+  var times = COMP_TIMES_PONTOS.map(function (n) { return [n, COMP_TIMES[n][0] + (COMP_TIMES_APOIO.indexOf(n) !== -1 ? " (apoio)" : grupoTimeRot(n) ? " (" + grupoTimeRot(n) + ")" : "")]; });
   var f = function (v) { return RB.pts(v, pb.time); };
 
   var rL = await supabaseClient.from("competicao_pontos").select("*").eq("dia", pb.dia).eq("turno", pb.turno).order("criado_em", { ascending: false });
@@ -2479,6 +2483,7 @@ async function renderPontosBlack() {
     .sort(function (a, b) { return String(a.nome || a.usuario_wms).localeCompare(String(b.nome || b.usuario_wms)); });
   var selPara = '<select id="pb-gin-para">' + opcoes([["todos", "Todos os times"]], pb.ginPara) +
     '<optgroup label="Time">' + opcoes(COMP_NUM_TIMES.map(function (n) { return ["t:" + n, "Time " + COMP_TIMES[n][0]]; }), pb.ginPara) + "</optgroup>" +
+    '<optgroup label="Times de apoio">' + opcoes(COMP_TIMES_APOIO.map(function (n) { return ["t:" + n, "Time " + COMP_TIMES[n][0]]; }), pb.ginPara) + "</optgroup>" +
     (listaMembros.length ? '<optgroup label="Colaborador (pontos vão para o time dele)">' +
       opcoes(listaMembros.map(function (m) { return ["u:" + m.usuario_wms, (m.nome || m.usuario_wms) + " · " + COMP_TIMES[m.time][0]]; }), pb.ginPara) + "</optgroup>" : "") +
     "</select>";
