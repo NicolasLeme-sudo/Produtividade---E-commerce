@@ -58,6 +58,7 @@ const RELATORIOS = [
   { id: "up-black-corte-tela",      nome: "Corte Físico (Black)",  todas: ["Nro. Onda", "Título da Onda", "idCorteFisico", "Data"] },
   { id: "up-black-corte-rel",       nome: "Relatório de Corte Físico (Black)", todas: ["Onda", "Pedido", "Qtde Corte", "Status", "Data Corte", "Data Resolução"] },
   { id: "up-black-ondas",           nome: "Ondas da colmeia (Black)", todas: ["idOnda", "Onda", "Configuração da Onda", "Qtde. Total de Produto", "Separado"] },
+  { id: "up-black-acomp",           nome: "Acompanhamento da Separação (Black)", todas: ["Situação", "Região de Origem", "Região de Destino", "Onda", "Pedido de Venda"] },
   // Base de embalagem salva em Downloads toda semana: envia quando muda e NÃO tira o arquivo de lá.
   { id: "up-embalas",               nome: "Embalas",               todas: ["SKU", "Artigo", "MARCA"], naoMover: true },
 ];

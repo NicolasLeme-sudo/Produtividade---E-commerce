@@ -961,6 +961,18 @@ function processarBlackCorteRel(rows) {
   });
   return dias;
 }
+// "Acompanhamento da Separação" de uma onda (WMS > Gerenciador de Expedição > onda > Acompanhamento): conta só os itens com Situação AGUARDANDO.
+// O Pula (26/11) mede o que ainda falta separar nas ondas sinalizadas, não o total da onda. Devolve { onda: itens aguardando }.
+function processarBlackAcomp(rows) {
+  var r = {};
+  rows.forEach(function (x) {
+    var onda = String(obterCampo(x, ["Onda"]) || "").trim();
+    if (!onda) return;
+    if (!(onda in r)) r[onda] = 0;
+    if (normalizarTexto(obterCampo(x, ["Situação", "Situacao"])) === "AGUARDANDO") r[onda] += numero(obterCampo(x, ["Quantidade"])) || 1;
+  });
+  return r;
+}
 function processarBlackOndas(rows) {
   var r = { ondas: 0, colmeiaItens: 0, pulaItens: 0, ondasPula: [] };
   rows.forEach(function (x) {
@@ -2948,7 +2960,7 @@ async function processar(id) {
     }
 
     // Corte e Pula do telão da Black: só gravam em estoque.black (não mexem em mais nada do site)
-    if (id === "up-black-corte-tela" || id === "up-black-corte-rel" || id === "up-black-ondas") {
+    if (id === "up-black-corte-tela" || id === "up-black-corte-rel" || id === "up-black-ondas" || id === "up-black-acomp") {
       var rowsB = await parseArquivoGenerico(input.files[0]);
       var estB = await lerSnapshot("estoque");
       var bl = estB.black = estB.black || {}, emB = new Date().toISOString(), msgB;
@@ -2966,9 +2978,15 @@ async function processar(id) {
         Object.keys(diasB).sort().slice(0, Math.max(0, Object.keys(diasB).length - 31)).forEach(function (k) { delete diasB[k]; });
         bl.corte = Object.assign({}, bl.corte, { dias: diasB, relEm: emB });
         msgB = "✓ Relatório de Corte Físico (Black): " + rowsB.length + " linha(s), " + ch.length + " dia(s).";
+      } else if (id === "up-black-acomp") {
+        var ac = processarBlackAcomp(rowsB), aguard = Object.assign({}, bl.pula && bl.pula.aguard);
+        Object.keys(ac).forEach(function (o) { aguard[o] = { n: ac[o], em: emB }; });
+        bl.pula = Object.assign({}, bl.pula, { aguard: aguard });
+        msgB = "✓ Acompanhamento da separação (Black): " + Object.keys(ac).map(function (o) { return "onda " + o + " = " + ac[o] + " aguardando"; }).join("; ") + ".";
       } else {
-        var rp = processarBlackOndas(rowsB);
-        bl.pula = { em: emB, ondas: rp.ondas, colmeiaItens: rp.colmeiaItens, pulaItens: rp.pulaItens, ondasPula: rp.ondasPula };
+        var rp = processarBlackOndas(rowsB), agAnt = (bl.pula && bl.pula.aguard) || {}, agNovo = {};
+        rp.ondasPula.forEach(function (o) { if (agAnt[o.onda]) agNovo[o.onda] = agAnt[o.onda]; });   // só guarda as ondas que seguem sinalizadas
+        bl.pula = { em: emB, ondas: rp.ondas, colmeiaItens: rp.colmeiaItens, pulaItens: rp.pulaItens, ondasPula: rp.ondasPula, aguard: agNovo };
         msgB = "✓ Ondas da colmeia (Black): " + rp.ondas + " onda(s), " + rp.colmeiaItens + " itens em tela, " + rp.pulaItens + " de pula.";
       }
       await salvarSnapshot("estoque", estB);

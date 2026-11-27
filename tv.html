@@ -727,6 +727,8 @@ function modeloCorte(blk, dia){
 function modeloPula(blk){
   var p = blk && blk.pula; if (!p) return null;
   var tot = p.colmeiaItens || 0, pula = p.pulaItens || 0;
+  // Acompanhamento da onda exportado (26/11): vale só o que está AGUARDANDO nas ondas sinalizadas; onda sem acompanhamento conta inteira
+  if (p.aguard && (p.ondasPula || []).length) pula = p.ondasPula.reduce(function(s, o){ var a = p.aguard[o.onda]; return s + (a && a.n != null ? a.n : o.itens); }, 0);
   return modeloTeto(tot ? pula/tot*100 : 0, RegrasBlack.TETO_PULA_PCT, tot ? 'Pula <b>'+fmt(pula)+'</b> de <b>'+fmt(tot)+'</b> itens' : 'Sem ondas na colmeia', 'pula');
 }
 function modeloFifo(res){
