@@ -297,7 +297,11 @@ async function vigiar(cfg) {
   if (cfg.WMS_USUARIO) {
     // Erro no baixador: tenta de novo em 1 min aqui mesmo (o robô só para quando você desliga).
     const ligarBaixador = function () {
-      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp, maisNovoOp: maisNovoOp, aoFimDaRodada: function () { return verEmails(true); } })
+      require("./baixar").iniciar(cfg, log, { maisAntigoOp: maisAntigoOp, maisNovoOp: maisNovoOp, aoFimDaRodada: function () {
+        // alerta de produção fora dos times (26/11): um e-mail ao Nicolas; erro nunca atrapalha a rodada nem os e-mails dos canais
+        require("./alerta-fora-time").verificar(cfg, log).catch(function (e) { log("   alerta fora dos times: " + e.message); });
+        return verEmails(true);
+      } })
         .catch(function (e) { log("ERRO no baixador: " + e.message + " · tento de novo em 1 min"); setTimeout(ligarBaixador, 60000); });
     };
     ligarBaixador();
