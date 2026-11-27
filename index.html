@@ -448,6 +448,9 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-eq .nm{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .comp-eq .meta{font-size:.62rem; color:var(--text-muted); display:block;}
 .comp-eq li b{font-variant-numeric:tabular-nums;}
+.comp-tn{display:inline-block; font-size:.6rem; font-weight:800; letter-spacing:.02em; padding:0 5px; border-radius:4px; margin-right:6px; vertical-align:1px; line-height:15px; border:1px solid var(--border); color:var(--text-muted);}
+.comp-tn.t2{background:var(--text-muted); border-color:var(--text-muted); color:var(--bg-card);}
+.comp-tn.adm{border-style:dashed;}
 .chip[disabled]{opacity:.4; cursor:not-allowed;}
 .comp-linha2{display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.35fr); gap:14px; align-items:stretch; margin-top:14px;}
 .comp-card{display:flex; flex-direction:column; gap:12px; min-width:0;}
@@ -1925,7 +1928,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     porPessoa.forEach(function(p){
       var r = p.r, t = times[r.time-1];
       if (t.membros.has(r.usuario_wms)) return;
-      var m = { usuario:r.usuario_wms, nome:r.nome, sep:0, conf:0, segSep:0, segConf:0, grupos:{ sep:true, conf:true }, atividades:{}, casados:[] };
+      var m = { usuario:r.usuario_wms, nome:r.nome, turno:r.turno, sep:0, conf:0, segSep:0, segConf:0, grupos:{ sep:true, conf:true }, atividades:{}, casados:[] };
       p.linhas.forEach(function(x){ m.atividades[String(x.atividade).replace(/_.*/,'')] = true; });
       ['sep','conf'].forEach(function(g){
         ops.forEach(function(o){
@@ -2445,7 +2448,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       var st = 'data-flip="'+chave+'" style="--c:var('+t.cor.c+'); --cs:var('+t.cor.s+')"';
       var lista = itens;   // todos: o card mostra 5 e o resto é rolando dentro dele
       var corpo = lista.length ? '<ol>'+lista.map(function(m,i){
-        var nome = esc(nomeCurto(nomeBonito(m.nome||m.usuario||m.usuario_wms)));
+        var nome = (compEstado.turno === 'Todos' || ehLider ? tagTurno(m.turno) : '') + esc(nomeCurto(nomeBonito(m.nome||m.usuario||m.usuario_wms)));
         if (ehLider) return '<li class="comp-li-lider"><span class="nm">'+nome+'</span></li>';
         var tags = Object.keys(m.atividades||{}).filter(function(a){ return a === 'emb' || a === 'exp' || a === 'org'; }).map(function(a){ return ROT_ATV_MEMBRO[a]; });
         return '<li><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(m.nome||m.usuario)+'">'+nome+'<span class="meta">'+esc(m.casados.length ? m.casados.join(', ') : m.usuario)+(tags.length ? ' · '+esc(tags.join(', ')) : '')+'</span></span><b>'+fmt(valor(m))+'</b></li>';
@@ -2481,6 +2484,15 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     var htmlCorrida = (fil === 'g:apoio' || /^t:(9|1[0-2])$/.test(fil)) ? '' : faixas.map(function(f){ return '<p class="comp-faixa comp-faixa-tit">'+f.titulo+'</p>'+linhaFiltrada('comp-equipes', f.card); }).join('');
     return htmlCorrida + apoioHtml(fil);
   }
+  // Etiqueta do turno ao lado do nome (27/11): com o filtro "Todos" os times juntam T01 e T02.
+  function tagTurno(tn){
+    var s = String(tn||'');
+    if (/^1/.test(s)) return '<span class="comp-tn">T01</span>';
+    if (/^2/.test(s)) return '<span class="comp-tn t2">T02</span>';
+    if (/^3/.test(s)) return '<span class="comp-tn">T03</span>';
+    if (/ADM/i.test(s)) return '<span class="comp-tn adm">ADM</span>';
+    return '';
+  }
   // Times de apoio (27/11): Expedição, Corte, Pula e FIFO não têm corrida por peças aqui; o card só mostra a escalação
   // (líder e membros) para conferir quem é de cada time na hora do lançamento manual de pontos.
   var TIMES_APOIO_N = [9, 10, 11, 12];
@@ -2492,7 +2504,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
       var cor = TIMES_COR[n], vistos = {};
       var lis = rs.filter(function(r){ if (vistos[r.nome]) return false; vistos[r.nome] = 1; return true; })
         .sort(function(a,b){ return (b.lider?1:0) - (a.lider?1:0) || String(a.nome).localeCompare(String(b.nome)); })
-        .map(function(r){ var nome = esc(nomeCurto(nomeBonito(r.nome||r.usuario_wms))); return r.lider ? '<li class="comp-li-lider"><span class="nm">'+nome+' · líder</span></li>' : '<li><span class="rk">·</span><span class="nm" title="'+esc(r.nome||'')+'">'+nome+'<span class="meta">'+esc(/^SEMWMS/.test(r.usuario_wms) ? 'sem usuário WMS' : r.usuario_wms)+'</span></span><b></b></li>'; }).join('');
+        .map(function(r){ var nome = tagTurno(r.turno) + esc(nomeCurto(nomeBonito(r.nome||r.usuario_wms))); return r.lider ? '<li class="comp-li-lider"><span class="nm">'+nome+' · líder</span></li>' : '<li><span class="rk">·</span><span class="nm" title="'+esc(r.nome||'')+'">'+nome+'<span class="meta">'+esc(/^SEMWMS/.test(r.usuario_wms) ? 'sem usuário WMS' : r.usuario_wms)+'</span></span><b></b></li>'; }).join('');
       var membros = rs.filter(function(r){ return !r.lider; }).length;
       return '<div class="comp-eq" style="--c:var('+cor.c+'); --cs:var('+cor.s+')"><div class="comp-eq-head"><span>Time '+cor.nome+'</span></div><div class="comp-eq-sub"><span>'+membros+' '+(membros === 1 ? 'membro' : 'membros')+'</span></div><ol>'+lis+'</ol></div>';
     }).filter(Boolean);
