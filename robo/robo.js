@@ -291,6 +291,8 @@ async function vigiar(cfg) {
     emailOcupado = true;
     try { await emails.verificar(cfg, log, { fimDeRodada: fimDeRodada === true }); }
     catch (e) { log("ERRO nos e-mails: " + e.message); }
+    try { await require("./email-lideres").verificar(cfg, log, { fimDeRodada: fimDeRodada === true }); }   // produtividade por time, hora a hora, para cada líder (26/11)
+    catch (e) { log("ERRO nos e-mails: " + e.message); }
     finally { emailOcupado = false; }
   };
   setInterval(verEmails, 60 * 1000);   // de minuto em minuto: o fechamento não pode sair atrasado

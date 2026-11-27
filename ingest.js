@@ -951,11 +951,11 @@ function processarBlackCorteRel(rows) {
   // e o saldo de abertura (ab) são os cortes dos dias anteriores (a qualquer hora) ainda não resolvidos até o início de D. Meta do dia = 97% de (sinalizado + ab).
   // Só vale a partir do 2º dia da janela do relatório (o 1º não enxerga os cortes anteriores a ele).
   Object.keys(dias).forEach(function (D) {
-    if (D <= minDia) return;
+    // 26/11: a janela do relatório começa no corte mais antigo em tela; no 1º dia dela o resolvido (rs) vale, só o saldo de abertura (ab) não existe
     var rs = { c: 0, i: 0 }, ab = { c: 0, i: 0 };
     lista.forEach(function (x) {
       if (x.res === D) { rs.c++; rs.i += x.q; }
-      if (x.corte < D && (!x.res || x.res >= D)) { ab.c++; ab.i += x.q; }
+      if (D > minDia && x.corte < D && (!x.res || x.res >= D)) { ab.c++; ab.i += x.q; }
     });
     dias[D].rs = rs; dias[D].ab = ab;
   });

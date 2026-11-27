@@ -14,3 +14,6 @@ emails-enviados.json
 previa-emails-*.html
 ensaio-*.log
 turnos-wms.json
+lideres-black.json
+lideres-enviados.json
+alertas-enviados.json

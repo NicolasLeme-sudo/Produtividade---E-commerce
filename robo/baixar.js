@@ -204,9 +204,10 @@ const TELAS = [
     filtros: async function (p) { await esperarCarregar(p, ESPERA_ABRIR_MS); } },
   { id: "corterel", nome: "Relatório de Corte Físico", grupo: "black", busca: "corte", itemPapel: { role: "treeitem", name: "Relatório de Corte Físico" }, refresh: ATUALIZAR_GRID,
     semGuardaIgual: true,
-    chave: function () { return ddmmaaaa(hoje()); },
-    // 3 dias até hoje: o dia (com o que foi sinalizado e resolvido) e os anteriores, para o histórico.
-    filtros: function (p) { return datasParametros(p, "#ParametersDialog_Data_Inicio", "#ParametersDialog_Data_Termino", new Date(inicioDoDia().getTime() - 3 * 864e5), hoje()); } },
+    // 26/11: a data inicial é sempre a do corte mais antigo que está na tela Corte Físico (robô lê o arquivo dela logo antes, na mesma rodada);
+    // sem corte pendente, só hoje. Se o corte mais antigo mudar, a chave muda e o robô refaz o filtro.
+    chave: function (st) { return ddmmaaaa(inicioRelCorte(st)) + "|" + ddmmaaaa(hoje()); },
+    filtros: function (p, st) { return datasParametros(p, "#ParametersDialog_Data_Inicio", "#ParametersDialog_Data_Termino", inicioRelCorte(st), hoje()); } },
   { id: "ondas", nome: "Gerenciador de Expedição", grupo: "black", busca: "gerenciador", item: "Gerenciador de Expedição", refresh: ATUALIZAR_NAVEGACAO,
     semGuardaIgual: true,
     chave: function () { return ddmmaaaa(hoje()); },
@@ -227,6 +228,29 @@ const TELAS = [
       await esperarCarregar(p, ESPERA_ABRIR_MS);
     } },
 ];
+
+// Data inicial do Relatório de Corte Físico: dia do corte mais antigo ainda em tela (st.maisAntigoCorte, lido do arquivo do Corte Físico).
+function inicioRelCorte(st) {
+  const d = st && st.maisAntigoCorte ? new Date(st.maisAntigoCorte) : null, ini = inicioDoDia();
+  if (!d || isNaN(d)) return ini;
+  d.setHours(0, 0, 0, 0);
+  return d < ini ? d : ini;
+}
+// Menor "Data" (dd/mm/aaaa hh:mm) do arquivo exportado da tela Corte Físico; null se não houver linhas.
+function maisAntigoCorteDoArquivo(arq) {
+  const linhas = fs.readFileSync(arq, "utf8").replace(/^﻿/, "").split(/\r?\n/).filter(Boolean);
+  if (linhas.length < 2) return null;
+  const i = linhas[0].split("\t").map(function (x) { return x.trim(); }).indexOf("Data");
+  if (i < 0) return null;
+  let min = null;
+  linhas.slice(1).forEach(function (l) {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec((l.split("\t")[i] || "").trim());
+    if (!m) return;
+    const d = new Date(+m[3], +m[2] - 1, +m[1]);
+    if (!min || d < min) min = d;
+  });
+  return min ? min.getTime() : null;
+}
 
 // Itens de NF começa no dia do pedido mais antigo em tela no último OP baixado.
 function inicioItensNf(st) {
@@ -546,6 +570,10 @@ async function iniciar(cfg, log, opcoes) {
       }, function (e) { pendentes.delete(fim); log("ERRO ao salvar " + tela.nome + ": " + e.message.split("\n")[0]); return null; });
       pendentes.add(fim);
       // Pula (26/11): nas ondas sinalizadas (TRATAR/PULA/PENDENCIA) abre o Acompanhamento da Separação, exporta e fecha, e volta ao mesmo gerenciador.
+      if (tela.id === "cortetela") {   // o Relatório de Corte (logo a seguir) começa no corte mais antigo em tela
+        const arqC = await fim;
+        if (arqC) { try { st.maisAntigoCorte = maisAntigoCorteDoArquivo(arqC); } catch (e) { log("   não li o corte mais antigo: " + e.message); } }
+      }
       if (tela.id === "ondas") { await fim; await acompanharPula(aba.page, cfg.PASTA, log); }
       // Só o OP espera o arquivo: a data inicial do Itens de NF sai dele. Os outros seguem em 2º plano.
       if (tela.id === "op" && opcoes.maisAntigoOp) {

@@ -140,11 +140,18 @@ async function verificar(cfg, log, opcoes) {
     const b = item.bloco;
     const total = totalDoBloco(b);
     if (!total) continue;                                   // sem produção (nem no fechamento: dia sem operação, 21/11 e 22/11): não manda e-mail vazio
+    // PAUSAR_CANAIS no .env (26/11): canais de produtividade do Teams pausados (ex.: OUT_T01,OUT_T02,IN_ADM,IN_T02). Só o que vai para o
+    // canal Fechamento continua: a cópia do fechamento do turno (T01 e ADM) e o fechamento do dia.
+    const pausado = !opcoes.para && String(cfg.PAUSAR_CANAIS || "").split(",").map(function (x) { return x.trim(); }).indexOf(b.canal) !== -1;
+    if (pausado && !(item.fech && b.copiaFechamento)) {
+      if (!opcoes.semRegistro) { feitos[item.chave] = "pausado"; salvarEstado(estado); }
+      continue;
+    }
     const para = opcoes.para || cfg["CANAL_" + b.canal];
-    if (!para) { log("   sem endereço de canal para " + b.id + " (CANAL_" + b.canal + " no .env)"); continue; }
+    if (!para && !pausado) { log("   sem endereço de canal para " + b.id + " (CANAL_" + b.canal + " no .env)"); continue; }
     const msgs = E.mensagens(b, dia, item.fech, item.horaTexto);
     let todas = true;
-    for (const m of msgs) {
+    if (!pausado) for (const m of msgs) {
       if (mandar(para, m.assunto, m.html, log)) n++; else todas = false;
     }
     // Fechamento de turno do T01 e do ADM: a mesma tabela também vai para o canal Fechamento.
@@ -168,7 +175,7 @@ async function verificar(cfg, log, opcoes) {
   return n;
 }
 
-module.exports = { verificar: verificar, AGENDA: AGENDA, minutoOperacional: minutoOperacional, pendentes: pendentes };
+module.exports = { verificar: verificar, AGENDA: AGENDA, minutoOperacional: minutoOperacional, pendentes: pendentes, mandar: mandar };
 
 /* ---------------- uso à mão ---------------- */
 if (require.main === module) {
