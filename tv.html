@@ -515,8 +515,8 @@ function nomeBonito(u){ return String(u||'').split(/[.\s]+/).filter(Boolean).map
 /* ================= CONTA DA COMPETIÇÃO (regras-black.js, filtros fixos do padrão) ================= */
 var ultimoDia = RegrasBlack.ultimoDia;
 // Soma de vários dias: cada dia é calculado sozinho (2ª caixa, troca de posto e meta do dia valem para o próprio dia) e depois soma por time e por pessoa.
-function calcularCompeticaoDias(snap, cadastro, dias){
-  var cs = dias.map(function(d){ return calcularCompeticao(snap, cadastro, d); }), base = cs[cs.length-1];
+function calcularCompeticaoDias(snap, cadastro, dias, todos){
+  var cs = dias.map(function(d){ return calcularCompeticao(snap, cadastro, d, todos); }), base = cs[cs.length-1];
   base.times.forEach(function(t, i){
     var mem = {}, meta = 0;
     cs.forEach(function(c){
@@ -532,8 +532,8 @@ function calcularCompeticaoDias(snap, cadastro, dias){
   base.temDados = cs.some(function(c){ return c.temDados; }); base.dias = dias.slice();
   return base;
 }
-function calcularCompeticao(snap, cadastro, diaAlvo){
-  var c = RegrasBlack.calcularCompeticao(snap, cadastro, diaAlvo);
+function calcularCompeticao(snap, cadastro, diaAlvo, todos){
+  var c = RegrasBlack.calcularCompeticao(snap, cadastro, diaAlvo, todos);
   c.times.forEach(function(t){ t.cor = TIMES_COR[t.n]; });
   return c;
 }
@@ -1859,7 +1859,7 @@ async function carregar(){
     carregarSaldoExp(diaOut);   // saldo de abertura da Expedição (Report); redesenha quando chega
     document.getElementById('telaA').dataset.dia = diaOut;
     var telaGDia = document.getElementById('telaG'); if (telaGDia) telaGDia.dataset.dia = diaOut;
-    var c = modoSoma() ? calcularCompeticaoDias(snap, cadT, diasSoma) : calcularCompeticao(snap, cadT, diaOut);
+    var c = modoSoma() ? calcularCompeticaoDias(snap, cadT, diasSoma, cadAll) : calcularCompeticao(snap, cadT, diaOut, cadAll);
     var ouros = r[3].error ? [] : (r[3].data || []);
     var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
     ouroAtivo = MODO_OPERACAO || !ehHoje() || modoSoma() || outroTurno ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;

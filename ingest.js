@@ -2619,7 +2619,7 @@ async function extrairPontosBlack() {
   var porTurno = {};
   pares.forEach(function (par) {
     var dia = par[0], turno = par[1], cadT = cad.filter(function (x) { return x.turno === turno; });
-    var c = RB.calcularCompeticao(snap, cadT, dia);
+    var c = RB.calcularCompeticao(snap, cadT, dia, cad);
     var pl = RB.placarDoDia({ c: c, snap: snap, cadastro: cadT, dia: dia, turno: turno, agora: new Date(),
       lanc: lanc.filter(function (l) { return l.dia === dia && l.turno === turno; }),
       ouro: ouros.filter(function (o) { return o.dia === dia && o.turno === turno; }) });

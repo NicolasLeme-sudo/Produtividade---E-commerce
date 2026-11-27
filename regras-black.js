@@ -222,13 +222,15 @@ function producaoDaFonte(snap, fonte, diaAlvo) {
   return { valores: m, datas: datas, temDados: !!(f.v && f.v.length) };
 }
 // snap = dados do snapshot outbound · cadastro = linhas de competicao_times · diaAlvo = 'aaaa-mm-dd' (vazio = último dia)
-function calcularCompeticao(snap, cadastro, diaAlvo) {
+// todos (opcional, 27/11) = a escalação de TODOS os turnos: o login exato de alguém de outro turno não pode ser pego pela variação do nome
+// de um membro deste turno (ex.: Cristiane Salle "CRISTIANE.SILVA" pegava a produção da Cristiane Maria, cujo login é CRISTIANE.SILVA).
+function calcularCompeticao(snap, cadastro, diaAlvo, todos) {
   var ops = ['checkout', 'colmeia'], grupos = ['sep', 'conf'], prod = {};
   ['sep_checkout', 'sep_colmeia', 'conf_checkout', 'conf_colmeia'].forEach(function (f) { prod[f] = producaoDaFonte(snap, f, diaAlvo); });
   var diaRef = diaAlvo || Object.keys(prod).reduce(function (d, f) { return prod[f].datas.reduce(function (a, x) { return x > a ? x : a; }, d); }, '');
   var times = NUM_TIMES.map(function (n) { return { n: n, colmeia: !!TIMES_COLMEIA[n], grupo: grupoDoTime(n), membros: new Map() }; });
   var linhas = (cadastro || []).filter(function (r) { return times[r.time - 1]; });
-  var exatos = {}; linhas.forEach(function (r) { exatos[chaveUsu(r.usuario_wms)] = r.usuario_wms; });
+  var exatos = {}; linhas.concat(todos || []).forEach(function (r) { var k = chaveUsu(r.usuario_wms); if (!exatos[k]) exatos[k] = r.usuario_wms; });
   function achar(r, mapa) { var achada = null; chavesDoMembro(r).some(function (k, i) { if (i > 0 && exatos[k] && exatos[k] !== r.usuario_wms) return false; if (mapa.has(k)) { achada = k; return true; } return false; }); return achada; }
   // O time soma TUDO o que cada membro produziu (separação e conferência, checkout e colmeia),
   // qualquer que seja a função cadastrada (decisão 11/11). Uma pessoa = um membro por time.

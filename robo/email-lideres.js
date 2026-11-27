@@ -51,6 +51,7 @@ async function verificar(cfg, log, opcoes) {
   const juntar = function (m) { const o = {}; Object.keys(m).forEach(function (u) { const k = norm(E.usuarioDaChave(u)); const a = o[k] || (o[k] = new Array(24).fill(0)); (m[u] || []).forEach(function (v, h) { a[h] += v || 0; }); }); return o; };
   const prodSep = juntar(sep), prodConf = juntar(conf);   // chave normalizada -> [24]
 
+  const exatos = {}; cad.forEach(function (r) { const k = norm(r.usuario_wms); if (!exatos[k]) exatos[k] = r.usuario_wms; });
   let n = 0;
   for (const { l, p } of itens) {
     const tabelas = []; let total = 0;
@@ -58,7 +59,8 @@ async function verificar(cfg, log, opcoes) {
       const membros = cad.filter(function (r) { return r.turno === l.turno && r.time === t && !/^(SEMWMS|REFORCO)/i.test(r.usuario_wms); });
       const pessoas = {}, ativ = {}; let sem = 0;
       membros.forEach(function (r) {
-        const ks = chaves(r), ksep = ks.filter(function (x) { return prodSep[x]; })[0], kconf = ks.filter(function (x) { return prodConf[x]; })[0];
+        // variação do nome não pega o login exato de outra pessoa da escalação (27/11: Cristiane Salle x Cristiane Maria)
+        const ks = chaves(r).filter(function (x, i) { return i === 0 || !exatos[x] || exatos[x] === r.usuario_wms; }), ksep = ks.filter(function (x) { return prodSep[x]; })[0], kconf = ks.filter(function (x) { return prodConf[x]; })[0];
         if (ksep) { pessoas[r.usuario_wms + "S"] = prodSep[ksep]; ativ[r.usuario_wms + "S"] = "Separação"; }
         if (kconf) { pessoas[r.usuario_wms + "C"] = prodConf[kconf]; ativ[r.usuario_wms + "C"] = "Conferência"; }
         if (!ksep && !kconf) sem++;
