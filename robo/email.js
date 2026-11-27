@@ -60,7 +60,7 @@ function tipoDaChave(k) { return String(k).indexOf(MARCA_REVERSA) !== -1 ? "Reve
 /* ---------------- uma tabela (um cartão por atividade) ---------------- */
 // pessoas = { usuário: [24] peças por hora }; turnos (opcional) = { usuário: "T01" } acrescenta a coluna Turno
 // à esquerda, usada nos e-mails de fechamento.  ->  { html, total, horas, pessoas }
-function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm) {
+function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm, colAtiv) {
   var email = tema === "email";                        // e-mail: paleta clara, sem zebra (ver nota abaixo)
   var T = TEMAS[tema === "escuro" ? "escuro" : "claro"];
   var corTotal = mistura(cor, T.mistura, T.pTotal);    // barra de totais: a mesma cor, mais fraca
@@ -74,6 +74,7 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm) {
   }).filter(function (l) { return l.total > 0; });
   // Recebimento primeiro, reversa depois (a coluna Tipo agrupa); dentro de cada um, do maior para o menor
   linhas.sort(function (a, b) {
+    if (colAtiv) return usuarioDaChave(a.nome).localeCompare(usuarioDaChave(b.nome)) || String(colAtiv[a.nome]).localeCompare(String(colAtiv[b.nome]), "pt-BR");   // por pessoa; Conferência antes de Separação
     var ta = tipoDaChave(a.nome) === "Reversa" ? 1 : 0, tb = tipoDaChave(b.nome) === "Reversa" ? 1 : 0;
     return ta - tb || b.total - a.total || a.nome.localeCompare(b.nome);
   });
@@ -109,18 +110,21 @@ function tabela(titulo, pessoas, cor, tema, turnos, extra, colTipo, fonteEm) {
     "border-collapse:collapse;font-size:13px;line-height:1.15;width:100%;text-align:right;white-space:nowrap;color:" + T.texto + ";background:" + T.cartao + '">';
   var cab = '<tr align="right" style="font-weight:600">' +
     (colTurno ? '<th align="left" ' + eTh + ">Turno</th>" : "") +
+    (colAtiv ? '<th align="left" ' + eTh + ">Atividade</th>" : "") +
     (colTipo ? '<th align="left" ' + eTh + ">Tipo</th>" : "") + '<th align="left" ' + eTh + ">Usuário</th>" +
     horas.map(function (h) { return "<th " + eTh + ">" + rotHora(h) + "</th>"; }).join("") + "<th " + eTh + ">Total</th></tr>";
   var corpo = linhas.map(function (l, i) {
     var fundo = zebra && i % 2 ? ' bgcolor="' + zebra + '" style="color:' + T.texto + '"' : "";
     return '<tr align="right"' + fundo + ">" +
       (colTurno ? '<td align="left">' + esc(turnos[l.nome] || "—") + "</td>" : "") +
+      (colAtiv ? '<td align="left">' + esc(colAtiv[l.nome] || "") + "</td>" : "") +
       (colTipo ? '<td align="left">' + tipoDaChave(l.nome) + "</td>" : "") +
       '<td align="left">' + esc(usuarioDaChave(l.nome)) + "</td>" +
       horas.map(function (h) { return "<td>" + (l.arr[h] ? fmt(l.arr[h]) : "·") + "</td>"; }).join("") +
       '<td style="color:' + cor + ';font-weight:700"><b>' + fmt(l.total) + "</b></td></tr>";
   }).join("");
   var rodape = '<tr align="right" style="font-weight:700">' + (colTurno ? "<td " + eTot + "></td>" : "") +
+    (colAtiv ? "<td " + eTot + "></td>" : "") +
     (colTipo ? "<td " + eTot + "></td>" : "") +
     '<td align="left" ' + eTot + ">Total</td>" +
     horas.map(function (h) {

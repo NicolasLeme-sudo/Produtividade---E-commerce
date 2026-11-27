@@ -48,26 +48,28 @@ async function verificar(cfg, log, opcoes) {
   const out = snap.dados;
   const sep = E.analiticoPorUsuario((out.separacao || {}).analitico, dia, ["checkout", "colmeia"]);
   const conf = E.somarEm(E.analiticoPorUsuario((out.conferencia || {}).analitico, dia, ["checkout"]), E.colmeiaPorUsuario(out.conferencia, dia));
-  const prod = {};   // chave normalizada -> [24]
-  [sep, conf].forEach(function (m) { Object.keys(m).forEach(function (u) { const k = norm(E.usuarioDaChave(u)); const a = prod[k] || (prod[k] = new Array(24).fill(0)); (m[u] || []).forEach(function (v, h) { a[h] += v || 0; }); }); });
+  const juntar = function (m) { const o = {}; Object.keys(m).forEach(function (u) { const k = norm(E.usuarioDaChave(u)); const a = o[k] || (o[k] = new Array(24).fill(0)); (m[u] || []).forEach(function (v, h) { a[h] += v || 0; }); }); return o; };
+  const prodSep = juntar(sep), prodConf = juntar(conf);   // chave normalizada -> [24]
 
   let n = 0;
   for (const { l, p } of itens) {
     const tabelas = []; let total = 0;
     l.times.forEach(function (t) {
       const membros = cad.filter(function (r) { return r.turno === l.turno && r.time === t && !/^(SEMWMS|REFORCO)/i.test(r.usuario_wms); });
-      const pessoas = {}; let sem = 0;
+      const pessoas = {}, ativ = {}; let sem = 0;
       membros.forEach(function (r) {
-        const k = chaves(r).filter(function (x) { return prod[x]; })[0];
-        if (k) pessoas[r.usuario_wms] = prod[k]; else sem++;
+        const ks = chaves(r), ksep = ks.filter(function (x) { return prodSep[x]; })[0], kconf = ks.filter(function (x) { return prodConf[x]; })[0];
+        if (ksep) { pessoas[r.usuario_wms + "S"] = prodSep[ksep]; ativ[r.usuario_wms + "S"] = "Separação"; }
+        if (kconf) { pessoas[r.usuario_wms + "C"] = prodConf[kconf]; ativ[r.usuario_wms + "C"] = "Conferência"; }
+        if (!ksep && !kconf) sem++;
       });
       const info = TIME[t] || ["Time " + t, "#297ADF", ""];
-      const tb = E.tabela("Time " + info[0] + " · " + info[2], pessoas, info[1], "email", null, membros.length + " escalados" + (sem ? " · " + sem + " sem produção" : ""), false, null);
+      const tb = E.tabela("Time " + info[0] + " · " + info[2], pessoas, info[1], "email", null, membros.length + " escalados" + (sem ? " · " + sem + " sem produção" : ""), false, null, ativ);
       total += tb.total; tabelas.push(tb.html);
     });
     if (!total) continue;     // sem produção: não manda e-mail vazio
     const cab = '<div style="' + E.FONTE + 'padding:4px 2px"><p style="' + E.FONTE + 'font-size:14px;margin:0 0 8px">Produtividade dos colaboradores dos seus times · ' + TURNO_ROT[l.turno] + " · " + E.dataBR(dia) + " · " + esc(p.horaTexto) + "</p>";
-    const html = cab + tabelas.join("<br>") + '<p style="' + E.FONTE + 'font-size:11px;color:#7C8BA8;margin:8px 0 0">Separação + conferência (checkout e colmeia), peças por hora. Colaborador sem produção não aparece na tabela.</p></div>';
+    const html = cab + tabelas.join("<br>") + '<p style="' + E.FONTE + 'font-size:11px;color:#7C8BA8;margin:8px 0 0">Separação + conferência (checkout e colmeia), peças por hora. Cada colaborador aparece uma linha por atividade em que produziu; sem produção não aparece.</p></div>';
     const cores = l.times.map(function (t) { return (TIME[t] || [t])[0]; }).join(" + ");
     const assunto = "Seu time · " + TURNO_ROT[l.turno] + " · " + cores + " · " + E.dataBR(dia) + (p.fech ? " · Fechamento" : " · " + p.horaTexto);
     if (EM.mandar(opcoes.para || l.email, assunto, html, log)) {
