@@ -2490,6 +2490,7 @@ async function renderPontosBlack() {
   caixas.gincanas.innerHTML = cartao("gincanas", "Gincanas", seletores(false) +
     linhaCampos(campo("Gincana", '<select id="pb-desafio">' + opcoes(gincanas, gincanas[0]) + "</select>") +
       campo("Pontos", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">')) +
+    '<div id="pb-gin-outra-box" hidden>' + linhaCampos(campo("Nome da gincana", '<input id="pb-gin-outra" placeholder="ex.: Dupla Conectada">')) + "</div>" +
     linhaCampos(campo("Para", selPara)) +
       '<div><button class="btn" id="pb-btn-desafio">Lançar</button></div>' +
     tabelaLanc("desafio"));
@@ -2545,9 +2546,19 @@ async function renderPontosBlack() {
     gravar("vistoria", linhas, "✓ Vistoria lançada: " + (tot > 0 ? "+" : "") + tot + " pontos para o " + COMP_TIMES[pb.time][0] + ".");
   });
   document.getElementById("pb-gin-para").addEventListener("change", function () { pb.ginPara = this.value; });
+  // "Outra gincana": abre o campo do nome (gincana nova que não está na programação).
+  document.getElementById("pb-desafio").addEventListener("change", function () {
+    var box = document.getElementById("pb-gin-outra-box");
+    box.hidden = this.value !== "Outra gincana";
+    if (!box.hidden) document.getElementById("pb-gin-outra").focus();
+  });
   document.getElementById("pb-btn-desafio").addEventListener("click", function () {
     var nome = document.getElementById("pb-desafio").value, v = parseInt(document.getElementById("pb-des-pts").value, 10);
     var para = document.getElementById("pb-gin-para").value;
+    if (nome === "Outra gincana") {
+      nome = document.getElementById("pb-gin-outra").value.trim();
+      if (!nome) { aviso("gincanas", "Escreva o nome da gincana.", "pendente"); return; }
+    }
     if (!v) { aviso("gincanas", "Informe os pontos.", "pendente"); return; }
     var linhas, alvo, ok;
     if (para === "todos") {
