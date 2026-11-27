@@ -2187,10 +2187,27 @@ async function renderCompeticaoAdmin(recarregarBase) {
   if (!el) return;
   var r = await supabaseClient.from("competicao_times").select("*");
   compAdm.linhas = r.data || [];
-  if (recarregarBase || !compAdm.indice) compAdm.indice = (await carregarIndiceBaseAtivos()).indice;
+  if (recarregarBase || !compAdm.indice) { var cb = await carregarIndiceBaseAtivos(); compAdm.indice = cb.indice; compAdm.baseLista = cb.lista; }
   var idx = compAdm.indice;
   var doTurno = compAdm.linhas.filter(function (l) { return l.turno === compAdm.turno; });
-  var foraDaBase = function (l) { return !idx.get(normalizarUsuarioWMS(l.usuario_wms)); };
+  // Acha o membro na Base de Ativos (27/11): pelo usuário do WMS e, se não der, pelo NOME da escalação
+  // (login SEMWMS.*, apelido no WMS, "- MOVIMENTAÇÃO" no nome, Souza/Sousa...). Só aceita quando um único ativo bate.
+  var tokensNome = function (s) { return normalizarTexto(String(s || "").split(/\s+-\s*|\s*-\s+/)[0]).split(/\s+/).filter(function (t) { return t && CONECTIVOS_NOME.indexOf(t) === -1; }); };
+  var baseTok = (compAdm.baseLista || []).map(function (b) { return { b: b, t: tokensNome(b.nome) }; });
+  var cacheBase = {};
+  var naBase = function (l) {
+    var b = idx.get(normalizarUsuarioWMS(l.usuario_wms));
+    if (b || !l.nome) return b || null;
+    if (cacheBase.hasOwnProperty(l.nome)) return cacheBase[l.nome];
+    var mt = tokensNome(l.nome), achados = [];
+    if (mt.length >= 2) baseTok.forEach(function (x) {
+      if (x.t[0] !== mt[0]) return;
+      var comuns = mt.filter(function (t) { return x.t.indexOf(t) !== -1; }).length;
+      if (comuns === mt.length || comuns >= 3) achados.push(x.b);
+    });
+    return (cacheBase[l.nome] = achados.length === 1 ? achados[0] : null);
+  };
+  var foraDaBase = function (l) { return !naBase(l); };
 
   var linhasTimes = COMP_NUM_TIMES.map(function (n) {
     var m = doTurno.filter(function (l) { return l.time === n; });
@@ -2208,7 +2225,7 @@ async function renderCompeticaoAdmin(recarregarBase) {
     return (b.lider ? 1 : 0) - (a.lider ? 1 : 0) || rotuloAtividade(a.atividade).localeCompare(rotuloAtividade(b.atividade)) || a.usuario_wms.localeCompare(b.usuario_wms);
   });
   var htmlMembros = membros.map(function (l) {
-    var b = idx.get(normalizarUsuarioWMS(l.usuario_wms));
+    var b = naBase(l);
     var sub = htmlSeguro(l.usuario_wms) + " · " + htmlSeguro(rotuloAtividade(l.atividade)) + (l.observacao ? " · " + htmlSeguro(l.observacao) : "") + (l.piso ? " · Piso " + l.piso : "") + " · " + (b ? htmlSeguro(b.turno || "sem turno") : '<span class="comp-aviso">não está na Base de Ativos</span>');
     var edicao = compAdm.editando === l.id
       ? '<div class="comp-edit"><input data-campo="nome" value="' + htmlSeguro(l.nome || "") + '" aria-label="Nome completo" title="Nome completo: a Competição acha o usuário do WMS pelo primeiro e último nome">' +
