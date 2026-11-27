@@ -128,9 +128,11 @@ function grupoDoTime(n) { return TIMES_COLMEIA[n] ? 'colmeia' : TIMES_VESTUARIO[
 //   é dividida entre os 2 times do vestuário. Conferência por caixa: andar 1.200 · vestuário 800.
 //   Checkout = 3.300 + 1.200 (T01) · 2.200 + 1.200 (T02) · Vestuário = 1.650 + 800 · 1.100 + 800
 //   Colmeia = meta da colmeia ÷ 2 (T01 4.000 · T02 3.000 = 20 e 15 colmeias de ~200 itens). Sem ADM na Black.
+//   27/11, Convocação final (26/11): separador 600 por pessoa. T01 andar = 6 × 600 + caixa 1.200 = 4.800 (pisos com 2 caixas: 2 × 1.200 × 0,5)
+//   · vestuário = 3 × 600 + 800 = 2.600 · T02 andar = 4 × 600 + 1.200 = 3.600 · vestuário = 2 × 600 + 800 = 2.000 · colmeia igual.
 var META_TURNO = {
-  '1º Turno': { checkout: 4500, vestuario: 2450, colmeia: 2000 },
-  '2º Turno': { checkout: 3400, vestuario: 1900, colmeia: 1500 }
+  '1º Turno': { checkout: 4800, vestuario: 2600, colmeia: 2000 },
+  '2º Turno': { checkout: 3600, vestuario: 2000, colmeia: 1500 }
 };
 // Meta por pessoa (só para a apresentação): escalação final de 20/11 ("ORGANIZAÇÃO - TIMES PARA A BLACK", com os reforços).
 //   Separador = separação do turno ÷ separadores (T01 16.500 ÷ 30 = 550 · T02 11.000 ÷ 20 = 550).
