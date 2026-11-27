@@ -2509,6 +2509,10 @@ async function renderPontosBlack() {
       campo("Pontos", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">')) +
     '<div id="pb-gin-outra-box" hidden>' + linhaCampos(campo("Nome da gincana", '<input id="pb-gin-outra" placeholder="ex.: Dupla Conectada">')) + "</div>" +
     linhaCampos(campo("Para", selPara)) +
+    // Vários times de uma vez (27/11): marcando qualquer caixa, vale a marcação e o campo "Para" é ignorado.
+    '<div class="pb-gin-multi"><label style="font-weight:700">Ou marque vários times (ignora o campo "Para"):</label><div style="display:flex; flex-wrap:wrap; gap:6px 14px; margin:6px 0 10px">' +
+      COMP_NUM_TIMES.concat(COMP_TIMES_APOIO).map(function (n) { return '<label style="display:inline-flex; gap:5px; align-items:center"><input type="checkbox" class="pb-gin-t" data-n="' + n + '"> <span class="comp-dot" style="--c:var(' + COMP_TIMES[n][1] + ')"></span>' + htmlSeguro(COMP_TIMES[n][0]) + "</label>"; }).join("") +
+    "</div></div>" +
       '<div><button class="btn" id="pb-btn-desafio">Lançar</button></div>' +
     tabelaLanc("desafio"));
 
@@ -2578,7 +2582,12 @@ async function renderPontosBlack() {
     }
     if (!v) { aviso("gincanas", "Informe os pontos.", "pendente"); return; }
     var linhas, alvo, ok;
-    if (para === "todos") {
+    var marcados = Array.prototype.slice.call(document.querySelectorAll(".pb-gin-t:checked")).map(function (c) { return Number(c.getAttribute("data-n")); });
+    if (marcados.length) {
+      var nomes = marcados.map(function (n) { return COMP_TIMES[n][0]; }).join(", ");
+      linhas = marcados.map(function (n) { return { time: n, categoria: "desafio", item: nome, pontos: RB.pts(v, n), motivo: null }; });
+      alvo = marcados.length + " times (" + nomes + "): " + v + " pontos cada"; ok = "✓ Gincana lançada para " + marcados.length + " times: " + nomes + ".";
+    } else if (para === "todos") {
       linhas = COMP_NUM_TIMES.map(function (n) { return { time: n, categoria: "desafio", item: nome, pontos: RB.pts(v, n), motivo: null }; });
       alvo = "os 8 times: " + v + " pontos cada"; ok = "✓ Gincana lançada para os 8 times.";
     } else if (para.indexOf("t:") === 0) {
