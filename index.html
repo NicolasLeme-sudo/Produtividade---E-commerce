@@ -417,6 +417,8 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-leg-cor{display:inline-flex; align-items:center; gap:6px;}
 .comp-leg-cor i{width:10px; height:10px; border-radius:3px; background:var(--c);}
 .comp-lider-adm{color:var(--c); font-weight:800;}
+.comp-mem-filtro{display:inline-flex; align-items:center; gap:8px; font-size:.8rem; color:var(--text-muted);}
+.comp-mem-filtro select{background:var(--bg-input); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font:inherit; font-size:.85rem;}
 .comp-adm .comp-classif td{vertical-align:top; line-height:1.7; cursor:default;}
 .comp-adm .comp-classif tbody tr{cursor:default;}
 .comp-time{background:var(--bg-card); border:1px solid var(--border); border-top:4px solid var(--c); border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; min-width:0;}
@@ -905,6 +907,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
         <div class="subsection" id="equipes">
           <div class="sub-head">
             <div><p class="kicker">Competição · Membros</p><h3>Ranking dentro de cada time</h3></div>
+            <div class="sub-head-tools"><label class="comp-mem-filtro">Mostrar <select id="comp-mem-filtro" aria-label="Filtrar times"></select></label></div>
           </div>
           <div id="bloco-equipes"></div>
         </div>
@@ -2460,7 +2463,30 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
           return bloco(t, 'sep-'+t.n, itens, function(n){ return n===1?'membro':'membros'; }, function(m){ return m.sep; });
         } }
     ];
-    return faixas.map(function(f){ return '<p class="comp-faixa comp-faixa-tit">'+f.titulo+'</p>'+linhaPorCorrida('comp-equipes', c, f.card); }).join('');
+    // Filtro do cabeçalho (27/11): todos · um grupo (g:checkout) · um time (t:4). Ajuda a conferir o lançamento manual de pontos.
+    var fil = compEstado.memFiltro || 'todos';
+    function linhaFiltrada(classe, card){
+      return '<div class="'+classe+'">'+RegrasBlack.GRUPOS.filter(function(G){
+        if (fil.indexOf('g:') === 0) return G.id === fil.slice(2);
+        if (fil.indexOf('t:') === 0) return G.times.indexOf(+fil.slice(2)) !== -1;
+        return true;
+      }).map(function(G){
+        var lista = podioDoGrupo(c, G.id).filter(function(t){ return fil.indexOf('t:') !== 0 || t.n === +fil.slice(2); });
+        return '<div class="comp-pl-grupo" style="--n:'+lista.length+'"><p class="comp-faixa">'+G.rot+'</p><div class="comp-pl-linha">'+lista.map(card).join('')+'</div></div>';
+      }).join('')+'</div>';
+    }
+    return faixas.map(function(f){ return '<p class="comp-faixa comp-faixa-tit">'+f.titulo+'</p>'+linhaFiltrada('comp-equipes', f.card); }).join('');
+  }
+  function montaFiltroMembros(){
+    var sel = document.getElementById('comp-mem-filtro');
+    if (!sel || sel.options.length) return;
+    var h = '<option value="todos">Todos os times</option>';
+    RegrasBlack.GRUPOS.forEach(function(G){
+      h += '<optgroup label="'+G.rot+'"><option value="g:'+G.id+'">'+G.rot+' · todos</option>' +
+        G.times.map(function(n){ return '<option value="t:'+n+'">Time '+TIMES_COR[n].nome+'</option>'; }).join('') + '</optgroup>';
+    });
+    sel.innerHTML = h; sel.value = compEstado.memFiltro || 'todos';
+    sel.addEventListener('change', function(){ compEstado.memFiltro = sel.value; renderCompeticao(); });
   }
 
   function renderCompeticao(){
@@ -2499,6 +2525,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
     ligarCavalos(c);
     desenharPizzaComp(c);
     if (!dHora.aviso) desenharHorasComp(c, dHora);
+    montaFiltroMembros();
     elE.innerHTML = rankingTimesHtml(c);
     if (animar) { flipAnimar(elP, antesP); flipAnimar(elE, antesE); }
     rolagemListas.forEach(function(v, k){ var ol = elE.querySelector('[data-flip="'+k+'"] ol'); if (ol) ol.scrollTop = v; });
