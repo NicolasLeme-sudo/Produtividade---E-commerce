@@ -453,7 +453,7 @@ if (QUER_DIRETORIA) {
   document.getElementById('loginSub').textContent = 'Acesso restrito a administradores.';
 }
 var RECARREGA_H = 6;                        // recarga completa da página (pega versão nova, libera memória)
-var COMEMORA_MS = 25000, PARADO_MS = 3000;  // comemoração inteira e tempo do carro parado na vaga
+var COMEMORA_MS = 60000, PARADO_MS = 3000;  // comemoração inteira e tempo do carro parado na vaga
 var SUPABASE_URL = 'https://vehfchdfbukrbcedciiy.supabase.co';
 var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlaGZjaGRmYnVrcmJjZWRjaWl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMDI5NjksImV4cCI6MjEwNTU3ODk2OX0.zuHswp3JIts2jeA_AOj7DIXo7no7Ql33BPNVX4oePL8';
 var DOMINIO_LOGIN = '@vulcabras.com';
@@ -1264,6 +1264,7 @@ function comemora(item){
   var anims = [], timers = [], t0 = Date.now();
   function depois(ms, fn){ timers.push(setTimeout(fn, ms)); }
   anims.push(mold.animate([{opacity:0},{opacity:1}], { duration:400, fill:'forwards' }));
+  audio.loop = true;   // o som tem ~25 s e a festa dura 1 min: repete até acabar
   tocaAudio();
   var reduz = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   function medidas(){ var cr = rel(card), sl = rel(slot), ch = 84, cw = Math.round(ch*((slot.naturalWidth/slot.naturalHeight) || (CARROS[item.n].ar))); car.style.width = cw+'px'; carImg.style.width = cw+'px'; var esc = sl.h/ch; return { cr:cr, sl:sl, ch:ch, cw:cw, yS:sl.y+sl.h/2-ch/2, xS:sl.x+sl.w/2-cw*esc/2, esc:esc }; }   // o carro encolhe a partir da borda esquerda
@@ -1294,7 +1295,7 @@ function comemora(item){
   function fim(){
     anims.forEach(function(a){ a.cancel(); }); timers.forEach(clearTimeout);
     mold.classList.remove('on'); mold.style.opacity = 0; car.style.visibility = 'hidden'; slot.style.visibility = 'visible';
-    try { audio.pause(); } catch(e){}
+    try { audio.pause(); audio.loop = false; } catch(e){}
     encerraComemoracao = function(){}; comemorando = false; proximaComemoracao(); mostraBaloes();
   }
   encerraComemoracao = fim;
