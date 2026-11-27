@@ -293,7 +293,7 @@ body.ocioso,body.ocioso *{cursor:none!important}
 .kpis{display:grid;gap:14px;margin-bottom:14px}
 .kpis.c5{grid-template-columns:repeat(5,1fr)}.kpis.c4{grid-template-columns:repeat(4,1fr)}.kpis.c3{grid-template-columns:repeat(3,1fr)}
 .kpis.c5 .kpi .v{font-size:42px}
-.kpis.c6{grid-template-columns:repeat(6,1fr);gap:10px}.kpis.c6 .kpi{padding:12px 14px}.kpis.c6 .kpi .v{font-size:38px}.kpis.c6 .kpi .v small{font-size:15px;margin-left:6px}.kpis.c6 .kpi .k{font-size:13px;letter-spacing:.06em}.kpis.c6 .kpi .s{font-size:17px}
+.kpis.c6{grid-template-columns:repeat(6,1fr);gap:10px}.kpis.c6 .kpi{padding:12px 14px}.kpis.c6 .kpi .v{font-size:38px}.kpis.c6 .kpi .v small{font-size:15px;margin-left:6px}.kpis.c6 .kpi .k{font-size:13px;letter-spacing:.06em}.kpis.c6 .kpi .s{font-size:18px;white-space:normal}.kpis.c6 .kpi .s .nb{white-space:nowrap}
 .kpi.turnos .lin{display:grid;gap:1px}.kpi.turnos .lin em{font-style:normal;font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--text-muted)}
 .kpi.turnos .lin span{font-size:24px;font-weight:800;line-height:1.1;color:var(--vc);white-space:nowrap}.kpi.turnos .lin span small{font-size:13px;font-weight:700;color:var(--text-muted);margin:0 10px 0 4px}
 .kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:grid;gap:4px;border-top:4px solid var(--kc,var(--border))}
@@ -957,8 +957,8 @@ function renderTelaB(snap, opRes, dia){
   var linT = function(rot, v, cor){ return '<div class="lin" style="--vc:'+cor+'"><em>'+rot+'</em><span>'+fmt(v[0])+'<small>T01</small>'+fmt(v[1])+'<small>T02</small></span></div>'; };
   var kTurno = '<div class="kpi turnos" style="--kc:var(--accent)"><span class="k">Por turno · '+(dia === hojeOp() ? 'hoje' : dia.slice(8,10)+'/'+dia.slice(5,7))+'</span>'+linT('Separação', pS, COR_SEP2)+linT('Conferência checkout', pC, COR_CONF)+'</div>';
   el.innerHTML = '<div class="kpis c6">'+
-    kpiHtml(rotuloDia('Separado', dia), fmt(tSep), 'Checkout '+qt(somaObj(sc))+' · Colmeia '+qt(somaObj(sm)), COR_SEP, COR_SEP2, 'peças')+
-    kpiHtml(rotuloDia('Conferido', dia), fmt(tConf), 'Checkout '+qt(somaObj(cc))+' · Colmeia '+qt(somaObj(cm)), COR_CONF, COR_CONF, 'peças')+
+    kpiHtml(rotuloDia('Separado', dia), fmt(tSep), '<span class="nb">Checkout '+qt(somaObj(sc))+'</span> · <span class="nb">Colmeia '+qt(somaObj(sm))+'</span>', COR_SEP, COR_SEP2, 'peças')+
+    kpiHtml(rotuloDia('Conferido', dia), fmt(tConf), '<span class="nb">Checkout '+qt(somaObj(cc))+'</span> · <span class="nb">Colmeia '+qt(somaObj(cm))+'</span>', COR_CONF, COR_CONF, 'peças')+
     kSem+
     kpiPrevisao('Previsão separação', sep.previsao, tSep, COR_SEP, COR_SEP2, dia)+
     kpiPrevisao('Previsão conferência', conf.previsao, tConf, COR_CONF, COR_CONF, dia)+kTurno+
