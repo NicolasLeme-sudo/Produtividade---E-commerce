@@ -2477,7 +2477,7 @@ async function renderPontosBlack() {
     tabelaLanc("vistoria"));
 
   // Gincanas: para os 8 times, para um time ou para o time de um colaborador (24/11)
-  var gincanas = (RB.DESAFIOS[pb.dia] || []).concat((RB.GINCANAS_DIA || {})[pb.dia] || [], ["Outra gincana"]);   // só as do dia escolhido
+  var gincanas = (RB.GINCANAS || []).concat(["Outra gincana"]);   // as 8 gincanas da programação (qualquer dia) + Outra
   var membros = {}; (rM.data || []).forEach(function (m) { if (m.usuario_wms && !/^REFORCO\./.test(m.usuario_wms) && COMP_TIMES[m.time]) membros[m.usuario_wms] = m; });
   var listaMembros = Object.keys(membros).map(function (u) { return membros[u]; })
     .sort(function (a, b) { return String(a.nome || a.usuario_wms).localeCompare(String(b.nome || b.usuario_wms)); });
