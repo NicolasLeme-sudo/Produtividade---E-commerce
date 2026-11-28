@@ -42,7 +42,7 @@ async function verificar(cfg, log, opcoes) {
 
   const sb = opcoes.sb || await D.cliente(cfg);
   const snap = (await sb.from("dashboard_snapshots").select("dados").eq("pagina", "outbound").maybeSingle()).data;
-  const cad = (await sb.from("competicao_times").select("usuario_wms,nome,turno,time")).data || [];
+  const cad = (await sb.from("competicao_times").select("usuario_wms,nome,turno,time,atividade")).data || [];
   if (!snap || !snap.dados || !cad.length) return 0;
   await D.atualizarCadastro(sb);
   const out = snap.dados;
@@ -58,20 +58,32 @@ async function verificar(cfg, log, opcoes) {
     l.times.forEach(function (t) {
       const membros = cad.filter(function (r) { return r.turno === l.turno && r.time === t && !/^(SEMWMS|REFORCO)/i.test(r.usuario_wms); });
       const pessoas = {}, ativ = {}; let sem = 0;
+      // 28/11: quem não tem peça no WMS (Embalagem, Organização, ainda sem produção) também é listado, com o nome, embaixo da tabela
+      const semNomes = {}, temProd = {}, ativsDe = {};
+      membros.forEach(function (r) { (ativsDe[r.usuario_wms] = ativsDe[r.usuario_wms] || {})[r.atividade] = 1; });
       membros.forEach(function (r) {
         // variação do nome não pega o login exato de outra pessoa da escalação (27/11: Cristiane Salle x Cristiane Maria)
         const ks = chaves(r).filter(function (x, i) { return i === 0 || !exatos[x] || exatos[x] === r.usuario_wms; }), ksep = ks.filter(function (x) { return prodSep[x]; })[0], kconf = ks.filter(function (x) { return prodConf[x]; })[0];
         if (ksep) { pessoas[r.usuario_wms + "S"] = prodSep[ksep]; ativ[r.usuario_wms + "S"] = "Separação"; }
         if (kconf) { pessoas[r.usuario_wms + "C"] = prodConf[kconf]; ativ[r.usuario_wms + "C"] = "Conferência"; }
-        if (!ksep && !kconf) sem++;
+        if (ksep || kconf) temProd[r.usuario_wms] = 1;
+        else semNomes[r.usuario_wms] = r;
       });
+      Object.keys(temProd).forEach(function (u) { delete semNomes[u]; });
+      const semLista = Object.keys(semNomes).map(function (u) {
+        const r = semNomes[u], at = Object.keys(ativsDe[u] || {}).map(function (a) { return ROT_ATIV[String(a).replace(/_.*/, "")] || a; });
+        return nomeCurto(r.nome || u) + " (" + at.join(", ") + ")";
+      }).sort();
+      sem = semLista.length;
+      const escalados = Object.keys(ativsDe).length;
       const info = TIME[t] || ["Time " + t, "#297ADF", ""];
-      const tb = E.tabela("Time " + info[0] + " · " + info[2], pessoas, info[1], "email", null, membros.length + " escalados" + (sem ? " · " + sem + " sem produção" : ""), false, null, ativ);
-      total += tb.total; tabelas.push(tb.html);
+      const tb = E.tabela("Time " + info[0] + " · " + info[2], pessoas, info[1], "email", null, escalados + " escalados" + (sem ? " · " + sem + " sem peças no WMS" : ""), false, null, ativ);
+      total += tb.total;
+      tabelas.push(tb.html + (semLista.length ? '<p style="' + E.FONTE + 'font-size:12px;color:#5B6B85;margin:-4px 2px 10px">Sem peças no WMS até agora: ' + esc(semLista.join(" · ")) + "</p>" : ""));
     });
     if (!total) continue;     // sem produção: não manda e-mail vazio
     const cab = '<div style="' + E.FONTE + 'padding:4px 2px"><p style="' + E.FONTE + 'font-size:14px;margin:0 0 8px">Produtividade dos colaboradores dos seus times · ' + TURNO_ROT[l.turno] + " · " + E.dataBR(dia) + " · " + esc(p.horaTexto) + "</p>";
-    const html = cab + tabelas.join("<br>") + '<p style="' + E.FONTE + 'font-size:11px;color:#7C8BA8;margin:8px 0 0">Separação + conferência (checkout e colmeia), peças por hora. Cada colaborador aparece uma linha por atividade em que produziu; sem produção não aparece.</p></div>';
+    const html = cab + tabelas.join("<br>") + '<p style="' + E.FONTE + 'font-size:11px;color:#7C8BA8;margin:8px 0 0">Separação + conferência (checkout e colmeia), peças por hora. Cada colaborador aparece uma linha por atividade em que produziu; quem não tem peça no WMS (embalagem, organização) vai listado embaixo da tabela do time.</p></div>';
     const cores = l.times.map(function (t) { return (TIME[t] || [t])[0]; }).join(" + ");
     const assunto = "Seu time · " + TURNO_ROT[l.turno] + " · " + cores + " · " + E.dataBR(dia) + (p.fech ? " · Fechamento" : " · " + p.horaTexto);
     if (EM.mandar(opcoes.para || l.email, assunto, html, log)) {
@@ -85,5 +97,11 @@ async function verificar(cfg, log, opcoes) {
   return n;
 }
 function esc(t) { return E.esc(t); }
+const ROT_ATIV = { sep: "Separação", conf: "Conferência", emb: "Embalagem", exp: "Expedição", org: "Organização" };
+function nomeCurto(n) {   // "JANIELLE DA SILVA SANTOS" -> "Janielle Santos"
+  const t = String(n || "").trim().split(/\s+/).filter(function (x) { return CONECT.indexOf(x.toUpperCase()) === -1; });
+  const cap = function (x) { return x.charAt(0).toUpperCase() + x.slice(1).toLowerCase(); };
+  return t.length > 1 ? cap(t[0]) + " " + cap(t[t.length - 1]) : cap(t[0] || "");
+}
 
 module.exports = { verificar: verificar };
