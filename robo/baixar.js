@@ -214,7 +214,7 @@ const TELAS = [
     // A grade fica num iframe (nome muda a cada abertura): acha o que tem o filtro da onda. Ondas da COLMEIA ainda não separadas.
     filtros: async function (p) {
       let fr = null;
-      for (let t = 0; t < 12 && !fr; t++) {
+      for (let t = 0; t < 40 && !fr; t++) {   // 28/11: o gerenciador passou a demorar mais de 36 s para carregar; espera até 2 min
         for (const f of p.frames()) { if (await f.locator("#filter-CONFIGURACAOONDA").count()) { fr = f; break; } }
         if (!fr) await p.waitForTimeout(3000);
       }
