@@ -521,6 +521,13 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .comp-adm tbody tr{cursor:pointer;}
 .comp-adm tr.sel td{background:var(--accent-soft);}
 .comp-adm .tbl-wrap{overflow-x:auto;}
+/* Pontos da Black: Editar/Estornar empilhados e compactos, para não vazar do card estreito (28/11) */
+.pb-acoes{display:flex; flex-direction:column; gap:4px; align-items:stretch;}
+.pb-acoes .btn{padding:3px 8px; font-size:.72rem; line-height:1.2; white-space:nowrap;}
+#pb-bloco-extrair .tbl-wrap, .pb-ajustes .tbl-wrap, #pb-bloco-vistoria .tbl-wrap{overflow-x:auto; max-width:100%;}
+.pb-tab{width:100%; font-size:.8rem;}
+.pb-tab th, .pb-tab td{padding:4px 5px; vertical-align:top;}
+.pb-tab .pb-sub{display:block; font-size:.7rem; color:var(--text-muted, #8b98ad); margin-top:2px; overflow-wrap:anywhere;}
 .comp-membro{display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:.78rem; background:var(--bg-input);}
 .comp-membro small{display:block; color:var(--text-muted); font-size:.66rem;}
 .comp-edit{grid-column:1 / -1; display:flex; gap:6px; flex-wrap:wrap; align-items:center;}

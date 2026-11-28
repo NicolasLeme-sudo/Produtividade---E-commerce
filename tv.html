@@ -506,6 +506,9 @@ function rotDia(dia){ var p = dia.split('-'), d = new Date(+p[0], +p[1]-1, +p[2]
 var TIMES_COR = { 1:{nome:'Vermelho',c:'--t1',s:'--t1-soft',hex:'#EF5B5B'}, 2:{nome:'Azul',c:'--t2',s:'--t2-soft',hex:'#4C95F0'}, 3:{nome:'Verde',c:'--t3',s:'--t3-soft',hex:'#45C665',escuro:true},
                   4:{nome:'Amarelo',c:'--t4',s:'--t4-soft',hex:'#F6C400',escuro:true}, 5:{nome:'Rosa',c:'--t5',s:'--t5-soft',hex:'#EC4FA0'}, 6:{nome:'Roxo',c:'--t6',s:'--t6-soft',hex:'#A773EA'},
                   7:{nome:'Laranja',c:'--t7',s:'--t7-soft',hex:'#F28C28',escuro:true}, 8:{nome:'Branco',c:'--t8',s:'--t8-soft',hex:'#F2F2F2',escuro:true} };
+// Cores dos times de apoio só para os balões de lançamento (28/11: sem elas o balão do Expedição/Corte/Pula/FIFO era descartado).
+var TIMES_COR_BALAO = Object.assign({}, TIMES_COR, { 9:{nome:'Expedição',hex:'#F6BD00'}, 10:{nome:'Corte',hex:'#F53A3D'}, 11:{nome:'Pula',hex:'#9AA7B4'}, 12:{nome:'FIFO',hex:'#98C13D'} });
+var extraApoio = {};   // pontos lançados do turno nos times de apoio (somaLancamentos)
 var META_DIA_TIME = RegrasBlack.META_DIA_TIME;   // meta do 1º turno (regras-black.js META_TURNO)
 var CARROS = { 1:{h:34, ar:2.33}, 2:{h:40, ar:1.30}, 3:{h:40, ar:1.06}, 4:{h:25, ar:3.82}, 5:{h:38, ar:1.59}, 6:{h:32, ar:2.58}, 7:{h:38, ar:1.42}, 8:{h:44, ar:0.71} };
 var CARRO_ESCALA = 1.18;   // carros um pouco maiores que no site, porque as raias da TV são mais altas
@@ -545,6 +548,7 @@ function calcularCompeticao(snap, cadastro, diaAlvo, todos){
 function somaLancamentos(c, lanc){
   var ex = {}; lanc.forEach(function(l){ ex[l.time] = (ex[l.time] || 0) + (Number(l.pontos) || 0); });
   c.times.forEach(function(t){ t.pecas = t.total; t.extra = ex[t.n] || 0; t.total = Math.max(0, t.pecas + t.extra); });
+  extraApoio = { 9: ex[9] || 0, 10: ex[10] || 0, 11: ex[11] || 0, 12: ex[12] || 0 };
   RegrasBlack.GRUPOS.forEach(function(G){
     c.times.filter(function(t){ return t.grupo === G.id; }).sort(function(a, b){ return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.total - a.total; }).forEach(function(t, i){ t.pos = t.lista.length ? i + 1 : null; });
   });
@@ -774,7 +778,17 @@ function aplicaApoio(u){
   poeApoio(11, vivo ? modeloPula(u.blk) : passado);
   poeApoio(12, vivo ? modeloFifo(u.res) : passado);
 }
-function renderTelaG(c, exp, u){ aplicaExpedicao(exp); aplicaApoio(u); renderCorrida('telaG', c); }
+function renderTelaG(c, exp, u){ aplicaExpedicao(exp); aplicaApoio(u); pontosApoio(); renderCorrida('telaG', c); }
+// Pontos lançados nos times de apoio: a Expedição conta em peças (soma no realizado, 1 ponto = 1 peça);
+// Corte (itens), Pula e FIFO (%) só mostram os pontos no card, sem mexer na pista.
+function pontosApoio(){
+  TIMES_APOIO.forEach(function(t){
+    var x = extraApoio[t.n] || 0;
+    if (!x || !t.meta) return;
+    if (t.n === 9) t.total = Math.max(0, t.total + x);
+    t.rodape = (t.rodape || '') + ' · Pontos <b>' + (x > 0 ? '+' : '−') + fmt(Math.abs(x)) + '</b>';
+  });
+}
 // Distribui a altura que sobra na tela aberta: a maior parte vai para as raias e o resto fica de respiro.
 function ajustaAltura(){
   var tela = telas[atual];
@@ -1196,7 +1210,7 @@ function mostraBaloes(){
   if (comemorando) return;
   var box = document.getElementById('baloes');
   while (filaBaloes.length && box.children.length < BALOES_MAX) {
-    var b = filaBaloes.shift(), cor = TIMES_COR[b.n];
+    var b = filaBaloes.shift(), cor = TIMES_COR_BALAO[b.n];
     if (!cor) continue;
     var el = document.createElement('div'); el.className = 'balao'; el.style.setProperty('--c', cor.hex);
     el.innerHTML = '<div class="b1"><span><i></i>Time '+cor.nome+'</span><span class="bp">'+(b.pts > 0 ? '+' : b.pts < 0 ? '−' : '±')+fmt(Math.abs(b.pts))+' pts</span></div><div class="b2">'+esc(b.txt)+'</div>';

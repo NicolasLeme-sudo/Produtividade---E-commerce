@@ -2473,11 +2473,13 @@ async function renderPontosBlack() {
   var tabelaLanc = function (cat) {
     var ls = lanc.filter(function (l) { return l.categoria === cat; });
     if (!ls.length) return "";
-    return '<div class="tbl-wrap"><table class="comp-classif"><thead><tr><th>Hora</th><th>Time</th><th>Item</th><th>Pontos</th><th>Motivo</th><th>Por</th><th></th></tr></thead><tbody>' +
+    // 28/11: card estreito — Motivo e Por vão em letra pequena embaixo do item (a tabela completa fica em "Todos os lançamentos da Black")
+    return '<div class="tbl-wrap"><table class="comp-classif pb-tab"><thead><tr><th>Hora</th><th>Time</th><th>Item</th><th>Pontos</th><th></th></tr></thead><tbody>' +
       ls.map(function (l) {
         var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-        return "<tr><td>" + hr + "</td><td>" + COMP_TIMES[l.time][0] + "</td><td>" + htmlSeguro(l.item || "") + '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos +
-          "</td><td>" + htmlSeguro(l.motivo || "") + "</td><td>" + htmlSeguro((l.registrado_email || "").replace(/@.*/, "")) + '</td><td style="white-space:nowrap"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></td></tr>';
+        var sub = [l.motivo || "", (l.registrado_email || "").replace(/@.*/, "")].filter(Boolean).map(htmlSeguro).join(" · ");
+        return "<tr><td>" + hr + "</td><td>" + COMP_TIMES[l.time][0] + "</td><td>" + htmlSeguro(l.item || "") + (sub ? '<small class="pb-sub">' + sub + "</small>" : "") + '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos +
+          '</td><td><div class="pb-acoes"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></div></td></tr>';
       }).join("") + "</tbody></table></div>";
   };
   var cartao = function (k, titulo, corpo, botaoTopo) {
@@ -2534,7 +2536,7 @@ async function renderPontosBlack() {
       var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
       return "<tr><td>" + fmtDataBRIngest(l.dia) + "</td><td>" + htmlSeguro(l.turno) + "</td><td>" + hr + "</td><td>" + (COMP_TIMES[l.time] ? COMP_TIMES[l.time][0] : l.time) + "</td><td>" + (catRot[l.categoria] || l.categoria) + "</td><td>" + htmlSeguro(l.item || "") +
         '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos + "</td><td>" + htmlSeguro(l.motivo || "") + "</td><td>" + htmlSeguro((l.registrado_email || "").replace(/@.*/, "")) +
-        '</td><td style="white-space:nowrap"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></td></tr>';
+        '</td><td><div class="pb-acoes"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></div></td></tr>';
     }).join("") + "</tbody></table></div></details>";
   if (cxExtrair) cxExtrair.innerHTML = '<div class="pb-extrair"><span class="upload-status" id="pb-status-extrair"></span><button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições</button></div>' + histHtml;
 
