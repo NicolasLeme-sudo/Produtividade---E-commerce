@@ -525,6 +525,21 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
 .pb-acoes{display:flex; flex-direction:column; gap:4px; align-items:stretch;}
 .pb-acoes .btn{padding:3px 8px; font-size:.72rem; line-height:1.2; white-space:nowrap;}
 #pb-bloco-extrair .tbl-wrap, .pb-ajustes .tbl-wrap, #pb-bloco-vistoria .tbl-wrap{overflow-x:auto; max-width:100%;}
+/* "Ou vários times": campo que abre uma janelinha com as caixas (28/11) */
+.pb-multi{position:relative;}
+.pb-multi > summary{list-style:none; cursor:pointer; padding:8px 30px 8px 10px; border:1px solid var(--border, #2c3a52); border-radius:8px; background:var(--bg-input, transparent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; font-size:.85rem;}
+.pb-multi > summary::-webkit-details-marker{display:none;}
+.pb-multi > summary::after{content:"▾"; position:absolute; right:10px; top:50%; transform:translateY(-50%); opacity:.7;}
+.pb-multi.ativo > summary{border-color:var(--accent, #4C95F0); font-weight:700;}
+.pb-multi-pop{position:absolute; z-index:50; top:calc(100% + 4px); right:0; min-width:220px; max-height:340px; overflow:auto; padding:10px; border-radius:10px;
+  background:var(--bg-card, #1b2638); border:1px solid var(--border, #2c3a52); box-shadow:0 10px 30px rgba(0,0,0,.45); display:grid; gap:6px;}
+.pb-multi-pop label{display:flex !important; flex-direction:row !important; justify-content:flex-start !important; gap:8px; align-items:center; cursor:pointer; width:auto; margin:0; text-align:left; font-size:.85rem; text-transform:none; letter-spacing:0; color:var(--text, #e6edf7);}
+.pb-multi-pop input[type=checkbox]{width:auto !important; height:auto; margin:0; flex:none; padding:0;}
+.pb-multi-acoes{display:flex; gap:6px; justify-content:space-between;}
+.pb-multi-acoes .btn{padding:3px 10px; font-size:.75rem;}
+/* lançamentos já feitos: retrátil */
+.pb-lancados > summary{cursor:pointer; font-size:.85rem; padding:6px 0; color:var(--text-muted, #8b98ad);}
+.pb-lancados > summary b{color:var(--text, #e6edf7);}
 .pb-tab{width:100%; font-size:.8rem;}
 .pb-tab th, .pb-tab td{padding:4px 5px; vertical-align:top;}
 .pb-tab .pb-sub{display:block; font-size:.7rem; color:var(--text-muted, #8b98ad); margin-top:2px; overflow-wrap:anywhere;}

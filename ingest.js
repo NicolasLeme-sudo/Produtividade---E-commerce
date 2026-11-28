@@ -2473,14 +2473,16 @@ async function renderPontosBlack() {
   var tabelaLanc = function (cat) {
     var ls = lanc.filter(function (l) { return l.categoria === cat; });
     if (!ls.length) return "";
-    // 28/11: card estreito — Motivo e Por vão em letra pequena embaixo do item (a tabela completa fica em "Todos os lançamentos da Black")
-    return '<div class="tbl-wrap"><table class="comp-classif pb-tab"><thead><tr><th>Hora</th><th>Time</th><th>Item</th><th>Pontos</th><th></th></tr></thead><tbody>' +
+    // 28/11: card estreito — Motivo e Por vão em letra pequena embaixo do item (a tabela completa fica em "Todos os lançamentos da Black").
+    // Retrátil: fechado mostra só a contagem e o saldo; abre com um clique.
+    var saldo = ls.reduce(function (a, l) { return a + (Number(l.pontos) || 0); }, 0);
+    return '<details class="pb-lancados"><summary>Lançados neste turno: <b>' + ls.length + "</b> · saldo <b>" + (saldo > 0 ? "+" : "") + saldo + "</b></summary>" + '<div class="tbl-wrap"><table class="comp-classif pb-tab"><thead><tr><th>Hora</th><th>Time</th><th>Item</th><th>Pontos</th><th></th></tr></thead><tbody>' +
       ls.map(function (l) {
         var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         var sub = [l.motivo || "", (l.registrado_email || "").replace(/@.*/, "")].filter(Boolean).map(htmlSeguro).join(" · ");
         return "<tr><td>" + hr + "</td><td>" + COMP_TIMES[l.time][0] + "</td><td>" + htmlSeguro(l.item || "") + (sub ? '<small class="pb-sub">' + sub + "</small>" : "") + '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos +
           '</td><td><div class="pb-acoes"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-apagar" data-id="' + l.id + '">Apagar</button></div></td></tr>';
-      }).join("") + "</tbody></table></div>";
+      }).join("") + "</tbody></table></div></details>";
   };
   var cartao = function (k, titulo, corpo, botaoTopo) {
     return '<div class="panel" style="display:flex; flex-direction:column; gap:12px"><div class="panel-head"><div><p class="kicker">Missão Black</p><h4>' + titulo + "</h4></div>" + (botaoTopo || "") + "</div>" +
@@ -2515,11 +2517,11 @@ async function renderPontosBlack() {
     linhaCampos(campo("Gincana", '<select id="pb-desafio">' + opcoes(gincanas, gincanas[0]) + "</select>") +
       campo("Pontos", '<input id="pb-des-pts" type="number" value="' + RB.PONTOS_DESAFIO + '">')) +
     '<div id="pb-gin-outra-box" hidden>' + linhaCampos(campo("Nome da gincana", '<input id="pb-gin-outra" placeholder="ex.: Dupla Conectada">')) + "</div>" +
-    linhaCampos(campo("Para", selPara)) +
-    // Vários times de uma vez (27/11): marcando qualquer caixa, vale a marcação e o campo "Para" é ignorado.
-    '<div class="pb-gin-multi"><label style="font-weight:700">Ou marque vários times (ignora o campo "Para"):</label><div style="display:flex; flex-wrap:wrap; gap:6px 14px; margin:6px 0 10px">' +
-      COMP_NUM_TIMES.concat(COMP_TIMES_APOIO).map(function (n) { return '<label style="display:inline-flex; gap:5px; align-items:center"><input type="checkbox" class="pb-gin-t" data-n="' + n + '"> <span class="comp-dot" style="--c:var(' + COMP_TIMES[n][1] + ')"></span>' + htmlSeguro(COMP_TIMES[n][0]) + "</label>"; }).join("") +
-    "</div></div>" +
+    // Vários times de uma vez (27/11; 28/11 virou um campo que abre uma janelinha): marcando qualquer time, o campo "Para" é ignorado.
+    linhaCampos(campo("Para", selPara) + campo("Ou vários times", '<details class="pb-multi"><summary><span id="pb-multi-rot">Escolher times…</span></summary><div class="pb-multi-pop">' +
+      '<div class="pb-multi-acoes"><button type="button" class="btn ghost" id="pb-multi-todos">Marcar todos</button><button type="button" class="btn ghost" id="pb-multi-limpa">Limpar</button></div>' +
+      COMP_NUM_TIMES.concat(COMP_TIMES_APOIO).map(function (n) { return '<label><input type="checkbox" class="pb-gin-t" data-n="' + n + '"> <span class="comp-dot" style="--c:var(' + COMP_TIMES[n][1] + ')"></span>' + htmlSeguro(COMP_TIMES[n][0]) + "</label>"; }).join("") +
+      '<div class="pb-multi-acoes"><button type="button" class="btn" id="pb-multi-ok">OK</button></div></div></details>')) +
       '<div><button class="btn" id="pb-btn-desafio">Lançar</button></div>' +
     tabelaLanc("desafio"));
 
@@ -2588,6 +2590,21 @@ async function renderPontosBlack() {
     gravar("vistoria", linhas, "✓ Vistoria lançada: " + (tot > 0 ? "+" : "") + tot + " pontos para o " + COMP_TIMES[pb.time][0] + ".");
   });
   document.getElementById("pb-gin-para").addEventListener("change", function () { pb.ginPara = this.value; });
+  (function () {   // janelinha "Ou vários times"
+    var box = caixas.gincanas.querySelector(".pb-multi"), rot = document.getElementById("pb-multi-rot");
+    if (!box) return;
+    var marcas = function () { return Array.prototype.slice.call(box.querySelectorAll(".pb-gin-t")); };
+    var atualiza = function () {
+      var m = marcas().filter(function (c) { return c.checked; });
+      rot.textContent = !m.length ? "Escolher times…" : m.length === marcas().length ? "Todos os " + m.length + " times" : m.map(function (c) { return COMP_TIMES[Number(c.getAttribute("data-n"))][0]; }).join(", ");
+      box.classList.toggle("ativo", m.length > 0);
+    };
+    marcas().forEach(function (c) { c.addEventListener("change", atualiza); });
+    document.getElementById("pb-multi-todos").addEventListener("click", function () { marcas().forEach(function (c) { c.checked = true; }); atualiza(); });
+    document.getElementById("pb-multi-limpa").addEventListener("click", function () { marcas().forEach(function (c) { c.checked = false; }); atualiza(); });
+    document.getElementById("pb-multi-ok").addEventListener("click", function () { box.open = false; });
+    document.addEventListener("click", function (e) { if (box.open && !box.contains(e.target)) box.open = false; });
+  })();
   // "Outra gincana": abre o campo do nome (gincana nova que não está na programação).
   document.getElementById("pb-desafio").addEventListener("change", function () {
     var box = document.getElementById("pb-gin-outra-box");
