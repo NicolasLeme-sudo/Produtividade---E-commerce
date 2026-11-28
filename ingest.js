@@ -2446,7 +2446,10 @@ async function renderPontosBlack() {
     ajuste: document.getElementById("pb-bloco-ajuste"), ouro: document.getElementById("pb-bloco-ouro") };
   if (!RB || !caixas.vistoria) return;
   var ta = RB.turnoAtual(new Date());
-  if (!pb.dia) { pb.dia = ta.dia; pb.turno = ta.turno; }
+  // 28/11: com o Admin aberto desde ontem, o Dia ficava preso no dia anterior e os lançamentos iam para 27/11.
+  // Agora, quando o turno do relógio muda, o Dia/Turno voltam para o turno atual (a escolha manual vale até a troca de turno).
+  var taK = ta.dia + "|" + ta.turno;
+  if (!pb.dia || pb.taK !== taK) { pb.dia = ta.dia; pb.turno = ta.turno; pb.taK = taK; }
   var dias = RB.DIAS.map(function (d) { return [d[0], d[1] + " · " + d[2]]; });
   if (!RB.DIAS.some(function (d) { return d[0] === pb.dia; })) dias.unshift([pb.dia, fmtDataBRIngest(pb.dia) + " (teste)"]);
   var times = COMP_TIMES_PONTOS.map(function (n) { return [n, COMP_TIMES[n][0] + (COMP_TIMES_APOIO.indexOf(n) !== -1 ? " (apoio)" : grupoTimeRot(n) ? " (" + grupoTimeRot(n) + ")" : "")]; });
@@ -2547,6 +2550,9 @@ async function renderPontosBlack() {
   var email = async function () { var r = await supabaseClient.auth.getSession(); return r.data && r.data.session ? r.data.session.user.email : null; };
   var gravar = async function (k, linhas, ok) {
     var em = await email();
+    var agora = RB.turnoAtual(new Date());
+    if ((pb.dia !== agora.dia || pb.turno !== agora.turno) &&
+      !confirm("Atenção: este lançamento vai para " + fmtDataBRIngest(pb.dia) + " · " + pb.turno + ", que NÃO é o turno atual (" + fmtDataBRIngest(agora.dia) + " · " + agora.turno + ") e não aparece no telão agora.\n\nLançar mesmo assim?")) { aviso(k, "Lançamento cancelado.", "erro"); return; }
     linhas.forEach(function (l) { l.dia = pb.dia; l.turno = pb.turno; l.registrado_email = em; if (!l.time) l.time = pb.time; });
     var r = await supabaseClient.from("competicao_pontos").insert(linhas);
     if (r.error) { aviso(k, "Erro: " + r.error.message, "erro"); return; }

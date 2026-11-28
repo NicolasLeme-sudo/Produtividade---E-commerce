@@ -540,6 +540,15 @@ function calcularCompeticao(snap, cadastro, diaAlvo, todos){
   c.times.forEach(function(t){ t.cor = TIMES_COR[t.n]; });
   return c;
 }
+// 28/11: pontos lançados no Admin (gincana, vistoria, ajuste) do turno atual entram no placar da corrida (1 peça = 1 ponto).
+// t.pecas guarda só as peças: a comemoração de meta continua valendo pelas peças. Times de apoio (9 a 12) não entram (outra unidade).
+function somaLancamentos(c, lanc){
+  var ex = {}; lanc.forEach(function(l){ ex[l.time] = (ex[l.time] || 0) + (Number(l.pontos) || 0); });
+  c.times.forEach(function(t){ t.pecas = t.total; t.extra = ex[t.n] || 0; t.total = Math.max(0, t.pecas + t.extra); });
+  RegrasBlack.GRUPOS.forEach(function(G){
+    c.times.filter(function(t){ return t.grupo === G.id; }).sort(function(a, b){ return (b.lista.length ? 1 : 0) - (a.lista.length ? 1 : 0) || b.total - a.total; }).forEach(function(t, i){ t.pos = t.lista.length ? i + 1 : null; });
+  });
+}
 
 /* ================= TELAS A E G · CORRIDA ================= */
 // Duas telas com a mesma estrutura: pistas em largura total e, embaixo, um card por time (como antes de 09/11).
@@ -617,7 +626,7 @@ function cardsBaixo(grupos){
         return '<div class="cb'+(t.pos === 1 ? ' lider' : '')+'" data-k="c'+t.n+'" '+st+'><div class="c1"><i></i>Time '+t.cor.nome+(t.card && t.card.tetoRot ? '<span class="comp-pos"'+(t.card.pmCor ? ' style="--c:'+t.card.pmCor+'; --cs:rgba(255,107,107,.18)"' : '')+'>'+t.card.tetoRot+'</span>' : t.pos ? '<span class="comp-pos">'+t.pos+'º</span>' : '')+'</div>'+
           '<div class="c2">'+(t.card ? '<span class="gr"><b>'+t.card.gr+'</b><small>'+t.card.un+'</small></span>'+(t.card.tetoRot ? '' : '<span class="pm"><b>'+t.card.pm+'</b><em>'+t.card.pmRot+'</em></span>')
             : '<span class="gr"><b>'+fmt(t.total)+'</b><small>peças</small></span><span class="pm"><b>'+pm+'%</b><em>da meta</em></span>')+'</div>'+
-          '<div class="c3">'+(t.rodape || 'Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b>')+'</div></div>';
+          '<div class="c3">'+(t.rodape || 'Sep. <b>'+fmt(t.sep)+'</b> · Conf. <b>'+fmt(t.conf)+'</b>'+(t.extra ? ' · Pontos <b>'+(t.extra > 0 ? '+' : '−')+fmt(Math.abs(t.extra))+'</b>' : ''))+'</div></div>';
       }).join('')+'</div></div>';
   }).join('')+'</div>';
 }
@@ -1242,9 +1251,10 @@ function verificaMetas(c){
   var primeira = primeiraLeitura; primeiraLeitura = false;
   if (!c.dia || c.dia !== hojeOp() || !ehHoje() || modoSoma()) return;
   c.times.forEach(function(t){
-    if (t.meta && t.total >= t.meta && !jaComemorou(c.dia, t.n)) {
+    var pc = t.pecas != null ? t.pecas : t.total;   // meta vale pelas peças, sem os pontos lançados
+    if (t.meta && pc >= t.meta && !jaComemorou(c.dia, t.n)) {
       marcaComemorou(c.dia, t.n);
-      if (!primeira) fila.push({ n:t.n, pecas:t.total });
+      if (!primeira) fila.push({ n:t.n, pecas:pc });
     }
   });
   proximaComemoracao();
@@ -1883,6 +1893,7 @@ async function carregar(){
     document.getElementById('telaA').dataset.dia = diaOut;
     var telaGDia = document.getElementById('telaG'); if (telaGDia) telaGDia.dataset.dia = diaOut;
     var c = modoSoma() ? calcularCompeticaoDias(snap, cadT, diasSoma, cadAll) : calcularCompeticao(snap, cadT, diaOut, cadAll);
+    if (!MODO_OPERACAO && !outroTurno && ehHoje() && !modoSoma() && !r[4].error) somaLancamentos(c, r[4].data || []);
     var ouros = r[3].error ? [] : (r[3].data || []);
     var doTurno = function(x){ return !turnoTela || x.turno === turnoTela; };
     ouroAtivo = MODO_OPERACAO || !ehHoje() || modoSoma() || outroTurno ? null : ouros.filter(function(x){ return x.dia === ta.dia && doTurno(x) && x.hora === new Date().getHours(); })[0] || null;
