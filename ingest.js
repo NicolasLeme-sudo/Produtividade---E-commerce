@@ -2479,7 +2479,7 @@ async function renderPontosBlack() {
         var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         var sub = [l.motivo || "", (l.registrado_email || "").replace(/@.*/, "")].filter(Boolean).map(htmlSeguro).join(" · ");
         return "<tr><td>" + hr + "</td><td>" + COMP_TIMES[l.time][0] + "</td><td>" + htmlSeguro(l.item || "") + (sub ? '<small class="pb-sub">' + sub + "</small>" : "") + '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos +
-          '</td><td><div class="pb-acoes"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></div></td></tr>';
+          '</td><td><div class="pb-acoes"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-apagar" data-id="' + l.id + '">Apagar</button></div></td></tr>';
       }).join("") + "</tbody></table></div>";
   };
   var cartao = function (k, titulo, corpo, botaoTopo) {
@@ -2530,13 +2530,13 @@ async function renderPontosBlack() {
     tabelaLanc("ajuste"));
   var cxExtrair = document.getElementById("pb-bloco-extrair");
   var catRot = { desafio: "Gincana", vistoria: "Vistoria", ajuste: "Ajuste" };
-  var histHtml = !lancTodos.length ? "" : '<details class="panel" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">Todos os lançamentos da Black (' + lancTodos.length + ") · editar ou estornar de qualquer dia</summary>" +
+  var histHtml = !lancTodos.length ? "" : '<details class="panel" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">Todos os lançamentos da Black (' + lancTodos.length + ") · editar ou apagar de qualquer dia</summary>" +
     '<div class="tbl-wrap" style="margin-top:10px"><table class="comp-classif"><thead><tr><th>Dia</th><th>Turno</th><th>Hora</th><th>Time</th><th>Tipo</th><th>Item</th><th>Pontos</th><th>Motivo</th><th>Por</th><th></th></tr></thead><tbody>' +
     lancTodos.map(function (l) {
       var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
       return "<tr><td>" + fmtDataBRIngest(l.dia) + "</td><td>" + htmlSeguro(l.turno) + "</td><td>" + hr + "</td><td>" + (COMP_TIMES[l.time] ? COMP_TIMES[l.time][0] : l.time) + "</td><td>" + (catRot[l.categoria] || l.categoria) + "</td><td>" + htmlSeguro(l.item || "") +
         '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos + "</td><td>" + htmlSeguro(l.motivo || "") + "</td><td>" + htmlSeguro((l.registrado_email || "").replace(/@.*/, "")) +
-        '</td><td><div class="pb-acoes"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></div></td></tr>';
+        '</td><td><div class="pb-acoes"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-apagar" data-id="' + l.id + '">Apagar</button></div></td></tr>';
     }).join("") + "</tbody></table></div></details>";
   if (cxExtrair) cxExtrair.innerHTML = '<div class="pb-extrair"><span class="upload-status" id="pb-status-extrair"></span><button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições</button></div>' + histHtml;
 
@@ -2663,13 +2663,37 @@ async function renderPontosBlack() {
         var nm = prompt("Motivo:", l.motivo || "");
         if (nm === null) return;
         if (np === l.pontos && nt === l.time && (nm || "") === (l.motivo || "")) return;
+        editarDeVerdade(ka, l, np, nt, nm, hr);
+      });
+    });
+    // Apagar (28/11): some do histórico e do placar. Precisa da permissão de sql/black_pontos_apagar.sql.
+    cx.querySelectorAll(".pb-apagar").forEach(function (b) {
+      b.addEventListener("click", async function () {
+        var l = acha(b.getAttribute("data-id"));
+        if (!l) return;
+        var ka = k === "extrair" ? k : chaveCat[l.categoria] || k;
+        var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        if (!confirm("Apagar o lançamento das " + hr + " (" + fmtDataBRIngest(l.dia) + " · " + l.turno + ")?\n\n" + COMP_TIMES[l.time][0] + " · " + (l.item || l.categoria) + " · " + (l.pontos > 0 ? "+" : "") + l.pontos + " pontos\n\nEle some do histórico e do placar.")) return;
+        var r = await supabaseClient.from("competicao_pontos").delete().eq("id", l.id).select("id");
+        if (r.error) { aviso(ka, "Erro: " + r.error.message, "erro"); return; }
+        if (!(r.data || []).length) { aviso(ka, "O banco ainda não permite apagar: rode sql/black_pontos_apagar.sql no Supabase.", "erro"); return; }
+        await renderPontosBlack(); aviso(ka, "✓ Lançamento apagado.", "ok");
+      });
+    });
+  });
+  // Edição direta (UPDATE). Sem a permissão do SQL novo, cai no jeito antigo: estorno do original + valor novo.
+  async function editarDeVerdade(ka, l, np, nt, nm, hr) {
+    var dados = { pontos: np, time: nt, motivo: nm || null, editado_em: new Date().toISOString() };
+    var r = await supabaseClient.from("competicao_pontos").update(dados).eq("id", l.id).select("id");
+    if (r.error && /editado_em/.test(r.error.message)) { delete dados.editado_em; r = await supabaseClient.from("competicao_pontos").update(dados).eq("id", l.id).select("id"); }
+    if (!r.error && (r.data || []).length) { await renderPontosBlack(); aviso(ka, "✓ Lançamento editado.", "ok"); return; }
+    if (true) {
         gravar(ka, [
           { dia: l.dia, turno: l.turno, time: l.time, categoria: l.categoria, item: "Estorno: " + (l.item || ""), pontos: -l.pontos, motivo: "Edição do lançamento das " + hr },
           { dia: l.dia, turno: l.turno, time: nt, categoria: l.categoria, item: l.item, pontos: np, motivo: (nm ? nm + " · " : "") + "corrige o lançamento das " + hr }
         ], "✓ Lançamento editado (estorno do original + valor novo).");
-      });
-    });
-  });
+    }
+  }
   document.getElementById("pb-btn-ouro").addEventListener("click", async function () {
     var r = await supabaseClient.from("competicao_hora_ouro").insert({ dia: pb.dia, turno: pb.turno, hora: Number(document.getElementById("pb-ouro-hora").value),
       meta_piso: parseInt(document.getElementById("pb-ouro-piso").value, 10) || 0, meta_colmeia: parseInt(document.getElementById("pb-ouro-col").value, 10) || 0 });
