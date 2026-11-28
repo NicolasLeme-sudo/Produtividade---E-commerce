@@ -2475,7 +2475,7 @@ async function renderPontosBlack() {
       ls.map(function (l) {
         var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         return "<tr><td>" + hr + "</td><td>" + COMP_TIMES[l.time][0] + "</td><td>" + htmlSeguro(l.item || "") + '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos +
-          "</td><td>" + htmlSeguro(l.motivo || "") + "</td><td>" + htmlSeguro((l.registrado_email || "").replace(/@.*/, "")) + '</td><td><button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></td></tr>';
+          "</td><td>" + htmlSeguro(l.motivo || "") + "</td><td>" + htmlSeguro((l.registrado_email || "").replace(/@.*/, "")) + '</td><td style="white-space:nowrap"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></td></tr>';
       }).join("") + "</tbody></table></div>";
   };
   var cartao = function (k, titulo, corpo, botaoTopo) {
@@ -2622,6 +2622,31 @@ async function renderPontosBlack() {
         var l = lanc.filter(function (x) { return x.id === b.getAttribute("data-id"); })[0];
         if (!l || !confirm("Estornar " + l.pontos + " pontos do " + COMP_TIMES[l.time][0] + " (" + (l.item || l.categoria) + ")?")) return;
         gravar(chaveCat[l.categoria] || k, [{ time: l.time, categoria: l.categoria, item: "Estorno: " + (l.item || ""), pontos: -l.pontos, motivo: "Estorno do lançamento das " + new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }], "✓ Estorno lançado.");
+      });
+    });
+    // Editar (28/11): o banco não deixa alterar linha (histórico); a edição grava o estorno do original + o lançamento corrigido, juntos.
+    // No telão sai um balão só, com a diferença; no extrato ficam as duas linhas.
+    caixas[k].querySelectorAll(".pb-editar").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var l = lanc.filter(function (x) { return x.id === b.getAttribute("data-id"); })[0];
+        if (!l) return;
+        var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        var sp = prompt("Editar lançamento das " + hr + " · " + COMP_TIMES[l.time][0] + " · " + (l.item || l.categoria) + "\n\nNovos pontos (use - para tirar):", String(l.pontos));
+        if (sp === null) return;
+        var np = parseInt(sp, 10);
+        if (isNaN(np)) { aviso(chaveCat[l.categoria] || k, "Pontos inválidos.", "erro"); return; }
+        var lista = COMP_TIMES_PONTOS.map(function (n) { return n + " = " + COMP_TIMES[n][0]; }).join(" · ");
+        var st = prompt("Time (número):\n" + lista, String(l.time));
+        if (st === null) return;
+        var nt = Number(st);
+        if (COMP_TIMES_PONTOS.indexOf(nt) === -1) { aviso(chaveCat[l.categoria] || k, "Time inválido.", "erro"); return; }
+        var nm = prompt("Motivo:", l.motivo || "");
+        if (nm === null) return;
+        if (np === l.pontos && nt === l.time && (nm || "") === (l.motivo || "")) return;
+        gravar(chaveCat[l.categoria] || k, [
+          { time: l.time, categoria: l.categoria, item: "Estorno: " + (l.item || ""), pontos: -l.pontos, motivo: "Edição do lançamento das " + hr },
+          { time: nt, categoria: l.categoria, item: l.item, pontos: np, motivo: (nm ? nm + " · " : "") + "corrige o lançamento das " + hr }
+        ], "✓ Lançamento editado (estorno do original + valor novo).");
       });
     });
   });
