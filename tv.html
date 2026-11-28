@@ -1226,7 +1226,9 @@ function verificaBaloes(c, cadT, lanc, ouros, snap, ta){
     if (!primeira && novo.length) { var tot = novo.reduce(function(s, l){ return s + (l.pontos || 0); }, 0); if (tot) novos.push([novo[0].time, tot, rotuloLanc(novo)]); }
   });
   if (c.dia === ta.dia) {
-    var pl = RegrasBlack.placarDoDia({ c:c, snap:snap, cadastro:cadT, dia:ta.dia, turno:ta.turno, agora:new Date(), lanc:[], ouro:ouros });
+    // o placar oficial conta pelas PEÇAS (t.pecas): os pontos lançados já entram como balão próprio e não podem inflar meta/hora de ouro
+    var cP = { dia:c.dia, times:c.times.map(function(t){ return Object.assign({}, t, { total: t.pecas != null ? t.pecas : t.total }); }) };
+    var pl = RegrasBlack.placarDoDia({ c:cP, snap:snap, cadastro:cadT, dia:ta.dia, turno:ta.turno, agora:new Date(), lanc:[], ouro:ouros });
     pl.linhas.forEach(function(r){
       if (r.metaBatida) evento('M' + r.n, r.n, r.metaBatida + r.antecipada, 'Meta batida' + (r.antecipada ? ' · +' + fmt(r.antecipada) + ' da meta antecipada' : ''));
       r.ouroDetalhe.forEach(function(o){ if (o.bateu) evento('O' + r.n + '_' + o.hora, r.n, o.feitas, 'Hora de ouro ' + String(o.hora).padStart(2, '0') + 'h · peças da hora em dobro'); });
