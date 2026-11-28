@@ -1199,14 +1199,24 @@ function mostraBaloes(){
     var b = filaBaloes.shift(), cor = TIMES_COR[b.n];
     if (!cor) continue;
     var el = document.createElement('div'); el.className = 'balao'; el.style.setProperty('--c', cor.hex);
-    el.innerHTML = '<div class="b1"><span><i></i>Time '+cor.nome+'</span><span class="bp">'+(b.pts > 0 ? '+' : '−')+fmt(Math.abs(b.pts))+' pts</span></div><div class="b2">'+esc(b.txt)+'</div>';
+    el.innerHTML = '<div class="b1"><span><i></i>Time '+cor.nome+'</span><span class="bp">'+(b.pts > 0 ? '+' : b.pts < 0 ? '−' : '±')+fmt(Math.abs(b.pts))+' pts</span></div><div class="b2">'+esc(b.txt)+'</div>';
     box.appendChild(el);
     setTimeout(function(e){ e.classList.add('sai'); setTimeout(function(){ e.remove(); mostraBaloes(); }, 400); }.bind(null, el), BALAO_MS);
   }
 }
+function juntaLanc(a, b){ var v = {}; return a.concat(b).filter(function(l){ if (v[l.id]) return false; v[l.id] = 1; return true; }); }
 function rotuloLanc(ls){
+  var ta = RegrasBlack.turnoAtual(new Date()), l0 = ls[0];
+  var ref = l0.dia && (l0.dia !== ta.dia || l0.turno !== ta.turno) ? 'Ref. ' + l0.dia.slice(8,10) + '/' + l0.dia.slice(5,7) + ' · ' + String(l0.turno).replace(' Turno', ' T') + ' · ' : '';
+  return ref + rotuloLanc1(ls);
+}
+function rotuloLanc1(ls){
   var l = ls[0], cat = { vistoria:'Vistoria', desafio:'Gincana', ajuste:'Ajuste' }[l.categoria] || l.categoria;
+  // Edição feita no Admin = estorno do original + valor novo, gravados juntos
+  var est = ls.filter(function(x){ return /^Estorno/.test(String(x.item || '')); }), nov = ls.filter(function(x){ return !/^Estorno/.test(String(x.item || '')); });
+  if (est.length === 1 && nov.length === 1) return 'Edição · ' + cat + ' · ' + (nov[0].item || cat) + ' · de ' + fmt(-est[0].pontos) + ' para ' + fmt(nov[0].pontos) + ' pts';
   if (ls.length > 1) return cat + ' · ' + ls.length + ' apontamentos' + (l.motivo ? ' · ' + l.motivo : '');
+  if (l.categoria === 'ajuste' && /^Estorno/.test(String(l.item || ''))) return 'Estorno · Ajuste · ' + (l.motivo || '');
   var item = String(l.item || '');
   if (l.categoria === 'ajuste') return 'Ajuste · ' + (l.motivo || item);
   if (/^Estorno/.test(item)) return item.replace(/^Estorno:\s*/, 'Estorno · ' + cat + ' · ');
@@ -1223,7 +1233,7 @@ function verificaBaloes(c, cadT, lanc, ouros, snap, ta){
   Object.keys(grupos).forEach(function(k){
     var ls = grupos[k], novo = ls.filter(function(l){ return !vistos['L' + l.id]; });
     ls.forEach(function(l){ vistos['L' + l.id] = 1; });
-    if (!primeira && novo.length) { var tot = novo.reduce(function(s, l){ return s + (l.pontos || 0); }, 0); if (tot) novos.push([novo[0].time, tot, rotuloLanc(novo)]); }
+    if (!primeira && novo.length) { var tot = novo.reduce(function(s, l){ return s + (l.pontos || 0); }, 0); if (tot || novo.length > 1) novos.push([novo[0].time, tot, rotuloLanc(novo)]); }   // edição que não muda o saldo também avisa
   });
   if (c.dia === ta.dia) {
     // o placar oficial conta pelas PEÇAS (t.pecas): os pontos lançados já entram como balão próprio e não podem inflar meta/hora de ouro
@@ -1877,7 +1887,9 @@ async function carregar(){
       sb.from('competicao_hora_ouro').select('dia, turno, hora, meta_piso, meta_colmeia'),
       MODO_OPERACAO ? Promise.resolve({ data:[] }) : sb.from('competicao_pontos').select('id, dia, turno, time, categoria, item, pontos, motivo, criado_em').eq('dia', RegrasBlack.turnoAtual(new Date()).dia).eq('turno', RegrasBlack.turnoAtual(new Date()).turno),
       // Corte e Pula do robô (estoque.black): só o telão da Black lê; operação e diretoria não fazem esta chamada
-      MODO_OPERACAO ? Promise.resolve({ data:null }) : sb.from('dashboard_snapshots').select('black:dados->black').eq('pagina', 'estoque').maybeSingle()
+      MODO_OPERACAO ? Promise.resolve({ data:null }) : sb.from('dashboard_snapshots').select('black:dados->black').eq('pagina', 'estoque').maybeSingle(),
+      // 28/11: edições/estornos de OUTRO dia ou turno também viram balão (lançados nos últimos 20 min); não entram no placar de hoje
+      MODO_OPERACAO ? Promise.resolve({ data:[] }) : sb.from('competicao_pontos').select('id, dia, turno, time, categoria, item, pontos, motivo, criado_em').gte('criado_em', new Date(Date.now() - 20*60000).toISOString())
     ]);
     if (r[0].error || r[1].error) throw (r[0].error || r[1].error);
     var pg = {}; (r[0].data || []).forEach(function(l){ pg[l.pagina] = l; if (l.atualizado_em) atualizadoEm[l.pagina] = new Date(l.atualizado_em); });
@@ -1922,7 +1934,7 @@ async function carregar(){
     ultimoDesenho = { c: c, snap: snap, snapIn: snapIn, diaOut: diaOut, res: op && op.resumo, blk: blk };
     desenharTelas();
     if (!MODO_OPERACAO && !outroTurno) verificaMetas(c);
-    if (!MODO_OPERACAO && !outroTurno && ehHoje() && !modoSoma() && !r[4].error) verificaBaloes(c, cadT, r[4].data || [], ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);
+    if (!MODO_OPERACAO && !outroTurno && ehHoje() && !modoSoma() && !r[4].error) verificaBaloes(c, cadT, juntaLanc(r[4].data || [], (r[6] && !r[6].error && r[6].data) || []), ouros.filter(function(x){ return x.dia === ta.dia && x.turno === ta.turno; }), snap, ta);
     if (telas[atual].dataset.vazia) mostraTela(proximaTela(1));
   } catch(e) {
     console.error('Telão: falha ao buscar dados', e); falhou = true;   // mantém o último dado na tela, com o selo vermelho
