@@ -440,7 +440,7 @@ table.heat td.h4c{background:color-mix(in srgb, var(--accent) 85%, transparent);
 .comp-pct{display:inline-block; min-width:52px; margin-left:10px; font-weight:600; color:var(--text-muted);}
 .comp-eq{background:var(--bg-card); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-width:0;}
 .comp-eq-head{background:var(--cs); color:var(--c); font-weight:800; font-size:.78rem; padding:9px 12px; display:flex; justify-content:space-between;}
-.comp-eq ol{list-style:none; margin:0; padding:6px 0; max-height:calc(5 * 41px + 12px); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--cs) transparent;}
+.comp-eq ol{list-style:none; margin:0; padding:6px 0; /* 28/11: mostra todos os membros (antes só 5 e o resto rolando dentro do card; o líder achava que faltava gente) */ overflow-y:visible; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--cs) transparent;}
 .comp-eq ol::-webkit-scrollbar{width:6px;} .comp-eq ol::-webkit-scrollbar-thumb{background:var(--cs); border-radius:3px;}
 .comp-eq li{display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:6px; padding:6px 12px; font-size:.76rem; align-items:center; min-height:41px; box-sizing:border-box;}
 .comp-eq li:nth-child(-n+3) .rk{color:var(--c); font-weight:800;}
