@@ -149,10 +149,12 @@ var META_CORTE_PCT = 97, TETO_PULA_PCT = 1, TETO_FIFO_PCT = 1;
 // 3 Verde e 4 Amarelo) têm 2 faturistas no T01; o piso 1 (Vermelho) e o T02 têm uma só.
 // Vale a partir do 1º dia da Black (antes disso o piso tem uma caixa só); dia = último dia da conta.
 var CAIXA_DUPLA = { '1º Turno': [2, 3, 4] }, FATOR_CAIXA_DUPLA = 0.5, CAIXA_DUPLA_DESDE = DIAS[0][0];
-function fatorConf(r, dia) {
+// qualquer = true (28/11): vale para QUALQUER pessoa do time que conferir (ex.: login do líder usado para faturar na 2ª caixa),
+// não só para quem está escalado como faturista (C). Sem ele (selo "2ª caixa" no Admin), só o escalado em C.
+function fatorConf(r, dia, qualquer) {
   if (!dia || dia < CAIXA_DUPLA_DESDE) return 1;
   var l = CAIXA_DUPLA[r && r.turno];
-  return l && l.indexOf(r.time) !== -1 && /^conf/.test(r.atividade) ? FATOR_CAIXA_DUPLA : 1;   // só quem está escalado como faturista (C)
+  return l && l.indexOf(r.time) !== -1 && (qualquer || /^conf/.test(r.atividade)) ? FATOR_CAIXA_DUPLA : 1;
 }
 // Troca de posto no meio do dia: presenca.troca = { 'aaaa-mm-dd': 'HH:MM' ou 'HH:MM>N' } (lançada no Admin ou na planilha).
 // A partir do horário, a conferência vale pela caixa de destino: time N com 2ª caixa no turno = 0,5; sem 2ª caixa = inteira.
@@ -165,13 +167,14 @@ function trocaDoDia(linhas, dia) {
 }
 // Fator da conferência da pessoa no dia: número (o dia todo) ou { antes, min, depois } quando ela trocou de posto.
 function fatorConfDoDia(linhas, r, dia) {
-  var rc = (linhas || []).filter(function (x) { return /^conf/.test(x.atividade); })[0];
-  var antes = rc ? fatorConf(rc, dia) : 1, tr = trocaDoDia(linhas, dia);
+  var rc = (linhas || []).filter(function (x) { return /^conf/.test(x.atividade); })[0] || (linhas || [])[0];
+  var antes = rc ? fatorConf(rc, dia, true) : 1, tr = trocaDoDia(linhas, dia);
   if (!tr || !dia || dia < CAIXA_DUPLA_DESDE) return antes;
   var l = CAIXA_DUPLA[r && r.turno] || [];
   var depois = tr.destino ? (l.indexOf(tr.destino) !== -1 ? FATOR_CAIXA_DUPLA : 1) : (antes === 1 ? FATOR_CAIXA_DUPLA : 1);
   return antes === depois ? antes : { antes: antes, min: tr.min, depois: depois };
 }
+function ehFaturista(linhas) { return (linhas || []).some(function (x) { return /^conf/.test(x.atividade); }); }
 function fatorNoMinuto(fx, minuto) { return fx == null ? 1 : typeof fx === 'number' ? fx : (minuto < fx.min ? fx.antes : fx.depois); }
 function fatorNaHora(fx, h) {   // hora da troca: proporcional aos minutos antes e depois
   if (fx == null) return 1; if (typeof fx === 'number') return fx;
@@ -252,7 +255,8 @@ function calcularCompeticao(snap, cadastro, diaAlvo, todos) {
       ops.forEach(function (o) {
         var f = g + '_' + o, k = achar(r, prod[f].valores);
         if (!k) return;
-        var fr = g !== 'conf' ? 1 : o === 'checkout' ? fxC : fxC0;   // Conferência Colmeia não tem hora: fica o fator do início do dia
+        // Conferência Colmeia não tem hora: fica o fator do início do dia. 28/11: quem NÃO é escalado em C só tem 0,5 no checkout (faturar na caixa do piso)
+        var fr = g !== 'conf' ? 1 : o === 'checkout' ? fxC : (ehFaturista(p.linhas) ? fxC0 : 1);
         m[g] += (prod[f].valores.get(k) || 0) * (o === 'checkout' && g === 'conf' ? fatorMedioConf(snap, diaRef, k, fr) : fr);
         m.chaves[f] = k; if (fr !== 1) m.fator[f] = fr;
       });
@@ -446,6 +450,6 @@ global.RegrasBlack = {
   DESAFIOS: DESAFIOS, GINCANAS: GINCANAS, GINCANAS_DIA: GINCANAS_DIA, GINCANAS_DESC: GINCANAS_DESC, PONTOS_DESAFIO: PONTOS_DESAFIO, fator: fator, pts: pts, turnoAtual: turnoAtual,
   placarDoDia: placarDoDia, minutosTrabalhados: minutosTrabalhados, acumulado: acumulado, isoLocal: isoLocal,
   META_DIA_TIME: META_DIA_TIME, META_TURNO: META_TURNO, ESCALA_META: ESCALA_META, META_EXPEDICAO_PCT: META_EXPEDICAO_PCT, META_CORTE_PCT: META_CORTE_PCT, TETO_PULA_PCT: TETO_PULA_PCT, TETO_FIFO_PCT: TETO_FIFO_PCT, metaDoTime: metaDoTime, metaOuro: metaOuro, GRUPOS: GRUPOS, grupoDoTime: grupoDoTime,
-  NUM_TIMES: NUM_TIMES, TIMES_COLMEIA: TIMES_COLMEIA, TIMES_VESTUARIO: TIMES_VESTUARIO, CAIXA_DUPLA: CAIXA_DUPLA, fatorConf: fatorConf, trocaDoDia: trocaDoDia, fatorConfDoDia: fatorConfDoDia, fatorMedioConf: fatorMedioConf, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
+  NUM_TIMES: NUM_TIMES, TIMES_COLMEIA: TIMES_COLMEIA, TIMES_VESTUARIO: TIMES_VESTUARIO, CAIXA_DUPLA: CAIXA_DUPLA, fatorConf: fatorConf, trocaDoDia: trocaDoDia, fatorConfDoDia: fatorConfDoDia, ehFaturista: ehFaturista, fatorMedioConf: fatorMedioConf, turnosDoCadastro: turnosDoCadastro, calcularCompeticao: calcularCompeticao, ultimoDia: ultimoDia, chaveUsu: chaveUsu, diaOperacional: diaOperacional
 };
 })(typeof window !== 'undefined' ? window : globalThis);

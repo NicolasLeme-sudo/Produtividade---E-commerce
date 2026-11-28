@@ -1960,7 +1960,7 @@ svg [tabindex]:focus, svg [tabindex]:focus-visible{outline:none;}
           // 2ª caixa do piso (0,5 para o faturista C do time com 2ª caixa, a partir da Black) e troca de posto: dia a dia (regras-black.js)
           if (g === 'conf') (prod[f].porDia.get(k) || []).forEach(function(dv){
             var fx = RegrasBlack.fatorConfDoDia(p.linhas, r, dv[0]);
-            m.conf += dv[1] * (o === 'checkout' ? RegrasBlack.fatorMedioConf(snapshots.outbound, dv[0], k, fx) : (typeof fx === 'number' ? fx : fx.antes));
+            m.conf += dv[1] * (o === 'checkout' ? RegrasBlack.fatorMedioConf(snapshots.outbound, dv[0], k, fx) : !RegrasBlack.ehFaturista(p.linhas) ? 1 : (typeof fx === 'number' ? fx : fx.antes));
           });
           else m[g] += prod[f].valores.get(k) || 0;
           if (k !== chaveUsuario(r.usuario_wms) && k !== chaveUsuario(r.nome) && m.casados.indexOf(k) === -1) m.casados.push(k);
