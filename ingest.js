@@ -2460,6 +2460,8 @@ async function renderPontosBlack() {
   var rM = await supabaseClient.from("competicao_times").select("usuario_wms,nome,time,turno").eq("turno", pb.turno);
   var semTabela = (rL.error && /competicao_pontos/.test(rL.error.message)) || (rO.error && /competicao_hora_ouro/.test(rO.error.message));
   var lanc = rL.data || [], ouros = rO.data || [];
+  var rT = await supabaseClient.from("competicao_pontos").select("*").gte("dia", RB.DIAS[0][0]).order("criado_em", { ascending: false });
+  var lancTodos = rT.data || [];
 
   // Peças comuns aos 4 cartões
   var campo = function (rotulo, html) { return '<label class="pb-campo">' + rotulo + html + "</label>"; };
@@ -2525,7 +2527,16 @@ async function renderPontosBlack() {
       campo("Motivo (obrigatório)", '<input id="pb-aj-motivo">')) + '<div><button class="btn" id="pb-btn-ajuste">Lançar ajuste</button></div>' +
     tabelaLanc("ajuste"));
   var cxExtrair = document.getElementById("pb-bloco-extrair");
-  if (cxExtrair) cxExtrair.innerHTML = '<div class="pb-extrair"><span class="upload-status" id="pb-status-extrair"></span><button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições</button></div>';
+  var catRot = { desafio: "Gincana", vistoria: "Vistoria", ajuste: "Ajuste" };
+  var histHtml = !lancTodos.length ? "" : '<details class="panel" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">Todos os lançamentos da Black (' + lancTodos.length + ") · editar ou estornar de qualquer dia</summary>" +
+    '<div class="tbl-wrap" style="margin-top:10px"><table class="comp-classif"><thead><tr><th>Dia</th><th>Turno</th><th>Hora</th><th>Time</th><th>Tipo</th><th>Item</th><th>Pontos</th><th>Motivo</th><th>Por</th><th></th></tr></thead><tbody>' +
+    lancTodos.map(function (l) {
+      var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      return "<tr><td>" + fmtDataBRIngest(l.dia) + "</td><td>" + htmlSeguro(l.turno) + "</td><td>" + hr + "</td><td>" + (COMP_TIMES[l.time] ? COMP_TIMES[l.time][0] : l.time) + "</td><td>" + (catRot[l.categoria] || l.categoria) + "</td><td>" + htmlSeguro(l.item || "") +
+        '</td><td style="text-align:right;font-weight:700;color:' + (l.pontos < 0 ? "var(--red)" : "var(--olive)") + '">' + (l.pontos > 0 ? "+" : "") + l.pontos + "</td><td>" + htmlSeguro(l.motivo || "") + "</td><td>" + htmlSeguro((l.registrado_email || "").replace(/@.*/, "")) +
+        '</td><td style="white-space:nowrap"><button class="btn ghost pb-editar" data-id="' + l.id + '">Editar</button> <button class="btn ghost pb-estorno" data-id="' + l.id + '">Estornar</button></td></tr>';
+    }).join("") + "</tbody></table></div></details>";
+  if (cxExtrair) cxExtrair.innerHTML = '<div class="pb-extrair"><span class="upload-status" id="pb-status-extrair"></span><button class="btn" id="pb-btn-extrair">Extrair Descontos e Adições</button></div>' + histHtml;
 
   // Horas de ouro
   var T = RB.TURNOS[pb.turno] || RB.TURNOS["1º Turno"], horas = [];
@@ -2551,9 +2562,11 @@ async function renderPontosBlack() {
   var gravar = async function (k, linhas, ok) {
     var em = await email();
     var agora = RB.turnoAtual(new Date());
-    if ((pb.dia !== agora.dia || pb.turno !== agora.turno) &&
-      !confirm("Atenção: este lançamento vai para " + fmtDataBRIngest(pb.dia) + " · " + pb.turno + ", que NÃO é o turno atual (" + fmtDataBRIngest(agora.dia) + " · " + agora.turno + ") e não aparece no telão agora.\n\nLançar mesmo assim?")) { aviso(k, "Lançamento cancelado.", "erro"); return; }
-    linhas.forEach(function (l) { l.dia = pb.dia; l.turno = pb.turno; l.registrado_email = em; if (!l.time) l.time = pb.time; });
+    // edição/estorno já vêm com o dia/turno do lançamento original; lançamento novo usa o Dia/Turno escolhidos
+    var dAlvo = linhas[0].dia || pb.dia, tAlvo = linhas[0].turno || pb.turno, corrige = !!linhas[0].dia;
+    if (!corrige && (dAlvo !== agora.dia || tAlvo !== agora.turno) &&
+      !confirm("Atenção: este lançamento vai para " + fmtDataBRIngest(dAlvo) + " · " + tAlvo + ", que NÃO é o turno atual (" + fmtDataBRIngest(agora.dia) + " · " + agora.turno + ") e não aparece no telão agora.\n\nLançar mesmo assim?")) { aviso(k, "Lançamento cancelado.", "erro"); return; }
+    linhas.forEach(function (l) { l.dia = l.dia || pb.dia; l.turno = l.turno || pb.turno; l.registrado_email = em; if (!l.time) l.time = pb.time; });
     var r = await supabaseClient.from("competicao_pontos").insert(linhas);
     if (r.error) { aviso(k, "Erro: " + r.error.message, "erro"); return; }
     await renderPontosBlack(); aviso(k, ok, "ok");
@@ -2616,36 +2629,41 @@ async function renderPontosBlack() {
     gravar("ajuste", [{ categoria: "ajuste", item: "Ajuste manual", pontos: v, motivo: m }], "✓ Ajuste lançado.");
   });
   var chaveCat = { vistoria: "vistoria", desafio: "gincanas", ajuste: "ajuste" };
-  Object.keys(caixas).forEach(function (k) {
-    caixas[k].querySelectorAll(".pb-estorno").forEach(function (b) {
+  var acha = function (id) { return lanc.concat(lancTodos).filter(function (x) { return x.id === id; })[0]; };
+  var conts = Object.keys(caixas).map(function (k) { return [k, caixas[k]]; });
+  if (cxExtrair) conts.push(["extrair", cxExtrair]);
+  conts.forEach(function (par) {
+    var k = par[0], cx = par[1];
+    cx.querySelectorAll(".pb-estorno").forEach(function (b) {
       b.addEventListener("click", function () {
-        var l = lanc.filter(function (x) { return x.id === b.getAttribute("data-id"); })[0];
+        var l = acha(b.getAttribute("data-id"));
         if (!l || !confirm("Estornar " + l.pontos + " pontos do " + COMP_TIMES[l.time][0] + " (" + (l.item || l.categoria) + ")?")) return;
-        gravar(chaveCat[l.categoria] || k, [{ time: l.time, categoria: l.categoria, item: "Estorno: " + (l.item || ""), pontos: -l.pontos, motivo: "Estorno do lançamento das " + new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }], "✓ Estorno lançado.");
+        gravar(k === "extrair" ? k : chaveCat[l.categoria] || k, [{ dia: l.dia, turno: l.turno, time: l.time, categoria: l.categoria, item: "Estorno: " + (l.item || ""), pontos: -l.pontos, motivo: "Estorno do lançamento das " + new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }], "✓ Estorno lançado.");
       });
     });
     // Editar (28/11): o banco não deixa alterar linha (histórico); a edição grava o estorno do original + o lançamento corrigido, juntos.
     // No telão sai um balão só, com a diferença; no extrato ficam as duas linhas.
-    caixas[k].querySelectorAll(".pb-editar").forEach(function (b) {
+    cx.querySelectorAll(".pb-editar").forEach(function (b) {
       b.addEventListener("click", function () {
-        var l = lanc.filter(function (x) { return x.id === b.getAttribute("data-id"); })[0];
+        var l = acha(b.getAttribute("data-id"));
+        var ka = k === "extrair" ? k : chaveCat[l && l.categoria] || k;
         if (!l) return;
         var hr = new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         var sp = prompt("Editar lançamento das " + hr + " · " + COMP_TIMES[l.time][0] + " · " + (l.item || l.categoria) + "\n\nNovos pontos (use - para tirar):", String(l.pontos));
         if (sp === null) return;
         var np = parseInt(sp, 10);
-        if (isNaN(np)) { aviso(chaveCat[l.categoria] || k, "Pontos inválidos.", "erro"); return; }
+        if (isNaN(np)) { aviso(ka, "Pontos inválidos.", "erro"); return; }
         var lista = COMP_TIMES_PONTOS.map(function (n) { return n + " = " + COMP_TIMES[n][0]; }).join(" · ");
         var st = prompt("Time (número):\n" + lista, String(l.time));
         if (st === null) return;
         var nt = Number(st);
-        if (COMP_TIMES_PONTOS.indexOf(nt) === -1) { aviso(chaveCat[l.categoria] || k, "Time inválido.", "erro"); return; }
+        if (COMP_TIMES_PONTOS.indexOf(nt) === -1) { aviso(ka, "Time inválido.", "erro"); return; }
         var nm = prompt("Motivo:", l.motivo || "");
         if (nm === null) return;
         if (np === l.pontos && nt === l.time && (nm || "") === (l.motivo || "")) return;
-        gravar(chaveCat[l.categoria] || k, [
-          { time: l.time, categoria: l.categoria, item: "Estorno: " + (l.item || ""), pontos: -l.pontos, motivo: "Edição do lançamento das " + hr },
-          { time: nt, categoria: l.categoria, item: l.item, pontos: np, motivo: (nm ? nm + " · " : "") + "corrige o lançamento das " + hr }
+        gravar(ka, [
+          { dia: l.dia, turno: l.turno, time: l.time, categoria: l.categoria, item: "Estorno: " + (l.item || ""), pontos: -l.pontos, motivo: "Edição do lançamento das " + hr },
+          { dia: l.dia, turno: l.turno, time: nt, categoria: l.categoria, item: l.item, pontos: np, motivo: (nm ? nm + " · " : "") + "corrige o lançamento das " + hr }
         ], "✓ Lançamento editado (estorno do original + valor novo).");
       });
     });
